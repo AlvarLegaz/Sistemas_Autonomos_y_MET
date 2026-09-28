@@ -2,7 +2,106 @@
 
 Pasarela que funciona como un pequeño PLC: lee entradas y escribe salidas físicas en un ciclo fijo y las intercambia con un SCADA por MQTT.
 
-## Arquitectura
+El proyecto son dos programas que no se hablan directamente, sino a través de un broker MQTT:
+
+```text
+PC: control_remoto.py  ──►  broker MQTT (ip:puerto)  ◄──  Raspberry Pi: gateway_main_app.py
+```
+
+## Puesta en marcha
+
+### 1. Raspberry Pi: `gateway_main_app.py`
+
+Solo la primera vez:
+
+```bash
+sudo raspi-config                       # Interface Options: activar I2C y SPI, y reiniciar
+sudo apt install git python3-dev python3-venv python3-lgpio i2c-tools
+git clone https://github.com/AlvarLegaz/Sistemas_Autonomos_y_MET.git
+cd Sistemas_Autonomos_y_MET/gateway_industrial_excelencia
+python3 -m venv --system-site-packages venv
+source venv/bin/activate
+pip install -r requirements.txt
+i2cdetect -y 1                          # deben aparecer 38 y 39
+```
+
+El usuario tiene que estar en los grupos `i2c`, `spi` y `gpio` (compruébalo con `groups`). `--system-site-packages` hace que `gpiozero` encuentre `lgpio`, la librería de pines de Raspberry Pi OS, y `python3-dev` hace falta para compilar `spidev`.
+
+Cada vez:
+
+```bash
+cd Sistemas_Autonomos_y_MET/gateway_industrial_excelencia
+source venv/bin/activate
+python3 gateway_main_app.py 192.168.99.53:1883 usuario@clave
+```
+
+Para actualizar el código: `git pull` en la carpeta del repositorio.
+
+### 2. PC: `control_remoto/control_remoto.py`
+
+Solo la primera vez (Tkinter ya viene con Python):
+
+```bash
+pip install -r control_remoto/requirements.txt
+```
+
+Cada vez:
+
+```bash
+python control_remoto/control_remoto.py 192.168.99.53:1883 usuario@clave
+```
+
+### Parámetros (iguales en los dos programas)
+
+| Parámetro | Formato | Si se omite |
+| --- | --- | --- |
+| Broker | `ip:puerto` (el puerto es opcional, 1883 por defecto) | En el gateway, `192.168.99.53:1883`; en el control remoto es obligatorio |
+| Credenciales | `usuario@clave` | Conexión sin autenticación |
+
+- La clave se separa en la **primera** `@`, así que puede contener `@` y `:`.
+- Si pones solo `usuario`, la contraseña se toma de la variable de entorno `MQTT_PASSWORD` o se pide por teclado sin mostrarla. Así no queda en el historial de la terminal ni visible en la lista de procesos, lo que es preferible en la Raspberry.
+- El broker va siempre primero: `ip:puerto usuario@clave`.
+
+Si el broker no responde, los dos programas arrancan igualmente y reintentan la conexión solos. El gateway se para con `Ctrl+C` o `SIGTERM` y deja las salidas apagadas.
+
+## Tópicos MQTT
+
+```text
+pct_23/
+├── salidas     PC/SCADA → gateway    órdenes: JSON solo con las salidas a cambiar
+│   ├── DigitalOut1_value … DigitalOut8_value   true/false, 1/0, "on"/"off"
+│   ├── PWMOut1_value                            0-100 %
+│   └── PWMOut2..8_value, AnalogOut1..8_value    se aceptan, sin hardware todavía
+└── entradas    gateway → PC/SCADA    estado completo cada 100 ms
+    ├── DigitalIn1_value … DigitalIn8_value      true/false
+    ├── AnalogIn1_value … AnalogIn8_value        voltios
+    ├── DigitalOut1_value … DigitalOut8_value    estado real de las salidas
+    ├── PWMOut1_value                            duty actual (%)
+    ├── running, io_ok, io_errors, scan_overruns diagnóstico del runtime
+    └── timestamp                                segundos Unix
+```
+
+Ejemplo de orden en `pct_23/salidas`. Las salidas que no aparecen conservan su valor; si algún valor no es válido, se descarta el mensaje entero:
+
+```json
+{"DigitalOut1_value": true, "DigitalOut2_value": 0, "PWMOut1_value": 50}
+```
+
+Ejemplo de estado en `pct_23/entradas`:
+
+```json
+{"AnalogIn1_value": 1.234, "...": "...", "DigitalIn1_value": true, "...": "...",
+ "DigitalOut1_value": false, "...": "...", "PWMOut1_value": 0.0,
+ "running": true, "io_ok": true, "io_errors": 0, "scan_overruns": 0, "timestamp": 1790000000.0}
+```
+
+Los nombres de los tópicos están en `TOPIC_SALIDAS` y `TOPIC_ENTRADAS`, al principio de `gateway_main_app.py` y de `control_remoto.py`; si se cambian, hay que cambiarlos en los dos.
+
+## App de control remoto
+
+Muestra el estado del broker y del gateway (en marcha, error de E/S, sin datos), las 8 entradas digitales, las 8 analógicas y los contadores de diagnóstico. Permite conmutar las 8 salidas digitales, apagarlas todas y fijar el PWM 1. Los botones muestran el estado real que publica el gateway, no el último clic. Si el broker rechaza las credenciales, se indica en la barra superior.
+
+## Arquitectura del gateway
 
 ```text
   SCADA / cliente MQTT
@@ -38,65 +137,7 @@ Pasarela que funciona como un pequeño PLC: lee entradas y escribe salidas físi
 
 Conexión del MCP3008: GPIO 11/SCLK → CLK, GPIO 10/MOSI → DIN, GPIO 9/MISO → DOUT, GPIO 8/CE0 → CS.
 
-## Instalación
-
-En la Raspberry Pi:
-
-1. Activar I2C y SPI: `sudo raspi-config` → Interface Options (y reiniciar).
-2. Comprobar que el usuario está en los grupos `i2c`, `spi` y `gpio` (`groups`).
-3. Instalar las dependencias del sistema y crear el entorno virtual:
-
-```bash
-sudo apt install python3-dev python3-venv python3-lgpio i2c-tools
-python3 -m venv --system-site-packages venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-`--system-site-packages` hace que `gpiozero` encuentre `lgpio` (la librería de pines de Raspberry Pi OS). `python3-dev` hace falta para compilar `spidev`.
-
-4. Comprobar que se ven los chips: `i2cdetect -y 1` debe mostrar `38` y `39`.
-
-## Uso
-
-### Pasarela MQTT
-
-```bash
-python3 gateway_main_app.py
-```
-
-Se para con `Ctrl+C` o `SIGTERM`. Si el broker no está disponible, el runtime sigue funcionando y la conexión se reintenta sola.
-
-Configuración al principio de `gateway_main_app.py`: `MQTT_BROKER_HOST`, `MQTT_BROKER_PORT`, `TOPIC_SALIDAS`, `TOPIC_ENTRADAS` y `PUBLISH_INTERVAL_S`.
-
-**Salidas** (`pct_23/salidas`): JSON con solo las salidas que se quieren cambiar; el resto conserva su valor. Si algún valor no es válido, se descarta el mensaje entero.
-
-```json
-{"DigitalOut1_value": true, "DigitalOut2_value": 0, "PWMOut1_value": 50, "AnalogOut1_value": 1.5}
-```
-
-Las salidas digitales aceptan `true/false`, `1/0` o las cadenas `"true"/"false"`, `"on"/"off"`, `"1"/"0"`. El PWM se limita a 0-100 %.
-
-**Entradas** (`pct_23/entradas`): cada 100 ms. Incluye también el estado actual de las salidas digitales y de `PWMOut1`, para que cualquier cliente vea el estado real aunque otro las haya cambiado.
-
-```json
-{"AnalogIn1_value": 1.234, "...": "...", "DigitalIn1_value": true, "...": "...",
- "DigitalOut1_value": false, "...": "...", "PWMOut1_value": 0.0,
- "running": true, "io_ok": true, "io_errors": 0, "scan_overruns": 0, "timestamp": 1790000000.0}
-```
-
-### App de control remoto
-
-En `control_remoto/` hay una app de escritorio (Tkinter) para manejar la placa desde cualquier PC de la red, a través del mismo broker MQTT. El broker se indica al arrancar:
-
-```bash
-pip install -r control_remoto/requirements.txt
-python control_remoto/control_remoto.py 192.168.99.53:1883
-```
-
-Muestra el estado del broker y del gateway (en marcha, error de E/S, sin datos), las 8 entradas digitales, las 8 analógicas y los contadores de diagnóstico. Permite conmutar las 8 salidas digitales, apagarlas todas y fijar el PWM 1. Los botones muestran el estado real que publica el gateway, no el último clic. Si el broker no responde, la app abre igualmente y reintenta la conexión.
-
-### Pruebas sin MQTT
+## Pruebas en la placa sin MQTT
 
 ```bash
 python3 test_runtime.py   # consola: arrancar, parar, read_ai, read_di, diag, write_do 1 0 0 0 0 0 0 0 ...

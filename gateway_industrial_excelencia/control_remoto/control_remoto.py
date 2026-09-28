@@ -1,12 +1,16 @@
 """Control remoto del gateway industrial por MQTT.
 
-    python control_remoto.py 192.168.99.53:1883
+    python control_remoto.py 192.168.99.53:1883 [usuario@clave]
+
+Con solo "usuario" la contraseña se toma de MQTT_PASSWORD o se pide por teclado.
 
 Muestra entradas digitales y analogicas, el diagnostico del gateway y permite
 conmutar las 8 salidas digitales y fijar el PWM 1.
 """
 import argparse
+import getpass
 import json
+import os
 import queue
 import sys
 import time
@@ -29,25 +33,42 @@ def broker(texto):
     host, sep, puerto = texto.rpartition(":")
     if not sep:
         host, puerto = texto, "1883"
+    if "@" in texto:
+        raise argparse.ArgumentTypeError("el broker va primero: ip:puerto usuario@clave")
     if not host or not puerto.isdigit() or not 0 < int(puerto) < 65536:
         raise argparse.ArgumentTypeError(f"se esperaba ip:puerto, no {texto!r}")
     return host, int(puerto)
 
 
+def credenciales(texto):
+    """'usuario@clave' -> (usuario, clave). Se parte en la PRIMERA @: la clave puede llevar @."""
+    if not texto:
+        return None, None
+    usuario, sep, clave = texto.partition("@")
+    if not sep:
+        clave = os.environ.get("MQTT_PASSWORD")
+        if clave is None:
+            clave = getpass.getpass(f"Contraseña MQTT de {usuario}: ")
+    return usuario, clave
+
+
 class ControlRemoto:
-    def __init__(self, root, host, puerto):
+    def __init__(self, root, host, puerto, usuario=None, clave=None):
         self.root = root
         self.host, self.puerto = host, puerto
         self.mensajes = queue.Queue()     # los callbacks de paho llegan en otro hilo
         self.ultimo_dato = 0.0
         self.salidas = [False] * NUM_CANALES
         self.arrastrando_pwm = False
+        self.rechazo = None
 
         root.title(f"Control remoto gateway - {host}:{puerto}")
         root.resizable(False, False)
         self._construir()
 
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        if usuario:
+            self.client.username_pw_set(usuario, clave)
         self.client.on_connect = self._on_connect
         self.client.on_disconnect = self._on_disconnect
         self.client.on_message = lambda c, u, msg: self.mensajes.put(("datos", msg.payload))
@@ -135,13 +156,17 @@ class ControlRemoto:
     # ------------------------------------------------------------ MQTT
     def _on_connect(self, client, userdata, flags, reason_code, properties):
         if reason_code.is_failure:
+            self.rechazo = str(reason_code)
             self.mensajes.put(("broker", f"Rechazado: {reason_code}"))
             return
+        self.rechazo = None
         client.subscribe(TOPIC_ENTRADAS)
         self.mensajes.put(("broker", None))
 
     def _on_disconnect(self, client, userdata, flags, reason_code, properties):
-        self.mensajes.put(("broker", "Desconectado, reintentando..."))
+        # Tras un rechazo (p. ej. clave mala) se mantiene el motivo a la vista.
+        if not self.rechazo:
+            self.mensajes.put(("broker", "Desconectado, reintentando..."))
 
     # ------------------------------------------------------------ refresco (hilo de Tk)
     def _refrescar(self):
@@ -160,7 +185,7 @@ class ControlRemoto:
 
         if time.monotonic() - self.ultimo_dato > GATEWAY_TIMEOUT_S:
             self.lbl_gateway.config(text="Gateway: sin datos", bg=GRIS)
-        self.root.after(100, self._refrescar)
+        self.refresco = self.root.after(100, self._refrescar)
 
     def _mostrar(self, payload):
         try:
@@ -195,6 +220,7 @@ class ControlRemoto:
             self.pwm.set(round(float(d["PWMOut1_value"])))
 
     def cerrar(self):
+        self.root.after_cancel(self.refresco)
         self.client.disconnect()
         self.client.loop_stop()
         self.root.destroy()
@@ -203,10 +229,12 @@ class ControlRemoto:
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("broker", type=broker, help="broker MQTT como ip:puerto (puerto 1883 si se omite)")
-    host, puerto = ap.parse_args().broker
+    ap.add_argument("credenciales", nargs="?", help="usuario@clave, o solo usuario (sin autenticacion si se omite)")
+    args = ap.parse_args()
+    usuario, clave = credenciales(args.credenciales)
 
     root = tk.Tk()
-    ControlRemoto(root, host, puerto)
+    ControlRemoto(root, *args.broker, usuario=usuario, clave=clave)
     root.mainloop()
 
 
