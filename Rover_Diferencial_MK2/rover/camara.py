@@ -23,6 +23,8 @@ CALIDAD_JPEG = 80
 ESPERA_PRIMER_FRAME = 3.0
 # Si la cámara deja de dar fotogramas más de este tiempo, se da por perdida.
 FRAME_CADUCADO = 2.0
+# La cámara va montada boca abajo en el rover: se gira la imagen 180°.
+ROTAR_180 = True
 
 
 # Hereda de io.BufferedIOBase porque la propia cámara es la salida del
@@ -113,6 +115,7 @@ class Camara(io.BufferedIOBase):
             from picamera2 import Picamera2
             from picamera2.encoders import JpegEncoder, MJPEGEncoder
             from picamera2.outputs import FileOutput
+            from libcamera import Transform
         except ImportError:
             print("Cámara CSI: picamera2 no está instalado "
                   "(sudo apt install python3-picamera2)")
@@ -120,8 +123,12 @@ class Camara(io.BufferedIOBase):
 
         try:
             picam = Picamera2()
+            # El giro de 180° (volteo horizontal + vertical) lo hace el
+            # procesador de imagen de la Pi: no gasta CPU.
+            giro = Transform(hflip=1, vflip=1) if ROTAR_180 else Transform()
             picam.configure(picam.create_video_configuration(
-                main={"size": RESOLUCION}, controls={"FrameRate": FPS}))
+                main={"size": RESOLUCION}, controls={"FrameRate": FPS},
+                transform=giro))
             try:
                 # Codificador por hardware de la Pi 4: casi no gasta CPU.
                 picam.start_recording(MJPEGEncoder(), FileOutput(self))
@@ -168,6 +175,8 @@ class Camara(io.BufferedIOBase):
             if not ok:
                 time.sleep(0.1)
                 continue
+            if ROTAR_180:
+                imagen = cv2.rotate(imagen, cv2.ROTATE_180)
             ok, jpeg = cv2.imencode(".jpg", imagen, parametros)
             if ok:
                 self.write(jpeg.tobytes())
