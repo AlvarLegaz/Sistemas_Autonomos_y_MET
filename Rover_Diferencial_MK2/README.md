@@ -15,14 +15,14 @@ pip install -r requirements.txt
 python main.py
 ```
 
-**Cámara en la Raspberry:** el vídeo se ve en la interfaz como stream MJPEG (`/camara`). Sirve una cámara CSI (Raspberry Pi Camera Module) o una webcam USB. Sus librerías se instalan con apt, y si usas un entorno virtual tiene que crearse con `--system-site-packages` para verlas:
+**En la Raspberry:** los motores se mueven con `gpiozero` y el vídeo se ve en la interfaz como stream MJPEG (`/camara`), con una cámara CSI (Raspberry Pi Camera Module) o una webcam USB. Estas librerías se instalan con apt, y si usas un entorno virtual tiene que crearse con `--system-site-packages` para verlas:
 
 ```bash
-sudo apt install python3-picamera2 python3-opencv
+sudo apt install python3-gpiozero python3-lgpio python3-picamera2 python3-opencv
 python3 -m venv --system-site-packages venv
 ```
 
-Al arrancar, la consola indica qué cámara ha encontrado o por qué no hay imagen. Más detalle en [rover/ARQUITECTURA.md](rover/ARQUITECTURA.md#cámara-en-la-raspberry-pi).
+Al arrancar, la consola indica si los motores van por GPIO o simulados, y qué cámara ha encontrado o por qué no hay imagen. Más detalle en [rover/ARQUITECTURA.md](rover/ARQUITECTURA.md#cámara-en-la-raspberry-pi).
 
 ## Documentación del hardware
 
@@ -107,6 +107,22 @@ La placa es la del kit Elegoo Smart Robot Car V3.0: una L298N de **2 canales** (
 | 5V | Sin conectar | Ver aviso sobre alimentar la Pi |
 | Canal A (2 conectores) | Un motor izquierdo en cada conector | Si un motor gira al revés, se invierte su conector |
 | Canal B (2 conectores) | Un motor derecho en cada conector | |
+
+### A través de la Smart Car Shield del kit
+
+En el kit, la L298N se conecta a la Smart Car Shield V3.0 con un cable, y la shield lleva esas señales a los pines del Arduino. Se puede usar la shield como placa de reparto: **se quita el Arduino UNO** (si no, los dos mandarían sobre los mismos pines) y se une la Raspberry a los pines de abajo de la shield con cables Dupont hembra-hembra.
+
+| Raspberry Pi (pin físico) | GPIO | Pin de la shield (antiguo pin del Arduino) | L298N |
+| --- | --- | --- | --- |
+| 32 | GPIO12 | D5 | ENA |
+| 29 | GPIO5 | D7 | IN1 |
+| 31 | GPIO6 | D8 | IN2 |
+| 33 | GPIO13 | D6 | ENB |
+| 35 | GPIO19 | D9 | IN3 |
+| 36 | GPIO16 | D11 | IN4 |
+| 34 (o 30, 39) | GND | GND | GND |
+
+No se conectan el 5V ni el VIN de la shield a la Raspberry. En la primera prueba, con las ruedas en el aire: si se mueve el lado contrario, se intercambian en `hardware.py` los pines `MOTOR_IZQ_*` con los `MOTOR_DER_*`; si un lado gira al revés, se intercambian sus dos IN.
 
 **Avisos importantes:**
 

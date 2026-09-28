@@ -227,9 +227,18 @@ Si el rover se ejecuta en un entorno virtual, hay que crearlo con
 `python3 -m venv --system-site-packages venv`; sin esa opción el entorno no ve
 Picamera2 y no habrá imagen.
 
+### Motores en la Raspberry Pi
+
+`hardware.py` mueve los motores de verdad con `gpiozero`: PWM en ENA/ENB para
+la velocidad (|consigna| / 100 como duty) e IN1-IN4 para el sentido; con
+consigna 0 queda en rueda libre. Fuera de la Raspberry (sin `gpiozero` o sin
+pines) no falla: los motores se simulan y la consola lo indica al arrancar.
+`gpiozero` y su librería de pines se instalan con apt
+(`sudo apt install python3-gpiozero python3-lgpio`).
+
 ## Qué falta
 
-- Acceso real al hardware en `hardware.py` (GPIO, PWM del L298, I2C, serie, ADC de batería).
+- Acceso real al resto del hardware en `hardware.py` (I2C, serie, ADC de batería).
 - Lectura real de la IMU y parseo NMEA del GPS.
 - Navegación: `Rover.girar_grados()` y `Rover.ir_a()` están declarados y vacíos.
 - Servidor UDP.

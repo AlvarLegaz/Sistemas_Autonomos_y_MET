@@ -79,11 +79,14 @@ class Hardware:
         self._cerrojo = threading.Lock()
         self._fin = threading.Event()
         self._hilo = None
+        # Salidas del L298N por lado: (PWM de velocidad, sentido A, sentido B).
+        # None cuando no hay GPIO (PC): entonces los motores solo se simulan.
+        self._motores = None
 
     def configurar(self):
         """Prepara el hardware y arranca el vigilante de órdenes."""
-        # TODO(hardware real): detectar la Raspberry, inicializar GPIO/PWM para
-        # el L298 (MOTOR_*), abrir I2C_BUS y GPS_PUERTO a GPS_BAUDIOS.
+        # TODO(hardware real): abrir I2C_BUS y GPS_PUERTO a GPS_BAUDIOS.
+        self._iniciar_motores()
         self.configurado = True
         if self._hilo is None or not self._hilo.is_alive():
             self._fin.clear()
@@ -110,8 +113,58 @@ class Hardware:
         # nadie pueda enviar una consigna fuera de rango por otro camino.
         self.izquierda = max(VELOCIDAD_MIN, min(VELOCIDAD_MAX, int(izquierda)))
         self.derecha = max(VELOCIDAD_MIN, min(VELOCIDAD_MAX, int(derecha)))
-        # TODO(hardware real): traducir a PWM en ENA/ENB y sentido en IN1..IN4.
+        if self._motores is not None:
+            self._escribir_lado(self._motores["izquierda"], self.izquierda)
+            self._escribir_lado(self._motores["derecha"], self.derecha)
         return {"izquierda": self.izquierda, "derecha": self.derecha}
+
+    def _iniciar_motores(self):
+        """Crea las salidas del L298N con gpiozero.
+
+        Fuera de la Raspberry (sin gpiozero o sin pines) no falla: los motores
+        quedan simulados y todo lo demás funciona igual, como en el PC.
+        """
+        if self._motores is not None:
+            return
+        creados = []
+        try:
+            from gpiozero import DigitalOutputDevice, PWMOutputDevice
+
+            def salida(clase, pin, **opciones):
+                dispositivo = clase(pin, **opciones)
+                creados.append(dispositivo)
+                return dispositivo
+
+            pwm = {"frequency": MOTOR_PWM_FRECUENCIA_HZ}
+            self._motores = {
+                "izquierda": (salida(PWMOutputDevice, MOTOR_IZQ_ENA, **pwm),
+                              salida(DigitalOutputDevice, MOTOR_IZQ_IN1),
+                              salida(DigitalOutputDevice, MOTOR_IZQ_IN2)),
+                "derecha": (salida(PWMOutputDevice, MOTOR_DER_ENB, **pwm),
+                            salida(DigitalOutputDevice, MOTOR_DER_IN3),
+                            salida(DigitalOutputDevice, MOTOR_DER_IN4)),
+            }
+            self.raspberry = True
+            print(f"Motores: L298N en GPIO (ENA={MOTOR_IZQ_ENA} IN1={MOTOR_IZQ_IN1} "
+                  f"IN2={MOTOR_IZQ_IN2} | ENB={MOTOR_DER_ENB} IN3={MOTOR_DER_IN3} "
+                  f"IN4={MOTOR_DER_IN4}, PWM {MOTOR_PWM_FRECUENCIA_HZ} Hz)")
+        except Exception as e:
+            for dispositivo in creados:
+                dispositivo.close()
+            self._motores = None
+            self.raspberry = False
+            print(f"Motores simulados (sin GPIO: {e})")
+
+    @staticmethod
+    def _escribir_lado(lado, velocidad):
+        """velocidad -100..+100 -> sentido en los IN y |velocidad| como duty del EN.
+
+        Con 0 los dos IN quedan a 0 y el EN a 0: parada en rueda libre.
+        """
+        en, in_a, in_b = lado
+        in_a.value = velocidad > 0
+        in_b.value = velocidad < 0
+        en.value = abs(velocidad) / 100
 
     def _vigilar(self):
         """Para los motores si pasa WATCHDOG_TIMEOUT sin una orden nueva."""
@@ -145,5 +198,10 @@ class Hardware:
             self._hilo.join(timeout=1.0)
             self._hilo = None
         self.set_motores(0, 0)
-        # TODO(hardware real): GPIO.cleanup(), cerrar I2C y el puerto serie.
+        if self._motores is not None:
+            for lado in self._motores.values():
+                for dispositivo in lado:
+                    dispositivo.close()
+            self._motores = None
+        # TODO(hardware real): cerrar I2C y el puerto serie.
         self.configurado = False
