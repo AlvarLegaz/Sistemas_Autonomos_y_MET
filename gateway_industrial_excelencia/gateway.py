@@ -10,7 +10,7 @@ from runtime import Runtime
 
 MQTT_BROKER_HOST = "192.168.99.53"
 MQTT_BROKER_PORT = 1883
-MQTT_CLIENT_ID = "pct_23_mqtt_app"
+MQTT_CLIENT_ID = "pct_23_gateway"
 
 TOPIC_SALIDAS = "pct_23/salidas"
 TOPIC_ENTRADAS = "pct_23/entradas"
@@ -18,7 +18,7 @@ TOPIC_ENTRADAS = "pct_23/entradas"
 PUBLISH_INTERVAL_S = 0.1
 
 
-class MQTTApp:
+class Gateway:
     def __init__(self):
         self.stop_event = threading.Event()
         self.runtime = Runtime()
@@ -91,24 +91,24 @@ class MQTTApp:
             print(f"Conectando MQTT a {MQTT_BROKER_HOST}:{MQTT_BROKER_PORT}...")
             self.client.connect_async(MQTT_BROKER_HOST, MQTT_BROKER_PORT, keepalive=60)
             self.client.loop_start()
-            print("MQTTApp arrancada")
+            print("Gateway arrancado")
 
             while not self.stop_event.wait(PUBLISH_INTERVAL_S):
                 if self.client.is_connected():
                     self.publish_inputs()
         finally:
-            print("Parando MQTTApp...")
+            print("Parando gateway...")
             self.client.disconnect()
             self.client.loop_stop()
             self.runtime.stop()
-            print("MQTTApp parada")
+            print("Gateway parado")
 
     def stop(self):
         self.stop_event.set()
 
 
 if __name__ == "__main__":
-    app = MQTTApp()
+    app = Gateway()
     signal.signal(signal.SIGINT, lambda sig, frame: app.stop())
     signal.signal(signal.SIGTERM, lambda sig, frame: app.stop())
     app.run()

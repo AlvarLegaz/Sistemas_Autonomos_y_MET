@@ -8,7 +8,7 @@ Pasarela que funciona como un pequeño PLC: lee entradas y escribe salidas físi
   SCADA / cliente MQTT
         │ pct_23/salidas (JSON)              ▲ pct_23/entradas (JSON cada 100 ms)
         ▼                                    │
-  mqtt_app.py ── MQTTApp ────────────────────┘
+  gateway.py ── Gateway ─────────────────────┘
         │ update_outputs() / read*Input() / diagnostico()
         ▼
   runtime.py ── Runtime (imagen de proceso)
@@ -62,12 +62,12 @@ pip install -r requirements.txt
 ### Pasarela MQTT
 
 ```bash
-python3 mqtt_app.py
+python3 gateway.py
 ```
 
 Se para con `Ctrl+C` o `SIGTERM`. Si el broker no está disponible, el runtime sigue funcionando y la conexión se reintenta sola.
 
-Configuración al principio de `mqtt_app.py`: `MQTT_BROKER_HOST`, `MQTT_BROKER_PORT`, `TOPIC_SALIDAS`, `TOPIC_ENTRADAS` y `PUBLISH_INTERVAL_S`.
+Configuración al principio de `gateway.py`: `MQTT_BROKER_HOST`, `MQTT_BROKER_PORT`, `TOPIC_SALIDAS`, `TOPIC_ENTRADAS` y `PUBLISH_INTERVAL_S`.
 
 **Salidas** (`pct_23/salidas`): JSON con solo las salidas que se quieren cambiar; el resto conserva su valor. Si algún valor no es válido, se descarta el mensaje entero.
 
