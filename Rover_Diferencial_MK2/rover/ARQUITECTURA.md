@@ -171,8 +171,15 @@ navegador de la misma red (PC, móvil o tablet).
   recorrido (a fondo = velocidad base o giro diferencial de los
   deslizadores). Zona muerta del 12 % en el centro; los ejes clavados de
   fábrica se ignoran hasta que se mueven, y la vertical derecha (eje 3, 5 o 4
-  según el mando) se detecta sola. Mientras la palanca está fuera del centro
-  manda sobre las teclas.
+  según el mando) se detecta sola, entre los ejes que reposan en el centro.
+  Mientras la palanca está fuera del centro manda sobre las teclas.
+- **Gatillos** del mando: mientras se aprieta, el derecho fija el límite de
+  velocidad y el izquierdo el de giro (lo apretado, 0-100 %; también con el
+  teclado); al soltarlos vuelven los deslizadores. Con mapeo `standard` son
+  los botones 6 y 7; en los mandos genéricos, los ejes que reposan en −1
+  (las palancas reposan en 0), izquierdo el de índice más bajo. La línea
+  "Mando:" muestra los límites en vigor y si vienen del gatillo o del
+  deslizador.
 - **Móvil** (ancho ≤ 800 px o alto ≤ 500 px): el visor pasa a ser lo primero,
   a todo el ancho, y los mandos van superpuestos dentro de la imagen como en
   un juego de vehículos: cruceta ▲◀▼▶ abajo a la izquierda, PARAR redondo

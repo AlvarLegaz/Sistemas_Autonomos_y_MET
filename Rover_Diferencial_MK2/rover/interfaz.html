@@ -234,8 +234,10 @@
           que el navegador lo vea): palanca izquierda a los lados = girar;
           palanca derecha arriba/abajo = adelante y atrás. La potencia es
           proporcional al recorrido: a fondo, la de los deslizadores de
-          velocidad base y giro. La palanca manda sobre las teclas mientras
-          esté fuera del centro.
+          velocidad base y giro. Mientras aprietas el gatillo derecho, él fija
+          el límite de velocidad (lo que aprietes, de 0 a 100 %), y el
+          izquierdo el de giro; al soltarlos vuelven los deslizadores. La
+          palanca manda sobre las teclas mientras esté fuera del centro.
         </div>
       </div>
     </div>
@@ -406,8 +408,12 @@ function pintarTeclas() {
 const EJE_GIRO = 0;
 const EJES_AVANCE = [3, 5, 4];
 const ZONA_MUERTA = 0.12;
-// Valores −1..1 ya sin zona muerta; 0 = palanca centrada (mandan las teclas).
-const mando = { avance: 0, giro: 0 };
+// Por debajo de esto el gatillo se considera suelto.
+const ZONA_GATILLO = 0.05;
+// avance/giro: −1..1 ya sin zona muerta; 0 = palanca centrada (mandan las
+// teclas). limVel/limGiro: 0..1 mientras se aprieta el gatillo derecho /
+// izquierdo (límite de velocidad / de giro); null = suelto, manda el deslizador.
+const mando = { avance: 0, giro: 0, limVel: null, limGiro: null };
 
 function elegirMando() {
   if (!navigator.getGamepads) return null;
@@ -436,6 +442,32 @@ function eje(g, i) {
   return Math.sign(v) * (Math.abs(v) - ZONA_MUERTA) / (1 - ZONA_MUERTA);
 }
 
+// Gatillos, 0 = suelto, 1 = a fondo. Con mapeo "standard" son los botones 6
+// (izquierdo) y 7 (derecho), con valor analógico. En los mandos genéricos
+// suelen ser ejes que reposan en −1 (las palancas reposan en 0): se toman los
+// dos de índice más bajo con ese reposo, izquierdo el primero. Si el mando los
+// da como botones digitales, apretados valen 1.
+function ejesGatillo(g) {
+  if (g.mapping === "standard") return [];
+  return Object.keys(ejeReposo)
+    .filter((k) => k.startsWith(g.index + ":") && ejeReposo[k] <= -0.5)
+    .map((k) => Number(k.split(":")[1]))
+    .filter((i) => i > 2)
+    .sort((a, b) => a - b);
+}
+
+function gatillo(g, lado) {           // lado 0 = izquierdo, 1 = derecho
+  const boton = g.buttons[6 + lado];
+  let v = boton ? boton.value || (boton.pressed ? 1 : 0) : 0;
+  const i = ejesGatillo(g)[lado];
+  const k = g.index + ":" + i;
+  if (i !== undefined && ejeVivo[k]) {
+    const reposo = ejeReposo[k];
+    v = Math.max(v, Math.min(1, Math.max(0, (g.axes[i] - reposo) / (1 - reposo))));
+  }
+  return v > ZONA_GATILLO ? v : null;
+}
+
 function mandoPulsa(t) {
   return { w: mando.avance > 0, s: mando.avance < 0, d: mando.giro > 0, a: mando.giro < 0 }[t] || false;
 }
@@ -447,21 +479,28 @@ function leerMando() {
     // Se leen todos los ejes para saber cuáles se han movido ya.
     const valores = Array.from(g.axes, (_, i) => eje(g, i));
     if (!(g.index in ejeAvance)) {
-      const movido = EJES_AVANCE.find((i) => ejeVivo[g.index + ":" + i]);
+      // Solo ejes que reposan en el centro: un gatillo (reposo −1) no es la palanca.
+      const movido = EJES_AVANCE.find((i) => ejeVivo[g.index + ":" + i]
+                                          && Math.abs(ejeReposo[g.index + ":" + i]) < 0.5);
       if (movido !== undefined) ejeAvance[g.index] = movido;
     }
     const ejeAv = g.index in ejeAvance ? ejeAvance[g.index]
       : (g.mapping !== "standard" && g.axes.length >= 6 ? 5 : 3);
     mando.avance = -(valores[ejeAv] || 0);
     mando.giro = valores[EJE_GIRO] || 0;
+    mando.limGiro = gatillo(g, 0);
+    mando.limVel = gatillo(g, 1);
     const f = (n) => (n >= 0 ? "+" : "") + n.toFixed(2);
+    const lim = (v, id) => v !== null ? Math.round(v * 100) + " % (gatillo)" : $(id).value + " % (deslizador)";
     const quietos = [EJE_GIRO, ejeAv].filter((i) => !ejeVivo[g.index + ":" + i]);
     $("mando").textContent = g.id.slice(0, 40) + " · ejes " + Array.from(g.axes).map(f).join(" ")
       + " → avance " + f(mando.avance) + " (eje " + ejeAv + (g.index in ejeAvance ? "" : " de partida") + ")"
       + " giro " + f(mando.giro)
+      + " · límites: velocidad " + lim(mando.limVel, "velocidad") + ", giro " + lim(mando.limGiro, "giro")
       + (quietos.length ? " (ejes " + quietos.join(",") + " sin mover aún, se ignoran)" : "");
   } else {
     mando.avance = mando.giro = 0;
+    mando.limVel = mando.limGiro = null;
     $("mando").textContent = "ninguno";
   }
   if (antes !== mando.avance + "," + mando.giro) pintarTeclas();
@@ -536,8 +575,9 @@ $("giro").addEventListener("input", (e) => { $("v-giro").textContent = e.target.
 
 // ---- mezcla diferencial ----
 function mezclar() {
-  const base = Number($("velocidad").value);
-  const dif = Number($("giro").value);
+  // Límites: los del gatillo mientras se aprieta; sueltos, los deslizadores.
+  const base = mando.limVel !== null ? mando.limVel * 100 : Number($("velocidad").value);
+  const dif = mando.limGiro !== null ? mando.limGiro * 100 : Number($("giro").value);
   // Teclas: −1, 0 o 1. Palanca del mando: proporcional a su recorrido, y
   // manda sobre las teclas mientras esté fuera del centro.
   const avance = mando.avance !== 0 ? mando.avance : (teclas.w ? 1 : 0) - (teclas.s ? 1 : 0);
