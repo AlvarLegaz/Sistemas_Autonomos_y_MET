@@ -204,18 +204,32 @@ pip install -r requirements.txt
 python main.py
 ```
 
-Funciona igual en Windows, en WSL y en la Raspberry Pi: en esta fase no se usa
-ninguna librería específica de la Pi. Cuando se implemente el hardware real
-(`RPi.GPIO`/`gpiozero`, `smbus2`, `picamera2`) esa parte solo podrá probarse en
-la Raspberry — WSL tampoco tiene GPIO ni bus I2C.
+Funciona igual en Windows, en WSL y en la Raspberry Pi. Cuando se implemente el
+resto del hardware real (`RPi.GPIO`/`gpiozero`, `smbus2`) esa parte solo podrá
+probarse en la Raspberry — WSL tampoco tiene GPIO ni bus I2C.
+
+### Cámara en la Raspberry Pi
+
+`camara.py` captura de verdad: busca primero una cámara CSI (Raspberry Pi
+Camera Module) con Picamera2 y, si no la hay, una webcam USB con OpenCV. Los
+fotogramas se codifican a JPEG (en la Pi 4 con el codificador MJPEG por
+hardware) y el servidor los envía como stream MJPEG en `GET /camara`. Al
+arrancar, la consola dice qué cámara ha encontrado o por qué no hay ninguna.
+
+Picamera2 y OpenCV se instalan con apt, no con pip:
+
+```
+sudo apt install python3-picamera2 python3-opencv
+rpicam-hello --list-cameras        # debe listar la cámara CSI
+```
+
+Si el rover se ejecuta en un entorno virtual, hay que crearlo con
+`python3 -m venv --system-site-packages venv`; sin esa opción el entorno no ve
+Picamera2 y no habrá imagen.
 
 ## Qué falta
 
 - Acceso real al hardware en `hardware.py` (GPIO, PWM del L298, I2C, serie, ADC de batería).
 - Lectura real de la IMU y parseo NMEA del GPS.
-- Captura real en `camara.py` (Picamera2, codificar a JPEG en
-  `obtener_frame()`). El flujo en `GET /camara`, el visor y la grabación ya
-  están hechos y probados con el simulador (`../rover_sim/`), que tiene la
-  misma arquitectura con un mundo simulado debajo.
 - Navegación: `Rover.girar_grados()` y `Rover.ir_a()` están declarados y vacíos.
 - Servidor UDP.

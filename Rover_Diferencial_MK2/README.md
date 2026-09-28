@@ -15,6 +15,15 @@ pip install -r requirements.txt
 python main.py
 ```
 
+**Cámara en la Raspberry:** el vídeo se ve en la interfaz como stream MJPEG (`/camara`). Sirve una cámara CSI (Raspberry Pi Camera Module) o una webcam USB. Sus librerías se instalan con apt, y si usas un entorno virtual tiene que crearse con `--system-site-packages` para verlas:
+
+```bash
+sudo apt install python3-picamera2 python3-opencv
+python3 -m venv --system-site-packages venv
+```
+
+Al arrancar, la consola indica qué cámara ha encontrado o por qué no hay imagen. Más detalle en [rover/ARQUITECTURA.md](rover/ARQUITECTURA.md#cámara-en-la-raspberry-pi).
+
 ## Documentación del hardware
 
 | Fichero | Contenido |
