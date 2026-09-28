@@ -1,0 +1,1697 @@
+<!DOCTYPE html>
+<!--
+  Interfaz de control del submarino. La sirve servidor_web.py en GET /.
+
+  Todo va en este único fichero y sin librerías externas a propósito: el
+  submarino no tendrá internet en el campo, así que no puede depender de
+  ningún CDN. Única excepción (2026-09-27, visor 3D del entrenamiento en el
+  simulador): three.min.js va copiado dentro del propio proyecto y esta
+  página lo pide a este mismo servidor (GET /three.min.js), igual que /camara
+  o /telemetria, nunca a un CDN externo — sigue funcionando sin internet en
+  el campo. Solo se usa si /telemetria trae el bloque "mundo" (simulador); en
+  el submarino real la cámara sigue siendo el <img> con el MJPEG de siempre.
+
+  A diferencia del rover, el control se envía SIEMPRE cada 150 ms mientras la
+  página esté abierta, también con todo a cero: el submarino mantiene la
+  profundidad con su PID solo mientras recibe órdenes, y si pasa medio segundo
+  sin ninguna el hardware para los motores y el submarino sube solo (ver el
+  vigilante en hardware.py).
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Submarino</title>
+<style>
+  :root {
+    --fondo: #0d1117;
+    --tarjeta: #161b22;
+    --borde: #283039;
+    --texto: #e6edf3;
+    --tenue: #8b949e;
+    --azul: #2f81f7;
+    --verde: #2ea043;
+    --rojo: #f85149;
+    --ambar: #d29922;
+    --cian: #39c5cf;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--texto);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 14px 20px; border-bottom: 1px solid var(--borde); background: var(--tarjeta);
+  }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
+  header .sub { color: var(--tenue); font-size: 12px; }
+  .espacio { flex: 1; }
+  .estado { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .punto { width: 10px; height: 10px; border-radius: 50%; background: var(--tenue); }
+  .punto.ok { background: var(--verde); box-shadow: 0 0 8px var(--verde); }
+  .punto.mal { background: var(--rojo); box-shadow: 0 0 8px var(--rojo); }
+
+  main {
+    display: grid; gap: 16px; padding: 16px;
+    grid-template-columns: 320px 1fr 300px;
+    align-items: start;
+  }
+  @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+
+  .tarjeta { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 10px; }
+  .tarjeta h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: var(--tenue);
+    margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--borde); font-weight: 600;
+  }
+  .cuerpo { padding: 16px; }
+  .col { display: grid; gap: 16px; }
+
+  /* --- teclas --- */
+  /* Cuatro columnas: WASD en las tres primeras y SUBIR / BAJAR en la cuarta. */
+  .teclado { display: grid; grid-template-columns: repeat(4, 62px); gap: 8px; justify-content: center; }
+  .tecla {
+    grid-column: span 1; height: 62px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--borde); background: #1c2430; color: var(--texto);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 600; touch-action: none;
+    transition: background .08s, border-color .08s;
+  }
+  /* Sin selección de texto ni menú de pulsación larga (iOS necesita los
+     prefijos -webkit-). Se aplica a todo el visor, botones incluidos. */
+  .tecla, .visor {
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  }
+  .tecla small { font-size: 16px; font-weight: 400; color: var(--tenue); }
+  .tecla:hover { border-color: #3d4956; }
+  .tecla.activa { background: var(--azul); border-color: var(--azul); }
+  .tecla.activa small { color: #fff; }
+  .tecla.w { grid-column: 2; grid-row: 1; }
+  .tecla.a { grid-column: 1; grid-row: 2; }
+  .tecla.s { grid-column: 2; grid-row: 2; }
+  .tecla.d { grid-column: 3; grid-row: 2; }
+  .tecla.subir { grid-column: 4; grid-row: 1; font-size: 12px; color: var(--cian); }
+  .tecla.bajar { grid-column: 4; grid-row: 2; font-size: 12px; color: var(--cian); }
+  .tecla.subir.activa, .tecla.bajar.activa { color: #fff; }
+  .tecla.parar {
+    grid-column: 1 / span 4; height: 44px; font-size: 13px; letter-spacing: .5px;
+    background: #2a1416; border-color: #5c1f23; color: #ff9c99;
+  }
+  .tecla.parar:hover { background: #3a181b; }
+  .pulsadas { margin-top: 14px; color: var(--tenue); font-size: 12px; min-height: 18px; }
+
+  /* --- deslizadores --- */
+  .campo { margin-bottom: 14px; }
+  .campo label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+  .campo label b { color: var(--azul); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--azul); }
+
+  /* --- barras de empuje --- */
+  .empujes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .barra { position: relative; height: 22px; background: #0b0f14; border: 1px solid var(--borde); border-radius: 5px; overflow: hidden; }
+  .barra .relleno { position: absolute; top: 0; bottom: 0; left: 50%; width: 0; background: var(--azul); transition: width .1s, left .1s; }
+  .barra .cero { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: #3d4956; }
+  .escala { display: flex; justify-content: space-between; color: var(--tenue); font-size: 11px; margin-top: 4px; }
+  .empuje-tit { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; }
+  .empuje-tit b { font-variant-numeric: tabular-nums; }
+
+  /* --- visor --- */
+  .visor {
+    aspect-ratio: 4 / 3; background: #0b0f14; border: 1px dashed var(--borde); border-radius: 8px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    color: var(--tenue); overflow: hidden;
+  }
+  .visor .icono { font-size: 34px; opacity: .45; }
+  .visor .sin-imagen { font-size: 15px; font-weight: 600; letter-spacing: 1.5px; color: #c9d1d9; }
+  .visor .motivo { font-size: 12px; color: var(--tenue); }
+  .visor img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: none; }
+  .visor.con-imagen img { display: block; }
+  .visor.con-imagen { border-style: solid; }
+  .visor canvas#escena3d { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+  .visor.modo-3d canvas#escena3d { display: block; }
+  .visor.modo-3d img { display: none; }
+  .grabacion { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 12px; color: var(--tenue); }
+  .grabacion button {
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font: inherit; font-weight: 600;
+    border: 1px solid var(--borde); background: #1c2430; color: var(--texto);
+  }
+  .grabacion button.grabando { background: #5a1418; border-color: var(--rojo); color: #ffb3b0; }
+  .grabacion button:disabled { opacity: .5; cursor: default; }
+
+  /* --- PID activo / manual --- */
+  .pid { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 12px; color: var(--tenue); }
+  .pid button {
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font: inherit; font-weight: 600;
+    border: 1px solid rgba(57, 197, 207, .5); background: #143c46; color: #bff3f7;
+  }
+  .pid button.manual { background: #2a2113; border-color: #5c4611; color: #e3b341; }
+  .mando .esquina.pid-mando {
+    left: 50%; transform: translateX(-50%); cursor: pointer; font-weight: 700;
+    border: 1px solid rgba(57, 197, 207, .5); color: #bff3f7;
+  }
+  .mando .esquina.pid-mando.manual { border-color: #5c4611; color: #e3b341; }
+  /* Vista a bordo / desde fuera: botón junto a Grabar y, en el móvil, una
+     insignia bajo la del PID. */
+  .grabacion button.vista { margin-left: auto; }
+  .grabacion button.vista.tercera { background: #143c46; border-color: rgba(57, 197, 207, .5); color: #bff3f7; }
+  .mando .esquina.vista-mando {
+    top: 40px; left: 50%; transform: translateX(-50%); cursor: pointer; font-weight: 700;
+    border: 1px solid var(--borde);
+  }
+  .mando .esquina.vista-mando.tercera { border-color: rgba(57, 197, 207, .5); color: #bff3f7; }
+
+  /* --- entrenamiento (solo simulador): corriente y aros --- */
+  .entreno { display: flex; gap: 6px; margin-top: 6px; }
+  .entreno button, .aros-btn {
+    padding: 6px 10px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 12px;
+    border: 1px solid var(--borde); background: #0b0f14; color: var(--texto);
+  }
+  .entreno button.activo { background: #143c46; border-color: rgba(57, 197, 207, .5); color: #bff3f7; font-weight: 600; }
+  .aros { list-style: none; padding: 0; margin: 6px 0 0; }
+  .aros li { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .aros li .punto-aro { width: 12px; height: 12px; border-radius: 50%; border: 3px solid; box-sizing: border-box; flex: none; }
+  .aros li .nombre { flex: 1; text-transform: capitalize; }
+  .aros li .prof { color: var(--tenue); }
+  .aros li.pasado { color: var(--tenue); text-decoration: line-through; }
+  .aros li.pasado .punto-aro { opacity: .35; }
+  .aros li.siguiente .nombre { color: #bff3f7; font-weight: 600; }
+
+  /* --- telemetría --- */
+  .dato { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; font-size: 13px; }
+  .dato span { color: var(--tenue); }
+  .dato b { font-weight: 500; font-variant-numeric: tabular-nums; }
+  .separador { height: 1px; background: var(--borde); margin: 10px 0; }
+  .bateria-barra { height: 8px; background: #0b0f14; border-radius: 4px; overflow: hidden; margin-top: 6px; }
+  .bateria-barra div { height: 100%; background: var(--verde); width: 0; transition: width .3s; }
+  .insignia {
+    display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px;
+    border: 1px solid var(--borde); color: var(--tenue);
+  }
+  .insignia.aviso { background: #2a2113; border-color: #5c4611; color: #e3b341; }
+  .nota { color: var(--tenue); font-size: 11.5px; line-height: 1.45; margin-top: 10px; }
+  /* Perfil de profundidad al lado de los datos: columna de agua con la
+     superficie arriba, el fondo abajo y el submarino donde está. */
+  .perfil { display: grid; grid-template-columns: 1fr 64px; gap: 8px; align-items: start; }
+
+  /* --- mando superpuesto al visor (solo pantallas pequeñas) --- */
+  .mando { display: none; }
+  .visor { position: relative; }
+  .mando .cruceta {
+    position: absolute; left: 12px; bottom: 12px;
+    display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); gap: 5px;
+  }
+  .mando .tecla {
+    height: auto; font-size: 24px; border-radius: 12px;
+    background: rgba(28, 36, 48, .78); border-color: rgba(230, 237, 243, .25);
+  }
+  .mando .tecla.w { grid-column: 2; grid-row: 1; }
+  .mando .tecla.a { grid-column: 1; grid-row: 2; }
+  .mando .tecla.s { grid-column: 2; grid-row: 3; }
+  .mando .tecla.d { grid-column: 3; grid-row: 2; }
+  /* SUBIR y BAJAR apilados a la derecha, encima de PARAR. */
+  .mando .vertical {
+    position: absolute; right: 12px; bottom: 108px;
+    display: grid; grid-template-rows: repeat(2, 52px); gap: 5px; width: 88px;
+  }
+  .mando .tecla.subir, .mando .tecla.bajar {
+    grid-column: auto; grid-row: auto; font-size: 13px; font-weight: 700; color: #bff3f7;
+    background: rgba(20, 60, 70, .8); border-color: rgba(57, 197, 207, .5);
+  }
+  .mando .tecla.parar {
+    position: absolute; right: 12px; bottom: 12px; width: 88px; height: 88px;
+    border-radius: 50%; font-size: 14px; font-weight: 700; grid-column: auto;
+    background: rgba(90, 20, 24, .85); border-color: rgba(248, 81, 73, .6); color: #ffb3b0;
+  }
+  .mando .esquina {
+    position: absolute; top: 10px; display: flex; align-items: center; gap: 6px;
+    font-size: 12px; padding: 4px 9px; border-radius: 20px;
+    background: rgba(13, 17, 23, .7); color: var(--texto); font-variant-numeric: tabular-nums;
+  }
+  .mando .esquina.izq { left: 10px; }
+  .mando .esquina.der { right: 10px; }
+  .mando .esquina.aviso { color: #e3b341; }
+
+  /* Pantalla pequeña: móvil en vertical (estrecho) o en apaisado (bajo). */
+  @media (max-width: 800px), (max-height: 500px) {
+    body { overscroll-behavior: none; }
+    header { padding: 8px 12px; gap: 10px; }
+    header h1 { font-size: 15px; }
+    header .sub { display: none; }
+    main { padding: 8px; gap: 10px; }
+    .col { display: contents; }
+    /* En pantalla pequeña las tarjetas van en una columna: visor, control,
+       empuje, telemetría y entrenamiento (el orden del DOM es el de escritorio). */
+    .c-visor { order: -1; }
+    .c-empuje { order: 1; }
+    .c-tele { order: 2; }
+    .c-entreno { order: 3; }
+    .c-visor h2 { display: none; }
+    .c-visor .cuerpo { padding: 0; }
+    .c-teclado { display: none; }
+    .visor { max-height: 82svh; border-radius: 10px; border-style: solid; padding-bottom: 220px; }
+    .mando { display: block; touch-action: none; }
+    .grabacion { padding: 0 10px 10px; }
+  }
+  @media (max-height: 500px) {
+    .visor { aspect-ratio: auto; height: 82svh; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Submarino</h1>
+    <div class="sub">Control diferencial y de profundidad</div>
+  </div>
+  <div class="espacio"></div>
+  <div class="estado"><span class="punto" id="punto"></span><span id="conexion">conectando…</span></div>
+  <div class="estado"><span style="color:var(--tenue)">latencia</span> <b id="latencia">—</b></div>
+</header>
+
+<main>
+  <!-- columna izquierda: control -->
+  <div class="col">
+    <div class="tarjeta c-teclado">
+      <h2>Control con teclado</h2>
+      <div class="cuerpo">
+        <div class="teclado">
+          <div class="tecla w" data-tecla="w">W<small>↑</small></div>
+          <div class="tecla a" data-tecla="a">A<small>←</small></div>
+          <div class="tecla s" data-tecla="s">S<small>↓</small></div>
+          <div class="tecla d" data-tecla="d">D<small>→</small></div>
+          <div class="tecla subir" data-tecla="subir">▲ SUBIR<small>flecha ↑</small></div>
+          <div class="tecla bajar" data-tecla="bajar">▼ BAJAR<small>flecha ↓</small></div>
+          <div class="tecla parar" data-tecla=" ">PARAR · espacio</div>
+        </div>
+        <div class="pulsadas">Pulsadas: <b id="pulsadas">—</b></div>
+        <div class="pulsadas">Mando: <b id="mando">ninguno</b></div>
+        <div class="nota">
+          W A S D mueven en horizontal (← y → también giran). Las flechas ↑ y ↓
+          suben y bajan. Sin teclas el submarino se queda quieto a la
+          profundidad que tenga. La orden se reenvía cada 150 ms: si dejara de
+          llegar, a los 500 ms se pararían los motores y el submarino subiría
+          solo a la superficie.
+        </div>
+        <div class="nota">
+          Con un mando conectado (el de DJI u otro; pulsa cualquier botón para
+          que el navegador lo vea): palanca izquierda arriba/abajo = subir y
+          bajar, izquierda/derecha = girar; palanca derecha arriba/abajo =
+          adelante y atrás, proporcional al recorrido. La palanca manda sobre
+          las teclas mientras esté fuera del centro.
+        </div>
+      </div>
+    </div>
+
+    <div class="tarjeta">
+      <h2>Control manual</h2>
+      <div class="cuerpo">
+        <div class="campo">
+          <label>Velocidad base (%) <b id="v-velocidad">60</b></label>
+          <input type="range" id="velocidad" min="0" max="100" value="60">
+        </div>
+        <div class="campo">
+          <label>Giro diferencial (%) <b id="v-giro">40</b></label>
+          <input type="range" id="giro" min="0" max="100" value="40">
+        </div>
+        <div class="campo" style="margin-bottom:0">
+          <label>Velocidad de inmersión (%) <b id="v-inmersion">60</b></label>
+          <input type="range" id="inmersion" min="0" max="100" value="60">
+        </div>
+        <div class="pid">
+          <button id="btn-pid">PID activo · desactivar</button>
+          <span id="estado-pid">mantiene profundidad y casco horizontal</span>
+        </div>
+        <div class="nota">
+          Avanzando, el giro diferencial se resta a un lado y se suma al otro.
+          Parado, gira sobre el sitio con ese mismo porcentaje (un propulsor
+          adelante y el otro atrás). Con el PID activo, la inmersión
+          es la velocidad a la que se mueve la profundidad objetivo y el PID
+          de a bordo la sigue. Sin PID, ↑ y ↓ mandan ese porcentaje directo a
+          los dos propulsores verticales: nada mantiene la profundidad, sin
+          teclas sube solo y nada le impide llegar al fondo.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- columna central: cámara y entrenamiento (el empuje va a la derecha, bajo la telemetría) -->
+  <div class="col">
+    <div class="tarjeta c-visor">
+      <h2>Visor de cámara</h2>
+      <div class="cuerpo">
+        <div class="visor" id="visor">
+          <div class="icono">⊘</div>
+          <div class="sin-imagen">SIN IMAGEN</div>
+          <div class="motivo" id="estado-camara">…</div>
+          <img id="camara" alt="">
+          <canvas id="escena3d"></canvas>
+
+          <!-- Mando superpuesto, solo en pantallas pequeñas: cruceta a la
+               izquierda, SUBIR / BAJAR y PARAR a la derecha. -->
+          <div class="mando">
+            <div class="esquina izq"><span class="punto" id="m-punto"></span><span id="m-conexion">…</span></div>
+            <div class="esquina der" id="m-estado">…</div>
+            <div class="esquina pid-mando" id="m-pid">PID</div>
+            <div class="esquina vista-mando" id="m-vista" hidden>A BORDO</div>
+            <div class="cruceta">
+              <div class="tecla w" data-tecla="w">▲</div>
+              <div class="tecla a" data-tecla="a">◀</div>
+              <div class="tecla s" data-tecla="s">▼</div>
+              <div class="tecla d" data-tecla="d">▶</div>
+            </div>
+            <div class="vertical">
+              <div class="tecla subir" data-tecla="subir">▲ SUBIR</div>
+              <div class="tecla bajar" data-tecla="bajar">▼ BAJAR</div>
+            </div>
+            <div class="tecla parar" data-tecla=" ">PARAR</div>
+          </div>
+        </div>
+        <div class="grabacion">
+          <button id="btn-grabar" disabled>● Grabar</button>
+          <span id="estado-grabacion">sin imagen que grabar</span>
+          <button id="btn-vista" class="vista" hidden>Vista: a bordo · ver desde fuera</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Solo aparece cuando /telemetria trae el bloque "mundo" (simulador). -->
+    <div class="tarjeta c-entreno" id="tarjeta-entreno" hidden>
+      <h2>Entrenamiento (solo simulador)</h2>
+      <div class="cuerpo">
+        <div class="dato"><span>Corriente</span><b id="corriente-txt">ninguna</b></div>
+        <div class="entreno">
+          <button data-corriente="ninguno">Ninguna</button>
+          <button data-corriente="poco">Poca</button>
+          <button data-corriente="mucho">Mucha</button>
+        </div>
+        <div class="separador"></div>
+        <div class="dato"><span>Aros pasados</span><b id="aros-txt">0 / 5</b></div>
+        <ul class="aros" id="aros"></ul>
+        <div class="dato"><span>Siguiente</span><b id="aro-siguiente">—</b></div>
+        <button class="aros-btn" id="btn-aros">Reiniciar aros</button>
+        <div class="nota">
+          Cinco aros verticales de 1 m de radio, cada uno más hondo que el
+          anterior. Cuenta pasar por el hueco en cualquier sentido; rozar el
+          tubo es colisión. La corriente empuja al submarino (poca: 0,25 m/s;
+          mucha: 0,6 m/s) con rumbo al azar que oscila un poco, como el mar.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- columna derecha: telemetría y empuje -->
+  <div class="col">
+    <div class="tarjeta c-tele">
+      <h2>Telemetría</h2>
+      <div class="cuerpo">
+        <div class="dato"><span>Batería</span><b id="bateria">—</b></div>
+        <div class="bateria-barra"><div id="bateria-barra"></div></div>
+
+        <div class="separador"></div>
+        <div class="perfil">
+          <div>
+            <div class="dato"><span>Profundidad</span><b id="prof">—</b></div>
+            <div class="dato"><span>Objetivo</span><b id="prof-obj">—</b></div>
+            <div class="dato"><span>Fondo (ecosonda)</span><b id="prof-fondo">—</b></div>
+          </div>
+          <!-- Columna de agua: 0 m arriba y ESCALA_M abajo. -->
+          <svg id="columna" viewBox="0 0 64 120" width="64" aria-label="Perfil de profundidad">
+            <rect x="0" y="0" width="64" height="120" fill="#0b0f14" stroke="#3d4956"/>
+            <line x1="0" y1="2" x2="64" y2="2" stroke="#39c5cf" stroke-width="2"/>
+            <rect id="col-fondo" x="0" y="120" width="64" height="0" fill="#6b4a1e"/>
+            <line id="col-objetivo" x1="0" y1="2" x2="64" y2="2" stroke="#d29922" stroke-dasharray="3 2"/>
+            <g id="col-sub"><ellipse cx="32" cy="2" rx="9" ry="3.5" fill="#e6edf3"/></g>
+            <text id="col-escala" x="62" y="116" fill="#8b949e" font-size="8" text-anchor="end">20 m</text>
+          </svg>
+        </div>
+
+        <div class="separador"></div>
+        <svg id="horizonte" viewBox="0 0 300 300" width="100%" aria-label="Horizonte artificial y rumbo">
+          <defs>
+            <clipPath id="clip-actitud"><circle cx="150" cy="150" r="98"/></clipPath>
+          </defs>
+          <circle cx="150" cy="150" r="148" fill="#0b0f14" stroke="#3d4956" stroke-width="2"/>
+          <g id="rosa"></g>
+          <g clip-path="url(#clip-actitud)">
+            <g id="actitud">
+              <rect x="-600" y="-1400" width="1500" height="1550" fill="#1f7ae0"/>
+              <rect x="-600" y="150" width="1500" height="1550" fill="#6b4a1e"/>
+              <line x1="-600" y1="150" x2="900" y2="150" stroke="#fff" stroke-width="1.5"/>
+              <g id="escalera"></g>
+            </g>
+          </g>
+          <circle cx="150" cy="150" r="98" fill="none" stroke="#3d4956" stroke-width="2"/>
+          <polygon points="150,58 144,70 156,70" fill="#fff"/>
+          <circle cx="150" cy="150" r="9" fill="none" stroke="#fff" stroke-width="2.5"/>
+          <line x1="100" y1="150" x2="132" y2="150" stroke="#fff" stroke-width="3"/>
+          <line x1="168" y1="150" x2="200" y2="150" stroke="#fff" stroke-width="3"/>
+          <polygon points="150,3 143,16 157,16" fill="#f85149"/>
+        </svg>
+        <div class="dato"><span>yaw / pitch / roll</span><b id="imu-txt">—</b></div>
+
+        <div class="nota">
+          IMU, presión, ecosonda y batería devuelven valores simulados mientras
+          no haya hardware real conectado.
+        </div>
+      </div>
+    </div>
+
+    <div class="tarjeta c-empuje">
+      <h2>Empuje de los propulsores</h2>
+      <div class="cuerpo">
+        <div class="empujes">
+          <div>
+            <div class="empuje-tit"><span>Horizontal izquierda</span><b id="n-izq">0</b></div>
+            <div class="barra"><div class="cero"></div><div class="relleno" id="b-izq"></div></div>
+            <div class="escala"><span>-100</span><span>0</span><span>100</span></div>
+          </div>
+          <div>
+            <div class="empuje-tit"><span>Horizontal derecha</span><b id="n-der">0</b></div>
+            <div class="barra"><div class="cero"></div><div class="relleno" id="b-der" style="background:var(--verde)"></div></div>
+            <div class="escala"><span>-100</span><span>0</span><span>100</span></div>
+          </div>
+          <div>
+            <div class="empuje-tit"><span>Vertical proa</span><b id="n-proa">0</b></div>
+            <div class="barra"><div class="cero"></div><div class="relleno" id="b-proa" style="background:var(--cian)"></div></div>
+            <div class="escala"><span>sube -100</span><span>0</span><span>100 baja</span></div>
+          </div>
+          <div>
+            <div class="empuje-tit"><span>Vertical popa</span><b id="n-popa">0</b></div>
+            <div class="barra"><div class="cero"></div><div class="relleno" id="b-popa" style="background:var(--cian)"></div></div>
+            <div class="escala"><span>sube -100</span><span>0</span><span>100 baja</span></div>
+          </div>
+        </div>
+        <div class="nota">
+          Valores leídos de <code>/telemetria</code>: lo que el hardware tiene
+          aplicado de verdad. <span id="nota-verticales">Los verticales los fija
+          el PID de a bordo, no esta página.</span>
+          <span class="insignia" id="insignia-vigilante">vigilante</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Vendida en el proyecto (ver el comentario de arriba), no un CDN. Si falla
+     al cargar (ficheros movidos, etc.) el visor 3D simplemente no aparece:
+     la cámara MJPEG de siempre sigue funcionando igual. -->
+<script src="/three.min.js"></script>
+<script>
+// ---- estado de las teclas ----
+const teclas = { w: false, a: false, s: false, d: false, subir: false, bajar: false };
+const ALIAS = {
+  arrowup: "subir", arrowdown: "bajar", arrowleft: "a", arrowright: "d",
+  w: "w", a: "a", s: "s", d: "d",
+};
+const NOMBRE = { w: "W", a: "A", s: "S", d: "D", subir: "SUBIR", bajar: "BAJAR" };
+
+const $ = (id) => document.getElementById(id);
+
+function pintarTeclas() {
+  document.querySelectorAll(".tecla[data-tecla]").forEach((el) => {
+    const t = el.dataset.tecla;
+    if (t in teclas) el.classList.toggle("activa", teclas[t] || mandoPulsa(t));
+  });
+  const pulsadas = Object.keys(teclas).filter((t) => teclas[t] || mandoPulsa(t));
+  $("pulsadas").textContent = pulsadas.length ? pulsadas.map((t) => NOMBRE[t]).join(" + ") : "—";
+}
+
+// ---- mando (Gamepad API) ----
+// Disposición tipo dron (modo 2): palanca izquierda = subir/bajar y girar,
+// palanca derecha = adelante/atrás. Ejes del mapeo estándar del navegador:
+// 0 = izquierda X, 1 = izquierda Y, 2 = derecha X, 3 = derecha Y, con −1 =
+// arriba/izquierda. La palanca izquierda es 0/1 y la horizontal de la derecha
+// es 2 en casi todos los mandos; la vertical de la derecha cambia: 3 con
+// mapeo "standard" (Xbox, PlayStation) y 5 en los genéricos DirectInput de
+// 10 ejes que ve Chrome en Windows (con la cruceta en el eje 9). Se parte de
+// esa regla y, si otro de los EJES_AVANCE se mueve antes, se pasa a ese. La
+// línea "Mando:" enseña los ejes en vivo y cuál manda el avance.
+const EJE_GIRO = 0, EJE_VERTICAL = 1;
+const EJES_AVANCE = [3, 5, 4];
+const ZONA_MUERTA = 0.12;
+// Valores −1..1 ya sin zona muerta; 0 = palanca centrada (mandan las teclas).
+const mando = { avance: 0, giro: 0, vertical: 0 };
+
+function elegirMando() {
+  if (!navigator.getGamepads) return null;
+  const conectados = Array.from(navigator.getGamepads()).filter((g) => g && g.connected);
+  if (!conectados.length) return null;
+  return conectados.find((g) => /dji/i.test(g.id)) || conectados[0];
+}
+
+// Un eje solo cuenta cuando se ha movido desde que se vio el mando: algunos
+// mandos traen ejes sin usar (o gatillos) clavados en −1 o +1 en reposo, y
+// sin esto el submarino saldría a toda máquina nada más conectarlo.
+const ejeReposo = {};    // "id:eje" → valor cuando se vio por primera vez
+const ejeVivo = {};      // "id:eje" → true cuando ya se ha movido
+const ejeAvance = {};    // id → eje que manda el avance, una vez descubierto
+
+function eje(g, i) {
+  const v = g.axes[i] || 0;
+  const k = g.index + ":" + i;
+  if (!(k in ejeReposo)) ejeReposo[k] = v;
+  if (!ejeVivo[k]) {
+    if (Math.abs(v - ejeReposo[k]) < 0.3) return 0;
+    ejeVivo[k] = true;
+  }
+  if (Math.abs(v) < ZONA_MUERTA) return 0;
+  // Reescalado para que justo fuera de la zona muerta empiece en 0 y llegue a 1.
+  return Math.sign(v) * (Math.abs(v) - ZONA_MUERTA) / (1 - ZONA_MUERTA);
+}
+
+function mandoPulsa(t) {
+  return { w: mando.avance > 0, s: mando.avance < 0, d: mando.giro > 0, a: mando.giro < 0,
+           subir: mando.vertical > 0, bajar: mando.vertical < 0 }[t] || false;
+}
+
+function leerMando() {
+  const g = elegirMando();
+  const antes = mando.avance + "," + mando.giro + "," + mando.vertical;
+  if (g) {
+    // Se leen todos los ejes para saber cuáles se han movido ya.
+    const valores = Array.from(g.axes, (_, i) => eje(g, i));
+    if (!(g.index in ejeAvance)) {
+      const movido = EJES_AVANCE.find((i) => ejeVivo[g.index + ":" + i]);
+      if (movido !== undefined) ejeAvance[g.index] = movido;
+    }
+    const ejeAv = g.index in ejeAvance ? ejeAvance[g.index]
+      : (g.mapping !== "standard" && g.axes.length >= 6 ? 5 : 3);
+    mando.avance = -(valores[ejeAv] || 0);
+    mando.giro = valores[EJE_GIRO] || 0;
+    mando.vertical = -(valores[EJE_VERTICAL] || 0);
+    const f = (n) => (n >= 0 ? "+" : "") + n.toFixed(2);
+    const quietos = [EJE_GIRO, EJE_VERTICAL, ejeAv].filter((i) => !ejeVivo[g.index + ":" + i]);
+    $("mando").textContent = g.id.slice(0, 40) + " · ejes " + Array.from(g.axes).map(f).join(" ")
+      + " → avance " + f(mando.avance) + " (eje " + ejeAv + (g.index in ejeAvance ? "" : " de partida") + ")"
+      + " giro " + f(mando.giro) + " vertical " + f(mando.vertical)
+      + (quietos.length ? " (ejes " + quietos.join(",") + " sin mover aún, se ignoran)" : "");
+  } else {
+    mando.avance = mando.giro = mando.vertical = 0;
+    $("mando").textContent = "ninguno";
+  }
+  if (antes !== mando.avance + "," + mando.giro + "," + mando.vertical) pintarTeclas();
+}
+// Los navegadores no avisan de cada movimiento de palanca: hay que sondear.
+setInterval(leerMando, 50);
+addEventListener("gamepadconnected", leerMando);
+addEventListener("gamepaddisconnected", leerMando);
+
+function parar() {
+  for (const t in teclas) teclas[t] = false;
+  for (const p in punteros) delete punteros[p];
+  pintarTeclas();
+}
+
+// ---- teclado ----
+addEventListener("keydown", (e) => {
+  if (e.key === " ") { e.preventDefault(); parar(); return; }
+  const t = ALIAS[e.key.toLowerCase()];
+  if (!t) return;
+  e.preventDefault();
+  if (!teclas[t]) { teclas[t] = true; pintarTeclas(); }
+});
+addEventListener("keyup", (e) => {
+  const t = ALIAS[e.key.toLowerCase()];
+  if (!t) return;
+  teclas[t] = false;
+  pintarTeclas();
+});
+
+// ---- pulsación con ratón o dedo ----
+const punteros = {};   // pointerId -> tecla
+
+function soltarPuntero(e) {
+  const t = punteros[e.pointerId];
+  if (t === undefined) return;
+  delete punteros[e.pointerId];
+  teclas[t] = false; pintarTeclas();
+}
+
+document.querySelectorAll(".tecla[data-tecla]").forEach((el) => {
+  const t = el.dataset.tecla;
+  el.addEventListener("contextmenu", (e) => e.preventDefault());
+  el.addEventListener("touchstart", (e) => e.preventDefault(), { passive: false });
+  el.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (t === " ") { parar(); return; }
+    try { el.setPointerCapture(e.pointerId); } catch (_) {}
+    punteros[e.pointerId] = t;
+    teclas[t] = true; pintarTeclas();
+  });
+  el.addEventListener("pointerup", soltarPuntero);
+  el.addEventListener("pointercancel", soltarPuntero);
+});
+addEventListener("pointerup", soltarPuntero);
+addEventListener("pointercancel", soltarPuntero);
+addEventListener("blur", parar);
+document.addEventListener("visibilitychange", () => { if (document.hidden) parar(); });
+
+// ---- deslizadores ----
+$("velocidad").addEventListener("input", (e) => { $("v-velocidad").textContent = e.target.value; });
+$("giro").addEventListener("input", (e) => { $("v-giro").textContent = e.target.value; });
+$("inmersion").addEventListener("input", (e) => { $("v-inmersion").textContent = e.target.value; });
+
+// ---- mezcla diferencial + vertical ----
+function mezclar() {
+  const base = Number($("velocidad").value);
+  const dif = Number($("giro").value);
+  // Teclas: −1, 0 o 1. Palanca del mando: proporcional, y manda sobre las
+  // teclas mientras esté fuera del centro.
+  const avance = mando.avance !== 0 ? mando.avance : (teclas.w ? 1 : 0) - (teclas.s ? 1 : 0);
+  const giro = mando.giro !== 0 ? mando.giro : (teclas.d ? 1 : 0) - (teclas.a ? 1 : 0);
+
+  let izq = 0, der = 0;
+  if (avance !== 0) {
+    izq = avance * base + giro * dif;
+    der = avance * base - giro * dif;
+  } else if (giro !== 0) {
+    // Parado, gira sobre el sitio con el giro diferencial (no con la base),
+    // para que el deslizador mande también aquí.
+    izq = giro * dif;
+    der = -giro * dif;
+  }
+  // vertical positivo = subir; con las dos teclas pulsadas se anulan.
+  const vertical = (mando.vertical !== 0 ? mando.vertical
+                    : (teclas.subir ? 1 : 0) - (teclas.bajar ? 1 : 0)) * Number($("inmersion").value);
+  const recortar = (n) => Math.max(-100, Math.min(100, Math.round(n)));
+  return { izquierda: recortar(izq), derecha: recortar(der), vertical: recortar(vertical) };
+}
+
+// ---- envío del control ----
+// Siempre, cada 150 ms, también con todo a cero: es lo que mantiene vivo el
+// PID de profundidad. Si esta página deja de enviar, el submarino sube.
+async function enviarControl() {
+  try {
+    await fetch("/control", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(mezclar()),
+    });
+  } catch (e) { /* lo reporta el sondeo de telemetría */ }
+}
+setInterval(enviarControl, 150);
+
+// ---- PID activo / manual ----
+// El estado real lo dice /telemetria (control.pid); el botón solo pide el
+// cambio y la telemetría lo confirma en el siguiente sondeo.
+let pidActivo = true;
+async function conmutarPid() {
+  try {
+    const r = await fetch("/pid", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ activo: !pidActivo }),
+    });
+    const d = await r.json();
+    if (r.ok) pintarPid(d.pid);
+  } catch (e) { /* lo reporta el sondeo de telemetría */ }
+}
+function pintarPid(activo) {
+  pidActivo = activo;
+  $("btn-pid").textContent = activo ? "PID activo · desactivar" : "PID desactivado · activar";
+  $("btn-pid").classList.toggle("manual", !activo);
+  $("estado-pid").textContent = activo
+    ? "mantiene profundidad y casco horizontal"
+    : "manual: ↑ y ↓ van directos a los verticales";
+  $("m-pid").textContent = activo ? "PID" : "MANUAL";
+  $("m-pid").classList.toggle("manual", !activo);
+  $("nota-verticales").textContent = activo
+    ? "Los verticales los fija el PID de a bordo, no esta página."
+    : "PID desactivado: los verticales llevan la orden ↑/↓ tal cual.";
+}
+$("btn-pid").addEventListener("click", conmutarPid);
+$("m-pid").addEventListener("pointerdown", (e) => { e.preventDefault(); conmutarPid(); });
+
+// ---- entrenamiento (solo simulador): corriente, aros y vista ----
+// Todo va por POST /mundo y se confirma con el bloque "mundo" de /telemetria.
+let mundo = null;
+async function fijarMundo(cambio) {
+  try {
+    const r = await fetch("/mundo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cambio),
+    });
+    const d = await r.json();
+    if (r.ok) pintarMundo(d);
+  } catch (e) { /* lo reporta el sondeo de telemetría */ }
+}
+function pintarMundo(m) {
+  mundo = m;
+  $("tarjeta-entreno").hidden = false;
+  $("btn-vista").hidden = false;
+  $("m-vista").hidden = false;
+  actualizarEscena3D(m);
+  if (escena3D && !modo3D) activar3D();
+  const c = m.corriente;
+  $("corriente-txt").textContent = c.velocidad
+    ? { poco: "poca", mucho: "mucha" }[c.nivel] + " · " + c.velocidad.toFixed(2).replace(".", ",") + " m/s hacia " + c.rumbo + "°"
+    : "ninguna";
+  for (const b of document.querySelectorAll("[data-corriente]")) b.classList.toggle("activo", b.dataset.corriente === c.nivel);
+  const a = m.aros;
+  $("aros-txt").textContent = a.pasados.length + " / " + a.total;
+  $("aro-siguiente").textContent = a.siguiente ? a.siguiente + " (" + a.lista.find((x) => x.nombre === a.siguiente).profundidad.toFixed(1).replace(".", ",") + " m)" : "todos pasados";
+  const ul = $("aros");
+  if (ul.children.length !== a.lista.length) {
+    ul.textContent = "";
+    for (const aro of a.lista) {
+      const li = document.createElement("li");
+      li.innerHTML = '<span class="punto-aro"></span><span class="nombre"></span><span class="prof"></span>';
+      li.querySelector(".punto-aro").style.borderColor = "rgb(" + aro.color.join(",") + ")";
+      li.querySelector(".nombre").textContent = aro.nombre;
+      li.querySelector(".prof").textContent = aro.profundidad.toFixed(1).replace(".", ",") + " m";
+      ul.appendChild(li);
+    }
+  }
+  a.lista.forEach((aro, i) => {
+    ul.children[i].classList.toggle("pasado", aro.pasado);
+    ul.children[i].classList.toggle("siguiente", aro.nombre === a.siguiente);
+  });
+  const tercera = m.vista === "tercera";
+  $("btn-vista").textContent = tercera ? "Vista: desde fuera · volver a bordo" : "Vista: a bordo · ver desde fuera";
+  $("btn-vista").classList.toggle("tercera", tercera);
+  $("m-vista").textContent = tercera ? "DESDE FUERA" : "A BORDO";
+  $("m-vista").classList.toggle("tercera", tercera);
+}
+function conmutarVista() {
+  fijarMundo({ vista: mundo && mundo.vista === "tercera" ? "primera" : "tercera" });
+}
+for (const b of document.querySelectorAll("[data-corriente]")) {
+  b.addEventListener("click", () => fijarMundo({ corriente: b.dataset.corriente }));
+}
+$("btn-aros").addEventListener("click", () => fijarMundo({ reiniciar_aros: true }));
+$("btn-vista").addEventListener("click", conmutarVista);
+$("m-vista").addEventListener("pointerdown", (e) => { e.preventDefault(); conmutarVista(); });
+
+// ---- horizonte artificial ----
+const SVG = "http://www.w3.org/2000/svg";
+const PX_POR_GRADO = 3.2;
+
+function svg(tipo, atributos, texto) {
+  const el = document.createElementNS(SVG, tipo);
+  for (const k in atributos) el.setAttribute(k, atributos[k]);
+  if (texto !== undefined) el.textContent = texto;
+  return el;
+}
+
+(function construirRosa() {
+  const rosa = $("rosa");
+  const cardinales = { 0: "N", 90: "E", 180: "S", 270: "W" };
+  for (let a = 0; a < 360; a += 5) {
+    const mayor = a % 30 === 0;
+    rosa.appendChild(svg("line", {
+      x1: 150, y1: 4, x2: 150, y2: mayor ? 18 : (a % 10 === 0 ? 13 : 10),
+      stroke: "#e6edf3", "stroke-width": mayor ? 3 : 1.5,
+      transform: `rotate(${a} 150 150)`,
+    }));
+    if (mayor) {
+      const cardinal = a in cardinales;
+      rosa.appendChild(svg("text", {
+        x: 150, y: cardinal ? 40 : 34, "text-anchor": "middle",
+        fill: a === 0 ? "#f85149" : "#e6edf3",
+        "font-size": cardinal ? 20 : 12, "font-weight": cardinal ? 700 : 400,
+        transform: `rotate(${a} 150 150)`,
+      }, cardinal ? cardinales[a] : String(a)));
+    }
+  }
+})();
+
+(function construirEscalera() {
+  const esc = $("escalera");
+  for (let p = -25; p <= 25; p += 5) {
+    if (p === 0) continue;
+    const y = 150 - p * PX_POR_GRADO;
+    const medio = p % 10 === 0 ? 34 : 12;
+    esc.appendChild(svg("line", {
+      x1: 150 - medio, y1: y, x2: 150 + medio, y2: y, stroke: "#fff", "stroke-width": 1.5,
+    }));
+    if (p % 10 === 0) {
+      for (const lado of [-1, 1]) {
+        esc.appendChild(svg("text", {
+          x: 150 + lado * (medio + 6), y: y + 4, fill: "#fff", "font-size": 11,
+          "text-anchor": lado < 0 ? "end" : "start",
+        }, String(p)));
+      }
+    }
+  }
+})();
+
+function pintarIMU(o) {
+  $("rosa").setAttribute("transform", `rotate(${-o.yaw} 150 150)`);
+  $("actitud").setAttribute("transform",
+    `rotate(${-o.roll} 150 150) translate(0 ${o.pitch * PX_POR_GRADO})`);
+  $("imu-txt").textContent =
+    `${o.yaw.toFixed(1)}° / ${o.pitch.toFixed(1)}° / ${o.roll.toFixed(1)}°`;
+}
+
+// ---- perfil de profundidad ----
+// La columna mide 120 px de alto y representa ESCALA_M metros (crece si el
+// submarino o el fondo se salen).
+let ESCALA_M = 20;
+function pintarProfundidad(p, objetivo) {
+  const fondoAbs = p.fondo === null ? null : p.profundidad + p.fondo;
+  const maximo = Math.max(p.profundidad, objetivo, fondoAbs || 0) + 1;
+  ESCALA_M = Math.max(20, Math.ceil(maximo / 5) * 5);
+  const y = (m) => 2 + Math.max(0, Math.min(ESCALA_M, m)) / ESCALA_M * 116;
+  $("col-sub").setAttribute("transform", `translate(0 ${y(p.profundidad) - 2})`);
+  $("col-objetivo").setAttribute("y1", y(objetivo));
+  $("col-objetivo").setAttribute("y2", y(objetivo));
+  if (fondoAbs !== null) {
+    $("col-fondo").setAttribute("y", y(fondoAbs));
+    $("col-fondo").setAttribute("height", Math.max(0, 120 - y(fondoAbs)));
+  } else {
+    $("col-fondo").setAttribute("height", 0);
+  }
+  $("col-escala").textContent = ESCALA_M + " m";
+  $("prof").textContent = p.profundidad.toFixed(2) + " m";
+  $("prof-obj").textContent = objetivo.toFixed(2) + " m";
+  $("prof-fondo").textContent = p.fondo === null ? "sin eco" : p.fondo.toFixed(2) + " m";
+}
+
+// ---- telemetría ----
+function barra(el, valor) {
+  const ancho = Math.abs(valor) / 2;
+  el.style.width = ancho + "%";
+  el.style.left = valor >= 0 ? "50%" : (50 - ancho) + "%";
+}
+
+async function sondear() {
+  const t0 = performance.now();
+  try {
+    const r = await fetch("/telemetria", { cache: "no-store" });
+    const d = await r.json();
+    const ms = Math.round(performance.now() - t0);
+    $("latencia").textContent = ms + " ms";
+    $("punto").className = "punto ok";
+    $("conexion").textContent = "conectado";
+    $("m-punto").className = "punto ok";
+    $("m-conexion").textContent = ms + " ms";
+    $("m-estado").textContent = (d.control.watchdog ? "parado" : d.profundidad.profundidad.toFixed(1) + " m") + " · " + d.bateria + " %"
+      + (d.mundo ? " · aros " + d.mundo.aros.pasados.length + "/" + d.mundo.aros.total : "");
+    $("m-estado").classList.toggle("aviso", d.control.watchdog);
+    controlAct = d.control;
+    if (d.mundo) pintarMundo(d.mundo);
+
+    for (const [k, id] of [["izquierda", "izq"], ["derecha", "der"], ["proa", "proa"], ["popa", "popa"]]) {
+      $("n-" + id).textContent = d.control[k];
+      barra($("b-" + id), d.control[k]);
+    }
+    const ins = $("insignia-vigilante");
+    ins.classList.toggle("aviso", d.control.watchdog);
+    ins.textContent = d.control.watchdog ? "vigilante: parado por falta de órdenes" : "vigilante: orden vigente";
+    if (d.control.pid !== pidActivo) pintarPid(d.control.pid);
+
+    $("bateria").textContent = d.bateria + " %";
+    $("bateria-barra").style.width = d.bateria + "%";
+
+    pintarProfundidad(d.profundidad, d.control.objetivo);
+    pintarIMU(d.imu.orientacion);
+  } catch (e) {
+    $("punto").className = "punto mal";
+    $("conexion").textContent = "sin conexión";
+    $("latencia").textContent = "—";
+    $("m-punto").className = "punto mal";
+    $("m-conexion").textContent = "sin conexión";
+  }
+}
+setInterval(sondear, 200);
+sondear();
+
+// ---- cámara ----
+const camara = $("camara");
+let camaraViva = false;
+let modo3D = false;   // lo pone a true activar3D (visor 3D, más abajo); declarado aquí porque conectarCamara() corre al cargar
+function conectarCamara() {
+  if (modo3D) return;   // en 3D la cámara está apagada a propósito (ver activar3D)
+  camaraViva = false;
+  camara.src = "/camara?" + Date.now();
+}
+camara.addEventListener("load", () => {
+  if (modo3D) return;
+  camaraViva = true;
+  $("visor").classList.add("con-imagen");
+  $("btn-grabar").disabled = false;
+  if (!grabador) $("estado-grabacion").textContent = "se guarda en este dispositivo";
+});
+camara.addEventListener("error", () => {
+  if (modo3D) return;
+  camaraViva = false;
+  $("visor").classList.remove("con-imagen");
+  $("estado-camara").textContent = "sin señal de cámara";
+  if (grabador) pararGrabacion();
+  $("btn-grabar").disabled = true;
+  $("estado-grabacion").textContent = "sin imagen que grabar";
+  setTimeout(conectarCamara, 3000);
+});
+conectarCamara();
+
+// ---- visor 3D (solo simulador, pedido 2026-09-27: "que el entorno sea
+// muchísimo más real, tipo videojuego, pero que no caiga el rendimiento") ----
+// Usa la GPU del navegador (Three.js, vendido localmente: ver el comentario
+// de arriba de todo) para dibujar el mismo mundo que ya describe el bloque
+// "mundo" de /telemetria (terreno, aros, objetos, submarino), en vez de la
+// imagen MJPEG calculada en Python. En el simulador sustituye a la cámara
+// del todo (activar3D, más abajo); si WebGL no está disponible, escena3D
+// queda null y la cámara de siempre sigue funcionando como antes.
+let escena3D = null;   // null hasta que llega el primer bloque "mundo" (modo3D está declarado junto a la cámara)
+let poseAnt = null, poseAct = null, tAnt = 0, tAct = 0;
+let controlAct = null;   // último bloque `control` de /telemetria (hélices y burbujas del visor 3D)
+
+// Mapeo de coordenadas del mundo (x este, y norte, z profundidad hacia
+// abajo) al de Three.js (Y arriba, -Z al frente): (x, y, z) -> (x, -z, -y).
+// La terna (este, norte, abajo) de mundo.py es zurda como sistema físico, y
+// Three.js es diestro, así que el mapeo lleva un espejo (determinante -1):
+// con (x, -z, y) la escena salía en espejo (el este quedaba a la izquierda)
+// y la matriz de orientación del submarino no era una rotación válida, por
+// lo que el modelo aparecía girado 90° y no seguía el rumbo.
+function w2t(x, y, z) { return new THREE.Vector3(x, -z, -y); }
+
+// Ejes del cuerpo (adelante/izquierda/arriba) en coordenadas del mundo,
+// mismo cálculo que _modelo_sub en mundo.py: si esa función cambia allí,
+// esto hay que cambiarlo a la vez.
+function ejesCuerpo(yawDeg, pitchDeg, rollDeg) {
+  const ys = yawDeg * Math.PI / 180, p = pitchDeg * Math.PI / 180, ro = rollDeg * Math.PI / 180;
+  const fwd = [Math.sin(ys) * Math.cos(p), Math.cos(ys) * Math.cos(p), -Math.sin(p)];
+  const izq0 = [-Math.cos(ys), Math.sin(ys), 0];
+  const arr0 = [-Math.sin(ys) * Math.sin(p), -Math.cos(ys) * Math.sin(p), -Math.cos(p)];
+  const izq = izq0.map((v, i) => v * Math.cos(ro) - arr0[i] * Math.sin(ro));
+  const arr = arr0.map((v, i) => v * Math.cos(ro) + izq0[i] * Math.sin(ro));
+  return { fwd, izq, arr };
+}
+
+// Mismo relieve que _ondas/fondo en mundo.py: mismos coeficientes copiados a
+// mano, si el relieve del mundo cambia allí hay que copiarlo aquí también.
+function ondasJS(x, y) {
+  return 0.40 * Math.sin(x / 4.0) * Math.cos(y / 5.0)
+       + 0.30 * Math.sin((x + 0.7 * y) / 6.5 + 1.0)
+       + 0.20 * Math.cos((x - 1.3 * y) / 3.5);
+}
+function fondoJS(x, y, e) { return e.fondo_medio - e.relieve * ondasJS(x, y); }
+
+function rgbCSS(c) { return "rgb(" + c[0] + "," + c[1] + "," + c[2] + ")"; }
+function colorTHREE(c) { return new THREE.Color(c[0] / 255, c[1] / 255, c[2] / 255); }
+
+// Números pseudoaleatorios con semilla fija (congruencial lineal): las rocas,
+// las algas y los dibujos de las texturas salen siempre iguales en cada
+// recarga y en cada navegador sin guardar nada en el servidor. Todo lo que
+// se coloca con esto es DECORADO del visor: no existe en mundo.py, no tiene
+// física ni sale en la cámara MJPEG.
+function azarFijo(semilla) {
+  let s = semilla >>> 0;
+  return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+}
+
+function lienzoNuevo(ancho, alto) {
+  const lienzo = document.createElement("canvas");
+  lienzo.width = ancho; lienzo.height = alto || ancho;
+  return lienzo;
+}
+
+function texturaRepetida(lienzo) {
+  const tex = new THREE.CanvasTexture(lienzo);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
+  return tex;
+}
+
+// Textura en damero de 2×2 "baldosas" (colorA/colorB en diagonal, como el
+// propio damero de mundo.py) con línea oscura entre baldosas. anchoJunta es
+// la fracción de una baldosa que ocupa la línea (0..0.5). Con `moteado` se
+// añade grano (puntos claros y oscuros) para que parezca arena y no plástico.
+function texturaDamero(colorA, colorB, colorLinea, anchoJunta, moteado) {
+  const px = 256, mitad = px / 2;
+  const lienzo = lienzoNuevo(px);
+  const ctx = lienzo.getContext("2d");
+  ctx.fillStyle = rgbCSS(colorA); ctx.fillRect(0, 0, mitad, mitad); ctx.fillRect(mitad, mitad, mitad, mitad);
+  ctx.fillStyle = rgbCSS(colorB); ctx.fillRect(mitad, 0, mitad, mitad); ctx.fillRect(0, mitad, mitad, mitad);
+  if (moteado) {
+    const az = azarFijo(7);
+    for (let i = 0; i < 2600; i++) {
+      ctx.fillStyle = az() < 0.5 ? "rgba(0,0,0,0.13)" : "rgba(255,255,255,0.12)";
+      const t = 1 + Math.floor(az() * 3);
+      ctx.fillRect(Math.floor(az() * px), Math.floor(az() * px), t, t);
+    }
+  }
+  ctx.fillStyle = rgbCSS(colorLinea);
+  const grosor = Math.max(1, anchoJunta * mitad);
+  for (const p of [0, mitad, px]) {
+    ctx.fillRect(0, p - grosor / 2, px, grosor);
+    ctx.fillRect(p - grosor / 2, 0, grosor, px);
+  }
+  return texturaRepetida(lienzo);
+}
+
+// Red de líneas tipo "celdas de luz" (cada punto unido a sus tres vecinos,
+// con envoltura para que repita sin costura). Sin `fondo` las líneas son
+// blancas sobre transparente (cáusticas sobre el terreno); con `fondo` se
+// pinta ese color debajo y las líneas en `colorLinea` (ondas de la
+// superficie vistas desde abajo).
+function texturaCeldas(semilla, fondo, colorLinea) {
+  const px = 256;
+  const lienzo = lienzoNuevo(px);
+  const ctx = lienzo.getContext("2d");
+  if (fondo) { ctx.fillStyle = rgbCSS(fondo); ctx.fillRect(0, 0, px, px); }
+  const az = azarFijo(semilla);
+  const puntos = [];
+  for (let i = 0; i < 28; i++) puntos.push([az() * px, az() * px]);
+  const envuelve = (d) => (d > px / 2 ? d - px : d < -px / 2 ? d + px : d);
+  ctx.lineCap = "round";
+  const trazos = colorLinea
+    ? [[7, 0.25], [2.5, 0.75]]          // ancho, alpha
+    : [[9, 0.22], [2.5, 0.9]];
+  for (const p of puntos) {
+    const cerca = puntos
+      .map((q) => { const dx = envuelve(q[0] - p[0]), dy = envuelve(q[1] - p[1]); return { dx, dy, d: dx * dx + dy * dy }; })
+      .filter((c) => c.d > 0).sort((a, b) => a.d - b.d).slice(0, 3);
+    for (const c of cerca) for (const [ancho, alpha] of trazos) {
+      ctx.lineWidth = ancho;
+      ctx.strokeStyle = colorLinea ? "rgba(" + colorLinea.join(",") + "," + alpha + ")" : "rgba(255,255,255," + alpha + ")";
+      for (const [ox, oy] of [[0, 0], [px, 0], [-px, 0], [0, px], [0, -px]]) {
+        ctx.beginPath(); ctx.moveTo(p[0] + ox, p[1] + oy); ctx.lineTo(p[0] + c.dx + ox, p[1] + c.dy + oy); ctx.stroke();
+      }
+    }
+  }
+  return texturaRepetida(lienzo);
+}
+
+// Punto redondo con borde difuminado, para partículas y brillos.
+function texturaPunto() {
+  const px = 32, lienzo = lienzoNuevo(px), ctx = lienzo.getContext("2d");
+  const g = ctx.createRadialGradient(px / 2, px / 2, 0, px / 2, px / 2, px / 2);
+  g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.4, "rgba(255,255,255,0.6)"); g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, px, px);
+  return new THREE.CanvasTexture(lienzo);
+}
+
+// Haz de luz vertical: brillante arriba y difuminado hacia abajo y hacia los
+// lados (rayos de sol que entran por la superficie).
+function texturaRayo() {
+  const w = 64, h = 256, lienzo = lienzoNuevo(w, h), ctx = lienzo.getContext("2d");
+  const v = ctx.createLinearGradient(0, 0, 0, h);
+  v.addColorStop(0, "rgba(255,255,255,1)"); v.addColorStop(0.5, "rgba(255,255,255,0.45)"); v.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = v; ctx.fillRect(0, 0, w, h);
+  ctx.globalCompositeOperation = "destination-in";
+  const hg = ctx.createLinearGradient(0, 0, w, 0);
+  hg.addColorStop(0, "rgba(0,0,0,0)"); hg.addColorStop(0.5, "rgba(0,0,0,1)"); hg.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = hg; ctx.fillRect(0, 0, w, h);
+  return new THREE.CanvasTexture(lienzo);
+}
+
+// Construye los cinco aros; se hace aparte porque necesita m.aros.lista
+// entero (rumbo/color/pasado), no solo el bloque "escena" (que es estático).
+// Son de material con luz propia (emissive): el siguiente aro a pasar late.
+function arosIniciales(m, scene) {
+  const lista = [];
+  for (const a of m.aros.lista) {
+    const geo = new THREE.TorusGeometry(m.escena.radio_aro, m.escena.grosor_aro, 16, 64);
+    const mat = new THREE.MeshPhongMaterial({ color: colorTHREE(a.color), emissive: colorTHREE(a.color), emissiveIntensity: 0.25, specular: 0x888888, shininess: 70 });
+    const malla = new THREE.Mesh(geo, mat);
+    malla.position.copy(w2t(a.x, a.y, a.profundidad));
+    const r = a.rumbo * Math.PI / 180;
+    const eje = w2t(Math.sin(r), Math.cos(r), 0).normalize();
+    malla.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), eje);
+    scene.add(malla);
+    lista.push({ nombre: a.nombre, malla, pasado: !!a.pasado });
+  }
+  return lista;
+}
+
+// Modelo del submarino a partir de las piezas de MODELO_SUB (mundo.py): las
+// medidas (centro y semiejes de cada elipsoide) mandan, y aquí se les da el
+// aspecto de un ROV de verdad: casco brillante con franja, cúpula
+// transparente con la lente de la cámara, bastidor, patines, cuatro
+// propulsores con carcasa y hélice de tres palas que giran con la consigna
+// real de cada uno, y dos faros con luz de verdad sobre lo que hay delante.
+// Ejes del cuerpo (x adelante, y izquierda, z arriba) -> ejes locales de
+// Three (x, z, -y), igual que antes con los elipsoides.
+function construirSub(e) {
+  const piezas = {};
+  for (const p of e.modelo_sub) piezas[p.nombre] = p;
+  const local = (c) => new THREE.Vector3(c[0], c[2], -c[1]);
+  const sub = new THREE.Group();       // pose del submarino; lleva también los faros
+  const cuerpo = new THREE.Group();    // solo las mallas: se oculta en primera persona
+  sub.add(cuerpo);
+  const casco = piezas["casco"], morro = piezas["morro"], sop = piezas["soporte"];
+  if (!casco || !morro || !sop) {
+    // Nombres distintos a los esperados: elipsoides lisos, como al principio.
+    for (const p of e.modelo_sub) {
+      const malla = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), new THREE.MeshPhongMaterial({ color: colorTHREE(p.color) }));
+      malla.scale.set(p.semiejes[0], p.semiejes[2], p.semiejes[1]);
+      malla.position.copy(local(p.centro));
+      cuerpo.add(malla);
+    }
+    return { sub, cuerpo, helices: [] };
+  }
+  const amarillo = new THREE.MeshPhongMaterial({ color: colorTHREE(casco.color), specular: 0x777777, shininess: 55 });
+  const oscuro = new THREE.MeshPhongMaterial({ color: 0x1c2026, specular: 0x444444, shininess: 35 });
+  const metal = new THREE.MeshPhongMaterial({ color: 0x9aa1a8, specular: 0xcccccc, shininess: 90 });
+  const elipsoide = (p, mat, seg) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(1, seg || 28, 20), mat);
+    m.scale.set(p.semiejes[0], p.semiejes[2], p.semiejes[1]);
+    m.position.copy(local(p.centro));
+    return m;
+  };
+  cuerpo.add(elipsoide(casco, amarillo));
+  // Franja oscura alrededor del casco, un poco por delante del centro. El
+  // radio del casco en x = xf es el semieje por sqrt(1 - (xf/a)^2).
+  for (const xf of [0.10, 0.16]) {
+    const f = Math.sqrt(1 - (xf / casco.semiejes[0]) ** 2);
+    const franja = new THREE.Mesh(new THREE.TorusGeometry(1, 0.018, 8, 48), oscuro);
+    // La escala se aplica en ejes locales ANTES del giro: el toro está en su
+    // plano XY (x local -> ancho del casco, y local -> alto) y su eje Z queda
+    // mirando a proa al girarlo 90° sobre Y.
+    franja.rotation.y = Math.PI / 2;
+    franja.scale.set(casco.semiejes[1] * f, casco.semiejes[2] * f, 1);
+    franja.position.set(casco.centro[0] + xf, casco.centro[2], -casco.centro[1]);
+    cuerpo.add(franja);
+  }
+  // Morro: carcasa oscura, cúpula transparente y lente.
+  cuerpo.add(elipsoide(morro, oscuro));
+  const cupula = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16),
+    new THREE.MeshPhongMaterial({ color: 0xa8dcff, transparent: true, opacity: 0.42, specular: 0xffffff, shininess: 140, depthWrite: false }));
+  cupula.scale.set(morro.semiejes[0] * 1.3, morro.semiejes[2] * 1.18, morro.semiejes[1] * 1.18);
+  cupula.position.copy(local(morro.centro)).add(new THREE.Vector3(0.02, 0, 0));
+  cuerpo.add(cupula);
+  const lente = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.05, 16),
+    new THREE.MeshPhongMaterial({ color: 0x06080c, specular: 0xffffff, shininess: 250 }));
+  lente.rotation.z = -Math.PI / 2;
+  lente.position.copy(local(morro.centro)).add(new THREE.Vector3(morro.semiejes[0] * 0.9, 0, 0));
+  cuerpo.add(lente);
+  // Bastidor superior: dos largueros y tres travesaños donde antes había una
+  // sola barra (la pieza "soporte").
+  const largo = sop.semiejes[0] * 2;
+  for (const s of [-1, 1]) {
+    const l = new THREE.Mesh(new THREE.BoxGeometry(largo, 0.03, 0.03), metal);
+    l.position.set(sop.centro[0], sop.centro[2] + 0.01, s * 0.10);
+    cuerpo.add(l);
+  }
+  for (const x of [-largo / 2 + 0.03, 0, largo / 2 - 0.03]) {
+    const t = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.23), metal);
+    t.position.set(sop.centro[0] + x, sop.centro[2] + 0.01, 0);
+    cuerpo.add(t);
+  }
+  // Patines inferiores con sus soportes.
+  const bajo = casco.centro[2] - casco.semiejes[2];
+  for (const s of [-1, 1]) {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.025, 0.035), oscuro);
+    p.position.set(casco.centro[0] - 0.02, bajo - 0.045, s * 0.12);
+    cuerpo.add(p);
+    for (const x of [-0.2, 0.2]) {
+      const st = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.08, 0.02), oscuro);
+      st.position.set(casco.centro[0] + x, bajo - 0.01, s * 0.12);
+      cuerpo.add(st);
+    }
+  }
+  // Propulsores: se construyen con el eje de giro en Y (el del cilindro de
+  // Three) y luego se gira el grupo entero si el propulsor es horizontal.
+  const helices = [];
+  const propulsor = (p, clave, vertical) => {
+    if (!p) return;
+    const rad = vertical ? p.semiejes[0] : p.semiejes[1];
+    const largo = vertical ? p.semiejes[2] * 2 : p.semiejes[0] * 2;
+    const g = new THREE.Group();
+    g.position.copy(local(p.centro));
+    if (!vertical) g.rotation.z = Math.PI / 2;
+    const carcasa = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, largo, 24, 1, true),
+      new THREE.MeshPhongMaterial({ color: 0x1c2026, side: THREE.DoubleSide, specular: 0x555555, shininess: 40 }));
+    g.add(carcasa);
+    for (const s of [-1, 1]) {
+      const aro = new THREE.Mesh(new THREE.TorusGeometry(rad, 0.011, 8, 28), metal);
+      aro.rotation.x = Math.PI / 2;
+      aro.position.y = s * largo / 2;
+      g.add(aro);
+    }
+    for (const s of [-1, 1]) {   // dos radios que sujetan el buje
+      const radio = new THREE.Mesh(new THREE.BoxGeometry(rad * 2, 0.008, 0.012), metal);
+      radio.rotation.y = s > 0 ? 0 : Math.PI / 2;
+      g.add(radio);
+    }
+    g.add(new THREE.Mesh(new THREE.SphereGeometry(rad * 0.3, 12, 8), metal));
+    const helice = new THREE.Group();
+    for (let k = 0; k < 3; k++) {
+      const brazo = new THREE.Group();
+      brazo.rotation.y = k * 2 * Math.PI / 3;
+      const pala = new THREE.Mesh(new THREE.BoxGeometry(rad * 0.62, 0.006, rad * 0.34), metal);
+      pala.position.x = rad * 0.52;
+      pala.rotation.x = 0.75;
+      brazo.add(pala);
+      helice.add(brazo);
+    }
+    g.add(helice);
+    cuerpo.add(g);
+    helices.push({ obj: helice, clave });
+  };
+  propulsor(piezas["propulsor izquierda"], "izquierda", false);
+  propulsor(piezas["propulsor derecha"], "derecha", false);
+  propulsor(piezas["propulsor proa"], "proa", true);
+  propulsor(piezas["propulsor popa"], "popa", true);
+  // Faros: bombilla (no le afecta la luz), brillo y un foco real cada uno.
+  const texBrillo = texturaPunto();
+  for (const s of [-1, 1]) {
+    const pos = new THREE.Vector3(casco.centro[0] + casco.semiejes[0] * 0.7, casco.centro[2] + 0.05, s * 0.11);
+    const bombilla = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffee }));
+    bombilla.position.copy(pos);
+    cuerpo.add(bombilla);
+    const brillo = new THREE.Sprite(new THREE.SpriteMaterial({ map: texBrillo, color: 0xdff4ff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+    brillo.scale.set(0.16, 0.16, 1);
+    brillo.position.copy(pos);
+    cuerpo.add(brillo);
+    const foco = new THREE.SpotLight(0xdff4ff, 1.1, 9, 0.40, 0.6, 1);
+    foco.position.copy(pos);
+    foco.target.position.copy(pos).add(new THREE.Vector3(4, -0.4, 0));
+    sub.add(foco);
+    sub.add(foco.target);
+  }
+  return { sub, cuerpo, helices };
+}
+
+function construirEscena3D(m) {
+  // Todo el cuerpo va en un único try: si algo falla (sin WebGL, o un bug
+  // futuro al construir la escena) se ve en la consola en vez de fallar en
+  // silencio, que es justo lo que pasó la primera vez que se escribió esto.
+  try {
+    return construirEscena3DInterno(m);
+  } catch (err) {
+    console.error("construirEscena3D falló:", err);
+    return null;   // se sigue usando la cámara
+  }
+}
+
+function construirEscena3DInterno(m) {
+  const e = m.escena;
+  const renderer = new THREE.WebGLRenderer({ canvas: $("escena3d"), antialias: true });
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(e.fov, 4 / 3, 0.05, 200);
+  const agua = { superficie: colorTHREE(e.agua_superficie), profunda: colorTHREE(e.agua_profunda) };
+  scene.fog = new THREE.FogExp2(agua.superficie.getHex(), 1 / e.visibilidad);
+  const lado = 2 * e.limite;
+  const texPunto = texturaPunto();
+
+  // Luces: cielo/suelo (hemisférica), sol desde arriba y un rebote flojo
+  // desde abajo, que es lo que da sombreado a la superficie ondulada vista
+  // por debajo (al sol de arriba no lo ve la cara de abajo).
+  scene.add(new THREE.HemisphereLight(colorTHREE(e.luz_superficie), colorTHREE(e.tierra_b), 0.7));
+  const sol = new THREE.DirectionalLight(0xffffff, 0.9);
+  sol.position.set(0.3, 1, 0.2);
+  scene.add(sol);
+  const rebote = new THREE.DirectionalLight(agua.superficie, 0.5);
+  rebote.position.set(-0.2, -1, 0.1);
+  scene.add(rebote);
+
+  // Terreno: una malla con el mismo relieve que fondo(x,y), en damero tierra
+  // con grano, y encima dos capas de cáusticas que se deslizan.
+  const n = 100;
+  const geoTerreno = new THREE.PlaneGeometry(lado, lado, n, n);
+  geoTerreno.rotateX(-Math.PI / 2);
+  const pos = geoTerreno.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const wx = pos.getX(i), wy = -pos.getZ(i);
+    pos.setY(i, -fondoJS(wx, wy, e));
+  }
+  geoTerreno.computeVertexNormals();
+  const texTerreno = texturaDamero(e.tierra_a, e.tierra_b, e.surco, e.ancho_junta, true);
+  texTerreno.repeat.set(e.limite, e.limite);
+  scene.add(new THREE.Mesh(geoTerreno, new THREE.MeshLambertMaterial({ map: texTerreno })));
+  const causticas = [];
+  for (const [semilla, celda, opacidad] of [[11, 2.4, 0.30], [23, 3.9, 0.20]]) {
+    const tex = texturaCeldas(semilla);
+    tex.repeat.set(lado / celda, lado / celda);
+    const capa = new THREE.Mesh(geoTerreno, new THREE.MeshBasicMaterial({ map: tex, color: 0xd8ffff, transparent: true, opacity: opacidad, depthWrite: false }));
+    capa.position.y = 0.03;
+    scene.add(capa);
+    causticas.push(tex);
+  }
+
+  // Las cuatro paredes, hasta un poco más hondo que el relieve máximo.
+  const altoPared = e.fondo_medio + e.relieve + 2;
+  const texPared = texturaDamero(e.pared_a, e.pared_b, e.junta, e.ancho_junta, false);
+  texPared.repeat.set(e.limite, altoPared / (2 * e.altura_baldosa_pared));
+  // Lambert y no Phong: con brillo especular, los faros del submarino a un
+  // metro de la pared pintaban un manchón blanco que se comía la baldosa.
+  const matPared = new THREE.MeshLambertMaterial({ map: texPared, side: THREE.DoubleSide });
+  for (const [eje, signo] of [["x", 1], ["x", -1], ["y", 1], ["y", -1]]) {
+    const pared = new THREE.Mesh(new THREE.PlaneGeometry(lado, altoPared), matPared);
+    pared.position.copy(w2t(eje === "x" ? signo * e.limite : 0, eje === "y" ? signo * e.limite : 0, altoPared / 2));
+    pared.rotation.y = eje === "x" ? Math.PI / 2 : 0;
+    scene.add(pared);
+  }
+
+  // Superficie del agua (z=0 del mundo). En mundo.py no hay un "cielo" real:
+  // al mirar hacia arriba se ve un brillo (LUZ_SUPERFICIE) que se funde con
+  // la distancia. Aquí es una malla ondulada (los vértices se mueven cada
+  // fotograma en bucle3D) con luz propia, ondas dibujadas y reflejo
+  // especular, que la niebla del motor atenúa con la distancia como al resto.
+  const nS = 60, ladoS = lado * 3;
+  const geoSup = new THREE.PlaneGeometry(ladoS, ladoS, nS, nS);
+  geoSup.rotateX(-Math.PI / 2);
+  const texSup = texturaCeldas(5, e.luz_superficie, [150, 200, 215]);
+  texSup.repeat.set(ladoS / 3.5, ladoS / 3.5);
+  const superficie = new THREE.Mesh(geoSup, new THREE.MeshPhongMaterial({
+    map: texSup, color: 0xffffff, emissive: colorTHREE(e.luz_superficie), emissiveIntensity: 0.55,
+    specular: 0xffffff, shininess: 80, side: THREE.DoubleSide,
+  }));
+  scene.add(superficie);
+  const baseSup = geoSup.attributes.position.array.slice();   // x/z fijos, y se recalcula
+
+  // Rayos de sol: unos cuantos planos verticales aditivos que cuelgan de la
+  // superficie alrededor de la cámara (se recolocan con ella, como las
+  // partículas) y siempre le dan la cara. Sin niebla del motor (con mezcla
+  // aditiva la niebla sumaría su color); se atenúan a mano por distancia y
+  // por profundidad de la cámara.
+  const texRayo = texturaRayo();
+  const rayos = [];
+  const azR = azarFijo(3);
+  const alcance = e.visibilidad * 1.4;
+  for (let i = 0; i < 14; i++) {
+    const r = new THREE.Mesh(new THREE.PlaneGeometry(1.2 + azR() * 1.8, e.fondo_medio + e.relieve),
+      new THREE.MeshBasicMaterial({ map: texRayo, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, side: THREE.DoubleSide }));
+    r.userData = { ox: (azR() - 0.5) * 2 * alcance, oz: (azR() - 0.5) * 2 * alcance, fase: azR() * 6.28, base: 0.10 + azR() * 0.08 };
+    scene.add(r);
+    rayos.push(r);
+  }
+
+  // "Nieve marina": partículas en suspensión en un cubo alrededor de la
+  // cámara; se envuelven al salir por un lado, así siempre hay las mismas.
+  const L = 2 * e.visibilidad, nNieve = 700;
+  const posNieve = new Float32Array(nNieve * 3);
+  const azN = azarFijo(9);
+  for (let i = 0; i < posNieve.length; i++) posNieve[i] = (azN() - 0.5) * L;
+  const geoNieve = new THREE.BufferGeometry();
+  geoNieve.setAttribute("position", new THREE.BufferAttribute(posNieve, 3));
+  const nieve = new THREE.Points(geoNieve, new THREE.PointsMaterial({ size: 0.06, map: texPunto, color: 0xe8f6ff, transparent: true, opacity: 0.55, depthWrite: false }));
+  nieve.frustumCulled = false;
+  scene.add(nieve);
+
+  // Burbujas de los propulsores: un depósito de partículas que se reciclan;
+  // cada propulsor suelta burbujas a ritmo proporcional a su consigna real.
+  const nBurb = 160;
+  const posBurb = new Float32Array(nBurb * 3).fill(9999);
+  const vidaBurb = new Float32Array(nBurb);      // segundos que le quedan; 0 = libre
+  const geoBurb = new THREE.BufferGeometry();
+  geoBurb.setAttribute("position", new THREE.BufferAttribute(posBurb, 3));
+  const burbujas = new THREE.Points(geoBurb, new THREE.PointsMaterial({ size: 0.045, map: texPunto, color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false }));
+  burbujas.frustumCulled = false;
+  scene.add(burbujas);
+
+  // Objetos fijos del fondo (cubos y pelotas), estos sí existen en mundo.py.
+  for (const o of e.objetos) {
+    const z0 = fondoJS(o.x, o.y, e) - o.radio;
+    const geo = o.tipo === "cubo"
+      ? new THREE.BoxGeometry(o.radio * 2, o.radio * 2, o.radio * 2)
+      : new THREE.SphereGeometry(o.radio, 28, 20);
+    const malla = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ color: colorTHREE(o.color), specular: 0x666666, shininess: o.tipo === "cubo" ? 20 : 60 }));
+    malla.position.copy(w2t(o.x, o.y, z0));
+    scene.add(malla);
+  }
+
+  // Rocas y algas decorativas, lejos de aros, objetos y del punto de salida.
+  // Son bajas (< 0,5 m) y no tienen física: el submarino las atraviesa si
+  // pasa a ras de fondo, igual que la cámara MJPEG no las pinta.
+  const azD = azarFijo(42);
+  const ocupado = [...m.aros.lista.map((a) => [a.x, a.y]), ...e.objetos.map((o) => [o.x, o.y]), [0, 0]];
+  const sitioLibre = () => {
+    for (let k = 0; k < 20; k++) {
+      const x = (azD() - 0.5) * 2 * (e.limite - 1.5), y = (azD() - 0.5) * 2 * (e.limite - 1.5);
+      if (ocupado.every(([ox, oy]) => (x - ox) ** 2 + (y - oy) ** 2 > 2.5 ** 2)) return [x, y];
+    }
+    return null;
+  };
+  // El dodecaedro con detalle 0 ya trae normales planas por cara; MeshLambert
+  // en la r128 no admite flatShading (avisaba por consola en cada roca).
+  const matRocas = [0x6e6259, 0x7c6a58, 0x5f5a55, 0x8a7461].map((c) => new THREE.MeshLambertMaterial({ color: c }));
+  for (let i = 0; i < 55; i++) {
+    const s = sitioLibre(); if (!s) continue;
+    const r = 0.18 + azD() * 0.32;
+    const roca = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), matRocas[Math.floor(azD() * matRocas.length)]);
+    roca.scale.set(1, 0.5 + azD() * 0.35, 0.8 + azD() * 0.4);
+    roca.rotation.set(azD() * 0.5, azD() * 6.28, azD() * 0.5);
+    roca.position.copy(w2t(s[0], s[1], fondoJS(s[0], s[1], e) + r * 0.3));
+    scene.add(roca);
+  }
+  const matAlgas = [0x2f8f3a, 0x3aa34a, 0x6b9a2c, 0x2a7a55].map((c) => new THREE.MeshLambertMaterial({ color: c, side: THREE.DoubleSide }));
+  const algas = [];
+  for (let i = 0; i < 50; i++) {
+    const s = sitioLibre(); if (!s) continue;
+    const planta = new THREE.Group();
+    const hojas = 2 + Math.floor(azD() * 3);
+    for (let k = 0; k < hojas; k++) {
+      const alto = 0.5 + azD() * 1.1;
+      const geo = new THREE.PlaneGeometry(0.09 + azD() * 0.06, alto, 1, 4);
+      geo.translate(0, alto / 2, 0);
+      const hoja = new THREE.Mesh(geo, matAlgas[Math.floor(azD() * matAlgas.length)]);
+      hoja.position.set((azD() - 0.5) * 0.25, 0, (azD() - 0.5) * 0.25);
+      hoja.rotation.y = azD() * 6.28;
+      hoja.rotation.z = (azD() - 0.5) * 0.3;
+      planta.add(hoja);
+    }
+    planta.position.copy(w2t(s[0], s[1], fondoJS(s[0], s[1], e) + 0.02));
+    scene.add(planta);
+    algas.push({ planta, fase: azD() * 6.28, amp: 0.08 + azD() * 0.1 });
+  }
+
+  const aros = arosIniciales(m, scene);
+  const { sub, cuerpo, helices } = construirSub(e);
+  scene.add(sub);
+
+  return { renderer, scene, camera, agua, sub, cuerpo, helices, aros, escena: e,
+           causticas, superficie, baseSup, texSup, rayos, alcance, nieve, L, burbujas, vidaBurb, algas,
+           azB: azarFijo(1), ultimoFrame: 0, tiempo: 0 };
+}
+
+function medidasVisor() {
+  const v = $("visor");
+  return { w: v.clientWidth || 320, h: v.clientHeight || 240 };
+}
+
+function actualizarEscena3D(m) {
+  if (typeof THREE === "undefined") return;   // three.min.js no cargó: seguir con la cámara
+  if (!escena3D) {
+    escena3D = construirEscena3D(m);
+    if (!escena3D) return;
+    requestAnimationFrame(bucle3D);
+  }
+  // Color/apagado de los aros: puede cambiar si se reinician en la sesión.
+  for (const a of m.aros.lista) {
+    const ent = escena3D.aros.find((x) => x.nombre === a.nombre);
+    if (!ent) continue;
+    const base = a.color;
+    const c = a.pasado ? [base[0] * 0.4 + 90, base[1] * 0.4 + 90, base[2] * 0.4 + 90] : base;
+    ent.malla.material.color.setRGB(c[0] / 255, c[1] / 255, c[2] / 255);
+    ent.pasado = !!a.pasado;
+  }
+  poseAnt = poseAct || m.sub;
+  tAnt = tAct || performance.now();
+  poseAct = m.sub;
+  tAct = performance.now();
+}
+
+function angLerp(a, b, t) { const d = ((b - a + 540) % 360) - 180; return a + d * t; }
+function lerp(a, b, t) { return a + (b - a) * t; }
+// Envuelve v en el intervalo [c - L/2, c + L/2) (para partículas y rayos que
+// siguen a la cámara).
+function envolver(v, c, L) { return c + ((((v - c + L / 2) % L) + L) % L) - L / 2; }
+
+function bucle3D() {
+  requestAnimationFrame(bucle3D);
+  if (!modo3D || !escena3D || !poseAct) return;
+  const E = escena3D;
+  const { renderer, scene, camera, agua, sub, escena: e } = E;
+  const { w, h } = medidasVisor();
+  if (renderer.domElement.width !== w || renderer.domElement.height !== h) {
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    // FOV de mundo.py es horizontal; el de la cámara de Three.js es vertical.
+    camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(e.fov / 2)) / camera.aspect));
+    camera.updateProjectionMatrix();
+  }
+  const ahora = performance.now();
+  const dt = E.ultimoFrame ? Math.min(0.1, (ahora - E.ultimoFrame) / 1000) : 0;
+  E.ultimoFrame = ahora;
+  E.tiempo += dt;
+  const T = E.tiempo;
+  const t = tAct > tAnt ? Math.min(1.5, (ahora - tAct) / (tAct - tAnt)) : 0;
+  const x = lerp(poseAnt.x, poseAct.x, t), y = lerp(poseAnt.y, poseAct.y, t), z = lerp(poseAnt.z, poseAct.z, t);
+  const yaw = angLerp(poseAnt.yaw, poseAct.yaw, t), pitch = lerp(poseAnt.pitch, poseAct.pitch, t),
+        roll = lerp(poseAnt.roll, poseAct.roll, t);
+  const { fwd, izq, arr } = ejesCuerpo(yaw, pitch, roll);
+  const fwdT = w2t(...fwd), izqT = w2t(...izq), arrT = w2t(...arr);
+
+  // Color del agua (niebla y fondo) según lo hondo que se esté, igual que
+  // _color_agua en mundo.py.
+  const tp = Math.max(0, Math.min(1, z / e.fondo_medio));
+  const colorAgua = agua.superficie.clone().lerp(agua.profunda, tp);
+  scene.fog.color.copy(colorAgua);
+  renderer.setClearColor(colorAgua);
+
+  sub.position.copy(w2t(x, y, z));
+  sub.setRotationFromMatrix(new THREE.Matrix4().makeBasis(fwdT, arrT, izqT.clone().multiplyScalar(-1)));
+  const tercera = mundo && mundo.vista === "tercera";
+  E.cuerpo.visible = tercera;   // los faros (en `sub`) alumbran también en primera persona
+
+  if (tercera) {
+    const rad = yaw * Math.PI / 180;
+    const cx = x - e.cam_tercera_atras * Math.sin(rad);
+    const cy = y - e.cam_tercera_atras * Math.cos(rad);
+    const cz = Math.max(0.05, Math.min(z - e.cam_tercera_arriba, fondoJS(cx, cy, e) - 0.2));
+    camera.position.copy(w2t(cx, cy, cz));
+    camera.up.set(0, 1, 0);
+    camera.lookAt(w2t(x, y, z));
+  } else {
+    camera.position.copy(w2t(x, y, z));
+    camera.up.copy(arrT);
+    camera.lookAt(camera.position.clone().add(fwdT));
+  }
+
+  // ---- animación del decorado ----
+  // Hélices: giran según la consigna real de cada propulsor (-100..100).
+  for (const hl of E.helices) {
+    const v = controlAct ? (controlAct[hl.clave] || 0) / 100 : 0;
+    hl.obj.rotation.y += (0.6 * v + (v ? 0.05 : 0)) ;
+  }
+  // Cáusticas: las dos capas se deslizan en direcciones distintas.
+  E.causticas[0].offset.set(T * 0.010, T * 0.006);
+  E.causticas[1].offset.set(-T * 0.007, T * 0.011);
+  // Superficie: ondas en los vértices (x/z fijos, y = suma de senos) y el
+  // dibujo de celdas deslizándose.
+  {
+    const p = E.superficie.geometry.attributes.position, b = E.baseSup;
+    for (let i = 0; i < p.count; i++) {
+      const sx = b[i * 3], sz = b[i * 3 + 2];
+      p.array[i * 3 + 1] = 0.10 * Math.sin(0.55 * sx + 1.3 * T) + 0.07 * Math.cos(0.7 * sz - 0.9 * T) + 0.05 * Math.sin(0.3 * (sx + sz) + 0.6 * T);
+    }
+    p.needsUpdate = true;
+    E.superficie.geometry.computeVertexNormals();
+    E.texSup.offset.set(T * 0.004, -T * 0.003);
+  }
+  // Rayos de sol: siguen a la cámara, se balancean y dan la cara.
+  const cam = camera.position;
+  const hondura = 1 - 0.7 * tp;
+  for (const r of E.rayos) {
+    const u = r.userData;
+    const rx = envolver(cam.x + u.ox + 0.4 * Math.sin(0.35 * T + u.fase), cam.x, 2 * E.alcance);
+    const rz = envolver(cam.z + u.oz + 0.4 * Math.cos(0.3 * T + u.fase), cam.z, 2 * E.alcance);
+    r.position.set(rx, -(e.fondo_medio + e.relieve) / 2, rz);
+    r.rotation.y = Math.atan2(cam.x - rx, cam.z - rz);
+    const d = Math.hypot(cam.x - rx, cam.z - rz);
+    r.material.opacity = u.base * hondura * Math.exp(-d / e.visibilidad) * (0.8 + 0.2 * Math.sin(0.9 * T + u.fase));
+  }
+  // Nieve marina: cae despacio, deriva, y se envuelve alrededor de la cámara.
+  {
+    const a = E.nieve.geometry.attributes.position.array, L = E.L;
+    for (let i = 0; i < a.length; i += 3) {
+      a[i] = envolver(a[i] + dt * 0.03 * Math.sin(0.5 * T + i), cam.x, L);
+      a[i + 1] = envolver(a[i + 1] - dt * 0.05, cam.y, L);
+      a[i + 2] = envolver(a[i + 2] + dt * 0.03 * Math.cos(0.4 * T + i), cam.z, L);
+    }
+    E.nieve.geometry.attributes.position.needsUpdate = true;
+  }
+  // Burbujas: nacen en los propulsores con consigna, suben y se reciclan.
+  {
+    const a = E.burbujas.geometry.attributes.position.array, vida = E.vidaBurb;
+    let libre = 0;
+    for (let i = 0; i < vida.length; i++) {
+      if (vida[i] > 0) {
+        vida[i] -= dt;
+        a[i * 3 + 1] += dt * 0.35;
+        a[i * 3] += dt * 0.05 * Math.sin(3 * T + i);
+        if (vida[i] <= 0 || a[i * 3 + 1] > 0) { vida[i] = 0; a[i * 3 + 1] = 9999; }
+      }
+    }
+    if (controlAct) for (const hl of E.helices) {
+      const v = Math.abs(controlAct[hl.clave] || 0) / 100;
+      if (v < 0.05 || E.azB() > v * 0.5) continue;
+      while (libre < vida.length && vida[libre] > 0) libre++;
+      if (libre >= vida.length) break;
+      const p = hl.obj.getWorldPosition(new THREE.Vector3());
+      a[libre * 3] = p.x + (E.azB() - 0.5) * 0.06;
+      a[libre * 3 + 1] = p.y + (E.azB() - 0.5) * 0.06;
+      a[libre * 3 + 2] = p.z + (E.azB() - 0.5) * 0.06;
+      vida[libre] = 1.5 + E.azB() * 1.5;
+    }
+    E.burbujas.geometry.attributes.position.needsUpdate = true;
+  }
+  // Algas: se mecen desde la base.
+  for (const al of E.algas) al.planta.rotation.z = al.amp * Math.sin(0.8 * T + al.fase);
+  // Aros: el siguiente late; los pasados quedan apagados.
+  const siguiente = mundo && mundo.aros ? mundo.aros.siguiente : null;
+  for (const ar of E.aros) {
+    ar.malla.material.emissiveIntensity = ar.pasado ? 0 : ar.nombre === siguiente ? 0.45 + 0.4 * Math.sin(4 * T) : 0.25;
+  }
+
+  renderer.render(scene, camera);
+}
+
+// Con mundo simulado el visor es siempre el 3D (pedido 2026-09-27: "que
+// solo se vea en 3D, la otra cámara es muy fea"): en cuanto la escena está
+// construida se pasa a ella y se corta el flujo /camara, que el servidor deja
+// de calcular. No hay vuelta a la cámara. Si three.min.js no cargó o no hay
+// WebGL, escena3D queda null y la cámara de siempre sigue como en el real.
+function activar3D() {
+  modo3D = true;
+  $("visor").classList.add("modo-3d", "con-imagen");
+  camara.removeAttribute("src");   // quitar el atributo corta el flujo sin disparar "error" (src = "" sí lo dispara)
+  $("btn-grabar").disabled = false;
+  if (!grabador) $("estado-grabacion").textContent = "se guarda en este dispositivo";
+}
+
+// ---- grabación en el cliente ----
+let grabador = null, trozos = [], lienzoTimer = null, inicioGrabacion = 0;
+function formatoGrabacion() {
+  for (const f of ["video/webm;codecs=vp9", "video/webm", "video/mp4"]) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(f)) return f;
+  }
+  return null;
+}
+function crearGrabador(stream, formato) {
+  trozos = [];
+  const g = new MediaRecorder(stream, { mimeType: formato });
+  g.ondataavailable = (e) => { if (e.data.size) trozos.push(e.data); };
+  g.onstop = () => {
+    const ext = formato.startsWith("video/mp4") ? "mp4" : "webm";
+    const url = URL.createObjectURL(new Blob(trozos, { type: formato.split(";")[0] }));
+    const a = document.createElement("a");
+    a.href = url; a.download = "submarino-" + new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19) + "." + ext;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    $("estado-grabacion").textContent = "vídeo descargado (" + a.download + ")";
+  };
+  return g;
+}
+function empezarGrabacion() {
+  const formato = formatoGrabacion();
+  if (!formato) { $("estado-grabacion").textContent = "este navegador no puede grabar"; return; }
+  if (modo3D && escena3D) {
+    // El propio canvas de Three.js ya es una fuente de vídeo: no hace falta
+    // copiarlo a otro canvas como con la imagen MJPEG.
+    grabador = crearGrabador(escena3D.renderer.domElement.captureStream(10), formato);
+  } else {
+    if (!camaraViva) { $("estado-grabacion").textContent = "este navegador no puede grabar"; return; }
+    const lienzo = document.createElement("canvas");
+    lienzo.width = camara.naturalWidth || 320;
+    lienzo.height = camara.naturalHeight || 240;
+    const ctx = lienzo.getContext("2d");
+    lienzoTimer = setInterval(() => ctx.drawImage(camara, 0, 0, lienzo.width, lienzo.height), 100);
+    grabador = crearGrabador(lienzo.captureStream(10), formato);
+  }
+  grabador.start(1000);
+  inicioGrabacion = Date.now();
+  $("btn-grabar").textContent = "■ Parar";
+  $("btn-grabar").classList.add("grabando");
+}
+function pararGrabacion() {
+  clearInterval(lienzoTimer);
+  if (grabador && grabador.state !== "inactive") grabador.stop();
+  grabador = null;
+  $("btn-grabar").textContent = "● Grabar";
+  $("btn-grabar").classList.remove("grabando");
+}
+$("btn-grabar").addEventListener("click", () => { if (grabador) pararGrabacion(); else empezarGrabacion(); });
+setInterval(() => {
+  if (grabador) $("estado-grabacion").textContent = "grabando " + Math.round((Date.now() - inicioGrabacion) / 1000) + " s";
+}, 500);
+</script>
+</body>
+</html>

@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<!--
+  Interfaz de control del rover. La sirve servidor_web.py en GET /.
+
+  Todo va en este único fichero y sin librerías externas a propósito: el rover
+  no tendrá internet en el campo, así que no puede depender de ningún CDN.
+
+  El control se envía repetido mientras haya una tecla pulsada, porque el
+  hardware para los motores si pasa medio segundo sin recibir una orden nueva
+  (ver el vigilante en hardware.py).
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Rover</title>
+<style>
+  :root {
+    --fondo: #0d1117;
+    --tarjeta: #161b22;
+    --borde: #283039;
+    --texto: #e6edf3;
+    --tenue: #8b949e;
+    --azul: #2f81f7;
+    --verde: #2ea043;
+    --rojo: #f85149;
+    --ambar: #d29922;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--texto);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 14px 20px; border-bottom: 1px solid var(--borde); background: var(--tarjeta);
+  }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
+  header .sub { color: var(--tenue); font-size: 12px; }
+  .espacio { flex: 1; }
+  .estado { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .punto { width: 10px; height: 10px; border-radius: 50%; background: var(--tenue); }
+  .punto.ok { background: var(--verde); box-shadow: 0 0 8px var(--verde); }
+  .punto.mal { background: var(--rojo); box-shadow: 0 0 8px var(--rojo); }
+
+  main {
+    display: grid; gap: 16px; padding: 16px;
+    grid-template-columns: 320px 1fr 300px;
+    align-items: start;
+  }
+  @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+
+  .tarjeta { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 10px; }
+  .tarjeta h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: var(--tenue);
+    margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--borde); font-weight: 600;
+  }
+  .cuerpo { padding: 16px; }
+  .col { display: grid; gap: 16px; }
+
+  /* --- teclas --- */
+  .teclado { display: grid; grid-template-columns: repeat(3, 68px); gap: 8px; justify-content: center; }
+  .tecla {
+    grid-column: span 1; height: 62px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--borde); background: #1c2430; color: var(--texto);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 600; touch-action: none;
+    transition: background .08s, border-color .08s;
+  }
+  /* Sin selección de texto ni menú de pulsación larga (iOS necesita los
+     prefijos -webkit-). Se aplica a todo el visor, botones incluidos. */
+  .tecla, .visor {
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  }
+  .tecla small { font-size: 16px; font-weight: 400; color: var(--tenue); }
+  .tecla:hover { border-color: #3d4956; }
+  .tecla.activa { background: var(--azul); border-color: var(--azul); }
+  .tecla.activa small { color: #fff; }
+  /* Disposición WASD: la W sola arriba en el centro, las otras tres debajo. */
+  .tecla.w { grid-column: 2; grid-row: 1; }
+  .tecla.a { grid-column: 1; grid-row: 2; }
+  .tecla.s { grid-column: 2; grid-row: 2; }
+  .tecla.d { grid-column: 3; grid-row: 2; }
+  .tecla.parar {
+    grid-column: 1 / span 3; height: 44px; font-size: 13px; letter-spacing: .5px;
+    background: #2a1416; border-color: #5c1f23; color: #ff9c99;
+  }
+  .tecla.parar:hover { background: #3a181b; }
+  .pulsadas { margin-top: 14px; color: var(--tenue); font-size: 12px; min-height: 18px; }
+
+  /* --- deslizadores --- */
+  .campo { margin-bottom: 14px; }
+  .campo label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+  .campo label b { color: var(--azul); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--azul); }
+
+  /* --- barras de empuje --- */
+  .empujes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .barra { position: relative; height: 22px; background: #0b0f14; border: 1px solid var(--borde); border-radius: 5px; overflow: hidden; }
+  .barra .relleno { position: absolute; top: 0; bottom: 0; left: 50%; width: 0; background: var(--azul); transition: width .1s, left .1s; }
+  .barra .cero { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: #3d4956; }
+  .escala { display: flex; justify-content: space-between; color: var(--tenue); font-size: 11px; margin-top: 4px; }
+  .empuje-tit { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; }
+  .empuje-tit b { font-variant-numeric: tabular-nums; }
+
+  /* --- visor --- */
+  .visor {
+    aspect-ratio: 4 / 3; background: #0b0f14; border: 1px dashed var(--borde); border-radius: 8px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    color: var(--tenue); overflow: hidden;
+  }
+  .visor .icono { font-size: 34px; opacity: .45; }
+  .visor .sin-imagen { font-size: 15px; font-weight: 600; letter-spacing: 1.5px; color: #c9d1d9; }
+  .visor .motivo { font-size: 12px; color: var(--tenue); }
+  /* La imagen del flujo MJPEG ocupa todo el visor y tapa el rótulo SIN IMAGEN
+     mientras llega señal; si se corta, se oculta y el rótulo vuelve a verse. */
+  .visor img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: none; }
+  .visor.con-imagen img { display: block; }
+  .visor.con-imagen { border-style: solid; }
+  .grabacion { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 12px; color: var(--tenue); }
+  .grabacion button {
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font: inherit; font-weight: 600;
+    border: 1px solid var(--borde); background: #1c2430; color: var(--texto);
+  }
+  .grabacion button.grabando { background: #5a1418; border-color: var(--rojo); color: #ffb3b0; }
+  .grabacion button:disabled { opacity: .5; cursor: default; }
+
+  /* --- telemetría --- */
+  .dato { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; font-size: 13px; }
+  .dato span { color: var(--tenue); }
+  .dato b { font-weight: 500; font-variant-numeric: tabular-nums; }
+  .separador { height: 1px; background: var(--borde); margin: 10px 0; }
+  .bateria-barra { height: 8px; background: #0b0f14; border-radius: 4px; overflow: hidden; margin-top: 6px; }
+  .bateria-barra div { height: 100%; background: var(--verde); width: 0; transition: width .3s; }
+  .insignia {
+    display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px;
+    border: 1px solid var(--borde); color: var(--tenue);
+  }
+  .insignia.aviso { background: #2a2113; border-color: #5c4611; color: #e3b341; }
+  .nota { color: var(--tenue); font-size: 11.5px; line-height: 1.45; margin-top: 10px; }
+
+  /* --- mando superpuesto al visor (solo pantallas pequeñas) --- */
+  /* Son los mismos botones que la tarjeta de teclado, con el mismo
+     data-tecla: el script los trata igual y enciende los dos a la vez. */
+  .mando { display: none; }
+  .visor { position: relative; }
+  .mando .cruceta {
+    position: absolute; left: 12px; bottom: 12px;
+    display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); gap: 5px;
+  }
+  .mando .tecla {
+    height: auto; font-size: 24px; border-radius: 12px;
+    background: rgba(28, 36, 48, .78); border-color: rgba(230, 237, 243, .25);
+  }
+  .mando .tecla.w { grid-column: 2; grid-row: 1; }
+  .mando .tecla.a { grid-column: 1; grid-row: 2; }
+  .mando .tecla.s { grid-column: 2; grid-row: 3; }
+  .mando .tecla.d { grid-column: 3; grid-row: 2; }
+  .mando .tecla.parar {
+    position: absolute; right: 12px; bottom: 12px; width: 88px; height: 88px;
+    border-radius: 50%; font-size: 14px; font-weight: 700; grid-column: auto;
+    background: rgba(90, 20, 24, .85); border-color: rgba(248, 81, 73, .6); color: #ffb3b0;
+  }
+  .mando .esquina {
+    position: absolute; top: 10px; display: flex; align-items: center; gap: 6px;
+    font-size: 12px; padding: 4px 9px; border-radius: 20px;
+    background: rgba(13, 17, 23, .7); color: var(--texto); font-variant-numeric: tabular-nums;
+  }
+  .mando .esquina.izq { left: 10px; }
+  .mando .esquina.der { right: 10px; }
+  .mando .esquina.aviso { color: #e3b341; }
+
+  /* Pantalla pequeña: móvil en vertical (estrecho) o en apaisado (bajo). */
+  @media (max-width: 800px), (max-height: 500px) {
+    body { overscroll-behavior: none; }
+    header { padding: 8px 12px; gap: 10px; }
+    header h1 { font-size: 15px; }
+    header .sub { display: none; }
+    main { padding: 8px; gap: 10px; }
+    /* Las columnas desaparecen: cada tarjeta es un elemento de la rejilla y
+       el visor pasa a ser el primero. */
+    .col { display: contents; }
+    .c-visor { order: -1; }
+    .c-visor h2 { display: none; }
+    .c-visor .cuerpo { padding: 0; }
+    .c-teclado { display: none; }
+    /* El rótulo SIN IMAGEN se centra en la parte alta, libre de botones. */
+    .visor { max-height: 82svh; border-radius: 10px; border-style: solid; padding-bottom: 150px; }
+    .mando { display: block; touch-action: none; }
+    .grabacion { padding: 0 10px 10px; }
+  }
+  /* Móvil apaisado: el visor ocupa todo el ancho y casi todo el alto. */
+  @media (max-height: 500px) {
+    .visor { aspect-ratio: auto; height: 82svh; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Rover</h1>
+    <div class="sub">Control diferencial</div>
+  </div>
+  <div class="espacio"></div>
+  <div class="estado"><span class="punto" id="punto"></span><span id="conexion">conectando…</span></div>
+  <div class="estado"><span style="color:var(--tenue)">latencia</span> <b id="latencia">—</b></div>
+</header>
+
+<main>
+  <!-- columna izquierda: control -->
+  <div class="col">
+    <div class="tarjeta c-teclado">
+      <h2>Control con teclado</h2>
+      <div class="cuerpo">
+        <div class="teclado">
+          <div class="tecla w" data-tecla="w">W<small>↑</small></div>
+          <div class="tecla a" data-tecla="a">A<small>←</small></div>
+          <div class="tecla s" data-tecla="s">S<small>↓</small></div>
+          <div class="tecla d" data-tecla="d">D<small>→</small></div>
+          <div class="tecla parar" data-tecla=" ">PARAR · espacio</div>
+        </div>
+        <div class="pulsadas">Pulsadas: <b id="pulsadas">—</b></div>
+        <div class="nota">
+          Funciona con el teclado (W A S D o flechas) y pulsando los botones.
+          Mientras mantienes la pulsación se reenvía la orden cada 150 ms: si
+          se dejara de enviar, el rover se pararía solo a los 500 ms.
+        </div>
+      </div>
+    </div>
+
+    <div class="tarjeta">
+      <h2>Control manual</h2>
+      <div class="cuerpo">
+        <div class="campo">
+          <label>Velocidad base (%) <b id="v-velocidad">60</b></label>
+          <input type="range" id="velocidad" min="0" max="100" value="60">
+        </div>
+        <div class="campo" style="margin-bottom:0">
+          <label>Giro diferencial (%) <b id="v-giro">40</b></label>
+          <input type="range" id="giro" min="0" max="100" value="40">
+        </div>
+        <div class="nota">
+          Avanzando, el giro se resta a un lado y se suma al otro. Parado, gira
+          sobre el sitio a la velocidad base.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- columna central: cámara y empuje -->
+  <div class="col">
+    <div class="tarjeta c-visor">
+      <h2>Visor de cámara</h2>
+      <div class="cuerpo">
+        <!-- Debajo de la imagen queda el estado de fallo SIN IMAGEN: se ve
+             cuando no hay cámara o cuando deja de dar señal (se rompe, se
+             desconecta o el flujo se corta). -->
+        <div class="visor" id="visor">
+          <div class="icono">⊘</div>
+          <div class="sin-imagen">SIN IMAGEN</div>
+          <div class="motivo" id="estado-camara">…</div>
+          <img id="camara" alt="">
+
+
+          <!-- Mando superpuesto, solo visible en pantallas pequeñas: cruceta
+               a la izquierda, PARAR a la derecha y el estado en las esquinas,
+               como en un juego de vehículos. -->
+          <div class="mando">
+            <div class="esquina izq"><span class="punto" id="m-punto"></span><span id="m-conexion">…</span></div>
+            <div class="esquina der" id="m-estado">…</div>
+            <div class="cruceta">
+              <div class="tecla w" data-tecla="w">▲</div>
+              <div class="tecla a" data-tecla="a">◀</div>
+              <div class="tecla s" data-tecla="s">▼</div>
+              <div class="tecla d" data-tecla="d">▶</div>
+            </div>
+            <div class="tecla parar" data-tecla=" ">PARAR</div>
+          </div>
+        </div>
+        <!-- La grabación es cosa del cliente: se captura el visor en el
+             navegador y se descarga como fichero. El rover no guarda vídeo. -->
+        <div class="grabacion">
+          <button id="btn-grabar" disabled>● Grabar</button>
+          <span id="estado-grabacion">sin imagen que grabar</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tarjeta">
+      <h2>Empuje de los motores (diferencial)</h2>
+      <div class="cuerpo">
+        <div class="empujes">
+          <div>
+            <div class="empuje-tit"><span>Empuje izquierda</span><b id="n-izq">0</b></div>
+            <div class="barra"><div class="cero"></div><div class="relleno" id="b-izq"></div></div>
+            <div class="escala"><span>-100</span><span>0</span><span>100</span></div>
+          </div>
+          <div>
+            <div class="empuje-tit"><span>Empuje derecha</span><b id="n-der">0</b></div>
+            <div class="barra"><div class="cero"></div><div class="relleno" id="b-der" style="background:var(--verde)"></div></div>
+            <div class="escala"><span>-100</span><span>0</span><span>100</span></div>
+          </div>
+        </div>
+        <div class="nota">
+          Valores leídos de <code>/telemetria</code>, no los que envía esta
+          página: es lo que el hardware tiene aplicado de verdad.
+          <span class="insignia" id="insignia-vigilante">vigilante</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- columna derecha: telemetría -->
+  <div class="col">
+    <div class="tarjeta">
+      <h2>Telemetría</h2>
+      <div class="cuerpo">
+        <div class="dato"><span>Batería</span><b id="bateria">—</b></div>
+        <div class="bateria-barra"><div id="bateria-barra"></div></div>
+
+        <div class="separador"></div>
+        <div class="dato"><span>GPS</span><b id="gps-fix">—</b></div>
+        <div class="dato"><span>Lat</span><b id="gps-lat">—</b></div>
+        <div class="dato"><span>Lon</span><b id="gps-lon">—</b></div>
+        <div class="dato"><span>Alt</span><b id="gps-alt">—</b></div>
+
+        <div class="separador"></div>
+        <!-- Horizonte artificial: el anillo exterior es la rosa de rumbos y
+             gira con el yaw (el rumbo actual queda arriba, bajo el índice
+             rojo). El disco interior es el indicador de actitud: el horizonte
+             se inclina con el roll y sube o baja con el pitch. Las marcas se
+             generan en el script. -->
+        <svg id="horizonte" viewBox="0 0 300 300" width="100%" aria-label="Horizonte artificial y rumbo">
+          <defs>
+            <clipPath id="clip-actitud"><circle cx="150" cy="150" r="98"/></clipPath>
+          </defs>
+          <circle cx="150" cy="150" r="148" fill="#0b0f14" stroke="#3d4956" stroke-width="2"/>
+          <g id="rosa"></g>
+          <g clip-path="url(#clip-actitud)">
+            <g id="actitud">
+              <rect x="-600" y="-1400" width="1500" height="1550" fill="#1f7ae0"/>
+              <rect x="-600" y="150" width="1500" height="1550" fill="#6b4a1e"/>
+              <line x1="-600" y1="150" x2="900" y2="150" stroke="#fff" stroke-width="1.5"/>
+              <g id="escalera"></g>
+            </g>
+          </g>
+          <circle cx="150" cy="150" r="98" fill="none" stroke="#3d4956" stroke-width="2"/>
+          <!-- referencias fijas: índice de roll, símbolo del rover, índice de rumbo -->
+          <polygon points="150,58 144,70 156,70" fill="#fff"/>
+          <circle cx="150" cy="150" r="9" fill="none" stroke="#fff" stroke-width="2.5"/>
+          <line x1="100" y1="150" x2="132" y2="150" stroke="#fff" stroke-width="3"/>
+          <line x1="168" y1="150" x2="200" y2="150" stroke="#fff" stroke-width="3"/>
+          <polygon points="150,3 143,16 157,16" fill="#f85149"/>
+        </svg>
+        <div class="dato"><span>yaw / pitch / roll</span><b id="imu-txt">—</b></div>
+
+        <div class="nota">
+          IMU, GPS y batería devuelven valores simulados mientras no haya
+          hardware real conectado.
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ---- estado de las teclas ----
+const teclas = { w: false, a: false, s: false, d: false };
+const ALIAS = {
+  arrowup: "w", arrowleft: "a", arrowdown: "s", arrowright: "d",
+  w: "w", a: "a", s: "s", d: "d",
+};
+
+const $ = (id) => document.getElementById(id);
+
+function pintarTeclas() {
+  document.querySelectorAll(".tecla[data-tecla]").forEach((el) => {
+    const t = el.dataset.tecla;
+    if (t in teclas) el.classList.toggle("activa", teclas[t]);
+  });
+  const pulsadas = Object.keys(teclas).filter((t) => teclas[t]);
+  $("pulsadas").textContent = pulsadas.length ? pulsadas.join(" + ").toUpperCase() : "—";
+}
+
+function parar() {
+  for (const t in teclas) teclas[t] = false;
+  for (const p in punteros) delete punteros[p];
+  pintarTeclas();
+}
+
+// ---- teclado ----
+addEventListener("keydown", (e) => {
+  if (e.key === " ") { e.preventDefault(); parar(); return; }
+  const t = ALIAS[e.key.toLowerCase()];
+  if (!t) return;
+  e.preventDefault();          // las flechas mueven la página si no
+  if (!teclas[t]) { teclas[t] = true; pintarTeclas(); }
+});
+addEventListener("keyup", (e) => {
+  const t = ALIAS[e.key.toLowerCase()];
+  if (!t) return;
+  teclas[t] = false;
+  pintarTeclas();
+});
+
+// ---- pulsación con ratón o dedo ----
+// Cada dedo (puntero) se apunta con la tecla que sujeta, para que con dos
+// dedos a la vez (▲ y ▶) soltar uno no suelte el otro.
+const punteros = {};   // pointerId -> tecla
+
+function soltarPuntero(e) {
+  const t = punteros[e.pointerId];
+  if (t === undefined) return;
+  delete punteros[e.pointerId];
+  teclas[t] = false; pintarTeclas();
+}
+
+document.querySelectorAll(".tecla[data-tecla]").forEach((el) => {
+  const t = el.dataset.tecla;
+  // Pulsación larga en el móvil: Android saca el menú contextual; iOS
+  // selecciona el texto del botón (Copiar / Buscar) salvo que se cancele el
+  // touchstart, que tiene que ser no pasivo para poder cancelarlo.
+  el.addEventListener("contextmenu", (e) => e.preventDefault());
+  el.addEventListener("touchstart", (e) => e.preventDefault(), { passive: false });
+  el.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (t === " ") { parar(); return; }
+    // El dedo puede resbalar fuera del botón sin soltarlo. (Falla solo con
+    // eventos sintéticos, sin puntero real; se ignora.)
+    try { el.setPointerCapture(e.pointerId); } catch (_) {}
+    punteros[e.pointerId] = t;
+    teclas[t] = true; pintarTeclas();
+  });
+  el.addEventListener("pointerup", soltarPuntero);
+  el.addEventListener("pointercancel", soltarPuntero);
+});
+// Si se suelta fuera del elemento, o la pestaña pierde el foco, se para: una
+// tecla que se quede pegada es un rover que se escapa.
+addEventListener("pointerup", soltarPuntero);
+addEventListener("pointercancel", soltarPuntero);
+addEventListener("blur", parar);
+document.addEventListener("visibilitychange", () => { if (document.hidden) parar(); });
+
+// ---- deslizadores ----
+$("velocidad").addEventListener("input", (e) => { $("v-velocidad").textContent = e.target.value; });
+$("giro").addEventListener("input", (e) => { $("v-giro").textContent = e.target.value; });
+
+// ---- mezcla diferencial ----
+function mezclar() {
+  const base = Number($("velocidad").value);
+  const dif = Number($("giro").value);
+  const avance = (teclas.w ? 1 : 0) - (teclas.s ? 1 : 0);
+  const giro = (teclas.d ? 1 : 0) - (teclas.a ? 1 : 0);
+
+  let izq = 0, der = 0;
+  if (avance !== 0) {
+    izq = avance * base + giro * dif;
+    der = avance * base - giro * dif;
+  } else if (giro !== 0) {
+    izq = giro * base;       // giro sobre el sitio: un lado avanza
+    der = -giro * base;      // y el otro retrocede
+  }
+  const recortar = (n) => Math.max(-100, Math.min(100, Math.round(n)));
+  return { izquierda: recortar(izq), derecha: recortar(der) };
+}
+
+// ---- envío del control ----
+// Se reenvía mientras haya movimiento para rearmar el vigilante del hardware,
+// y una sola vez al parar.
+let ultimoCero = true;
+
+async function enviarControl() {
+  const c = mezclar();
+  const parado = c.izquierda === 0 && c.derecha === 0;
+  if (parado && ultimoCero) return;
+  ultimoCero = parado;
+  try {
+    await fetch("/control", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(c),
+    });
+  } catch (e) { /* lo reporta el sondeo de telemetría */ }
+}
+setInterval(enviarControl, 150);
+
+// ---- horizonte artificial ----
+const SVG = "http://www.w3.org/2000/svg";
+const PX_POR_GRADO = 3.2;   // desplazamiento del horizonte por grado de pitch
+
+function svg(tipo, atributos, texto) {
+  const el = document.createElementNS(SVG, tipo);
+  for (const k in atributos) el.setAttribute(k, atributos[k]);
+  if (texto !== undefined) el.textContent = texto;
+  return el;
+}
+
+// Rosa de rumbos: marca cada 5°, larga cada 30° con etiqueta; N E S W en los
+// puntos cardinales, la N en rojo como en las brújulas.
+(function construirRosa() {
+  const rosa = $("rosa");
+  const cardinales = { 0: "N", 90: "E", 180: "S", 270: "W" };
+  for (let a = 0; a < 360; a += 5) {
+    const mayor = a % 30 === 0;
+    rosa.appendChild(svg("line", {
+      x1: 150, y1: 4, x2: 150, y2: mayor ? 18 : (a % 10 === 0 ? 13 : 10),
+      stroke: "#e6edf3", "stroke-width": mayor ? 3 : 1.5,
+      transform: `rotate(${a} 150 150)`,
+    }));
+    if (mayor) {
+      const cardinal = a in cardinales;
+      rosa.appendChild(svg("text", {
+        x: 150, y: cardinal ? 40 : 34, "text-anchor": "middle",
+        fill: a === 0 ? "#f85149" : "#e6edf3",
+        "font-size": cardinal ? 20 : 12, "font-weight": cardinal ? 700 : 400,
+        transform: `rotate(${a} 150 150)`,
+      }, cardinal ? cardinales[a] : String(a)));
+    }
+  }
+})();
+
+// Escalera de pitch: líneas largas con número cada 10°, cortas cada 5°.
+(function construirEscalera() {
+  const esc = $("escalera");
+  for (let p = -25; p <= 25; p += 5) {
+    if (p === 0) continue;
+    const y = 150 - p * PX_POR_GRADO;
+    const medio = p % 10 === 0 ? 34 : 12;
+    esc.appendChild(svg("line", {
+      x1: 150 - medio, y1: y, x2: 150 + medio, y2: y, stroke: "#fff", "stroke-width": 1.5,
+    }));
+    if (p % 10 === 0) {
+      for (const lado of [-1, 1]) {
+        esc.appendChild(svg("text", {
+          x: 150 + lado * (medio + 6), y: y + 4, fill: "#fff", "font-size": 11,
+          "text-anchor": lado < 0 ? "end" : "start",
+        }, String(p)));
+      }
+    }
+  }
+})();
+
+function pintarIMU(o) {
+  // Rumbo arriba: la rosa gira en sentido contrario al yaw.
+  $("rosa").setAttribute("transform", `rotate(${-o.yaw} 150 150)`);
+  // Roll positivo = inclinado a la derecha, el horizonte se ve girado a la
+  // izquierda. Pitch positivo = morro arriba, el horizonte baja. La
+  // traslación se aplica antes que el giro, así la escalera se mueve
+  // perpendicular al horizonte y no en vertical de pantalla.
+  $("actitud").setAttribute("transform",
+    `rotate(${-o.roll} 150 150) translate(0 ${o.pitch * PX_POR_GRADO})`);
+  $("imu-txt").textContent =
+    `${o.yaw.toFixed(1)}° / ${o.pitch.toFixed(1)}° / ${o.roll.toFixed(1)}°`;
+}
+
+// ---- telemetría ----
+function barra(el, valor) {
+  const ancho = Math.abs(valor) / 2;             // 100 -> 50% del ancho total
+  el.style.width = ancho + "%";
+  el.style.left = valor >= 0 ? "50%" : (50 - ancho) + "%";
+}
+
+async function sondear() {
+  const t0 = performance.now();
+  try {
+    const r = await fetch("/telemetria", { cache: "no-store" });
+    const d = await r.json();
+    const ms = Math.round(performance.now() - t0);
+    $("latencia").textContent = ms + " ms";
+    $("punto").className = "punto ok";
+    $("conexion").textContent = "conectado";
+    $("m-punto").className = "punto ok";
+    $("m-conexion").textContent = ms + " ms";
+    $("m-estado").textContent = (d.control.watchdog ? "parado" : `${d.control.izquierda} / ${d.control.derecha}`) + " · " + d.bateria + " %";
+    $("m-estado").classList.toggle("aviso", d.control.watchdog);
+
+    $("n-izq").textContent = d.control.izquierda;
+    $("n-der").textContent = d.control.derecha;
+    barra($("b-izq"), d.control.izquierda);
+    barra($("b-der"), d.control.derecha);
+    const ins = $("insignia-vigilante");
+    ins.classList.toggle("aviso", d.control.watchdog);
+    ins.textContent = d.control.watchdog ? "vigilante: parado por falta de órdenes" : "vigilante: orden vigente";
+
+    $("bateria").textContent = d.bateria + " %";
+    $("bateria-barra").style.width = d.bateria + "%";
+
+    $("gps-fix").textContent = d.gps.fix ? "fix" : "sin fix";
+    $("gps-lat").textContent = d.gps.lat.toFixed(6);
+    $("gps-lon").textContent = d.gps.lon.toFixed(6);
+    $("gps-alt").textContent = d.gps.alt.toFixed(1) + " m";
+
+    pintarIMU(d.imu.orientacion);
+  } catch (e) {
+    $("punto").className = "punto mal";
+    $("conexion").textContent = "sin conexión";
+    $("latencia").textContent = "—";
+    $("m-punto").className = "punto mal";
+    $("m-conexion").textContent = "sin conexión";
+  }
+}
+setInterval(sondear, 200);
+sondear();
+
+// ---- cámara ----
+// GET /camara es un flujo MJPEG: el navegador lo pinta solo en la <img> y va
+// sustituyendo el fotograma. Si el flujo falla (sin cámara, rover apagado, se
+// corta) la imagen se oculta, vuelve el rótulo SIN IMAGEN y se reintenta.
+const camara = $("camara");
+let camaraViva = false;
+function conectarCamara() {
+  camaraViva = false;
+  camara.src = "/camara?" + Date.now();   // sin caché: siempre flujo nuevo
+}
+camara.addEventListener("load", () => {
+  camaraViva = true;
+  $("visor").classList.add("con-imagen");
+  $("btn-grabar").disabled = false;
+  if (!grabador) $("estado-grabacion").textContent = "se guarda en este dispositivo";
+});
+camara.addEventListener("error", () => {
+  camaraViva = false;
+  $("visor").classList.remove("con-imagen");
+  $("estado-camara").textContent = "sin señal de cámara";
+  if (grabador) pararGrabacion();
+  $("btn-grabar").disabled = true;
+  $("estado-grabacion").textContent = "sin imagen que grabar";
+  setTimeout(conectarCamara, 3000);
+});
+conectarCamara();
+
+// ---- grabación en el cliente ----
+// Se copia la imagen del visor a un lienzo 10 veces por segundo, el lienzo se
+// convierte en un flujo de vídeo y MediaRecorder lo codifica en el navegador.
+// Al parar se descarga el fichero. Nada de esto pasa por el rover.
+let grabador = null, trozos = [], lienzoTimer = null, inicioGrabacion = 0;
+function formatoGrabacion() {
+  for (const f of ["video/webm;codecs=vp9", "video/webm", "video/mp4"]) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(f)) return f;
+  }
+  return null;
+}
+function empezarGrabacion() {
+  const formato = formatoGrabacion();
+  if (!formato || !camaraViva) { $("estado-grabacion").textContent = "este navegador no puede grabar"; return; }
+  const lienzo = document.createElement("canvas");
+  lienzo.width = camara.naturalWidth || 320;
+  lienzo.height = camara.naturalHeight || 240;
+  const ctx = lienzo.getContext("2d");
+  lienzoTimer = setInterval(() => ctx.drawImage(camara, 0, 0, lienzo.width, lienzo.height), 100);
+  trozos = [];
+  grabador = new MediaRecorder(lienzo.captureStream(10), { mimeType: formato });
+  grabador.ondataavailable = (e) => { if (e.data.size) trozos.push(e.data); };
+  grabador.onstop = () => {
+    const ext = formato.startsWith("video/mp4") ? "mp4" : "webm";
+    const url = URL.createObjectURL(new Blob(trozos, { type: formato.split(";")[0] }));
+    const a = document.createElement("a");
+    a.href = url; a.download = "rover-" + new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19) + "." + ext;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    $("estado-grabacion").textContent = "vídeo descargado (" + a.download + ")";
+  };
+  grabador.start(1000);
+  inicioGrabacion = Date.now();
+  $("btn-grabar").textContent = "■ Parar";
+  $("btn-grabar").classList.add("grabando");
+}
+function pararGrabacion() {
+  clearInterval(lienzoTimer);
+  if (grabador && grabador.state !== "inactive") grabador.stop();
+  grabador = null;
+  $("btn-grabar").textContent = "● Grabar";
+  $("btn-grabar").classList.remove("grabando");
+}
+$("btn-grabar").addEventListener("click", () => { if (grabador) pararGrabacion(); else empezarGrabacion(); });
+setInterval(() => {
+  if (grabador) $("estado-grabacion").textContent = "grabando " + Math.round((Date.now() - inicioGrabacion) / 1000) + " s";
+}, 500);
+</script>
+</body>
+</html>
