@@ -473,7 +473,9 @@ function mandoPulsa(t) {
 }
 
 function leerMando() {
-  const g = elegirMando();
+  // Con la página oculta el navegador deja de actualizar el mando y daría la
+  // última posición de la palanca para siempre: se ignora y queda a cero.
+  const g = document.hidden ? null : elegirMando();
   const antes = mando.avance + "," + mando.giro;
   if (g) {
     // Se leen todos los ejes para saber cuáles se han movido ya.
@@ -501,7 +503,7 @@ function leerMando() {
   } else {
     mando.avance = mando.giro = 0;
     mando.limVel = mando.limGiro = null;
-    $("mando").textContent = "ninguno";
+    $("mando").textContent = document.hidden ? "en pausa (página oculta)" : "ninguno";
   }
   if (antes !== mando.avance + "," + mando.giro) pintarTeclas();
 }
@@ -567,7 +569,11 @@ document.querySelectorAll(".tecla[data-tecla]").forEach((el) => {
 addEventListener("pointerup", soltarPuntero);
 addEventListener("pointercancel", soltarPuntero);
 addEventListener("blur", parar);
-document.addEventListener("visibilitychange", () => { if (document.hidden) parar(); });
+// Al ocultarse se envía la parada al momento: en segundo plano el navegador
+// retrasa los temporizadores hasta 1 s.
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { parar(); leerMando(); enviarControl(); }
+});
 
 // ---- deslizadores ----
 $("velocidad").addEventListener("input", (e) => { $("v-velocidad").textContent = e.target.value; });

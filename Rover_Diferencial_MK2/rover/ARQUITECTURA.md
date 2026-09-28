@@ -180,6 +180,11 @@ navegador de la misma red (PC, móvil o tablet).
   (las palancas reposan en 0), izquierdo el de índice más bajo. La línea
   "Mando:" muestra los límites en vigor y si vienen del gatillo o del
   deslizador.
+- **Página oculta** (cambio de pestaña, pantalla bloqueada): el navegador deja
+  de actualizar el mando y daría la última posición de la palanca para
+  siempre, así que el mando se ignora y queda a cero, y se envía la parada en
+  el momento de ocultarse (en segundo plano los temporizadores se retrasan
+  hasta 1 s). La línea "Mando:" dice "en pausa (página oculta)".
 - **Móvil** (ancho ≤ 800 px o alto ≤ 500 px): el visor pasa a ser lo primero,
   a todo el ancho, y los mandos van superpuestos dentro de la imagen como en
   un juego de vehículos: cruceta ▲◀▼▶ abajo a la izquierda, PARAR redondo
@@ -245,8 +250,11 @@ Picamera2 y no habrá imagen.
 ### Motores en la Raspberry Pi
 
 `hardware.py` mueve los motores de verdad con `gpiozero`: PWM en ENA/ENB para
-la velocidad (|consigna| / 100 como duty) e IN1-IN4 para el sentido; con
-consigna 0 queda en rueda libre. Fuera de la Raspberry (sin `gpiozero` o sin
+la velocidad e IN1-IN4 para el sentido; con consigna 0 queda en rueda libre.
+Como los motores del kit no arrancan con poco duty, cualquier consigna
+distinta de 0 se reparte entre `MOTOR_DUTY_ARRANQUE` (0,40 por defecto, a
+calibrar con el rover en el aire) y el 100 %; así el primer tramo de la
+palanca ya mueve el rover. Fuera de la Raspberry (sin `gpiozero` o sin
 pines) no falla: los motores se simulan y la consola lo indica al arrancar.
 `gpiozero` y su librería de pines se instalan con apt
 (`sudo apt install python3-gpiozero python3-lgpio`).

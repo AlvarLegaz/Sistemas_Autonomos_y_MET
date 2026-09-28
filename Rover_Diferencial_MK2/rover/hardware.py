@@ -38,6 +38,13 @@ MOTOR_DER_IN2 = 6       # sentido (pin fisico 31)
 # Frecuencia del PWM de los motores. El L298 conmuta mal por encima de ~20 kHz.
 MOTOR_PWM_FRECUENCIA_HZ = 1000
 
+# Duty mínimo con el que los motores del kit empiezan a girar (por debajo solo
+# zumban). Cualquier consigna distinta de 0 se reparte entre este mínimo y el
+# 100 %, así el primer tramo de la palanca ya mueve el rover. Calibrar: subir
+# la velocidad poco a poco con el rover en el aire y poner aquí el % en que
+# arrancan las ruedas (0.0 lo desactiva).
+MOTOR_DUTY_ARRANQUE = 0.40
+
 # --- Bus I2C (IMU) ---
 # SDA = GPIO2 (pin fisico 3), SCL = GPIO3 (pin fisico 5).
 I2C_BUS = 1             # /dev/i2c-1
@@ -161,14 +168,18 @@ class Hardware:
 
     @staticmethod
     def _escribir_lado(lado, velocidad):
-        """velocidad -100..+100 -> sentido en los IN y |velocidad| como duty del EN.
+        """velocidad -100..+100 -> sentido en los IN y duty del EN.
 
-        Con 0 los dos IN quedan a 0 y el EN a 0: parada en rueda libre.
+        El duty va de MOTOR_DUTY_ARRANQUE (velocidad ±1) a 1 (±100). Con 0 los
+        dos IN quedan a 0 y el EN a 0: parada en rueda libre.
         """
         en, in_a, in_b = lado
         in_a.value = velocidad > 0
         in_b.value = velocidad < 0
-        en.value = abs(velocidad) / 100
+        if velocidad == 0:
+            en.value = 0
+        else:
+            en.value = MOTOR_DUTY_ARRANQUE + (1 - MOTOR_DUTY_ARRANQUE) * abs(velocidad) / 100
 
     def _vigilar(self):
         """Para los motores si pasa WATCHDOG_TIMEOUT sin una orden nueva."""
