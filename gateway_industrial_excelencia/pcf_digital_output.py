@@ -10,6 +10,9 @@ class PCFDigitalOutput:
         bit 1 -> DigitalOut2
         ...
         bit 7 -> DigitalOut8
+
+    active_high=False invierte el byte fisico (placas de reles activas a
+    nivel bajo): una salida a True pone el pin a 0.
     """
 
     def __init__(self, i2c_bus=1, address=0x39, active_high=True):
@@ -23,13 +26,11 @@ class PCFDigitalOutput:
         self.write_byte(self.state)
 
     def write_byte(self, value):
-        value = value & 0xFF
-        
-        
+        value &= 0xFF
+        if not self.active_high:
+            value = (~value) & 0xFF
 
-        output_value = (~value) & 0xFF
-
-        self.bus.write_byte(self.address, output_value)
+        self.bus.write_byte(self.address, value)
 
     def write_outputs(
         self,
@@ -42,31 +43,12 @@ class PCFDigitalOutput:
         DigitalOut7_value,
         DigitalOut8_value,
     ):
+        valores = (DigitalOut1_value, DigitalOut2_value, DigitalOut3_value, DigitalOut4_value,
+                   DigitalOut5_value, DigitalOut6_value, DigitalOut7_value, DigitalOut8_value)
         value = 0x00
-
-        if DigitalOut1_value:
-            value |= 1 << 0
-
-        if DigitalOut2_value:
-            value |= 1 << 1
-
-        if DigitalOut3_value:
-            value |= 1 << 2
-
-        if DigitalOut4_value:
-            value |= 1 << 3
-
-        if DigitalOut5_value:
-            value |= 1 << 4
-
-        if DigitalOut6_value:
-            value |= 1 << 5
-
-        if DigitalOut7_value:
-            value |= 1 << 6
-
-        if DigitalOut8_value:
-            value |= 1 << 7
+        for bit, activa in enumerate(valores):
+            if activa:
+                value |= 1 << bit
 
         self.state = value
         self.write_byte(self.state)
