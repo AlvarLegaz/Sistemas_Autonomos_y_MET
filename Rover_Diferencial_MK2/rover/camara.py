@@ -11,6 +11,7 @@ ejecuta en un entorno virtual, este tiene que crearse con
 --system-site-packages para poder verla.
 """
 
+import io
 import threading
 import time
 
@@ -24,8 +25,12 @@ ESPERA_PRIMER_FRAME = 3.0
 FRAME_CADUCADO = 2.0
 
 
-class Camara:
+# Hereda de io.BufferedIOBase porque la propia cámara es la salida del
+# codificador de Picamera2, y su FileOutput solo acepta objetos de ese tipo
+# ("Must pass io.BufferedIOBase").
+class Camara(io.BufferedIOBase):
     def __init__(self, hardware=None):
+        super().__init__()
         self.hardware = hardware
         self.iniciada = False
         # Formato de los fotogramas que devuelve obtener_frame(). El servidor
@@ -92,6 +97,10 @@ class Camara:
             self._frame = bytes(jpeg)
             self._t_frame = time.monotonic()
             self._nuevo.notify_all()
+        return len(self._frame)
+
+    def writable(self):
+        return True
 
     def flush(self):
         """FileOutput de Picamera2 llama a flush() tras cada write()."""
