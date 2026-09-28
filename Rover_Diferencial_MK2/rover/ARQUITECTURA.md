@@ -72,7 +72,7 @@ duplicar lógica.
 | `camara.py` | Gestiona la cámara de la Raspberry Pi. |
 | `rover.py` | Representa el rover completo y coordina sus componentes. |
 | `servidor_web.py` | Expone la API HTTP con Flask y sirve la interfaz en `/`. |
-| `interfaz.html` | Interfaz de control en el navegador: teclado o botones, barras de empuje, telemetría y visor. Un solo fichero sin librerías externas, porque el rover no tendrá internet en el campo. |
+| `interfaz.html` | Interfaz de control en el navegador: teclado, botones o mando, barras de empuje, telemetría y visor. Un solo fichero sin librerías externas, porque el rover no tendrá internet en el campo. |
 | `servidor_udp.py` | Se utilizará posteriormente para comunicaciones de baja latencia. |
 | `main.py` | Inicializa el sistema y arranca el servidor web. |
 
@@ -165,6 +165,14 @@ navegador de la misma red (PC, móvil o tablet).
   soltar se envía un `0, 0` una sola vez. Si la pestaña pierde el foco o se
   oculta, para. Cada dedo se apunta con la tecla que sujeta, así con dos dedos
   a la vez (▲ y ▶) soltar uno no suelta el otro.
+- **Mando** (Gamepad API, igual que en el simulador del submarino; prefiere
+  el de DJI si hay varios): palanca izquierda a los lados = girar, palanca
+  derecha arriba/abajo = adelante y atrás, con potencia proporcional al
+  recorrido (a fondo = velocidad base o giro diferencial de los
+  deslizadores). Zona muerta del 12 % en el centro; los ejes clavados de
+  fábrica se ignoran hasta que se mueven, y la vertical derecha (eje 3, 5 o 4
+  según el mando) se detecta sola. Mientras la palanca está fuera del centro
+  manda sobre las teclas.
 - **Móvil** (ancho ≤ 800 px o alto ≤ 500 px): el visor pasa a ser lo primero,
   a todo el ancho, y los mandos van superpuestos dentro de la imagen como en
   un juego de vehículos: cruceta ▲◀▼▶ abajo a la izquierda, PARAR redondo

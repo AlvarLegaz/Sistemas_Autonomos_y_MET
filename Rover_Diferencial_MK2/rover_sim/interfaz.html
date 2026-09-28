@@ -213,7 +213,7 @@
   <!-- columna izquierda: control -->
   <div class="col">
     <div class="tarjeta c-teclado">
-      <h2>Control con teclado</h2>
+      <h2>Control con teclado y mando</h2>
       <div class="cuerpo">
         <div class="teclado">
           <div class="tecla w" data-tecla="w">W<small>↑</small></div>
@@ -223,10 +223,19 @@
           <div class="tecla parar" data-tecla=" ">PARAR · espacio</div>
         </div>
         <div class="pulsadas">Pulsadas: <b id="pulsadas">—</b></div>
+        <div class="pulsadas">Mando: <b id="mando">ninguno</b></div>
         <div class="nota">
           Funciona con el teclado (W A S D o flechas) y pulsando los botones.
           Mientras mantienes la pulsación se reenvía la orden cada 150 ms: si
           se dejara de enviar, el rover se pararía solo a los 500 ms.
+        </div>
+        <div class="nota">
+          Con un mando conectado (el de DJI u otro; pulsa cualquier botón para
+          que el navegador lo vea): palanca izquierda a los lados = girar;
+          palanca derecha arriba/abajo = adelante y atrás. La potencia es
+          proporcional al recorrido: a fondo, la de los deslizadores de
+          velocidad base y giro. La palanca manda sobre las teclas mientras
+          esté fuera del centro.
         </div>
       </div>
     </div>
@@ -379,11 +388,88 @@ const $ = (id) => document.getElementById(id);
 function pintarTeclas() {
   document.querySelectorAll(".tecla[data-tecla]").forEach((el) => {
     const t = el.dataset.tecla;
-    if (t in teclas) el.classList.toggle("activa", teclas[t]);
+    if (t in teclas) el.classList.toggle("activa", teclas[t] || mandoPulsa(t));
   });
-  const pulsadas = Object.keys(teclas).filter((t) => teclas[t]);
+  const pulsadas = Object.keys(teclas).filter((t) => teclas[t] || mandoPulsa(t));
   $("pulsadas").textContent = pulsadas.length ? pulsadas.join(" + ").toUpperCase() : "—";
 }
+
+// ---- mando (Gamepad API) ----
+// Como en el simulador del submarino: palanca izquierda = girar, palanca
+// derecha = adelante/atrás. Ejes del mapeo estándar del navegador: 0 =
+// izquierda X, 1 = izquierda Y, 2 = derecha X, 3 = derecha Y, con −1 =
+// arriba/izquierda. La vertical de la derecha cambia según el mando: 3 con
+// mapeo "standard" (Xbox, PlayStation) y 5 en los genéricos DirectInput de
+// 10 ejes que ve Chrome en Windows. Se parte de esa regla y, si otro de los
+// EJES_AVANCE se mueve antes, se pasa a ese. La línea "Mando:" enseña los
+// ejes en vivo y cuál manda el avance.
+const EJE_GIRO = 0;
+const EJES_AVANCE = [3, 5, 4];
+const ZONA_MUERTA = 0.12;
+// Valores −1..1 ya sin zona muerta; 0 = palanca centrada (mandan las teclas).
+const mando = { avance: 0, giro: 0 };
+
+function elegirMando() {
+  if (!navigator.getGamepads) return null;
+  const conectados = Array.from(navigator.getGamepads()).filter((g) => g && g.connected);
+  if (!conectados.length) return null;
+  return conectados.find((g) => /dji/i.test(g.id)) || conectados[0];
+}
+
+// Un eje solo cuenta cuando se ha movido desde que se vio el mando: algunos
+// mandos traen ejes sin usar (o gatillos) clavados en −1 o +1 en reposo, y
+// sin esto el rover saldría a toda máquina nada más conectarlo.
+const ejeReposo = {};    // "id:eje" → valor cuando se vio por primera vez
+const ejeVivo = {};      // "id:eje" → true cuando ya se ha movido
+const ejeAvance = {};    // id → eje que manda el avance, una vez descubierto
+
+function eje(g, i) {
+  const v = g.axes[i] || 0;
+  const k = g.index + ":" + i;
+  if (!(k in ejeReposo)) ejeReposo[k] = v;
+  if (!ejeVivo[k]) {
+    if (Math.abs(v - ejeReposo[k]) < 0.3) return 0;
+    ejeVivo[k] = true;
+  }
+  if (Math.abs(v) < ZONA_MUERTA) return 0;
+  // Reescalado para que justo fuera de la zona muerta empiece en 0 y llegue a 1.
+  return Math.sign(v) * (Math.abs(v) - ZONA_MUERTA) / (1 - ZONA_MUERTA);
+}
+
+function mandoPulsa(t) {
+  return { w: mando.avance > 0, s: mando.avance < 0, d: mando.giro > 0, a: mando.giro < 0 }[t] || false;
+}
+
+function leerMando() {
+  const g = elegirMando();
+  const antes = mando.avance + "," + mando.giro;
+  if (g) {
+    // Se leen todos los ejes para saber cuáles se han movido ya.
+    const valores = Array.from(g.axes, (_, i) => eje(g, i));
+    if (!(g.index in ejeAvance)) {
+      const movido = EJES_AVANCE.find((i) => ejeVivo[g.index + ":" + i]);
+      if (movido !== undefined) ejeAvance[g.index] = movido;
+    }
+    const ejeAv = g.index in ejeAvance ? ejeAvance[g.index]
+      : (g.mapping !== "standard" && g.axes.length >= 6 ? 5 : 3);
+    mando.avance = -(valores[ejeAv] || 0);
+    mando.giro = valores[EJE_GIRO] || 0;
+    const f = (n) => (n >= 0 ? "+" : "") + n.toFixed(2);
+    const quietos = [EJE_GIRO, ejeAv].filter((i) => !ejeVivo[g.index + ":" + i]);
+    $("mando").textContent = g.id.slice(0, 40) + " · ejes " + Array.from(g.axes).map(f).join(" ")
+      + " → avance " + f(mando.avance) + " (eje " + ejeAv + (g.index in ejeAvance ? "" : " de partida") + ")"
+      + " giro " + f(mando.giro)
+      + (quietos.length ? " (ejes " + quietos.join(",") + " sin mover aún, se ignoran)" : "");
+  } else {
+    mando.avance = mando.giro = 0;
+    $("mando").textContent = "ninguno";
+  }
+  if (antes !== mando.avance + "," + mando.giro) pintarTeclas();
+}
+// Los navegadores no avisan de cada movimiento de palanca: hay que sondear.
+setInterval(leerMando, 50);
+addEventListener("gamepadconnected", leerMando);
+addEventListener("gamepaddisconnected", leerMando);
 
 function parar() {
   for (const t in teclas) teclas[t] = false;
@@ -452,8 +538,10 @@ $("giro").addEventListener("input", (e) => { $("v-giro").textContent = e.target.
 function mezclar() {
   const base = Number($("velocidad").value);
   const dif = Number($("giro").value);
-  const avance = (teclas.w ? 1 : 0) - (teclas.s ? 1 : 0);
-  const giro = (teclas.d ? 1 : 0) - (teclas.a ? 1 : 0);
+  // Teclas: −1, 0 o 1. Palanca del mando: proporcional a su recorrido, y
+  // manda sobre las teclas mientras esté fuera del centro.
+  const avance = mando.avance !== 0 ? mando.avance : (teclas.w ? 1 : 0) - (teclas.s ? 1 : 0);
+  const giro = mando.giro !== 0 ? mando.giro : (teclas.d ? 1 : 0) - (teclas.a ? 1 : 0);
 
   let izq = 0, der = 0;
   if (avance !== 0) {
