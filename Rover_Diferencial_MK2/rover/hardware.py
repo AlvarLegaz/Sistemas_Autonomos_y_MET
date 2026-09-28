@@ -20,16 +20,20 @@ import time
 # OJO: si la placa trae jumpers en ENA/ENB, quitarlos. Puestos, unen ENA/ENB
 # a 5 V y meterian 5 V en los GPIO de la Raspberry, que solo admiten 3,3 V.
 
-# --- Placa L298N: motores izquierdos (canal A) ---
-MOTOR_IZQ_ENA = 12      # PWM de velocidad. GPIO12 = PWM0 por hardware (pin fisico 32)
-MOTOR_IZQ_IN1 = 5       # sentido (pin fisico 29)
-MOTOR_IZQ_IN2 = 6       # sentido (pin fisico 31)
+# En el kit, el canal A de la L298N mueve los motores DERECHOS y el canal B
+# los IZQUIERDOS (comprobado en el rover: con el reparto al revés, "girar a la
+# izquierda" giraba a la derecha). Los 6 pines quedan entre el 29 y el 36.
+# Si un lado gira al revés, se intercambian sus dos IN.
 
-# --- Placa L298N: motores derechos (canal B) ---
-# Agrupados con los izquierdos: los 6 pines del L298 quedan entre el 29 y el 36.
-MOTOR_DER_ENB = 13      # PWM de velocidad. GPIO13 = PWM1 por hardware (pin fisico 33)
-MOTOR_DER_IN3 = 19      # sentido (pin fisico 35); se usa como GPIO normal, no como PWM
-MOTOR_DER_IN4 = 16      # sentido (pin fisico 36)
+# --- Placa L298N: motores izquierdos (canal B) ---
+MOTOR_IZQ_ENB = 13      # PWM de velocidad. GPIO13 = PWM1 por hardware (pin fisico 33)
+MOTOR_IZQ_IN3 = 19      # sentido (pin fisico 35); se usa como GPIO normal, no como PWM
+MOTOR_IZQ_IN4 = 16      # sentido (pin fisico 36)
+
+# --- Placa L298N: motores derechos (canal A) ---
+MOTOR_DER_ENA = 12      # PWM de velocidad. GPIO12 = PWM0 por hardware (pin fisico 32)
+MOTOR_DER_IN1 = 5       # sentido (pin fisico 29)
+MOTOR_DER_IN2 = 6       # sentido (pin fisico 31)
 
 # Frecuencia del PWM de los motores. El L298 conmuta mal por encima de ~20 kHz.
 MOTOR_PWM_FRECUENCIA_HZ = 1000
@@ -137,17 +141,17 @@ class Hardware:
 
             pwm = {"frequency": MOTOR_PWM_FRECUENCIA_HZ}
             self._motores = {
-                "izquierda": (salida(PWMOutputDevice, MOTOR_IZQ_ENA, **pwm),
-                              salida(DigitalOutputDevice, MOTOR_IZQ_IN1),
-                              salida(DigitalOutputDevice, MOTOR_IZQ_IN2)),
-                "derecha": (salida(PWMOutputDevice, MOTOR_DER_ENB, **pwm),
-                            salida(DigitalOutputDevice, MOTOR_DER_IN3),
-                            salida(DigitalOutputDevice, MOTOR_DER_IN4)),
+                "izquierda": (salida(PWMOutputDevice, MOTOR_IZQ_ENB, **pwm),
+                              salida(DigitalOutputDevice, MOTOR_IZQ_IN3),
+                              salida(DigitalOutputDevice, MOTOR_IZQ_IN4)),
+                "derecha": (salida(PWMOutputDevice, MOTOR_DER_ENA, **pwm),
+                            salida(DigitalOutputDevice, MOTOR_DER_IN1),
+                            salida(DigitalOutputDevice, MOTOR_DER_IN2)),
             }
             self.raspberry = True
-            print(f"Motores: L298N en GPIO (ENA={MOTOR_IZQ_ENA} IN1={MOTOR_IZQ_IN1} "
-                  f"IN2={MOTOR_IZQ_IN2} | ENB={MOTOR_DER_ENB} IN3={MOTOR_DER_IN3} "
-                  f"IN4={MOTOR_DER_IN4}, PWM {MOTOR_PWM_FRECUENCIA_HZ} Hz)")
+            print(f"Motores: L298N en GPIO (izquierda ENB={MOTOR_IZQ_ENB} IN3={MOTOR_IZQ_IN3} "
+                  f"IN4={MOTOR_IZQ_IN4} | derecha ENA={MOTOR_DER_ENA} IN1={MOTOR_DER_IN1} "
+                  f"IN2={MOTOR_DER_IN2}, PWM {MOTOR_PWM_FRECUENCIA_HZ} Hz)")
         except Exception as e:
             for dispositivo in creados:
                 dispositivo.close()

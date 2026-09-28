@@ -46,12 +46,14 @@ Definidos al principio de [`rover/hardware.py`](rover/hardware.py); es el único
 
 | Función | Constante | GPIO | Pin físico |
 | --- | --- | --- | --- |
-| L298 ENA (velocidad izquierda, PWM) | `MOTOR_IZQ_ENA` | 12 (PWM0) | 32 |
-| L298 IN1 (sentido izquierda) | `MOTOR_IZQ_IN1` | 5 | 29 |
-| L298 IN2 (sentido izquierda) | `MOTOR_IZQ_IN2` | 6 | 31 |
-| L298 ENB (velocidad derecha, PWM) | `MOTOR_DER_ENB` | 13 (PWM1) | 33 |
-| L298 IN3 (sentido derecha) | `MOTOR_DER_IN3` | 19 | 35 |
-| L298 IN4 (sentido derecha) | `MOTOR_DER_IN4` | 16 | 36 |
+| L298 ENB (velocidad izquierda, PWM) | `MOTOR_IZQ_ENB` | 13 (PWM1) | 33 |
+| L298 IN3 (sentido izquierda) | `MOTOR_IZQ_IN3` | 19 | 35 |
+| L298 IN4 (sentido izquierda) | `MOTOR_IZQ_IN4` | 16 | 36 |
+| L298 ENA (velocidad derecha, PWM) | `MOTOR_DER_ENA` | 12 (PWM0) | 32 |
+| L298 IN1 (sentido derecha) | `MOTOR_DER_IN1` | 5 | 29 |
+| L298 IN2 (sentido derecha) | `MOTOR_DER_IN2` | 6 | 31 |
+
+En el kit, el canal A de la L298N mueve los motores **derechos** y el canal B los **izquierdos**.
 | I2C SDA (IMU) | `I2C_BUS = 1` | 2 | 3 |
 | I2C SCL (IMU) | `I2C_BUS = 1` | 3 | 5 |
 | UART TX → RX del GPS | `GPS_PUERTO` | 14 | 8 |
@@ -96,17 +98,17 @@ La placa es la del kit Elegoo Smart Robot Car V3.0: una L298N de **2 canales** (
 
 | L298N | Raspberry Pi / otro | Notas |
 | --- | --- | --- |
-| ENA | GPIO12, pin 32 | Velocidad izquierda (PWM). **Quitar antes el jumper de ENA** |
-| IN1 | GPIO5, pin 29 | Sentido izquierda |
-| IN2 | GPIO6, pin 31 | Sentido izquierda |
-| IN3 | GPIO19, pin 35 | Sentido derecha |
-| IN4 | GPIO16, pin 36 | Sentido derecha |
-| ENB | GPIO13, pin 33 | Velocidad derecha (PWM). **Quitar antes el jumper de ENB** |
+| ENA | GPIO12, pin 32 | Velocidad derecha (PWM). **Quitar antes el jumper de ENA** |
+| IN1 | GPIO5, pin 29 | Sentido derecha |
+| IN2 | GPIO6, pin 31 | Sentido derecha |
+| IN3 | GPIO19, pin 35 | Sentido izquierda |
+| IN4 | GPIO16, pin 36 | Sentido izquierda |
+| ENB | GPIO13, pin 33 | Velocidad izquierda (PWM). **Quitar antes el jumper de ENB** |
 | GND | GND de la Pi (p. ej. pin 30 o 34) **y** negativo de la batería de motores | Masa común obligatoria |
 | 12V (VS) | Positivo de la batería de motores | Hasta 12 V con el jumper 5V-EN puesto; hasta 35 V quitándolo |
 | 5V | Sin conectar | Ver aviso sobre alimentar la Pi |
-| Canal A (2 conectores) | Un motor izquierdo en cada conector | Si un motor gira al revés, se invierte su conector |
-| Canal B (2 conectores) | Un motor derecho en cada conector | |
+| Canal A (2 conectores) | Un motor derecho en cada conector | Si un motor gira al revés, se invierte su conector |
+| Canal B (2 conectores) | Un motor izquierdo en cada conector | |
 
 ### A través de la Smart Car Shield del kit
 
@@ -134,7 +136,7 @@ No se conectan el 5V ni el VIN de la shield a la Raspberry. En la primera prueba
 - **Corriente.** Cada canal da hasta 2 A, repartidos entre los dos motores del lado. Con motores más exigentes, el disipador se calienta y el chip corta.
 - **5V de la placa en el kit.** En el kit original, el borne 5V alimenta el Arduino. Con la Raspberry no se usa: queda sin conectar.
 
-Lógica de cada lado (izquierdo con IN1/IN2 y ENA; derecho con IN3/IN4 y ENB):
+Lógica de cada lado (derecho con IN1/IN2 y ENA; izquierdo con IN3/IN4 y ENB):
 
 | IN1 | IN2 | ENA | Resultado |
 | --- | --- | --- | --- |

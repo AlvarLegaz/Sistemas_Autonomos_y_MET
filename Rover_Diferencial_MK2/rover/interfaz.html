@@ -239,12 +239,12 @@
           <input type="range" id="velocidad" min="0" max="100" value="60">
         </div>
         <div class="campo" style="margin-bottom:0">
-          <label>Giro diferencial (%) <b id="v-giro">40</b></label>
-          <input type="range" id="giro" min="0" max="100" value="40">
+          <label>Giro diferencial (%) <b id="v-giro">50</b></label>
+          <input type="range" id="giro" min="0" max="100" value="50">
         </div>
         <div class="nota">
           Avanzando, el giro se resta a un lado y se suma al otro. Parado, gira
-          sobre el sitio a la velocidad base.
+          sobre el sitio a la velocidad de giro.
         </div>
       </div>
     </div>
@@ -459,9 +459,13 @@ function mezclar() {
   if (avance !== 0) {
     izq = avance * base + giro * dif;
     der = avance * base - giro * dif;
+    // Si un lado pasa de 100 se escalan los dos: recortar solo ese lado
+    // perdería la diferencia entre lados, que es justo lo que hace girar.
+    const mayor = Math.max(Math.abs(izq), Math.abs(der));
+    if (mayor > 100) { izq *= 100 / mayor; der *= 100 / mayor; }
   } else if (giro !== 0) {
-    izq = giro * base;       // giro sobre el sitio: un lado avanza
-    der = -giro * base;      // y el otro retrocede
+    izq = giro * dif;        // giro sobre el sitio a la velocidad de giro:
+    der = -giro * dif;       // un lado avanza y el otro retrocede
   }
   const recortar = (n) => Math.max(-100, Math.min(100, Math.round(n)));
   return { izquierda: recortar(izq), derecha: recortar(der) };

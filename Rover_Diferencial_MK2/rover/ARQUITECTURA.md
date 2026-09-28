@@ -28,7 +28,7 @@ entre los dos lados. Los dos motores de un lado van siempre con la misma
 consigna, así que el software controla **dos lados**, no cuatro motores.
 
 Todos los pines y buses están definidos como constantes al principio de
-`hardware.py` (numeración BCM): `MOTOR_IZQ_ENA/IN1/IN2`, `MOTOR_DER_ENB/IN3/IN4`,
+`hardware.py` (numeración BCM): `MOTOR_IZQ_ENB/IN3/IN4`, `MOTOR_DER_ENA/IN1/IN2`,
 `MOTOR_PWM_FRECUENCIA_HZ`, `I2C_BUS`, `IMU_DIRECCION_I2C`, `GPS_PUERTO` y
 `GPS_BAUDIOS`. Es el único sitio que hay que tocar si cambia el cableado.
 
