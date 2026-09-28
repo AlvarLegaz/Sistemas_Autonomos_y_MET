@@ -10,6 +10,37 @@ sin Raspberry Pi.
 import threading
 import time
 
+# ============================================================================
+# Pines y buses. Numeracion BCM (GPIOxx), no la del conector fisico.
+# Valores de partida: ajustar al cableado real del rover.
+# ============================================================================
+
+# --- Driver L298: motores izquierdos (canal A) ---
+MOTOR_IZQ_ENA = 12      # PWM de velocidad. GPIO12 = PWM0 por hardware (pin fisico 32)
+MOTOR_IZQ_IN1 = 5       # sentido (pin fisico 29)
+MOTOR_IZQ_IN2 = 6       # sentido (pin fisico 31)
+
+# --- Driver L298: motores derechos (canal B) ---
+# Agrupados con los izquierdos: los 6 pines del L298 quedan entre el 29 y el 36.
+MOTOR_DER_ENB = 13      # PWM de velocidad. GPIO13 = PWM1 por hardware (pin fisico 33)
+MOTOR_DER_IN3 = 19      # sentido (pin fisico 35); se usa como GPIO normal, no como PWM
+MOTOR_DER_IN4 = 16      # sentido (pin fisico 36)
+
+# Frecuencia del PWM de los motores. El L298 conmuta mal por encima de ~20 kHz.
+MOTOR_PWM_FRECUENCIA_HZ = 1000
+
+# --- Bus I2C (IMU) ---
+# SDA = GPIO2 (pin fisico 3), SCL = GPIO3 (pin fisico 5).
+I2C_BUS = 1             # /dev/i2c-1
+IMU_DIRECCION_I2C = 0x68  # MPU6050 / MPU9250 (0x69 si AD0 esta a 3,3 V)
+
+# --- Puerto serie (GPS) ---
+# TX = GPIO14 (pin fisico 8), RX = GPIO15 (pin fisico 10).
+GPS_PUERTO = "/dev/serial0"
+GPS_BAUDIOS = 9600      # por defecto en los NEO-6M / NEO-M8N
+
+# ============================================================================
+
 # Rango aceptado por set_motores(): -100 retroceso, 0 parado, +100 avance.
 VELOCIDAD_MIN = -100
 VELOCIDAD_MAX = 100
@@ -47,7 +78,7 @@ class Hardware:
     def configurar(self):
         """Prepara el hardware y arranca el vigilante de órdenes."""
         # TODO(hardware real): detectar la Raspberry, inicializar GPIO/PWM para
-        # el L298, abrir el bus I2C y el puerto serie del GPS.
+        # el L298 (MOTOR_*), abrir I2C_BUS y GPS_PUERTO a GPS_BAUDIOS.
         self.configurado = True
         if self._hilo is None or not self._hilo.is_alive():
             self._fin.clear()
@@ -74,7 +105,7 @@ class Hardware:
         # nadie pueda enviar una consigna fuera de rango por otro camino.
         self.izquierda = max(VELOCIDAD_MIN, min(VELOCIDAD_MAX, int(izquierda)))
         self.derecha = max(VELOCIDAD_MIN, min(VELOCIDAD_MAX, int(derecha)))
-        # TODO(hardware real): traducir a PWM + sentido en los pines del L298.
+        # TODO(hardware real): traducir a PWM en ENA/ENB y sentido en IN1..IN4.
         return {"izquierda": self.izquierda, "derecha": self.derecha}
 
     def _vigilar(self):
