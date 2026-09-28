@@ -15,12 +15,17 @@ import time
 # Valores de partida: ajustar al cableado real del rover.
 # ============================================================================
 
-# --- Driver L298: motores izquierdos (canal A) ---
+# Placa L298N del kit Elegoo Smart Robot Car V3.0: 2 canales con 2 conectores
+# cada uno (los dos motores de un lado van en paralelo).
+# OJO: si la placa trae jumpers en ENA/ENB, quitarlos. Puestos, unen ENA/ENB
+# a 5 V y meterian 5 V en los GPIO de la Raspberry, que solo admiten 3,3 V.
+
+# --- Placa L298N: motores izquierdos (canal A) ---
 MOTOR_IZQ_ENA = 12      # PWM de velocidad. GPIO12 = PWM0 por hardware (pin fisico 32)
 MOTOR_IZQ_IN1 = 5       # sentido (pin fisico 29)
 MOTOR_IZQ_IN2 = 6       # sentido (pin fisico 31)
 
-# --- Driver L298: motores derechos (canal B) ---
+# --- Placa L298N: motores derechos (canal B) ---
 # Agrupados con los izquierdos: los 6 pines del L298 quedan entre el 29 y el 36.
 MOTOR_DER_ENB = 13      # PWM de velocidad. GPIO13 = PWM1 por hardware (pin fisico 33)
 MOTOR_DER_IN3 = 19      # sentido (pin fisico 35); se usa como GPIO normal, no como PWM
