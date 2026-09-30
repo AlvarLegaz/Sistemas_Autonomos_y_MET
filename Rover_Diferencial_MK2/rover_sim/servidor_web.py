@@ -1,14 +1,16 @@
-"""API HTTP del rover (Flask).
+"""API HTTP del rover (Flask), más el WebSocket de control (flask-sock).
 
 Expone el estado de los sensores y acepta consignas de control. No contiene
 lógica del rover: cada endpoint se limita a llamar a un método de Rover y
 devolver el resultado como JSON.
 """
 
+import json
 import os
 import time
 
 from flask import Flask, Response, jsonify, request, send_from_directory
+from flask_sock import Sock
 
 HOST = "0.0.0.0"
 PUERTO = 5000
@@ -19,6 +21,7 @@ FPS_CAMARA = 10
 AQUI = os.path.dirname(os.path.abspath(__file__))
 
 app = Flask(__name__)
+sock = Sock(app)
 
 # El rover que sirve las peticiones. Lo fija iniciar() al arrancar.
 _rover = None
@@ -90,17 +93,49 @@ def post_control():
     hardware para los motores, así que el mando tiene que repetirla al menos
     dos veces por segundo para mantener el rover en marcha.
     """
-    datos = request.get_json(silent=True) or {}
+    error = _aplicar_consigna(request.get_json(silent=True) or {})
+    if error:
+        return jsonify({"error": error}), 400
+    # Se responde con el estado leído del hardware, con la misma forma que el
+    # bloque "control" de /telemetria para que el cliente no parsee dos cosas.
+    return jsonify(_rover.hardware.estado_control())
+
+
+@sock.route("/control_ws")
+def control_ws(ws):
+    """Lo mismo que POST /control, pero por un WebSocket abierto todo el rato.
+
+    Es la vía de la interfaz: un navegador no puede mandar UDP, y así no se
+    abre una petición por orden ni se solapan varias por la WiFi (llegaban en
+    ráfagas y desordenadas). Cada mensaje es un JSON {"izquierda", "derecha"};
+    no se responde a los buenos, y a los malos con {"error": ...}. La orden
+    caduca igual que por HTTP.
+    """
+    try:
+        while True:
+            try:
+                datos = json.loads(ws.receive())
+            except (TypeError, ValueError):
+                datos = {}
+            error = _aplicar_consigna(datos if isinstance(datos, dict) else {})
+            if error:
+                ws.send(json.dumps({"error": error}))
+    finally:
+        # Si se cae la conexión, se para ya en vez de esperar al vigilante.
+        _rover.mover(0, 0)
+
+
+def _aplicar_consigna(datos):
+    """Valida {"izquierda": n, "derecha": n} y se lo pasa al rover.
+
+    Devuelve None si se aplicó, o el texto del error si no.
+    """
     try:
         izquierda = float(datos["izquierda"])
         derecha = float(datos["derecha"])
     except (KeyError, TypeError, ValueError):
-        return jsonify({"error": "se esperan los campos numericos izquierda y derecha"}), 400
-
+        return "se esperan los campos numericos izquierda y derecha"
     if not (-100 <= izquierda <= 100 and -100 <= derecha <= 100):
-        return jsonify({"error": "los valores deben estar entre -100 y 100"}), 400
-
+        return "los valores deben estar entre -100 y 100"
     _rover.mover(izquierda, derecha)
-    # Se responde con el estado leído del hardware, con la misma forma que el
-    # bloque "control" de /telemetria para que el cliente no parsee dos cosas.
-    return jsonify(_rover.hardware.estado_control())
+    return None

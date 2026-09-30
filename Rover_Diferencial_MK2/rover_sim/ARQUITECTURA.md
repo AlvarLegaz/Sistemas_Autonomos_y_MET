@@ -17,7 +17,7 @@ GPIO, I2C, UART y una cámara; aquí hay `mundo.py`.
 | `hardware.py` | Misma clase `Hardware`, mismos métodos y mismo vigilante de 500 ms. Crea el `Mundo`, `set_motores()` le pasa la consigna y `leer_bateria()` se la pide. |
 | `imu.py`, `gps.py`, `camara.py` | Mismas clases y métodos. Leen del mundo a través de `self.hardware.mundo`, igual que en el real leerán del bus a través de `self.hardware`. |
 | `mundo.py` | **Nuevo, y el único fichero nuevo.** Una sola clase `Mundo`: terreno, objetos, física, batería, sensores y cámara. |
-| `requirements.txt` | `flask` y `numpy` (numpy solo para dibujar la cámara). |
+| `requirements.txt` | `flask`, `flask-sock` (WebSocket de control) y `numpy` (numpy solo para dibujar la cámara). |
 
 Todo lo demás (API HTTP, vigilante, forma de la telemetría, interfaz, vista
 móvil, grabación en el cliente) está descrito en `rover/ARQUITECTURA.md` y se

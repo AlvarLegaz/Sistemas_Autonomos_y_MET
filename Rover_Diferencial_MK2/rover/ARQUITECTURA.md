@@ -71,7 +71,7 @@ duplicar lógica.
 | `gps.py` | Gestiona el GPS (posición, velocidad, rumbo) por UART. |
 | `camara.py` | Gestiona la cámara de la Raspberry Pi. |
 | `rover.py` | Representa el rover completo y coordina sus componentes. |
-| `servidor_web.py` | Expone la API HTTP con Flask y sirve la interfaz en `/`. |
+| `servidor_web.py` | Expone la API HTTP con Flask, el WebSocket de control con flask-sock y sirve la interfaz en `/`. |
 | `interfaz.html` | Interfaz de control en el navegador: teclado, botones o mando, barras de empuje, telemetría y visor. Un solo fichero sin librerías externas, porque el rover no tendrá internet en el campo. |
 | `servidor_udp.py` | Se utilizará posteriormente para comunicaciones de baja latencia. |
 | `main.py` | Inicializa el sistema y arranca el servidor web. |
@@ -116,8 +116,11 @@ Consecuencias prácticas:
 
 - **El mando tiene que repetir la orden al menos 2 veces por segundo.** Un
   `POST /control` suelto desde `curl` mueve el rover medio segundo y se para.
-  Esa cadencia es justo la razón de ser de `servidor_udp.py`: por HTTP, abrir
-  una conexión 10 veces por segundo es un desperdicio.
+  Por esa cadencia la interfaz no usa `POST /control` sino el WebSocket
+  `/control_ws`: con una petición por orden, en la WiFi se solapaban varias y
+  llegaban en ráfagas y desordenadas (tirones). UDP sería lo ideal, pero un
+  navegador no puede mandarlo; `servidor_udp.py` queda para un cliente que no
+  sea la página.
 - Recién arrancado, y antes de recibir la primera orden, la telemetría ya
   muestra `"watchdog": true`. Es correcto: no ha llegado ninguna orden, y el
   rover está parado.
@@ -138,6 +141,7 @@ GET  /imu
 GET  /gps
 GET  /bateria
 POST /control
+WS   /control_ws
 GET  /telemetria
 ```
 
@@ -150,6 +154,7 @@ GET  /telemetria
 | `GET /camara` | Vídeo en directo como flujo MJPEG (`multipart/x-mixed-replace; boundary=frame`), 10 fotogramas/s, cada parte con el `Content-Type` que declare `Camara.tipo_mime`. Lo pinta cualquier navegador con `<img src="/camara">`. Si la cámara no da fotogramas responde `{"estado": "camara_no_disponible"}` con 503, y el flujo se cierra si deja de darlos. |
 | `GET /telemetria` | Todo agregado: `gps`, `imu`, `bateria`, `control`. |
 | `POST /control` | Recibe `{"izquierda": 50, "derecha": 50}`, llama a `rover.mover()` y devuelve el control aplicado. Valida solo que ambos valores estén entre -100 y +100; si no, responde 400. **La orden caduca en 0,5 s**, ver el vigilante. |
+| `WS /control_ws` | WebSocket (flask-sock) que usa la interfaz: cada mensaje es el mismo JSON que `POST /control`, con la misma validación y la misma caducidad. No responde a los mensajes válidos; a los malos, con `{"error": ...}`. Al cerrarse la conexión para el rover en el acto, sin esperar al vigilante. |
 
 El bloque `control` tiene la misma forma en `POST /control` y en
 `GET /telemetria`: `{"izquierda": n, "derecha": n, "watchdog": bool}`.
@@ -161,9 +166,11 @@ navegador de la misma red (PC, móvil o tablet).
 
 - **Control**: teclas W A S D o flechas, o los mismos botones pulsados con el
   ratón o el dedo. Espacio, o el botón PARAR, para en seco. Mientras hay una
-  pulsación se envía `POST /control` cada 150 ms para rearmar el vigilante; al
-  soltar se envía un `0, 0` una sola vez. Si la pestaña pierde el foco o se
-  oculta, para. Cada dedo se apunta con la tecla que sujeta, así con dos dedos
+  pulsación se envía la orden cada 150 ms por el WebSocket `/control_ws` para
+  rearmar el vigilante; al soltar se envía un `0, 0` una sola vez. Si hay una
+  orden sin salir todavía no se encola otra, y si el canal se cae se reabre
+  cada segundo (mientras tanto el vigilante para el rover). Si la pestaña
+  pierde el foco o se oculta, para. Cada dedo se apunta con la tecla que sujeta, así con dos dedos
   a la vez (▲ y ▶) soltar uno no suelta el otro.
 - **Mando** (Gamepad API, igual que en el simulador del submarino; prefiere
   el de DJI si hay varios): palanca izquierda a los lados = girar, palanca

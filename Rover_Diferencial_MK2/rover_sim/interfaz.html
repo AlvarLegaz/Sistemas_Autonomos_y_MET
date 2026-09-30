@@ -626,22 +626,30 @@ function mezclar() {
 }
 
 // ---- envío del control ----
-// Se reenvía mientras haya movimiento para rearmar el vigilante del hardware,
-// y una sola vez al parar.
+// Por un WebSocket abierto todo el rato (/control_ws): con un POST por orden,
+// en la WiFi se solapaban peticiones y llegaban en ráfagas y desordenadas. Se
+// reenvía mientras haya movimiento para rearmar el vigilante del hardware, y
+// una sola vez al parar. Si el canal se cae se reabre cada segundo; mientras
+// tanto no sale nada y el vigilante para el rover.
 let ultimoCero = true;
+let canal = null;
 
-async function enviarControl() {
+function abrirCanal() {
+  const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/control_ws");
+  ws.onopen = () => { canal = ws; ultimoCero = false; };   // reenvía el estado al reconectar
+  ws.onclose = () => { canal = null; setTimeout(abrirCanal, 1000); };
+}
+abrirCanal();
+
+function enviarControl() {
   const c = mezclar();
   const parado = c.izquierda === 0 && c.derecha === 0;
   if (parado && ultimoCero) return;
+  // Con órdenes aún sin salir no se encola otra: llegaría tarde. Se reintenta
+  // en el siguiente tic con la consigna de ese momento.
+  if (!canal || canal.bufferedAmount > 0) return;
+  canal.send(JSON.stringify(c));
   ultimoCero = parado;
-  try {
-    await fetch("/control", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(c),
-    });
-  } catch (e) { /* lo reporta el sondeo de telemetría */ }
 }
 setInterval(enviarControl, 150);
 
