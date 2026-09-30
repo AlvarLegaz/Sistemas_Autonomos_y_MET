@@ -254,7 +254,9 @@
           <input type="range" id="giro" min="0" max="100" value="50">
         </div>
         <div class="nota">
-          Avanzando, el giro se resta a un lado y se suma al otro. Parado, gira
+          Avanzando, el giro reparte la velocidad entre los lados en
+          proporción: la curva tiene el mismo radio a cualquier velocidad (con
+          el giro al 100 % y a fondo, la rueda interior se para). Parado, gira
           sobre el sitio a la velocidad de giro.
         </div>
       </div>
@@ -591,8 +593,14 @@ function mezclar() {
 
   let izq = 0, der = 0;
   if (avance !== 0) {
-    izq = avance * base + giro * dif;
-    der = avance * base - giro * dif;
+    // Mezcla PROPORCIONAL: el giro reparte la velocidad entre los lados
+    // (uno ×(1+k), el otro ×(1−k)). El radio de la curva depende de la
+    // proporción entre ruedas, así que es el mismo a cualquier velocidad.
+    // Sumar y restar el giro en valor absoluto (como antes) daba curvas
+    // cerradas yendo lento y abiertas yendo rápido.
+    const k = giro * dif / 100;
+    izq = avance * base * (1 + k);
+    der = avance * base * (1 - k);
     // Si un lado pasa de 100 se escalan los dos: recortar solo ese lado
     // perdería la diferencia entre lados, que es justo lo que hace girar.
     const mayor = Math.max(Math.abs(izq), Math.abs(der));
