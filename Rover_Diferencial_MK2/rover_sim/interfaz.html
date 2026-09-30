@@ -257,7 +257,7 @@
           Avanzando, el giro reparte la velocidad entre los lados en
           proporción: la curva tiene el mismo radio a cualquier velocidad (con
           el giro al 100 % y a fondo, la rueda interior se para). Parado, gira
-          sobre el sitio a la velocidad de giro.
+          sobre el sitio a velocidad × giro (con 60 % y 50 %, al 30 %).
         </div>
       </div>
     </div>
@@ -606,8 +606,10 @@ function mezclar() {
     const mayor = Math.max(Math.abs(izq), Math.abs(der));
     if (mayor > 100) { izq *= 100 / mayor; der *= 100 / mayor; }
   } else if (giro !== 0) {
-    izq = giro * dif;        // giro sobre el sitio a la velocidad de giro:
-    der = -giro * dif;       // un lado avanza y el otro retrocede
+    // Giro sobre el sitio: un lado avanza y el otro retrocede, a velocidad ×
+    // giro. Con solo el giro, cerrar las curvas (subirlo) lo dispararía.
+    izq = giro * base * dif / 100;
+    der = -izq;
   }
   const recortar = (n) => Math.max(-100, Math.min(100, Math.round(n)));
   return { izquierda: recortar(izq), derecha: recortar(der) };
