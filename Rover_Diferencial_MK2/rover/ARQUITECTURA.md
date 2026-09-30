@@ -173,9 +173,10 @@ navegador de la misma red (PC, móvil o tablet).
   fábrica se ignoran hasta que se mueven, y la vertical derecha (eje 3, 5 o 4
   según el mando) se detecta sola, entre los ejes que reposan en el centro.
   Mientras la palanca está fuera del centro manda sobre las teclas.
-- **Gatillos** del mando: mientras se aprieta, el derecho fija el límite de
-  velocidad y el izquierdo el de giro (lo apretado, 0-100 %; también con el
-  teclado); al soltarlos vuelven los deslizadores. Con mapeo `standard` son
+- **Gatillos** del mando: el derecho acelera, lleva la velocidad de la base
+  del deslizador (suelto) al 100 % (a fondo), en proporción a lo apretado. El
+  izquierdo, mientras se aprieta, fija el giro (0-100 %); al soltarlo vuelve
+  el deslizador. Los dos valen también con el teclado. Con mapeo `standard` son
   los botones 6 y 7; en los mandos genéricos, los ejes que reposan en −1
   (las palancas reposan en 0), izquierdo el de índice más bajo. La línea
   "Mando:" muestra los límites en vigor y si vienen del gatillo o del
@@ -193,9 +194,13 @@ navegador de la misma red (PC, móvil o tablet).
   tarjeta de teclado (mismo `data-tecla`), que en el móvil se oculta; el resto
   de tarjetas queda debajo. La página bloquea el zoom y el menú de pulsación
   larga para que no interfieran con el mando.
-- **Mezcla diferencial**: con *velocidad base* `v` y *giro diferencial* `g`,
-  avanzar es `v, v`; avanzar girando a la derecha es `v+g, v-g`; parado, la A o
-  la D giran sobre el sitio (`-v, v` y `v, -v`). Todo recortado a ±100.
+- **Mezcla diferencial** (proporcional): con *velocidad base* `v` y *giro
+  diferencial* `g` (0-1), avanzar es `v, v`; avanzar girando a la derecha es
+  `v·(1+g), v·(1−g)`, y si un lado pasa de 100 se escalan los dos. Así el
+  radio de la curva depende solo de `g`, no de la velocidad (con la mezcla
+  aditiva `v+g, v−g` de antes, yendo lento cerraba mucho y yendo rápido
+  poco); con `g` = 1 la rueda interior se para. Parado, la A o la D giran
+  sobre el sitio a `v·g` (`v·g, −v·g`). De partida `v` = 10 % y `g` = 100 %.
 - **Barras de empuje**: muestran lo que devuelve `/telemetria`, no lo que la
   página ha enviado. Es decir, lo que el hardware tiene aplicado de verdad,
   incluido el corte del vigilante, que se señala con una insignia.

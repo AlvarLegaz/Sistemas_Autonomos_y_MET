@@ -234,9 +234,10 @@
           que el navegador lo vea): palanca izquierda a los lados = girar;
           palanca derecha arriba/abajo = adelante y atrás. La potencia es
           proporcional al recorrido: a fondo, la de los deslizadores de
-          velocidad base y giro. Mientras aprietas el gatillo derecho, él fija
-          el límite de velocidad (lo que aprietes, de 0 a 100 %), y el
-          izquierdo el de giro; al soltarlos vuelven los deslizadores. La
+          velocidad base y giro. El gatillo derecho acelera: sube la velocidad
+          desde la base (suelto) hasta el 100 % (a fondo). Mientras aprietas
+          el izquierdo, él fija el giro (de 0 a 100 %); al soltarlo vuelve el
+          deslizador. La
           palanca manda sobre las teclas mientras esté fuera del centro.
         </div>
       </div>
@@ -246,18 +247,19 @@
       <h2>Control manual</h2>
       <div class="cuerpo">
         <div class="campo">
-          <label>Velocidad base (%) <b id="v-velocidad">60</b></label>
-          <input type="range" id="velocidad" min="0" max="100" value="60">
+          <label>Velocidad base (%) <b id="v-velocidad">10</b></label>
+          <input type="range" id="velocidad" min="0" max="100" value="10">
         </div>
         <div class="campo" style="margin-bottom:0">
-          <label>Giro diferencial (%) <b id="v-giro">50</b></label>
-          <input type="range" id="giro" min="0" max="100" value="50">
+          <label>Giro diferencial (%) <b id="v-giro">100</b></label>
+          <input type="range" id="giro" min="0" max="100" value="100">
         </div>
         <div class="nota">
           Avanzando, el giro reparte la velocidad entre los lados en
           proporción: la curva tiene el mismo radio a cualquier velocidad (con
           el giro al 100 % y a fondo, la rueda interior se para). Parado, gira
-          sobre el sitio a velocidad × giro (con 60 % y 50 %, al 30 %).
+          sobre el sitio a velocidad × giro (con 10 % y 100 %, al 10 %). El
+          gatillo derecho del mando lleva la velocidad de la base al 100 %.
         </div>
       </div>
     </div>
@@ -413,8 +415,9 @@ const ZONA_MUERTA = 0.12;
 // Por debajo de esto el gatillo se considera suelto.
 const ZONA_GATILLO = 0.05;
 // avance/giro: −1..1 ya sin zona muerta; 0 = palanca centrada (mandan las
-// teclas). limVel/limGiro: 0..1 mientras se aprieta el gatillo derecho /
-// izquierdo (límite de velocidad / de giro); null = suelto, manda el deslizador.
+// teclas). limVel: 0..1 del gatillo derecho, acelera de la velocidad base
+// (0) a 100 % (1). limGiro: 0..1 del izquierdo, fija el giro. null = suelto,
+// manda el deslizador.
 const mando = { avance: 0, giro: 0, limVel: null, limGiro: null };
 
 function elegirMando() {
@@ -496,11 +499,12 @@ function leerMando() {
     mando.limVel = gatillo(g, 1);
     const f = (n) => (n >= 0 ? "+" : "") + n.toFixed(2);
     const lim = (v, id) => v !== null ? Math.round(v * 100) + " % (gatillo)" : $(id).value + " % (deslizador)";
+    const vel = mando.limVel !== null ? Math.round(velocidadBase()) + " % (gatillo)" : $("velocidad").value + " % (deslizador)";
     const quietos = [EJE_GIRO, ejeAv].filter((i) => !ejeVivo[g.index + ":" + i]);
     $("mando").textContent = g.id.slice(0, 40) + " · ejes " + Array.from(g.axes).map(f).join(" ")
       + " → avance " + f(mando.avance) + " (eje " + ejeAv + (g.index in ejeAvance ? "" : " de partida") + ")"
       + " giro " + f(mando.giro)
-      + " · límites: velocidad " + lim(mando.limVel, "velocidad") + ", giro " + lim(mando.limGiro, "giro")
+      + " · límites: velocidad " + vel + ", giro " + lim(mando.limGiro, "giro")
       + (quietos.length ? " (ejes " + quietos.join(",") + " sin mover aún, se ignoran)" : "");
   } else {
     mando.avance = mando.giro = 0;
@@ -582,9 +586,15 @@ $("velocidad").addEventListener("input", (e) => { $("v-velocidad").textContent =
 $("giro").addEventListener("input", (e) => { $("v-giro").textContent = e.target.value; });
 
 // ---- mezcla diferencial ----
+// Velocidad: la del deslizador, y el gatillo derecho la sube de ahí al 100 %.
+function velocidadBase() {
+  const v = Number($("velocidad").value);
+  return mando.limVel !== null ? v + (100 - v) * mando.limVel : v;
+}
+
 function mezclar() {
-  // Límites: los del gatillo mientras se aprieta; sueltos, los deslizadores.
-  const base = mando.limVel !== null ? mando.limVel * 100 : Number($("velocidad").value);
+  // Giro: el del gatillo izquierdo mientras se aprieta; suelto, el deslizador.
+  const base = velocidadBase();
   const dif = mando.limGiro !== null ? mando.limGiro * 100 : Number($("giro").value);
   // Teclas: −1, 0 o 1. Palanca del mando: proporcional a su recorrido, y
   // manda sobre las teclas mientras esté fuera del centro.
