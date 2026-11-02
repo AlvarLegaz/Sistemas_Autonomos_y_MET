@@ -186,9 +186,11 @@ const MAPA = {
   salidas: {                        // salidas digitales del gateway -> maqueta
     SOL1: 'DigitalOut3_value', SOL2: 'DigitalOut4_value', SOL3: 'DigitalOut5_value',
     SOL4: 'DigitalOut6_value', SOL5: 'DigitalOut7_value',
-    N1: 'TransistorOut7_value',     // bomba peristaltica 1 ON/OFF: J7 OUT07 (supuesto el orden)
-    N2: 'TransistorOut8_value',     // bomba peristaltica 2 ON/OFF: J7 OUT08
+    N1: 'TransistorOut8_value',     // bomba peristaltica FEED UNIT (N1): J7 OUT08
+    N2: 'TransistorOut7_value',     // bomba peristaltica HEAT UNIT (N2): J7 OUT07
   },
+  // Sentido de giro: dos salidas a transistor (J7 OUT05 y OUT06), (1,0), (0,1) o (0,0).
+  sentido: {a: 'TransistorOut5_value', b: 'TransistorOut6_value'},
   // Consignas continuas 0-100 %: canal del gateway. Las AnalogOut no tienen
   // hardware todavia y el gateway no las devuelve, asi que la pagina recuerda su valor.
   consignas: {
@@ -260,10 +262,24 @@ for (const [id, c] of Object.entries(MAPA.consignas)) {
     resumenCalentador();
   };
 }
+// Selector de sentido de giro de las bombas (OUT05 y OUT06 a la vez).
+const sentidos = [['A (OUT05=1, OUT06=0)', true, false], ['B (OUT05=0, OUT06=1)', false, true], ['Sin sentido (0, 0)', false, false]];
+const filaSentido = document.createElement('div');
+filaSentido.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex:1 1 100%';
+filaSentido.innerHTML = '<span style="font-weight:600;min-width:130px">Sentido de giro</span>';
+const botonesSentido = sentidos.map(([texto, a, b]) => {
+  const bt = document.createElement('button');
+  bt.textContent = texto;
+  bt.onclick = () => enviar({[MAPA.sentido.a]: a, [MAPA.sentido.b]: b});
+  filaSentido.appendChild(bt);
+  return bt;
+});
+$('controles').appendChild(filaSentido);
+
 const parar = document.createElement('button');
 parar.textContent = 'Parar todo';
 parar.onclick = () => {
-  const orden = Object.fromEntries(Object.values(MAPA.salidas).map(c => [c, false]));
+  const orden = Object.fromEntries([...Object.values(MAPA.salidas), MAPA.sentido.a, MAPA.sentido.b].map(c => [c, false]));
   for (const [id, c] of Object.entries(MAPA.consignas)) {
     orden[c.canal] = 0; consigna[id] = 0;
     $(`r-${id}`).value = 0; $(`o-${id}`).textContent = '0 %';
@@ -308,6 +324,15 @@ function pintar(s) {
     $('r-N1V').value = d[v1]; $('o-N1V').textContent = `${Math.round(d[v1])} %`;
   }
   resumenCalentador();
+
+  const sa = !!d[MAPA.sentido.a], sb = !!d[MAPA.sentido.b];
+  botonesSentido.forEach((bt, i) => {
+    const [, a, b] = sentidos[i];
+    const activo = sa === a && sb === b;
+    bt.style.background = activo ? 'var(--ok)' : '';
+    bt.style.color = activo ? '#fff' : '';
+    bt.disabled = !s.broker;
+  });
 
   for (const [tag, m] of Object.entries(MAPA.analogicas)) {
     const v = Number(d[m.canal] ?? 0);
