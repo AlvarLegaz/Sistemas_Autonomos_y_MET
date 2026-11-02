@@ -240,11 +240,11 @@ const MAPA = {
   },
   // Entradas digitales de la maqueta. `alarmaSi`: valor que se pinta en rojo.
   digitales: {
-    LVLC: {canal: 'DigitalIn1_value', alarmaSi: true},    // nivel tanque calefactor (supuesto)
-    HLC:  {canal: 'DigitalIn2_value', alarmaSi: true},    // nivel alto heat unit (supuesto)
-    HL:   {canal: 'DigitalIn3_value', alarmaSi: true},    // nivel alto tanque B
-    LL:   {canal: 'DigitalIn4_value', alarmaSi: true},    // nivel bajo tanque B
-    TERM: {canal: 'DigitalIn5_value', alarmaSi: false},   // termostato: abre si sobretemperatura (supuesto)
+    TERM: {canal: 'DigitalIn1_value', alarmaSi: false},   // D1 termostato: abre si sobretemperatura
+    HLC:  {canal: 'DigitalIn2_value', alarmaSi: true},    // D2 nivel alto heat unit
+    HL:   {canal: 'DigitalIn3_value', alarmaSi: true},    // D3 nivel alto tanque B
+    LL:   {canal: 'DigitalIn4_value', alarmaSi: true},    // D4 nivel bajo tanque B
+    LVLC: {canal: 'DigitalIn5_value', alarmaSi: true},    // D5 nivel tanque calefactor (supuesto)
   },
 };
 // ---------------------------------------------------------------------------
