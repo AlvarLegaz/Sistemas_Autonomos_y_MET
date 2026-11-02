@@ -64,6 +64,8 @@ python control_remoto/control_remoto.py 192.168.99.53:1883 usuario@clave
 
 Si el broker no responde, los dos programas arrancan igualmente y reintentan la conexión solos. El gateway se para con `Ctrl+C` o `SIGTERM` y deja las salidas apagadas.
 
+La asignación de canales a la maqueta PCT23 y el cableado de la placa están en [PCT23.md](PCT23.md). Además de las E/S del README, el gateway publica y acepta `TransistorOut1..8_value` (salidas a transistor, J7 OUT01-OUT08, PCF8574A en la dirección 0x3A).
+
 ## Despliegue completo en la Raspberry (broker + gateway + web)
 
 Con la Pi con acceso a GitHub, tras `git pull`:
