@@ -55,6 +55,17 @@
   .controles output { width: 56px; text-align: right; font-variant-numeric: tabular-nums; }
   button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--borde);
            background: var(--fondo); color: var(--texto); padding: 8px 14px; }
+  .panel { background: var(--panel); border: 1px solid var(--borde); border-radius: 10px; padding: 14px; margin-top: 12px; }
+  .panel h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--tenue); margin: 0 0 10px; }
+  .tarjetas { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+  .tarjeta { border: 1px solid var(--borde); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .tarjeta h3 { margin: 0; font-size: 16px; }
+  .tarjeta small { color: var(--tenue); }
+  .estado-bomba { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+  .grande { padding: 14px 6px; font-size: 16px; font-weight: 600; }
+  .grande.on { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .opciones { display: grid; gap: 6px; }
+  .opciones button.sel { background: var(--acento); border-color: var(--acento); color: #fff; }
   p.nota { color: var(--tenue); font-size: 13px; margin: 10px 0 0; }
 </style>
 </head>
@@ -118,7 +129,7 @@
        <path class="valvula" d="M446 68 L460 80 L446 92 Z M474 68 L460 80 L474 92 Z"/>
        <text x="500" y="66" class="etiqueta">SOL1</text><text x="500" y="52" class="lectura">desvío</text></g>
     <g><circle class="instr" cx="260" cy="168" r="15"/><text x="260" y="172" class="etiqueta">F1</text>
-       <text x="298" y="172" class="lectura" id="v-F1">—</text></g>
+       <text x="330" y="172" class="lectura" id="v-F1">—</text></g>
     <g><rect class="manual" x="248" y="195" width="24" height="24"/><path d="M248 219 L272 195" stroke="var(--tubo)" stroke-width="1.5"/>
        <text x="300" y="212" class="lectura">FILTER</text></g>
     <g><circle class="instr" cx="260" cy="272" r="15"/><text x="260" y="276" class="etiqueta">T4</text>
@@ -169,6 +180,22 @@
        <text x="962" y="196" class="lectura" id="v-L1">—</text></g>
   </svg>
   </div>
+
+  <section class="panel" id="panel-bombas">
+    <h2>Bombas peristálticas</h2>
+    <div class="tarjetas">
+      <div class="tarjeta" id="t-N1"><h3>Feed unit</h3><small>Acción: J7 OUT08</small>
+        <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
+        <button class="grande" id="b-N1">Encender</button></div>
+      <div class="tarjeta" id="t-N2"><h3>Heat unit</h3><small>Acción: J7 OUT07</small>
+        <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
+        <button class="grande" id="b-N2">Encender</button></div>
+      <div class="tarjeta" id="t-sentido"><h3>Sentido de giro</h3><small>J7 OUT05 y OUT06</small>
+        <div class="opciones" id="opciones-sentido"></div>
+        <small id="lectura-sentido">—</small></div>
+    </div>
+    <div class="controles" style="margin-top:12px"><button id="parar-bombas">Parar bombas</button></div>
+  </section>
 
   <div class="controles" id="controles"></div>
   <p class="nota">Con los deslizadores se manejan las resistencias y la velocidad de la bomba 1. Pulsa una bomba o una electroválvula para activarla o desactivarla; el color es el estado real que publica el gateway.
@@ -262,19 +289,20 @@ for (const [id, c] of Object.entries(MAPA.consignas)) {
     resumenCalentador();
   };
 }
-// Selector de sentido de giro de las bombas (OUT05 y OUT06 a la vez).
-const sentidos = [['A (OUT05=1, OUT06=0)', true, false], ['B (OUT05=0, OUT06=1)', false, true], ['Sin sentido (0, 0)', false, false]];
-const filaSentido = document.createElement('div');
-filaSentido.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex:1 1 100%';
-filaSentido.innerHTML = '<span style="font-weight:600;min-width:130px">Sentido de giro</span>';
+// Panel de bombas.
+const sentidos = [['A  (OUT05 = 1, OUT06 = 0)', true, false], ['B  (OUT05 = 0, OUT06 = 1)', false, true], ['Sin sentido  (0, 0)', false, false]];
 const botonesSentido = sentidos.map(([texto, a, b]) => {
   const bt = document.createElement('button');
   bt.textContent = texto;
   bt.onclick = () => enviar({[MAPA.sentido.a]: a, [MAPA.sentido.b]: b});
-  filaSentido.appendChild(bt);
+  $('opciones-sentido').appendChild(bt);
   return bt;
 });
-$('controles').appendChild(filaSentido);
+for (const id of ['N1', 'N2']) {
+  $(`b-${id}`).onclick = () => enviar({[MAPA.salidas[id]]: !actual(MAPA.salidas[id])});
+}
+$('parar-bombas').onclick = () => enviar({
+  [MAPA.salidas.N1]: false, [MAPA.salidas.N2]: false, [MAPA.sentido.a]: false, [MAPA.sentido.b]: false});
 
 const parar = document.createElement('button');
 parar.textContent = 'Parar todo';
@@ -328,11 +356,20 @@ function pintar(s) {
   const sa = !!d[MAPA.sentido.a], sb = !!d[MAPA.sentido.b];
   botonesSentido.forEach((bt, i) => {
     const [, a, b] = sentidos[i];
-    const activo = sa === a && sb === b;
-    bt.style.background = activo ? 'var(--ok)' : '';
-    bt.style.color = activo ? '#fff' : '';
+    bt.classList.toggle('sel', sa === a && sb === b);
     bt.disabled = !s.broker;
   });
+  $('lectura-sentido').textContent = `Estado real: OUT05 = ${+sa}, OUT06 = ${+sb}`;
+  for (const id of ['N1', 'N2']) {
+    const on = !!d[MAPA.salidas[id]];
+    const bt = $(`b-${id}`);
+    bt.classList.toggle('on', on);
+    bt.textContent = on ? 'Apagar' : 'Encender';
+    bt.disabled = !s.broker;
+    const est = $(`t-${id}`).querySelector('.estado-bomba');
+    est.className = `estado-bomba ${on ? 'ok' : ''}`;
+    est.lastElementChild.textContent = on ? 'En marcha' : 'Parada';
+  }
 
   for (const [tag, m] of Object.entries(MAPA.analogicas)) {
     const v = Number(d[m.canal] ?? 0);
