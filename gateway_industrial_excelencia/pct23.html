@@ -196,15 +196,16 @@ const MAPA = {
     R2: {canal: 'AnalogOut2_value', nombre: 'Resistencia 2'},
     N1V: {canal: 'PWMOut1_value', nombre: 'Bomba 1 velocidad'},
   },
+  // Sondas T: 10 mV/°C (grados = voltios x 100), 1,5 V = 150 °C.
   // Entradas analogicas. `fondo` es la tension (V) que ve el ADC a fondo de
   // escala del sensor: 1,5 V en las sondas T; en nivel y caudal (0-5 V) se
   // supone un divisor que lo baja a 3,3 V (el MCP3008 trabaja con Vref 3,3 V).
   analogicas: {
-    T1: {canal: 'AnalogIn1_value', fondo: 1.5, min: 0, max: 100, unidad: '°C'},
-    T2: {canal: 'AnalogIn2_value', fondo: 1.5, min: 0, max: 100, unidad: '°C'},
-    T3: {canal: 'AnalogIn3_value', fondo: 1.5, min: 0, max: 100, unidad: '°C'},
-    T4: {canal: 'AnalogIn4_value', fondo: 1.5, min: 0, max: 100, unidad: '°C'},
-    T5: {canal: 'AnalogIn5_value', fondo: 1.5, min: 0, max: 100, unidad: '°C'},
+    T1: {canal: 'AnalogIn1_value', fondo: 1.5, min: 0, max: 150, unidad: '°C'},
+    T2: {canal: 'AnalogIn2_value', fondo: 1.5, min: 0, max: 150, unidad: '°C'},
+    T3: {canal: 'AnalogIn3_value', fondo: 1.5, min: 0, max: 150, unidad: '°C'},
+    T4: {canal: 'AnalogIn4_value', fondo: 1.5, min: 0, max: 150, unidad: '°C'},
+    T5: {canal: 'AnalogIn5_value', fondo: 1.5, min: 0, max: 150, unidad: '°C'},
     L1: {canal: 'AnalogIn6_value', fondo: 3.3, min: 0, max: 250, unidad: 'mm'},   // nivel tanque A
     F1: {canal: 'AnalogIn7_value', fondo: 3.3, min: 0, max: 100, unidad: '%'},    // caudal
   },
