@@ -184,10 +184,10 @@
 // ---------------------------------------------------------------------------
 const MAPA = {
   salidas: {                        // salidas digitales del gateway -> maqueta
-    SOL1: 'DigitalOut1_value', SOL2: 'DigitalOut2_value', SOL3: 'DigitalOut3_value',
-    SOL4: 'DigitalOut4_value', SOL5: 'DigitalOut5_value',
-    N1: 'DigitalOut6_value',        // bomba peristaltica 1 ON/OFF
-    N2: 'DigitalOut7_value',        // bomba peristaltica 2 ON/OFF
+    SOL1: 'DigitalOut3_value', SOL2: 'DigitalOut4_value', SOL3: 'DigitalOut5_value',
+    SOL4: 'DigitalOut6_value', SOL5: 'DigitalOut7_value',
+    N1: 'DigitalOut1_value',        // bomba peristaltica 1 ON/OFF (supuesto: D1)
+    N2: 'DigitalOut2_value',        // bomba peristaltica 2 ON/OFF (supuesto: D2)
   },
   // Consignas continuas 0-100 %: canal del gateway. Las AnalogOut no tienen
   // hardware todavia y el gateway no las devuelve, asi que la pagina recuerda su valor.
