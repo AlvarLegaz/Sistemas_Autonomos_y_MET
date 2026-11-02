@@ -1,6 +1,6 @@
 """Gateway de E/S: runtime de la placa + pasarela MQTT.
 
-    python3 gateway_main_app.py [ip:puerto] [usuario@clave]
+    python3 gateway_main_app.py [ip:puerto] [usuario@clave] [--simular]
 
 Con solo "usuario" la contraseña se toma de la variable de entorno
 MQTT_PASSWORD o se pide por teclado (asi no queda en el historial).
@@ -51,10 +51,10 @@ def credenciales(texto):
 
 
 class Gateway:
-    def __init__(self, host, puerto, usuario=None, clave=None):
+    def __init__(self, host, puerto, usuario=None, clave=None, simular=False):
         self.host, self.puerto = host, puerto
         self.stop_event = threading.Event()
-        self.runtime = Runtime()
+        self.runtime = Runtime(simular=simular)
 
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=MQTT_CLIENT_ID)
         if usuario:
@@ -147,10 +147,12 @@ def main():
     ap.add_argument("broker", nargs="?", type=broker, default=broker(BROKER_POR_DEFECTO),
                     help=f"broker MQTT como ip:puerto (por defecto {BROKER_POR_DEFECTO})")
     ap.add_argument("credenciales", nargs="?", help="usuario@clave, o solo usuario (sin autenticacion si se omite)")
+    ap.add_argument("--simular", action="store_true",
+                    help="E/S simulada, sin I2C ni SPI (para probar en un PC)")
     args = ap.parse_args()
 
     usuario, clave = credenciales(args.credenciales)
-    app = Gateway(*args.broker, usuario=usuario, clave=clave)
+    app = Gateway(*args.broker, usuario=usuario, clave=clave, simular=args.simular)
     signal.signal(signal.SIGINT, lambda sig, frame: app.stop())
     signal.signal(signal.SIGTERM, lambda sig, frame: app.stop())
     app.run()

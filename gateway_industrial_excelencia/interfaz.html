@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gateway PCT 23</title>
+<style>
+  :root {
+    --fondo: #f4f5f7; --panel: #ffffff; --texto: #1b1f24; --tenue: #6b7380; --borde: #dde1e6;
+    --ok: #2e9e44; --error: #c62828; --aviso: #d99100; --apagado: #9aa1ab; --acento: #1565c0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fondo: #14171b; --panel: #1d2127; --texto: #e6e9ed; --tenue: #98a1ad; --borde: #2f353d;
+      --ok: #4cc264; --error: #ef5350; --aviso: #f2b134; --apagado: #646c77; --acento: #64a8f5;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--texto);
+         font: 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; margin: 0 0 12px; }
+  h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+       color: var(--tenue); margin: 0 0 10px; }
+  .estado { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+          background: var(--panel); border: 1px solid var(--borde); font-size: 13px; }
+  .punto { width: 9px; height: 9px; border-radius: 50%; background: var(--apagado); }
+  .ok .punto { background: var(--ok); } .error .punto { background: var(--error); }
+  .aviso .punto { background: var(--aviso); }
+  .rejilla { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  section { background: var(--panel); border: 1px solid var(--borde); border-radius: 10px; padding: 14px; }
+  .ancha { grid-column: 1 / -1; }
+  .fila { display: flex; align-items: center; gap: 10px; padding: 3px 0; }
+  .fila .nombre { width: 34px; color: var(--tenue); font-variant-numeric: tabular-nums; }
+  .led { width: 18px; height: 18px; border-radius: 50%; background: var(--apagado); }
+  .led.on { background: var(--ok); }
+  .barra { flex: 1; height: 10px; border-radius: 5px; background: var(--borde); overflow: hidden; }
+  .barra > div { height: 100%; width: 0; background: var(--acento); transition: width .1s linear; }
+  .valor { width: 64px; text-align: right; font-variant-numeric: tabular-nums; }
+  .salidas { display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 8px; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--borde);
+           background: var(--fondo); color: var(--texto); padding: 10px 6px; }
+  button.salida.on { background: var(--ok); border-color: var(--ok); color: #fff; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .pwm { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+  .pwm input { flex: 1; }
+  .pwm output { width: 56px; text-align: right; font-variant-numeric: tabular-nums; }
+  .diag { display: flex; flex-wrap: wrap; gap: 18px; }
+  .diag div { min-width: 90px; }
+  .diag b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+  .diag span { color: var(--tenue); font-size: 12px; }
+  .acciones { margin-top: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Gateway industrial · PCT 23</h1>
+  <div class="estado">
+    <span class="chip" id="chip-broker"><i class="punto"></i><span>Broker: conectando…</span></span>
+    <span class="chip" id="chip-gateway"><i class="punto"></i><span>Gateway: sin datos</span></span>
+    <span class="chip" id="chip-io"><i class="punto"></i><span>E/S: —</span></span>
+  </div>
+
+  <div class="rejilla">
+    <section>
+      <h2>Entradas digitales</h2>
+      <div id="di"></div>
+    </section>
+    <section>
+      <h2>Entradas analógicas (0 – 3,3 V)</h2>
+      <div id="ai"></div>
+    </section>
+    <section class="ancha">
+      <h2>Salidas digitales (el color es el estado real que publica el gateway)</h2>
+      <div class="salidas" id="do"></div>
+      <div class="acciones"><button id="todas-off">Apagar todas</button></div>
+      <div class="pwm">
+        <label for="pwm">PWM 1</label>
+        <input type="range" id="pwm" min="0" max="100" step="1" value="0">
+        <output id="pwm-valor">0 %</output>
+      </div>
+    </section>
+    <section class="ancha">
+      <h2>Diagnóstico</h2>
+      <div class="diag">
+        <div><b id="d-io_errors">—</b><span>errores de E/S</span></div>
+        <div><b id="d-scan_overruns">—</b><span>ciclos pasados de tiempo</span></div>
+        <div><b id="d-edad">—</b><span>último dato (s)</span></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+const N = 8;
+const $ = id => document.getElementById(id);
+let ultimo = null;
+let arrastrandoPwm = false;
+
+function filas(id, tipo) {
+  const cont = $(id);
+  for (let i = 1; i <= N; i++) {
+    const f = document.createElement('div');
+    f.className = 'fila';
+    f.innerHTML = tipo === 'di'
+      ? `<span class="nombre">DI${i}</span><span class="led" id="di${i}"></span>`
+      : `<span class="nombre">AI${i}</span><span class="barra"><div id="aib${i}"></div></span><span class="valor" id="ai${i}">—</span>`;
+    cont.appendChild(f);
+  }
+}
+filas('di', 'di'); filas('ai', 'ai');
+
+const botones = [];
+for (let i = 1; i <= N; i++) {
+  const b = document.createElement('button');
+  b.className = 'salida';
+  b.textContent = `DO${i}`;
+  b.onclick = () => enviar({[`DigitalOut${i}_value`]: !(ultimo && ultimo.datos && ultimo.datos[`DigitalOut${i}_value`])});
+  $('do').appendChild(b);
+  botones.push(b);
+}
+$('todas-off').onclick = () => enviar(Object.fromEntries([...Array(N)].map((_, i) => [`DigitalOut${i + 1}_value`, false])));
+
+const pwm = $('pwm');
+pwm.oninput = () => { arrastrandoPwm = true; $('pwm-valor').textContent = `${pwm.value} %`; };
+pwm.onchange = () => { enviar({PWMOut1_value: Number(pwm.value)}).finally(() => { arrastrandoPwm = false; }); };
+
+function enviar(orden) {
+  return fetch('/api/salidas', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify(orden)}).catch(() => {});
+}
+
+function chip(id, clase, texto) {
+  const el = $(id);
+  el.className = `chip ${clase}`;
+  el.lastElementChild.textContent = texto;
+}
+
+function pintar(s) {
+  ultimo = s;
+  const d = s.datos;
+
+  if (s.rechazo) chip('chip-broker', 'error', `Broker: rechazado (${s.rechazo})`);
+  else chip('chip-broker', s.broker ? 'ok' : 'aviso', s.broker ? 'Broker: conectado' : 'Broker: conectando…');
+
+  chip('chip-gateway', !d ? '' : s.gateway ? (d.running ? 'ok' : 'aviso') : 'error',
+       !d ? 'Gateway: sin datos' : !s.gateway ? 'Gateway: sin respuesta' : d.running ? 'Gateway: en marcha' : 'Gateway: parado');
+  chip('chip-io', !d ? '' : d.io_ok ? 'ok' : 'error', !d ? 'E/S: —' : d.io_ok ? 'E/S: correcta' : 'E/S: error de bus');
+
+  botones.forEach(b => b.disabled = !s.broker);
+  if (!d) return;
+
+  for (let i = 1; i <= N; i++) {
+    $(`di${i}`).classList.toggle('on', !!d[`DigitalIn${i}_value`]);
+    const v = Number(d[`AnalogIn${i}_value`] ?? 0);
+    $(`ai${i}`).textContent = `${v.toFixed(3)} V`;
+    $(`aib${i}`).style.width = `${Math.min(100, v / 3.3 * 100)}%`;
+    botones[i - 1].classList.toggle('on', !!d[`DigitalOut${i}_value`]);
+    botones[i - 1].textContent = `DO${i} ${d[`DigitalOut${i}_value`] ? 'ON' : 'OFF'}`;
+  }
+  if (!arrastrandoPwm) {
+    pwm.value = d.PWMOut1_value ?? 0;
+    $('pwm-valor').textContent = `${Math.round(pwm.value)} %`;
+  }
+  $('d-io_errors').textContent = d.io_errors;
+  $('d-scan_overruns').textContent = d.scan_overruns;
+  $('d-edad').textContent = (Date.now() / 1000 - d.timestamp).toFixed(1);
+}
+
+function conectar() {
+  const es = new EventSource('/api/eventos');
+  es.onmessage = e => pintar(JSON.parse(e.data));
+  es.onerror = () => {
+    pintar({broker: false, rechazo: null, gateway: false, datos: ultimo && ultimo.datos});
+    chip('chip-broker', 'error', 'Servidor web: sin conexión');
+  };
+}
+conectar();
+</script>
+</body>
+</html>

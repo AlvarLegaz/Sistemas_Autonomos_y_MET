@@ -23,7 +23,12 @@ class PCFDigitalInput:
         self.bus = SMBus(self.i2c_bus)
 
         # Deja todos los pines en alto para poder leerlos como entradas
-        self.bus.write_byte(self.address, 0xFF)
+        try:
+            self.bus.write_byte(self.address, 0xFF)
+        except OSError:
+            # Sin esto, un chip que no responde deja el bus I2C abierto.
+            self.bus.close()
+            raise
 
         self.state = 0xFF
 

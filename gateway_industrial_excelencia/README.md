@@ -64,6 +64,21 @@ python control_remoto/control_remoto.py 192.168.99.53:1883 usuario@clave
 
 Si el broker no responde, los dos programas arrancan igualmente y reintentan la conexión solos. El gateway se para con `Ctrl+C` o `SIGTERM` y deja las salidas apagadas.
 
+## Despliegue completo en la Raspberry (broker + gateway + web)
+
+Con la Pi con acceso a GitHub, tras `git pull`:
+
+```bash
+cd Sistemas_Autonomos_y_MET/gateway_industrial_excelencia
+sudo bash deploy/instalar.sh     # Mosquitto, I2C/SPI, venv y servicios systemd
+```
+
+Deja en marcha `mosquitto`, `gateway-io` (E/S + MQTT) y `gateway-web` (interfaz en `http://<ip-de-la-pi>:8080/`, también desde el móvil). Si el script activa I2C/SPI por primera vez, hay que reiniciar la Pi. Logs: `journalctl -u gateway-io -f`. El script es idempotente: se repite tras cada `git pull`.
+
+Para probar sin hardware, en cualquier PC con un broker: `python3 gateway_main_app.py 127.0.0.1:1883 --simular` y `python3 servidor_web.py 127.0.0.1:1883`. En modo simulado cada entrada digital refleja su salida y las analógicas son ondas senoidales.
+
+El broker de `deploy/mosquitto-gateway.conf` acepta conexiones anónimas: es para una red local de pruebas. Para exigir usuario, crea un `password_file` con `mosquitto_passwd` y pon `allow_anonymous false`.
+
 ## Tópicos MQTT
 
 ```text

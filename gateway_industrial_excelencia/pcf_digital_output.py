@@ -23,7 +23,12 @@ class PCFDigitalOutput:
         self.bus = SMBus(self.i2c_bus)
         self.state = 0x00
 
-        self.write_byte(self.state)
+        try:
+            self.write_byte(self.state)
+        except OSError:
+            # Sin esto, un chip que no responde deja el bus I2C abierto.
+            self.bus.close()
+            raise
 
     def write_byte(self, value):
         value &= 0xFF

@@ -1,12 +1,6 @@
 import threading
 import time
 
-from analog_inputs import MCP3008AnalogInput
-from pcf_digital_input import PCFDigitalInput
-from pcf_digital_output import PCFDigitalOutput
-from pwm import PWM
-
-
 TICK_US = 125
 SLOW_SCAN_MS = 100
 NUM_CHANNELS = 8
@@ -39,8 +33,9 @@ class Runtime:
     rapido (125 us) solo existe si hay un GPIO de PWM configurado.
     """
 
-    def __init__(self, pwm_pin=PWM_GPIO_PIN):
+    def __init__(self, pwm_pin=PWM_GPIO_PIN, simular=False):
         self.pwm_pin = pwm_pin
+        self.simular = simular
         self.lock = threading.Lock()
         self.stop_event = threading.Event()
         self.threads = []
@@ -95,7 +90,22 @@ class Runtime:
         print("Parado")
 
     def _abrir_drivers(self):
+        # Los drivers reales se importan aqui para que el modo simulado funcione
+        # en un PC sin smbus2, spidev ni gpiozero.
         try:
+            if self.simular:
+                from simulacion import MCP3008AnalogInputSim, PCFDigitalInputSim, PCFDigitalOutputSim
+                self.digital_output_driver = PCFDigitalOutputSim()
+                self.digital_input_driver = PCFDigitalInputSim(self.digital_output_driver)
+                self.analog_input_driver = MCP3008AnalogInputSim()
+                self.drivers += [self.digital_output_driver, self.digital_input_driver,
+                                 self.analog_input_driver]
+                return
+
+            from analog_inputs import MCP3008AnalogInput
+            from pcf_digital_input import PCFDigitalInput
+            from pcf_digital_output import PCFDigitalOutput
+
             self.digital_output_driver = PCFDigitalOutput(i2c_bus=1, address=0x39, active_high=False)
             self.drivers.append(self.digital_output_driver)
             self.digital_input_driver = PCFDigitalInput(i2c_bus=1, address=0x38, active_high=True)
@@ -103,6 +113,7 @@ class Runtime:
             self.analog_input_driver = MCP3008AnalogInput(bus=0, device=0)
             self.drivers.append(self.analog_input_driver)
             if self.pwm_pin is not None:
+                from pwm import PWM
                 self.pwm = PWM(self.pwm_pin)
                 self.drivers.append(self.pwm)
         except Exception:
@@ -112,10 +123,12 @@ class Runtime:
     def _cerrar_drivers(self):
         # En orden inverso: las salidas digitales se cierran las ultimas y
         # quedan todas apagadas.
+        # Se captura Exception, no solo OSError: un driver que falla al cerrar
+        # no debe dejar sin cerrar (y con salidas activas) a los siguientes.
         for driver in reversed(self.drivers):
             try:
                 driver.close()
-            except OSError as e:
+            except Exception as e:
                 print(f"Error cerrando {type(driver).__name__}: {e}")
         self.drivers = []
         self.pwm = None
@@ -149,8 +162,9 @@ class Runtime:
     def diagnostico(self):
         # Un hilo muerto por un error inesperado no debe seguir publicandose como en marcha.
         en_marcha = self.running and all(hilo.is_alive() for hilo in self.threads)
-        return {"running": en_marcha, "io_ok": self.io_ok,
-                "io_errors": self.io_errors, "scan_overruns": self.scan_overruns}
+        with self.lock:
+            return {"running": en_marcha, "io_ok": self.io_ok,
+                    "io_errors": self.io_errors, "scan_overruns": self.scan_overruns}
 
     # ============================================================
     # API pública de escritura
@@ -212,7 +226,8 @@ class Runtime:
             if ahora > siguiente:
                 # Se paso de tiempo: se cuenta y se reprograma desde ahora, sin
                 # encadenar scans atrasados.
-                self.scan_overruns += 1
+                with self.lock:
+                    self.scan_overruns += 1
                 siguiente = ahora
             self.stop_event.wait(siguiente - ahora if siguiente > ahora else 0)
 
@@ -227,17 +242,17 @@ class Runtime:
         except OSError as e:
             # Un fallo del bus no para el runtime: se reintenta en el siguiente
             # scan y la imagen conserva los ultimos valores buenos.
-            self.io_errors += 1
-            if self.io_ok:
-                print(f"Error de E/S en el scan lento: {e}")
-            self.io_ok = False
+            with self.lock:
+                self.io_errors += 1
+                if self.io_ok:
+                    print(f"Error de E/S en el scan lento: {e}")
+                self.io_ok = False
             return
 
-        if not self.io_ok:
-            print("E/S recuperada")
-        self.io_ok = True
-
         with self.lock:
+            if not self.io_ok:
+                print("E/S recuperada")
+            self.io_ok = True
             self.inputs.update(digitales)
             self.inputs.update(analogicas)
 
