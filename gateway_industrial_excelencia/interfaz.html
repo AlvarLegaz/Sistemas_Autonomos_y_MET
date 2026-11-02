@@ -76,6 +76,8 @@
       <h2>Salidas digitales (el color es el estado real que publica el gateway)</h2>
       <div class="salidas" id="do"></div>
       <div class="acciones"><button id="todas-off">Apagar todas</button></div>
+      <h2 style="margin-top:16px">Salidas a transistor (J7 OUT01–OUT08)</h2>
+      <div class="salidas" id="tr"></div>
       <div class="pwm">
         <label for="pwm">PWM 1</label>
         <input type="range" id="pwm" min="0" max="100" step="1" value="0">
@@ -121,7 +123,16 @@ for (let i = 1; i <= N; i++) {
   $('do').appendChild(b);
   botones.push(b);
 }
-$('todas-off').onclick = () => enviar(Object.fromEntries([...Array(N)].map((_, i) => [`DigitalOut${i + 1}_value`, false])));
+const botonesTr = [];
+for (let i = 1; i <= N; i++) {
+  const b = document.createElement('button');
+  b.className = 'salida';
+  b.textContent = `OUT${String(i).padStart(2, '0')}`;
+  b.onclick = () => enviar({[`TransistorOut${i}_value`]: !(ultimo && ultimo.datos && ultimo.datos[`TransistorOut${i}_value`])});
+  $('tr').appendChild(b);
+  botonesTr.push(b);
+}
+$('todas-off').onclick = () => enviar(Object.fromEntries([...Array(N)].flatMap((_, i) => [[`DigitalOut${i + 1}_value`, false], [`TransistorOut${i + 1}_value`, false]])));
 
 const pwm = $('pwm');
 pwm.oninput = () => { arrastrandoPwm = true; $('pwm-valor').textContent = `${pwm.value} %`; };
@@ -150,6 +161,7 @@ function pintar(s) {
   chip('chip-io', !d ? '' : d.io_ok ? 'ok' : 'error', !d ? 'E/S: —' : d.io_ok ? 'E/S: correcta' : 'E/S: error de bus');
 
   botones.forEach(b => b.disabled = !s.broker);
+  botonesTr.forEach(b => b.disabled = !s.broker);
   if (!d) return;
 
   for (let i = 1; i <= N; i++) {
@@ -159,6 +171,8 @@ function pintar(s) {
     $(`aib${i}`).style.width = `${Math.min(100, v / 3.3 * 100)}%`;
     botones[i - 1].classList.toggle('on', !!d[`DigitalOut${i}_value`]);
     botones[i - 1].textContent = `DO${i} ${d[`DigitalOut${i}_value`] ? 'ON' : 'OFF'}`;
+    botonesTr[i - 1].classList.toggle('on', !!d[`TransistorOut${i}_value`]);
+    botonesTr[i - 1].textContent = `OUT${String(i).padStart(2, '0')} ${d[`TransistorOut${i}_value`] ? 'ON' : 'OFF'}`;
   }
   if (!arrastrandoPwm) {
     pwm.value = d.PWMOut1_value ?? 0;

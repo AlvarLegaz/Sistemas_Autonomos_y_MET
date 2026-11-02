@@ -186,8 +186,8 @@ const MAPA = {
   salidas: {                        // salidas digitales del gateway -> maqueta
     SOL1: 'DigitalOut3_value', SOL2: 'DigitalOut4_value', SOL3: 'DigitalOut5_value',
     SOL4: 'DigitalOut6_value', SOL5: 'DigitalOut7_value',
-    N1: 'DigitalOut1_value',        // bomba peristaltica 1 ON/OFF (supuesto: D1)
-    N2: 'DigitalOut2_value',        // bomba peristaltica 2 ON/OFF (supuesto: D2)
+    N1: 'TransistorOut7_value',     // bomba peristaltica 1 ON/OFF: J7 OUT07 (supuesto el orden)
+    N2: 'TransistorOut8_value',     // bomba peristaltica 2 ON/OFF: J7 OUT08
   },
   // Consignas continuas 0-100 %: canal del gateway. Las AnalogOut no tienen
   // hardware todavia y el gateway no las devuelve, asi que la pagina recuerda su valor.
@@ -206,8 +206,8 @@ const MAPA = {
     T3: {canal: 'AnalogIn3_value', fondo: 1.5, min: 0, max: 150, unidad: '°C'},
     T4: {canal: 'AnalogIn4_value', fondo: 1.5, min: 0, max: 150, unidad: '°C'},
     T5: {canal: 'AnalogIn5_value', fondo: 1.5, min: 0, max: 150, unidad: '°C'},
-    L1: {canal: 'AnalogIn6_value', fondo: 3.3, min: 0, max: 250, unidad: 'mm'},   // nivel tanque A
-    F1: {canal: 'AnalogIn7_value', fondo: 3.3, min: 0, max: 100, unidad: '%'},    // caudal
+    L1: {canal: 'AnalogIn7_value', fondo: 3.3, min: 0, max: 250, unidad: 'mm'},   // nivel tanque A (CH6)
+    F1: {canal: 'AnalogIn6_value', fondo: 3.3, min: 0, max: 1500, unidad: 'ml/min'},   // caudal (CH5)
   },
   // Entradas digitales de la maqueta. `alarmaSi`: valor que se pinta en rojo.
   digitales: {
@@ -312,7 +312,7 @@ function pintar(s) {
   for (const [tag, m] of Object.entries(MAPA.analogicas)) {
     const v = Number(d[m.canal] ?? 0);
     const fisico = m.min + (m.max - m.min) * Math.min(1, Math.max(0, v / m.fondo));
-    $(`v-${tag}`).textContent = `${fisico.toFixed(m.unidad === 'mm' ? 0 : 1)} ${m.unidad}`;
+    $(`v-${tag}`).textContent = `${fisico.toFixed(m.unidad === '°C' ? 1 : 0)} ${m.unidad}`;
     if (tag === 'L1') {
       const alto = 98 * (fisico - m.min) / (m.max - m.min);   // el tanque A mide 98 px de alto
       $('nivel-A').setAttribute('y', 208 - alto);

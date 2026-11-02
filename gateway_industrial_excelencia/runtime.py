@@ -51,8 +51,9 @@ class Runtime:
         self.inputs = {**_canales("AnalogIn", 0.0), **_canales("DigitalIn", False),
                        **_canales("CurrentIn", 0.0), **_canales("RTDIn", 0.0)}
         # Salidas analogicas y PWMOut2..8: aun sin hardware.
+        # TransistorOut1..8 = OUT01..OUT08 del conector J7 (PCF8574A 0x3A + TBD62783A).
         self.outputs = {**_canales("AnalogOut", 0.0), **_canales("PWMOut", 0.0),
-                        **_canales("DigitalOut", False)}
+                        **_canales("DigitalOut", False), **_canales("TransistorOut", False)}
 
     # ============================================================
     # Control del runtime
@@ -96,10 +97,11 @@ class Runtime:
             if self.simular:
                 from simulacion import MCP3008AnalogInputSim, PCFDigitalInputSim, PCFDigitalOutputSim
                 self.digital_output_driver = PCFDigitalOutputSim()
+                self.transistor_output_driver = PCFDigitalOutputSim()
                 self.digital_input_driver = PCFDigitalInputSim(self.digital_output_driver)
                 self.analog_input_driver = MCP3008AnalogInputSim()
-                self.drivers += [self.digital_output_driver, self.digital_input_driver,
-                                 self.analog_input_driver]
+                self.drivers += [self.digital_output_driver, self.transistor_output_driver,
+                                 self.digital_input_driver, self.analog_input_driver]
                 return
 
             from analog_inputs import MCP3008AnalogInput
@@ -108,6 +110,8 @@ class Runtime:
 
             self.digital_output_driver = PCFDigitalOutput(i2c_bus=1, address=0x39, active_high=False)
             self.drivers.append(self.digital_output_driver)
+            self.transistor_output_driver = PCFDigitalOutput(i2c_bus=1, address=0x3A, active_high=False)
+            self.drivers.append(self.transistor_output_driver)
             self.digital_input_driver = PCFDigitalInput(i2c_bus=1, address=0x38, active_high=True)
             self.drivers.append(self.digital_input_driver)
             self.analog_input_driver = MCP3008AnalogInput(bus=0, device=0)
@@ -157,7 +161,7 @@ class Runtime:
         """Estado actual de las salidas con hardware (DigitalOut1..8 y PWMOut1)."""
         with self.lock:
             return {k: v for k, v in self.outputs.items()
-                    if k.startswith("DigitalOut") or k == "PWMOut1_value"}
+                    if k.startswith(("DigitalOut", "TransistorOut")) or k == "PWMOut1_value"}
 
     def diagnostico(self):
         # Un hilo muerto por un error inesperado no debe seguir publicandose como en marcha.
@@ -181,7 +185,7 @@ class Runtime:
         for nombre, valor in valores.items():
             if nombre not in self.outputs:
                 ignoradas.append(nombre)
-            elif nombre.startswith("DigitalOut"):
+            elif nombre.startswith(("DigitalOut", "TransistorOut")):
                 nuevos[nombre] = _a_bool(valor)
             elif nombre.startswith("PWMOut"):
                 nuevos[nombre] = min(max(float(valor), 0.0), 100.0)
@@ -234,9 +238,11 @@ class Runtime:
     def _scan_lento(self):
         with self.lock:
             salidas = [self.outputs[f"DigitalOut{i}_value"] for i in range(1, NUM_CHANNELS + 1)]
+            transistores = [self.outputs[f"TransistorOut{i}_value"] for i in range(1, NUM_CHANNELS + 1)]
 
         try:
             self.digital_output_driver.write_outputs(*salidas)
+            self.transistor_output_driver.write_outputs(*transistores)
             digitales = self.digital_input_driver.read_inputs()
             analogicas = self.analog_input_driver.read_inputs()
         except OSError as e:
