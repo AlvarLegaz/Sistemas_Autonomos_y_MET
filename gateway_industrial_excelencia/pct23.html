@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PCT23 Sinóptico</title>
+<style>
+  :root {
+    --fondo: #f4f5f7; --panel: #ffffff; --texto: #1b1f24; --tenue: #6b7380; --borde: #dde1e6;
+    --ok: #2e9e44; --error: #c62828; --aviso: #d99100; --apagado: #9aa1ab; --acento: #1565c0;
+    --tubo: #3a3f47; --agua: #4aa3df; --caliente: #e8590c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fondo: #14171b; --panel: #1d2127; --texto: #e6e9ed; --tenue: #98a1ad; --borde: #2f353d;
+      --ok: #4cc264; --error: #ef5350; --aviso: #f2b134; --apagado: #646c77; --acento: #64a8f5;
+      --tubo: #8a93a0; --agua: #4aa3df; --caliente: #ff8a3d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--texto);
+         font: 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+  h1 { font-size: 20px; margin: 0; }
+  header a { color: var(--acento); font-size: 14px; }
+  .estado { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+          background: var(--panel); border: 1px solid var(--borde); font-size: 13px; }
+  .punto { width: 9px; height: 9px; border-radius: 50%; background: var(--apagado); }
+  .ok .punto { background: var(--ok); } .error .punto { background: var(--error); }
+  .aviso .punto { background: var(--aviso); }
+  .lienzo { background: var(--panel); border: 1px solid var(--borde); border-radius: 10px; padding: 8px; }
+  svg { width: 100%; height: auto; display: block; }
+  svg text { fill: var(--texto); font: 12px system-ui, sans-serif; }
+  .tubo { fill: none; stroke: var(--tubo); stroke-width: 3; stroke-linejoin: round; }
+  .tubo.activo { stroke: var(--agua); }
+  .tubo.caliente.activo { stroke: var(--caliente); }
+  .caja { fill: none; stroke: var(--tubo); stroke-width: 2.5; }
+  .liquido { fill: var(--agua); opacity: .45; }
+  .instr { fill: var(--panel); stroke: var(--tubo); stroke-width: 2; }
+  .instr.on { fill: var(--ok); stroke: var(--ok); }
+  .instr.alarma { fill: var(--error); stroke: var(--error); }
+  .etiqueta { font-weight: 600; text-anchor: middle; }
+  .lectura { font-size: 11px; text-anchor: middle; fill: var(--tenue) !important; font-variant-numeric: tabular-nums; }
+  .valvula { fill: var(--apagado); stroke: var(--tubo); stroke-width: 1.5; }
+  .valvula.on { fill: var(--ok); }
+  .manual { fill: var(--panel); stroke: var(--tubo); stroke-width: 1.5; }
+  .accion { cursor: pointer; }
+  .accion:hover .valvula, .accion:hover .instr { stroke: var(--acento); stroke-width: 3; }
+  .accion.bloqueado { cursor: not-allowed; opacity: .6; }
+  .controles { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 12px; }
+  .controles label { font-weight: 600; }
+  .controles input[type=range] { flex: 1; min-width: 180px; }
+  .controles output { width: 56px; text-align: right; font-variant-numeric: tabular-nums; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--borde);
+           background: var(--fondo); color: var(--texto); padding: 8px 14px; }
+  p.nota { color: var(--tenue); font-size: 13px; margin: 10px 0 0; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>PCT23 · Process Plant Trainer</h1>
+    <a href="/">Vista de canales</a>
+  </header>
+  <div class="estado">
+    <span class="chip" id="chip-broker"><i class="punto"></i><span>Broker: conectando…</span></span>
+    <span class="chip" id="chip-gateway"><i class="punto"></i><span>Gateway: sin datos</span></span>
+    <span class="chip" id="chip-io"><i class="punto"></i><span>E/S: —</span></span>
+  </div>
+
+  <div class="lienzo">
+  <svg viewBox="0 0 1000 480" role="img" aria-label="Esquema de la planta PCT23">
+    <!-- ============ tuberías ============ -->
+    <!-- circuito de agua caliente (bomba N2) -->
+    <path class="tubo caliente" data-bomba="N2" d="M140 150 H190 M226 150 H300 V330 M300 330 H200 V190 H120 V170"/>
+    <!-- producto: SOL2 -> N1 -> intercambiadores -> filtro -> tubo de retención -> SOL1 -->
+    <path class="tubo" data-bomba="N1" d="M850 250 H736 M704 250 H600 V330 H300"/>
+    <path class="tubo" data-bomba="N1" d="M300 330 H260 V255 M260 215 V185 M260 150 V110 H330 M330 110 C310 110 310 80 330 80 H400 C420 80 420 110 400 110 H440 V80 H452"/>
+    <!-- producto terminado y agua fría -->
+    <path class="tubo" d="M468 80 H480 V400 H940 H985 V18 H815 M915 18 V35"/>
+    <path class="tubo" d="M960 440 H770 M718 440 H680 M652 440 H590 M562 440 H480"/>
+    <path class="tubo" d="M865 262 V215 M815 210 V250 H850 M915 210 V250 H880 M800 210 V240"/>
+    <!-- tomas -->
+    <path class="tubo" d="M460 64 V30 M640 330 V290" />
+
+    <!-- ============ depósito de calor ============ -->
+    <rect class="caja" x="30" y="40" width="110" height="130" rx="4"/>
+    <rect class="liquido" x="32" y="75" width="106" height="93"/>
+    <polyline class="tubo" id="resistencia" points="60,70 60,100 76,85 76,115 92,100 92,130 108,115"/>
+    <text x="85" y="32" class="etiqueta">HEAT UNIT</text>
+    <g><line x1="140" y1="62" x2="160" y2="62" class="tubo"/>
+       <circle class="instr" cx="175" cy="62" r="15"/><text x="175" y="66" class="etiqueta">T2</text>
+       <text x="175" y="90" class="lectura" id="v-T2">—</text></g>
+    <g id="g-PWR"><line x1="85" y1="170" x2="85" y2="190" class="tubo"/>
+       <circle class="instr" id="c-PWR" cx="85" cy="205" r="15"/><text x="85" y="209" class="etiqueta" style="font-size:11px">R1·R2</text>
+       <text x="85" y="236" class="lectura" id="v-PWR">—</text></g>
+    <g>
+      <circle class="instr" id="c-LVLC" cx="45" cy="262" r="13"/><text x="45" y="266" class="etiqueta" style="font-size:9px">LVL</text>
+      <circle class="instr" id="c-HLC" cx="85" cy="262" r="13"/><text x="85" y="266" class="etiqueta" style="font-size:9px">HL</text>
+      <circle class="instr" id="c-TERM" cx="125" cy="262" r="13"/><text x="125" y="266" class="etiqueta" style="font-size:9px">TERM</text>
+    </g>
+
+    <!-- ============ bombas ============ -->
+    <g class="accion" id="g-N2" data-salida="N2"><circle class="instr" cx="208" cy="150" r="17"/>
+       <path d="M202 141 L217 150 L202 159 Z" fill="var(--tubo)"/><text x="208" y="184" class="etiqueta">N2</text></g>
+    <g class="accion" id="g-N1" data-salida="N1"><circle class="instr" cx="720" cy="250" r="17"/>
+       <path d="M714 241 L729 250 L714 259 Z" fill="var(--tubo)"/><text x="720" y="284" class="etiqueta">N1</text></g>
+
+    <!-- ============ tubo de retención, SOL1, T1, F1, filtro, T4 ============ -->
+    <text x="370" y="140" class="etiqueta">HOLDING TUBE</text>
+    <g><circle class="instr" cx="330" cy="45" r="15"/><text x="330" y="49" class="etiqueta">T1</text>
+       <text x="330" y="22" class="lectura" id="v-T1">—</text><line x1="330" y1="60" x2="330" y2="78" class="tubo"/></g>
+    <g><circle class="instr" cx="385" cy="45" r="15"/><text x="385" y="49" class="etiqueta">T5</text>
+       <text x="385" y="22" class="lectura" id="v-T5">—</text><line x1="385" y1="60" x2="385" y2="78" class="tubo"/></g>
+    <g class="accion" id="g-SOL1" data-salida="SOL1">
+       <path class="valvula" d="M446 68 L460 80 L446 92 Z M474 68 L460 80 L474 92 Z"/>
+       <text x="500" y="66" class="etiqueta">SOL1</text><text x="500" y="52" class="lectura">desvío</text></g>
+    <g><circle class="instr" cx="260" cy="168" r="15"/><text x="260" y="172" class="etiqueta">F1</text>
+       <text x="298" y="172" class="lectura" id="v-F1">—</text></g>
+    <g><rect class="manual" x="248" y="195" width="24" height="24"/><path d="M248 219 L272 195" stroke="var(--tubo)" stroke-width="1.5"/>
+       <text x="300" y="212" class="lectura">FILTER</text></g>
+    <g><circle class="instr" cx="260" cy="272" r="15"/><text x="260" y="276" class="etiqueta">T4</text>
+       <text x="228" y="276" class="lectura" id="v-T4">—</text></g>
+
+    <!-- ============ intercambiadores de placas ============ -->
+    <g><rect class="caja" x="310" y="305" width="90" height="50"/><rect class="caja" x="430" y="305" width="90" height="50"/>
+       <rect class="caja" x="550" y="305" width="90" height="50"/>
+       <text x="355" y="375" class="lectura">regeneración</text><text x="475" y="375" class="lectura">calentamiento</text>
+       <text x="595" y="375" class="lectura">enfriamiento</text></g>
+    <text x="640" y="278" class="lectura">TO DRAIN ↑</text>
+
+    <!-- ============ producto terminado ============ -->
+    <g><circle class="instr" cx="700" cy="400" r="15"/><text x="700" y="404" class="etiqueta">T3</text>
+       <text x="700" y="378" class="lectura" id="v-T3">—</text></g>
+    <text x="800" y="392" class="lectura">FINISHED PRODUCT →</text>
+
+    <!-- ============ agua fría ============ -->
+    <g class="accion" id="g-SOL3" data-salida="SOL3">
+       <path class="valvula" d="M538 430 L550 440 L538 450 Z M562 430 L550 440 L562 450 Z"/>
+       <text x="550" y="468" class="etiqueta">SOL3</text></g>
+    <g><path class="manual" d="M652 431 L665 440 L652 449 Z M680 431 L667 440 L680 449 Z"/><text x="666" y="468" class="etiqueta">V1</text></g>
+    <g><path class="manual" d="M706 430 L718 440 L706 450 Z M742 430 L730 440 L742 450 Z"/><text x="724" y="468" class="etiqueta">PRV1</text></g>
+    <text x="880" y="460" class="lectura">COLD WATER ←</text>
+
+    <!-- ============ depósitos A y B ============ -->
+    <rect class="caja" x="780" y="70" width="70" height="140"/>
+    <rect class="liquido" id="nivel-B" x="782" y="150" width="66" height="58"/>
+    <rect class="caja" x="880" y="110" width="70" height="100"/>
+    <rect class="liquido" id="nivel-A" x="882" y="150" width="66" height="58"/>
+    <text x="815" y="125" class="etiqueta">B</text><text x="915" y="150" class="etiqueta">A</text>
+    <g class="accion" id="g-SOL5" data-salida="SOL5">
+       <path class="valvula" d="M803 36 L815 48 L827 36 Z M803 60 L815 48 L827 60 Z"/><text x="845" y="52" class="etiqueta">SOL5</text></g>
+    <g class="accion" id="g-SOL4" data-salida="SOL4">
+       <path class="valvula" d="M903 36 L915 48 L927 36 Z M903 60 L915 48 L927 60 Z"/><text x="945" y="52" class="etiqueta">SOL4</text></g>
+    <g class="accion" id="g-SOL2" data-salida="SOL2">
+       <path class="valvula" d="M848 238 L865 250 L848 262 Z M882 238 L865 250 L882 262 Z M853 276 L865 250 L877 276 Z"/>
+       <text x="905" y="270" class="etiqueta">SOL2</text></g>
+    <g><path class="manual" d="M795 226 L803 234 L795 242 Z M811 226 L803 234 L811 242 Z"/><text x="803" y="256" class="lectura">V3</text></g>
+    <g><path class="manual" d="M857 205 L865 213 L873 205 Z"/><text x="890" y="226" class="lectura">V2</text></g>
+
+    <g><line x1="770" y1="100" x2="780" y2="100" class="tubo"/>
+       <circle class="instr" id="c-HL" cx="757" cy="100" r="13"/><text x="757" y="104" class="etiqueta">HL</text></g>
+    <g><line x1="770" y1="180" x2="780" y2="180" class="tubo"/>
+       <circle class="instr" id="c-LL" cx="757" cy="180" r="13"/><text x="757" y="184" class="etiqueta">LL</text></g>
+    <g><line x1="950" y1="170" x2="962" y2="170" class="tubo"/>
+       <circle class="instr" cx="975" cy="170" r="13"/><text x="975" y="174" class="etiqueta">L1</text>
+       <text x="962" y="196" class="lectura" id="v-L1">—</text></g>
+  </svg>
+  </div>
+
+  <div class="controles" id="controles"></div>
+  <p class="nota">Con los deslizadores se manejan las resistencias y la velocidad de la bomba 1. Pulsa una bomba o una electroválvula para activarla o desactivarla; el color es el estado real que publica el gateway.
+     Las válvulas manuales (V1, V2, V3, PRV1) y el filtro son solo dibujo.
+     Qué canal del gateway es cada elemento está en la tabla <code>MAPA</code> al principio del script de esta página.</p>
+</main>
+
+<script>
+// ---------------------------------------------------------------------------
+// Asignacion de canales del gateway a la planta, segun la lista de E/S de la
+// maqueta PCT23. El orden de los canales (DigitalIn1.., AnalogIn1..) sigue el
+// orden de esa lista: AJUSTALO a como esta cableada la tarjeta.
+// ---------------------------------------------------------------------------
+const MAPA = {
+  salidas: {                        // salidas digitales del gateway -> maqueta
+    SOL1: 'DigitalOut1_value', SOL2: 'DigitalOut2_value', SOL3: 'DigitalOut3_value',
+    SOL4: 'DigitalOut4_value', SOL5: 'DigitalOut5_value',
+    N1: 'DigitalOut6_value',        // bomba peristaltica 1 ON/OFF
+    N2: 'DigitalOut7_value',        // bomba peristaltica 2 ON/OFF
+  },
+  // Consignas continuas 0-100 %: canal del gateway. Las AnalogOut no tienen
+  // hardware todavia y el gateway no las devuelve, asi que la pagina recuerda su valor.
+  consignas: {
+    R1: {canal: 'AnalogOut1_value', nombre: 'Resistencia 1'},
+    R2: {canal: 'AnalogOut2_value', nombre: 'Resistencia 2'},
+    N1V: {canal: 'PWMOut1_value', nombre: 'Bomba 1 velocidad'},
+  },
+  // Entradas analogicas. `fondo` es la tension (V) que ve el ADC a fondo de
+  // escala del sensor: 1,5 V en las sondas T; en nivel y caudal (0-5 V) se
+  // supone un divisor que lo baja a 3,3 V (el MCP3008 trabaja con Vref 3,3 V).
+  analogicas: {
+    T1: {canal: 'AnalogIn1_value', fondo: 1.5, min: 0, max: 100, unidad: '°C'},
+    T2: {canal: 'AnalogIn2_value', fondo: 1.5, min: 0, max: 100, unidad: '°C'},
+    T3: {canal: 'AnalogIn3_value', fondo: 1.5, min: 0, max: 100, unidad: '°C'},
+    T4: {canal: 'AnalogIn4_value', fondo: 1.5, min: 0, max: 100, unidad: '°C'},
+    T5: {canal: 'AnalogIn5_value', fondo: 1.5, min: 0, max: 100, unidad: '°C'},
+    L1: {canal: 'AnalogIn6_value', fondo: 3.3, min: 0, max: 250, unidad: 'mm'},   // nivel tanque A
+    F1: {canal: 'AnalogIn7_value', fondo: 3.3, min: 0, max: 100, unidad: '%'},    // caudal
+  },
+  // Entradas digitales de la maqueta. `alarmaSi`: valor que se pinta en rojo.
+  digitales: {
+    LVLC: {canal: 'DigitalIn1_value', alarmaSi: true},    // nivel tanque calefactor (supuesto)
+    HLC:  {canal: 'DigitalIn2_value', alarmaSi: true},    // nivel alto heat unit (supuesto)
+    HL:   {canal: 'DigitalIn3_value', alarmaSi: true},    // nivel alto tanque B
+    LL:   {canal: 'DigitalIn4_value', alarmaSi: true},    // nivel bajo tanque B
+    TERM: {canal: 'DigitalIn5_value', alarmaSi: false},   // termostato: abre si sobretemperatura (supuesto)
+  },
+};
+// ---------------------------------------------------------------------------
+
+const $ = id => document.getElementById(id);
+let ultimo = null, arrastrando = false;
+
+function chip(id, clase, texto) {
+  const el = $(id); el.className = `chip ${clase}`; el.lastElementChild.textContent = texto;
+}
+
+function enviar(orden) {
+  return fetch('/api/salidas', {method: 'POST', headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify(orden)}).catch(() => {});
+}
+
+const actual = canal => !!(ultimo && ultimo.datos && ultimo.datos[canal]);
+
+document.querySelectorAll('[data-salida]').forEach(g => {
+  g.onclick = () => {
+    if (!ultimo || !ultimo.broker) return;
+    const canal = MAPA.salidas[g.dataset.salida];
+    enviar({[canal]: !actual(canal)});
+  };
+});
+
+// Deslizadores de consigna (resistencias y velocidad de bomba 1).
+const consigna = {};   // valor recordado: el gateway no devuelve las AnalogOut
+for (const [id, c] of Object.entries(MAPA.consignas)) {
+  consigna[id] = 0;
+  const fila = document.createElement('div');
+  fila.style.cssText = 'display:flex;align-items:center;gap:12px;flex:1 1 320px';
+  fila.innerHTML = `<label for="r-${id}" style="font-weight:600;min-width:130px">${c.nombre}</label>
+    <input type="range" id="r-${id}" min="0" max="100" step="1" value="0" style="flex:1">
+    <output id="o-${id}" style="width:48px;text-align:right">0 %</output>`;
+  $('controles').appendChild(fila);
+  const r = fila.querySelector('input');
+  r.oninput = () => { $(`o-${id}`).textContent = `${r.value} %`; };
+  r.onchange = () => {
+    consigna[id] = Number(r.value);
+    enviar({[c.canal]: consigna[id]});
+    resumenCalentador();
+  };
+}
+const parar = document.createElement('button');
+parar.textContent = 'Parar todo';
+parar.onclick = () => {
+  const orden = Object.fromEntries(Object.values(MAPA.salidas).map(c => [c, false]));
+  for (const [id, c] of Object.entries(MAPA.consignas)) {
+    orden[c.canal] = 0; consigna[id] = 0;
+    $(`r-${id}`).value = 0; $(`o-${id}`).textContent = '0 %';
+  }
+  enviar(orden);
+  resumenCalentador();
+};
+$('controles').appendChild(parar);
+
+function resumenCalentador() {
+  $('c-PWR').classList.toggle('on', consigna.R1 > 0 || consigna.R2 > 0);
+  $('v-PWR').textContent = `${consigna.R1} % · ${consigna.R2} %`;
+  $('resistencia').style.stroke = (consigna.R1 > 0 || consigna.R2 > 0) ? 'var(--caliente)' : '';
+}
+
+function marcar(id, on, clase = 'on') {
+  const g = $(id);
+  if (!g) return;
+  g.querySelectorAll('.valvula, .instr').forEach(e => e.classList.toggle(clase, on));
+}
+
+function pintar(s) {
+  ultimo = s;
+  const d = s.datos;
+  if (s.rechazo) chip('chip-broker', 'error', `Broker: rechazado (${s.rechazo})`);
+  else chip('chip-broker', s.broker ? 'ok' : 'aviso', s.broker ? 'Broker: conectado' : 'Broker: conectando…');
+  chip('chip-gateway', !d ? '' : s.gateway ? (d.running ? 'ok' : 'aviso') : 'error',
+       !d ? 'Gateway: sin datos' : !s.gateway ? 'Gateway: sin respuesta' : d.running ? 'Gateway: en marcha' : 'Gateway: parado');
+  chip('chip-io', !d ? '' : d.io_ok ? 'ok' : 'error', !d ? 'E/S: —' : d.io_ok ? 'E/S: correcta' : 'E/S: error de bus');
+
+  document.querySelectorAll('.accion').forEach(g => g.classList.toggle('bloqueado', !s.broker));
+  if (!d) return;
+
+  for (const [el, canal] of Object.entries(MAPA.salidas)) marcar(`g-${el}`, !!d[canal]);
+  document.querySelectorAll('[data-bomba]').forEach(t => {
+    t.classList.toggle('activo', !!d[MAPA.salidas[t.dataset.bomba]]);
+  });
+
+  // La velocidad de la bomba 1 si vuelve del gateway (PWMOut1); las resistencias no.
+  const v1 = MAPA.consignas.N1V.canal;
+  if (v1 in d && document.activeElement !== $('r-N1V')) {
+    $('r-N1V').value = d[v1]; $('o-N1V').textContent = `${Math.round(d[v1])} %`;
+  }
+  resumenCalentador();
+
+  for (const [tag, m] of Object.entries(MAPA.analogicas)) {
+    const v = Number(d[m.canal] ?? 0);
+    const fisico = m.min + (m.max - m.min) * Math.min(1, Math.max(0, v / m.fondo));
+    $(`v-${tag}`).textContent = `${fisico.toFixed(m.unidad === 'mm' ? 0 : 1)} ${m.unidad}`;
+    if (tag === 'L1') {
+      const alto = 98 * (fisico - m.min) / (m.max - m.min);   // el tanque A mide 98 px de alto
+      $('nivel-A').setAttribute('y', 208 - alto);
+      $('nivel-A').setAttribute('height', alto);
+    }
+  }
+  for (const [tag, m] of Object.entries(MAPA.digitales)) {
+    $(`c-${tag}`).classList.toggle('alarma', !!d[m.canal] === m.alarmaSi);
+  }
+}
+
+const es = new EventSource('/api/eventos');
+es.onmessage = e => pintar(JSON.parse(e.data));
+es.onerror = () => {
+  pintar({broker: false, rechazo: null, gateway: false, datos: ultimo && ultimo.datos});
+  chip('chip-broker', 'error', 'Servidor web: sin conexión');
+};
+</script>
+</body>
+</html>

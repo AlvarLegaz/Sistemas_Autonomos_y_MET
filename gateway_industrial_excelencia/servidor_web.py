@@ -79,6 +79,11 @@ def pagina():
     return send_file("interfaz.html")
 
 
+@app.get("/pct23")
+def sinoptico_pct23():
+    return send_file("pct23.html")
+
+
 @app.get("/api/estado")
 def api_estado():
     return jsonify(instantanea())
