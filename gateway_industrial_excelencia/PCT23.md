@@ -41,7 +41,7 @@ Cada entrada pasa por un divisor (10 kΩ en serie, 20 kΩ a masa) y un zener de 
 
 ## Salidas
 
-**Relés (`DigitalOut1-8`, K1-K8):** las electroválvulas SOL1-SOL5 están en `DigitalOut2` a `DigitalOut6` (relés K2-K6, SOL1 = K2). `DigitalOut1`, `7` y `8` sin asignar.
+**Relés (`DigitalOut1-8`, K1-K8):** las electroválvulas SOL1-SOL5 están en `DigitalOut3` a `DigitalOut7` (relés K3-K7, SOL1 = D3 = K3). `DigitalOut1`, `2` y `8` sin asignar.
 
 **Transistor (`TransistorOut1-8` = OUT01-OUT08 del conector J7):**
 

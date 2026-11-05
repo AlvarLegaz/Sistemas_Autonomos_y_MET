@@ -525,20 +525,20 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
 // ---------------------------------------------------------------------------
 const MAPA = {
   salidas: {                        // salidas digitales del gateway -> maqueta
-    // Electrovalvulas SOL1-SOL5: reles K2-K6 (DigitalOut2..6).
-    SOL1: 'DigitalOut2_value', SOL2: 'DigitalOut3_value', SOL3: 'DigitalOut4_value',
-    SOL4: 'DigitalOut5_value', SOL5: 'DigitalOut6_value',
+    // Electrovalvulas SOL1-SOL5: reles K3-K7 (DigitalOut3..7).
+    SOL1: 'DigitalOut3_value', SOL2: 'DigitalOut4_value', SOL3: 'DigitalOut5_value',
+    SOL4: 'DigitalOut6_value', SOL5: 'DigitalOut7_value',
     N1: 'TransistorOut8_value',     // bomba peristaltica FEED UNIT (N1): J7 OUT08
     N2: 'TransistorOut7_value',     // bomba peristaltica HEAT UNIT (N2): J7 OUT07
     RES: 'TransistorOut4_value',    // resistencia de calefaccion (on/off): J7 OUT04, junto a los motores
   },
   // Tarjetas del panel de electrovalvulas y calefaccion: [id en MAPA.salidas, titulo, detalle].
   valvulas: [
-    ['SOL1', 'SOL1', 'Desvío de producto · relé K2'],
-    ['SOL2', 'SOL2', 'Depósitos A/B · relé K3'],
-    ['SOL3', 'SOL3', 'Agua fría · relé K4'],
-    ['SOL4', 'SOL4', 'Ramal depósito A · relé K5'],
-    ['SOL5', 'SOL5', 'Ramal depósito B · relé K6'],
+    ['SOL1', 'SOL1', 'Desvío de producto · relé K3'],
+    ['SOL2', 'SOL2', 'Depósitos A/B · relé K4'],
+    ['SOL3', 'SOL3', 'Agua fría · relé K5'],
+    ['SOL4', 'SOL4', 'Ramal depósito A · relé K6'],
+    ['SOL5', 'SOL5', 'Ramal depósito B · relé K7'],
     ['RES', 'Calefacción', 'Resistencia heat unit · J7 OUT04'],
   ],
   // Sentido de giro: una salida a transistor por bomba, que se conmuta entre 0 y 1.

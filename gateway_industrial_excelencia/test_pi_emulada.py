@@ -155,7 +155,7 @@ class PiEmulada(unittest.TestCase):
     # -- seguridad -----------------------------------------------------------
     def test_al_parar_todo_queda_apagado(self):
         self.rt.update_outputs({"TransistorOut4_value": True, "TransistorOut7_value": True,
-                                "TransistorOut8_value": True, "DigitalOut2_value": True})
+                                "TransistorOut8_value": True, "DigitalOut3_value": True})
         time.sleep(0.4)
         self.rt.stop()
         with _lock:
