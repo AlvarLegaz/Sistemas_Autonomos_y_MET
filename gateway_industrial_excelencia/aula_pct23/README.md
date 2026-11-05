@@ -27,6 +27,16 @@ Abre `https://<servidor>:447` (o `https://<servidor>` en el 80). Una petición `
 - **Cambiar el PIN:** edita `.env` y ejecuta `docker compose up -d`.
 - **IP real de los alumnos:** nginx la pasa a la aplicación (`AULA_PROXY=1`), así que el bloqueo por intentos fallidos es por alumno y no por la IP del proxy.
 
+### Desplegar en una VM por SSH
+
+Desde la raíz de `gateway_industrial_excelencia`, con los cambios ya commiteados (se sube el último commit):
+
+```bash
+./deploy/desplegar_aula_vm.sh usuario@servidor -i ~/.ssh/mi_clave
+```
+
+La primera vez instala Docker, crea el certificado propio (para la IP y el nombre de la VM) y el `.env`; después solo actualiza el código y reconstruye, sin tocar los datos de los alumnos. Si ya había un aula sin Docker (servicio systemd `pct23-aula`), añade `--migrar-datos <carpeta datos> --env-antiguo <aula.env>` para pasar la base de alumnos al volumen y parar el servicio antiguo; si la comprobación final falla, lo vuelve a arrancar. Cambia el PIN en `~/pct23-docker/aula_pct23/.env` de la VM (y `docker compose up -d`).
+
 El contexto de construcción es la carpeta `gateway_industrial_excelencia` (la imagen incluye una copia de `simulador_pct23`), así que si cambias el simulador hay que volver a construir con `--build`.
 
 ## Configuración (`.env`)
