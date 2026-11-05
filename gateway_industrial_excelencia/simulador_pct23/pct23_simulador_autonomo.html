@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PCT23 · Simulador autónomo</title>
+<style>
+:root {
+    --fondo: #f4f5f7; --panel: #ffffff; --texto: #1b1f24; --tenue: #6b7380; --borde: #dde1e6;
+    --ok: #2e9e44; --error: #c62828; --aviso: #d99100; --apagado: #9aa1ab; --acento: #1565c0;
+    --tubo: #3a3f47; --agua: #4aa3df; --caliente: #e8590c; --frio: #1ba8a0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fondo: #14171b; --panel: #1d2127; --texto: #e6e9ed; --tenue: #98a1ad; --borde: #2f353d;
+      --ok: #4cc264; --error: #ef5350; --aviso: #f2b134; --apagado: #646c77; --acento: #64a8f5;
+      --tubo: #8a93a0; --agua: #4aa3df; --caliente: #ff8a3d; --frio: #29c1ba;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--texto);
+         font: 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+  h1 { font-size: 20px; margin: 0; }
+  header a { color: var(--acento); font-size: 14px; }
+  .estado { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+          background: var(--panel); border: 1px solid var(--borde); font-size: 13px; }
+  .punto { width: 9px; height: 9px; border-radius: 50%; background: var(--apagado); }
+  .ok .punto { background: var(--ok); } .error .punto { background: var(--error); }
+  .aviso .punto { background: var(--aviso); }
+  .lienzo { background: var(--panel); border: 1px solid var(--borde); border-radius: 10px; padding: 8px; }
+  svg { width: 100%; height: auto; display: block; }
+  svg text { fill: var(--texto); font: 12px system-ui, sans-serif; }
+  .tubo { fill: none; stroke: var(--tubo); stroke-width: 3; stroke-linejoin: round; }
+  .tubo.activo { stroke: var(--agua); stroke-width: 3.6; filter: drop-shadow(0 0 2px var(--agua)); }
+  .tubo.caliente.activo { stroke: var(--caliente); filter: drop-shadow(0 0 2px var(--caliente)); }
+  .tubo.frio.activo { stroke: var(--frio); filter: drop-shadow(0 0 2px var(--frio)); }
+  .caja { fill: none; stroke: var(--tubo); stroke-width: 2.5; }
+  .liquido { fill: var(--agua); opacity: .45; }
+  .instr { fill: var(--panel); stroke: var(--tubo); stroke-width: 2; }
+  .instr.on { fill: var(--ok); stroke: var(--ok); }
+  .instr.alarma { fill: var(--error); stroke: var(--error); }
+  .etiqueta { font-weight: 600; text-anchor: middle; }
+  .lectura { font-size: 11px; text-anchor: middle; fill: var(--tenue) !important; font-variant-numeric: tabular-nums; }
+  .valvula { fill: var(--apagado); stroke: var(--tubo); stroke-width: 1.5; }
+  .valvula.on { fill: var(--ok); }
+  .manual { fill: var(--panel); stroke: var(--tubo); stroke-width: 1.5; }
+  .accion { cursor: pointer; }
+  .accion:hover .valvula, .accion:hover .instr { stroke: var(--acento); stroke-width: 3; }
+  .accion.bloqueado { cursor: not-allowed; opacity: .6; }
+  .controles { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 12px; }
+  .controles label { font-weight: 600; }
+  .controles input[type=range] { flex: 1; min-width: 180px; }
+  .controles output { width: 56px; text-align: right; font-variant-numeric: tabular-nums; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--borde);
+           background: var(--fondo); color: var(--texto); padding: 8px 14px; }
+  .panel { background: var(--panel); border: 1px solid var(--borde); border-radius: 10px; padding: 14px; margin-top: 12px; }
+  .panel h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--tenue); margin: 0 0 10px; }
+  .tarjetas { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+  .tarjeta { border: 1px solid var(--borde); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .tarjeta h3 { margin: 0; font-size: 16px; }
+  .tarjeta small { color: var(--tenue); }
+  .estado-bomba { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+  .grande { padding: 14px 6px; font-size: 16px; font-weight: 600; }
+  .grande.on { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .tarjeta .consigna { display: flex; flex-direction: column; gap: 4px; }
+  .tarjeta .consigna label { font-weight: 600; font-size: 13px; }
+  .tarjeta .consigna .fila { display: flex; align-items: center; gap: 10px; }
+  .tarjeta .consigna input[type=range] { flex: 1; min-width: 0; }
+  .tarjeta .consigna output { min-width: 44px; text-align: right; }
+  .opciones { display: grid; gap: 6px; }
+  .tarjeta .sentido { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--borde); }
+  .opciones button.sel { background: var(--acento); border-color: var(--acento); color: #fff; }
+  p.nota { color: var(--tenue); font-size: 13px; margin: 10px 0 0; }
+
+  /* Complementos exclusivos del simulador. El SVG original no se modifica. */
+  .etiqueta-demo { margin-left:auto; color:var(--acento); font-size:12px; font-weight:700;
+      padding:5px 9px; border:1px solid var(--acento); border-radius:9px; }
+  .resumen-sim { display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); margin-top:12px; }
+  .dato { border:1px solid var(--borde); background:var(--panel); border-radius:9px; padding:10px 12px; }
+  .dato small { display:block; font-size:11px; color:var(--tenue); }
+  .dato strong { display:block; margin-top:3px; font-size:18px; font-variant-numeric:tabular-nums; }
+  .sim-barra { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+  .sim-barra select { background:var(--fondo); border:1px solid var(--borde); color:var(--texto); padding:9px; border-radius:8px; }
+  .sim-barra button.primario { color:white; background:var(--acento); border-color:var(--acento); }
+  .sim-barra button:disabled { opacity:.4; cursor:default; }
+  .sim-cabecera { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:9px; }
+  .sim-aviso { background:color-mix(in srgb, var(--aviso) 9%, var(--panel)); padding:10px 12px; border:1px solid var(--borde); border-radius:9px; font-size:12px; }
+  .sim-aviso strong { font-size:13px; }
+  .grafica { width:100%; height:220px; display:block; border:1px solid var(--borde); border-radius:9px; background:var(--panel); }
+  .leyenda { display:flex; flex-wrap:wrap; gap:18px; font-size:12px; margin:8px 0; }
+  .leyenda i { display:inline-block; width:17px; height:3px; margin-right:6px; vertical-align:middle; }
+  .registros { list-style:none; margin:0; padding:0; max-height:145px; overflow:auto; font-size:12px; color:var(--tenue); }
+  .registros li { border-top:1px solid var(--borde); padding:6px 2px; }
+  .registros li:first-child { border:0; }
+  .accion::after { content:""; }
+  .pie-sim { font-size:11px; color:var(--tenue); }
+  @media (max-width:600px) { main{padding:10px} .lienzo{overflow-x:auto} .lienzo svg{min-width:760px} .dato strong{font-size:16px} }
+
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>PCT23 · Process Plant Trainer</h1>
+    <span class="etiqueta-demo">SIMULADOR LOCAL · SIN HARDWARE</span>
+  </header>
+  <div class="estado">
+    <span class="chip" id="chip-broker"><i class="punto"></i><span>Modo: simulación local</span></span>
+    <span class="chip" id="chip-gateway"><i class="punto"></i><span>Tiempo: 00:00</span></span>
+    <span class="chip" id="chip-io"><i class="punto"></i><span>Planta virtual: lista</span></span>
+  </div>
+  <div class="lienzo">
+  <svg viewBox="0 0 1000 480" role="img" aria-label="Esquema de la planta PCT23">
+    <!-- ============ tuberías ============ -->
+    <!-- CIRCUITO 1. Agua caliente: N2 -> paso inferior del regenerador -> HEAT UNIT.
+         La ida (y=346) y el retorno inferior (y=384) no comparten nodos
+         con los dos circuitos de producto. -->
+    <path class="tubo caliente" data-bomba="N2"
+          d="M140 150 H190 M226 150 H238 V346 H318 H333 V351 L354 365 H380 L401 351 V346 H420 V384 H205 V190 H120 V170"/>
+
+    <!-- CIRCUITO 2. Producto de entrada: N1 -> calentamiento (paso alto) ->
+         regeneracion (paso alto) -> T4 -> FILTER -> F1 -> HOLDING TUBE. -->
+    <path class="tubo" data-bomba="N1"
+          d="M850 250 H736 M704 250 H546 V322 H527 V330 L505 344 H481 L459 330 V322 H444 H420 H401 V330 L379 344 H355 L333 330 V322 H318 H260 V110 H330"/>
+    <path class="tubo" data-bomba="N1"
+          d="M330 110 C310 110 310 80 330 80 H400 C420 80 420 110 400 110 H440 V80 H452"/>
+
+    <!-- CIRCUITO 3. Producto desde SOL1: paso inferior de calentamiento ->
+         paso superior del enfriador -> T3 -> FINISHED PRODUCT. -->
+    <path class="tubo" data-bomba="N1"
+          d="M468 80 H480 V296 H432 V346 H444 H459 V351 L481 365 H505 L527 351 V346 H546 H554 V322 H570 H585 V330 L607 344 H631 L653 330 V322 H672 V400 H970"/>
+
+    <!-- Misma geometría del colector; se divide en tres paths para iluminar
+         las ramas de SOL4 y SOL5 independientemente y el tramo común. -->
+    <path class="tubo frio" data-solenoide="SOL5" d="M815 35 V18 H915"/>
+    <path class="tubo frio" data-solenoide="SOL4" d="M915 35 V18"/>
+    <path class="tubo frio" data-circuito="colector-frio" d="M915 18 H985 V420 H610 V440"/>
+    <path class="tubo frio" data-circuito="frio" d="M562 440 H652 M680 440 H706 M742 440 H960"/>
+
+    <!-- Agua de enfriamiento: tramo izquierdo de SOL3, paso inferior del
+         intercambiador de enfriamiento y ascenso independiente a TO DRAIN. -->
+    <path class="tubo frio" data-circuito="frio"
+          d="M535 440 V389 H560 V346 H570 H585 V351 L607 365 H631 L653 351 V346 H672 H684 V285 H556 V242"/>
+
+    <!-- Cruces de conductos sin union hidraulica: en el claro entre
+         regeneracion/calefaccion y a la salida derecha del enfriador. -->
+    <g aria-label="Cruces de tuberías independientes">
+      <rect x="428" y="316" width="8" height="12" fill="var(--panel)"/>
+      <path class="tubo" data-bomba="N1" d="M432 314 V330"/>
+      <rect x="668" y="340" width="8" height="12" fill="var(--panel)"/>
+      <path class="tubo frio" data-circuito="frio" d="M662 346 H684"/>
+    </g>
+    <path class="tubo" data-bomba="N1" d="M865 262 V215 M815 210 V250 H850 M915 210 V250 H880 M800 210 V240"/>
+    <!-- toma de desvío independiente por SOL1, como en el panel real -->
+    <path class="tubo" d="M460 64 V30" />
+    <text x="521" y="24" class="lectura">DIVERTED PRODUCT <tspan font-size="17" font-weight="700">↑</tspan></text>
+    <!-- ============ depósito de calor ============ -->
+    <rect class="caja" x="30" y="40" width="110" height="130" rx="4"/>
+    <rect class="liquido" x="32" y="75" width="106" height="93"/>
+    <polyline class="tubo" id="resistencia" points="60,70 60,100 76,85 76,115 92,100 92,130 108,115"/>
+    <text x="85" y="32" class="etiqueta">HEAT UNIT</text>
+    <g><line x1="140" y1="62" x2="160" y2="62" class="tubo"/>
+       <circle class="instr" cx="175" cy="62" r="15"/><text x="175" y="66" class="etiqueta">T2</text>
+       <text x="175" y="90" class="lectura" id="v-T2">—</text></g>
+    <g id="g-PWR"><line x1="85" y1="170" x2="85" y2="190" class="tubo"/>
+       <circle class="instr" id="c-PWR" cx="85" cy="205" r="15"/><text x="85" y="209" class="etiqueta" style="font-size:11px">RES</text>
+       <text x="85" y="236" class="lectura" id="v-PWR">—</text></g>
+    <g>
+      <circle class="instr" id="c-LVLC" cx="45" cy="262" r="13"/><text x="45" y="266" class="etiqueta" style="font-size:9px">LVL</text>
+      <circle class="instr" id="c-HLC" cx="85" cy="262" r="13"/><text x="85" y="266" class="etiqueta" style="font-size:9px">HL</text>
+      <circle class="instr" id="c-TERM" cx="125" cy="262" r="13"/><text x="125" y="266" class="etiqueta" style="font-size:9px">TERM</text>
+    </g>
+    <!-- ============ bombas ============ -->
+    <g class="accion" id="g-N2" data-salida="N2"><circle class="instr" cx="208" cy="150" r="17"/>
+       <path d="M202 141 L217 150 L202 159 Z" fill="var(--tubo)"/><text x="208" y="184" class="etiqueta">N2</text></g>
+    <g class="accion" id="g-N1" data-salida="N1"><circle class="instr" cx="720" cy="250" r="17"/>
+       <path d="M726 241 L711 250 L726 259 Z" fill="var(--tubo)"/><text x="720" y="284" class="etiqueta">N1</text></g>
+    <!-- ============ tubo de retención, SOL1, T1, F1, filtro, T4 ============ -->
+    <text x="370" y="140" class="etiqueta">HOLDING TUBE</text>
+    <g><circle class="instr" cx="330" cy="45" r="15"/><text x="330" y="49" class="etiqueta">T1</text>
+       <text x="330" y="22" class="lectura" id="v-T1">—</text><line x1="330" y1="60" x2="330" y2="78" class="tubo"/></g>
+    <g><circle class="instr" cx="657" cy="108" r="15"/><text x="657" y="112" class="etiqueta">T5</text>
+       <text x="657" y="86" class="lectura" id="v-T5">—</text><text x="657" y="141" class="lectura">MEASURE PROBE</text></g>
+    <g class="accion" id="g-SOL1" data-salida="SOL1">
+       <path class="valvula" d="M446 68 L460 80 L446 92 Z M474 68 L460 80 L474 92 Z"/>
+       <text x="500" y="66" class="etiqueta">SOL1</text><text x="500" y="52" class="lectura">desvío</text></g>
+    <g><circle class="instr" cx="260" cy="168" r="15"/><text x="260" y="172" class="etiqueta">F1</text>
+       <text x="330" y="172" class="lectura" id="v-F1">—</text></g>
+    <g><rect class="manual" x="248" y="195" width="24" height="24"/><path d="M248 219 L272 195" stroke="var(--tubo)" stroke-width="1.5"/>
+       <text x="300" y="212" class="lectura">FILTER</text></g>
+    <g><circle class="instr" cx="260" cy="272" r="15"/><text x="260" y="276" class="etiqueta">T4</text>
+       <text x="282" y="276" class="lectura" style="text-anchor:start" id="v-T4">—</text></g>
+    <!-- ============ intercambiadores de placas ============ -->
+    <!-- Disposición cotejada con el panel de Armfield. Trazos dentados dentro
+         de las tuberías reales; NO añadir figuras sueltas sobre las líneas. -->
+    <g>
+      <rect class="caja" x="318" y="309" width="102" height="64"/>
+      <rect class="caja" x="444" y="309" width="102" height="64"/>
+      <rect class="caja" x="570" y="309" width="102" height="64"/>
+      <text x="369" y="399" class="lectura">regeneración</text>
+      <text x="495" y="399" class="lectura">calentamiento</text>
+      <text x="621" y="399" class="lectura">enfriamiento</text>
+    </g>
+    <!-- La salida vertical llega al colector del circuito de frío, tras SOL3. -->
+    <text x="598" y="232" class="lectura">TO DRAIN <tspan font-size="20" font-weight="700">↑</tspan></text>
+    <!-- ============ producto terminado ============ -->
+    <g><circle class="instr" cx="700" cy="400" r="15"/><text x="700" y="404" class="etiqueta">T3</text>
+       <text x="700" y="378" class="lectura" id="v-T3">—</text></g>
+    <text x="800" y="392" class="lectura">FINISHED PRODUCT <tspan font-size="20" font-weight="700">→</tspan></text>
+    <!-- ============ agua fría ============ -->
+    <g class="accion" id="g-SOL3" data-salida="SOL3">
+       <path class="valvula" d="M538 430 L550 440 L538 450 Z M562 430 L550 440 L562 450 Z"/>
+       <text x="550" y="468" class="etiqueta">SOL3</text></g>
+    <g><path class="manual" d="M652 431 L665 440 L652 449 Z M680 431 L667 440 L680 449 Z"/><text x="666" y="468" class="etiqueta">V1</text></g>
+    <g><path class="manual" d="M706 430 L718 440 L706 450 Z M742 430 L718 440 L742 450 Z"/><text x="724" y="468" class="etiqueta">PRV1</text></g>
+    <text x="880" y="460" class="lectura">COLD WATER <tspan font-size="20" font-weight="700">←</tspan></text>
+    <!-- ============ depósitos A y B ============ -->
+    <rect class="caja" x="780" y="70" width="70" height="140"/>
+    <rect class="liquido" id="nivel-B" x="782" y="150" width="66" height="58"/>
+    <rect class="caja" x="880" y="70" width="70" height="140"/>
+    <rect class="liquido" id="nivel-A" x="882" y="150" width="66" height="58"/>
+    <text x="815" y="125" class="etiqueta">B</text><text x="915" y="125" class="etiqueta">A</text>
+    <g class="accion" id="g-SOL5" data-salida="SOL5">
+       <path class="valvula" d="M803 36 L815 48 L827 36 Z M803 60 L815 48 L827 60 Z"/><text x="845" y="52" class="etiqueta">SOL5</text></g>
+    <g class="accion" id="g-SOL4" data-salida="SOL4">
+       <path class="valvula" d="M903 36 L915 48 L927 36 Z M903 60 L915 48 L927 60 Z"/><text x="945" y="52" class="etiqueta">SOL4</text></g>
+    <g class="accion" id="g-SOL2" data-salida="SOL2">
+       <path class="valvula" d="M848 238 L865 250 L848 262 Z M882 238 L865 250 L882 262 Z M853 276 L865 250 L877 276 Z"/>
+       <text x="905" y="270" class="etiqueta">SOL2</text></g>
+    <g><path class="manual" d="M795 226 L803 234 L795 242 Z M811 226 L803 234 L811 242 Z"/><text x="787" y="238" class="lectura" style="text-anchor:end">V3</text></g>
+    <g><path class="manual" d="M857 205 L865 213 L873 205 Z"/><text x="890" y="226" class="lectura">V2</text></g>
+    <g><line x1="770" y1="100" x2="780" y2="100" class="tubo"/>
+       <circle class="instr" id="c-HL" cx="757" cy="100" r="13"/><text x="757" y="104" class="etiqueta">HL</text></g>
+    <g><line x1="770" y1="180" x2="780" y2="180" class="tubo"/>
+       <circle class="instr" id="c-LL" cx="757" cy="180" r="13"/><text x="757" y="184" class="etiqueta">LL</text></g>
+    <g><line x1="950" y1="170" x2="962" y2="170" class="tubo"/>
+       <circle class="instr" cx="975" cy="170" r="13"/><text x="975" y="174" class="etiqueta">L1</text>
+       <text x="962" y="196" class="lectura" id="v-L1">—</text></g>
+  </svg>
+  </div>
+  <section class="panel" id="panel-simulacion">
+    <div class="sim-cabecera">
+      <h2>Motor de simulación · evolución del proceso</h2>
+      <div class="sim-barra">
+        <button class="primario" id="sim-play">▶ Iniciar</button>
+        <button id="sim-pause" disabled>Ⅱ Pausar</button>
+        <button id="sim-reset">↻ Reiniciar</button>
+        <label for="sim-velocidad">Velocidad</label>
+        <select id="sim-velocidad"><option value="1">1×</option><option value="5">5×</option><option value="20" selected>20×</option></select>
+        <button id="sim-ejemplo">Preparar ejemplo</button>
+      </div>
+    </div>
+    <div class="resumen-sim" aria-live="polite">
+      <div class="dato"><small>Tiempo simulado</small><strong id="sim-time">00:00</strong></div>
+      <div class="dato"><small>Caudal producto · F1</small><strong id="sim-flow">0 ml/min</strong></div>
+      <div class="dato"><small>Agua caliente · T2</small><strong id="sim-heat">22,0 °C</strong></div>
+      <div class="dato"><small>Tanque A</small><strong id="sim-A">—</strong></div>
+      <div class="dato"><small>Tanque B</small><strong id="sim-B">—</strong></div>
+      <div class="dato"><small>Producto terminado</small><strong id="sim-finished">0 ml</strong></div>
+      <div class="dato"><small>Producto desviado</small><strong id="sim-diverted">0 ml</strong></div>
+      <div class="dato"><small>Agua a desagüe</small><strong id="sim-drain">0 L</strong></div>
+    </div>
+    <p class="sim-aviso" id="sim-status">Selecciona «Preparar ejemplo» o configura las bombas y válvulas manualmente. Pulsa Iniciar para avanzar el tiempo.</p>
+  </section>
+  <section class="panel" id="panel-bombas">
+    <h2>Bombas peristálticas y calefacción</h2>
+    <div class="tarjetas" id="tarjetas-bombas">
+      <div class="tarjeta" id="t-N2"><h3>Heat unit</h3><small>Acción: J7 OUT07</small>
+        <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
+        <button class="grande" id="b-N2">Encender</button>
+        <div class="sentido"><small>Sentido de giro · J7 OUT05</small>
+          <button class="btn-sentido" data-bomba="N2">—</button></div>
+        <div class="consigna" id="c-N2V"></div></div>
+      <div class="tarjeta" id="t-N1"><h3>Feed unit</h3><small>Acción: J7 OUT08</small>
+        <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
+        <button class="grande" id="b-N1">Encender</button>
+        <div class="sentido"><small>Sentido de giro · J7 OUT06</small>
+          <button class="btn-sentido" data-bomba="N1">—</button></div>
+        <div class="consigna" id="c-N1V"></div></div>
+    </div>
+    <div class="controles" style="margin-top:12px"><button id="parar-bombas">Parar bombas</button></div>
+  </section>
+  <section class="panel" id="panel-valvulas">
+    <h2>Electroválvulas</h2>
+    <div class="tarjetas" id="tarjetas-valvulas"></div>
+    <div class="controles" style="margin-top:12px"><button id="cerrar-valvulas">Cerrar electroválvulas</button></div>
+  </section>
+  <div class="controles" id="controles"></div>
+  <section class="panel">
+    <h2>Temperaturas simuladas</h2>
+    <div class="leyenda"><span><i style="background:#d66d2b"></i>T2 · HEAT UNIT</span>
+      <span><i style="background:#2d80c7"></i>T1 · tubo de retención</span>
+      <span><i style="background:#22a2a0"></i>T3 · producto final</span></div>
+    <canvas id="sim-trend" class="grafica" width="900" height="220" aria-label="Evolución simulada de temperaturas T1, T2 y T3"></canvas>
+    <p class="pie-sim">Gráfica de los últimos puntos de la simulación. T5 es una sonda independiente, sin contacto modelado con el proceso.</p>
+    <h2 style="margin-top:14px">Registro de acontecimientos</h2>
+    <ul id="sim-log" class="registros"></ul>
+  </section>
+  <p class="nota"><strong>Simulación didáctica aproximada.</strong> Las relaciones térmicas, volúmenes y caudales son valores orientativos, no parámetros verificados de la Armfield PCT23. 
+  Los controles, sensores, actuadores y recorridos están representados sobre el SVG de la revisión 17, sin cambiar sus coordenadas. 
+  V1, V2, V3 y PRV1 se conservan como símbolos fijos. SOL2 selecciona el tanque de alimentación (A/B) solo en este modelo simplificado. El giro inverso B no tiene modelo hidráulico. 
+  No hay conexión con MQTT, Flask, Raspberry Pi ni con equipos físicos.</p>
+</main>
+<script>
+/* PCT23 - Modelo DIDÁCTICO, no calibrado ni conectado a equipos físicos.
+ * Unidades: segundos, °C, ml, ml/min. Sin dependencias externas. */
+(function (root) {
+  'use strict';
+  const PARAMS = Object.freeze({
+    ambiente: 22, capacidadMl: 2400, caudalN1MaxMlMin: 550,
+    llenadoMlMin: 260, refrigeracionMlMin: 450,
+    tauCalentadorS: 200, tauEnfriamientoS: 360, limiteTermicoC: 91,
+  });
+  const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
+  const OUTPUT_IDS=Object.freeze(['N1','N2','SOL1','SOL2','SOL3','SOL4','SOL5','RES']); // RES: resistencia de calefacción on/off (J7 OUT04), solo indicador
+  function crearEstado() {
+    return {
+      tiempo: 0, ejecutando: false, velocidad: 20,
+      salidas: Object.fromEntries(OUTPUT_IDS.map(id=>[id,false])),
+      // giro: valor de OUT06 (N1) y OUT05 (N2); 0 = sentido de proceso (supuesto, sin confirmar).
+      giro: {N1:false,N2:false}, consignas: {R:0,N1V:60,N2V:60},
+      aMl: 1760, bMl: 1270, aguaCalienteC: PARAMS.ambiente,
+      t1:PARAMS.ambiente,t3:PARAMS.ambiente,t4:PARAMS.ambiente,t5:PARAMS.ambiente,
+      caudalProductoMlMin:0, caudalFrioMlMin:0,
+      finalMl:0, desviadoMl:0, desagueMl:0,
+      temperaturaCorte:false, vacio:false,
+    };
+  }
+  function activarEjemplo(s) {
+    s.salidas.N1=true;
+    s.salidas.N2=true;
+    s.salidas.SOL3=true;
+    s.salidas.SOL2=false; // Alimentación desde A en este modelo.
+    s.salidas.SOL1=false; // Salida de producto final.
+    s.giro.N1=false;s.giro.N2=false;
+    s.salidas.RES=true;
+    s.consignas.N1V=60;
+    s.consignas.R=75;
+    s.consignas.N2V=60;
+    return s;
+  }
+  // Integración Euler suavizada en pasos de hasta 1 segundo para estabilidad.
+  function avanzar(s, segundos) {
+    let pendientes=clamp(Number(segundos)||0,0,10000);
+    while (pendientes>0) {
+      const dt=Math.min(1,pendientes);
+      avanzarPaso(s,dt);
+      pendientes-=dt;
+    }
+    return s;
+  }
+  function avanzarPaso(s,dt) {
+    s.tiempo+=dt;
+    const p=PARAMS;
+    const sol=s.salidas;
+    // Las dos resistencias de 120 V van en serie (una sola a 230 V), por ráfagas de 50 ciclos: R % = R/100 de los ciclos.
+    const r=s.salidas.RES?clamp(s.consignas.R/100,0,1):0;
+    const objetivoAgua=p.ambiente+69*r;
+    const temperaturaObjetivo=s.temperaturaCorte?p.ambiente:objetivoAgua;
+    const tau=s.temperaturaCorte?p.tauEnfriamientoS:(r? p.tauCalentadorS:p.tauEnfriamientoS);
+    s.aguaCalienteC+=(temperaturaObjetivo-s.aguaCalienteC)*(1-Math.exp(-dt/tau));
+    s.aguaCalienteC=clamp(s.aguaCalienteC,p.ambiente,97);
+    // Termostato con histéresis; simulado, no sistema certificado de protección.
+    if(s.aguaCalienteC>=p.limiteTermicoC) s.temperaturaCorte=true;
+    if(s.temperaturaCorte && s.aguaCalienteC<=p.limiteTermicoC-5) s.temperaturaCorte=false;
+
+    // SOL4 repone A; SOL5 repone B (hipótesis didáctica).
+    if(sol.SOL4) s.aMl=clamp(s.aMl+p.llenadoMlMin*dt/60,0,p.capacidadMl);
+    if(sol.SOL5) s.bMl=clamp(s.bMl+p.llenadoMlMin*dt/60,0,p.capacidadMl);
+    const elegidoB=!!sol.SOL2;
+    const volumen=elegidoB?s.bMl:s.aMl;
+    const habilitada=sol.N1 && !s.giro.N1 && s.consignas.N1V>0;
+    const nominal=habilitada ? p.caudalN1MaxMlMin*clamp(s.consignas.N1V,0,100)/100 : 0;
+    const drenado=Math.min(volumen,nominal*dt/60);
+    s.caudalProductoMlMin=(habilitada&&dt>0)?drenado/dt*60:0;
+    s.vacio=habilitada && volumen<1;
+    if(elegidoB) s.bMl=Math.max(0,s.bMl-drenado);
+    else s.aMl=Math.max(0,s.aMl-drenado);
+    if(sol.SOL1) s.desviadoMl+=drenado;
+    else s.finalMl+=drenado;
+
+    // El frío circula si SOL3 está abierta; los ramales SOL4/SOL5 se ilustran por separado.
+    s.caudalFrioMlMin=sol.SOL3?p.refrigeracionMlMin:0;
+    s.desagueMl+=s.caudalFrioMlMin*dt/60;
+    s.t4=p.ambiente; // Mezcla/temperatura de entrada simplificada.
+    s.t5=p.ambiente; // Sonda separada de los circuitos en el esquema.
+    if (s.caudalProductoMlMin>0) {
+      // Ganancia térmica: circulación de N2 + diferencia con agua caliente.
+      const factorFlujo=1-0.25*(s.consignas.N1V/100);
+      const eficiencia=sol.N2 ? 0.79*factorFlujo : 0.08;
+      const objetivoProducto=s.t4+(s.aguaCalienteC-s.t4)*eficiencia;
+      s.t1+=(objetivoProducto-s.t1)*(1-Math.exp(-dt/20));
+      const recuperacion=0.22*(s.t1-s.t4);
+      const enfriamiento=sol.SOL3?0.77:0.09;
+      const objetivoSalida=s.t4+(s.t1-s.t4-recuperacion)*(1-enfriamiento);
+      s.t3+=(objetivoSalida-s.t3)*(1-Math.exp(-dt/22));
+    } else {
+      s.t1+=(p.ambiente-s.t1)*(1-Math.exp(-dt/320));
+      s.t3+=(p.ambiente-s.t3)*(1-Math.exp(-dt/200));
+    }
+    s.t1=clamp(s.t1,p.ambiente,100);
+    s.t3=clamp(s.t3,p.ambiente,100);
+  }
+  function observaciones(s) {
+    const p=PARAMS;
+    return {
+      T1:s.t1,T2:s.aguaCalienteC,T3:s.t3,T4:s.t4,T5:s.t5,
+      F1:s.caudalProductoMlMin,L1:(s.aMl/p.capacidadMl)*250,
+      HL:s.bMl/p.capacidadMl>=0.90,
+      LL:s.bMl/p.capacidadMl<=0.15,
+      TERM:s.temperaturaCorte,
+      LVLC:false,HLC:false,
+    };
+  }
+  const api=Object.freeze({PARAMS,OUTPUT_IDS,crearEstado,activarEjemplo,avanzar,observaciones});
+  if(typeof module!=='undefined'&&module.exports) module.exports=api;
+  root.PCT23Modelo=api;
+})(typeof window!=='undefined'?window:globalThis);
+
+</script>
+<script>
+/* Interfaz local para el SVG de pct23_revision17.html.
+   No emplea fetch, EventSource, WebSocket ni ninguna API remota. */
+(()=>{
+  'use strict';
+  const modelo=window.PCT23Modelo;
+  let estado=modelo.crearEstado();
+  const $=id=>document.getElementById(id);
+  const todos=s=>Array.from(document.querySelectorAll(s));
+  const nf=new Intl.NumberFormat('es-ES',{maximumFractionDigits:0});
+  const c=v=>v.toFixed(1).replace('.',',');
+  const tiempo=s=>`${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor(s%3600/60)).padStart(2,'0')}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+  const hist=[];
+  let ultimoTiempoGrafica=-1;
+  let ultimoAviso='';
+  function registrar(mensaje){
+    const item=document.createElement('li');
+    item.textContent=`[${tiempo(estado.tiempo)}] ${mensaje}`;
+    $('sim-log').prepend(item);
+    while($('sim-log').children.length>16) $('sim-log').lastElementChild.remove();
+  }
+  const CONSIGNAS={
+    R:{nombre:'Potencia de la resistencia',ciclos:50},
+    N1V:{nombre:'Velocidad (PWM)'},
+    N2V:{nombre:'Velocidad (PWM)'},
+  };
+  const textoConsigna=(id,v)=>CONSIGNAS[id].ciclos?`${v} % · ${Math.round(v*CONSIGNAS[id].ciclos/100)}/${CONSIGNAS[id].ciclos} ciclos`:`${v} %`;
+  function consigna(id,v){
+    estado.consignas[id]=Math.max(0,Math.min(100,Number(v)||0));
+    $(`r-${id}`).value=String(estado.consignas[id]);
+    $(`o-${id}`).textContent=textoConsigna(id,estado.consignas[id]);
+  }
+  function marcar(id,on){
+    const g=$(id);
+    if(g) g.querySelectorAll('.valvula,.instr').forEach(e=>e.classList.toggle('on',on));
+  }
+  // Electroválvulas en los relés K2-K6 y resistencia en J7 OUT04, igual que el sinóptico real.
+  const VALVULAS=[
+    ['SOL1','SOL1','Desvío de producto · relé K2'],
+    ['SOL2','SOL2','Depósitos A/B · relé K3'],
+    ['SOL3','SOL3','Agua fría · relé K4'],
+    ['SOL4','SOL4','Ramal depósito A · relé K5'],
+    ['SOL5','SOL5','Ramal depósito B · relé K6'],
+    ['RES','Calefacción','Resistencia heat unit · J7 OUT04'],
+  ];
+  const canales={
+    T1:'v-T1',T2:'v-T2',T3:'v-T3',T4:'v-T4',T5:'v-T5',
+    F1:'v-F1',L1:'v-L1',
+  };
+  function actualizarIndicadores(){
+    const o=modelo.observaciones(estado);
+    for(const [tipo,id] of Object.entries(canales)){
+      const val=o[tipo];
+      $(id).textContent=tipo==='F1'? `${nf.format(val)} ml/min`:
+        tipo==='L1'? `${nf.format(val)} mm`:`${c(val)} °C`;
+    }
+    for(const valvula of ['SOL1','SOL2','SOL3','SOL4','SOL5','N1','N2']){
+      marcar(`g-${valvula}`,estado.salidas[valvula]);
+    }
+    todos('[data-bomba]').forEach(x=>x.classList.toggle('activo',estado.salidas[x.dataset.bomba]));
+    todos('[data-solenoide]').forEach(x=>x.classList.toggle('activo',estado.salidas[x.dataset.solenoide]));
+    todos('[data-circuito="frio"]').forEach(x=>x.classList.toggle('activo',estado.salidas.SOL3));
+    todos('[data-circuito="colector-frio"]').forEach(x=>x.classList.toggle('activo',
+      ['SOL3','SOL4','SOL5'].some(id=>estado.salidas[id])));
+
+    // Sensores y niveles visuales. No se modifican coordenadas de depósitos ni sensores.
+    const maxAltura=98;
+    for(const [id,volumen] of [['A',estado.aMl],['B',estado.bMl]]){
+      const alto=maxAltura*volumen/modelo.PARAMS.capacidadMl;
+      $(`nivel-${id}`).setAttribute('y',String(208-alto));
+      $(`nivel-${id}`).setAttribute('height',String(alto));
+    }
+    $('c-TERM').classList.toggle('alarma',o.TERM);
+    $('c-HL').classList.toggle('alarma',o.HL);
+    $('c-LL').classList.toggle('alarma',o.LL);
+    $('c-LVLC').classList.remove('alarma');
+    $('c-HLC').classList.remove('alarma');
+
+    const calefaccion=estado.salidas.RES&&estado.consignas.R>0;
+    $('c-PWR').classList.toggle('on',calefaccion);
+    $('resistencia').style.stroke=calefaccion?'var(--caliente)':'';
+    $('v-PWR').textContent=`${estado.salidas.RES?'ON':'OFF'} · ${textoConsigna('R',estado.consignas.R)}`;
+    for(const [id] of VALVULAS){
+      const on=!!estado.salidas[id];
+      $(`b-${id}`).classList.toggle('on',on);
+      $(`b-${id}`).textContent=on?'Desactivar':'Activar';
+      const e=$(`t-${id}`).querySelector('.estado-bomba');
+      e.className=`estado-bomba ${on?'ok':''}`;
+      e.lastElementChild.textContent=id==='RES'?(on?'Calentando':'Apagada'):(on?'Abierta':'Cerrada');
+    }
+    for(const id of ['N1','N2']){
+      const bt=$(`b-${id}`);
+      bt.classList.toggle('on',estado.salidas[id]);
+      bt.textContent=estado.salidas[id]?'Apagar':'Encender';
+      const e=$(`t-${id}`).querySelector('.estado-bomba');
+      e.className=`estado-bomba ${estado.salidas[id]?'ok':''}`;
+      e.lastElementChild.textContent=estado.salidas[id]?'En marcha':'Parada';
+    }
+    for(const bt of todos('.btn-sentido')){
+      const v=estado.giro[bt.dataset.bomba];
+      bt.classList.toggle('sel',v);
+      bt.textContent=`Sentido ${+v} · pulsa para invertir`;
+    }
+
+    const chip=(id,clase,valor)=>{
+      $(id).className=`chip ${clase}`;
+      $(id).lastElementChild.textContent=valor;
+    };
+    chip('chip-broker','ok','Sin MQTT · modo local');
+    chip('chip-gateway',estado.ejecutando?'ok':'aviso',estado.ejecutando?`Simulando · ${estado.velocidad}×`:'Simulación en pausa');
+    chip('chip-io',estado.temperaturaCorte||estado.vacio?'error':'ok',estado.temperaturaCorte?'Corte térmico simulado':estado.vacio?'Sin producto en origen':'E/S virtuales');
+    $('sim-time').textContent=tiempo(estado.tiempo);
+    $('sim-flow').textContent=`${nf.format(o.F1)} ml/min`;
+    $('sim-heat').textContent=`${c(o.T2)} °C`;
+    $('sim-A').textContent=`${nf.format(estado.aMl)} ml`;
+    $('sim-B').textContent=`${nf.format(estado.bMl)} ml`;
+    $('sim-finished').textContent=`${nf.format(estado.finalMl)} ml`;
+    $('sim-diverted').textContent=`${nf.format(estado.desviadoMl)} ml`;
+    $('sim-drain').textContent=`${c(estado.desagueMl/1000)} L`;
+    $('sim-play').disabled=estado.ejecutando;
+    $('sim-pause').disabled=!estado.ejecutando;
+    $('sim-velocidad').value=String(estado.velocidad);
+    let aviso='';
+    if(estado.temperaturaCorte) aviso='Corte térmico simulado: el calefactor supera el umbral del modelo.';
+    else if(estado.vacio) aviso='Depósito seleccionado vacío: la bomba N1 no suministra producto.';
+    else if(estado.salidas.N1 && estado.giro.N1) aviso='N1 encendida con el sentido de giro invertido (OUT06 = 1). El flujo inverso no se simula.';
+    else if(estado.salidas.N1 && estado.consignas.N1V===0) aviso='N1 encendida, pero la consigna de velocidad es 0 %.';
+    else if(estado.salidas.N1 && !estado.salidas.N2) aviso='N1 circula sin N2: el producto no recibe calentamiento activo significativo.';
+    else if(estado.salidas.N1 && !estado.salidas.SOL3) aviso='Producto circulando sin refrigeración activa (SOL3 cerrada).';
+    else if(estado.ejecutando) aviso=`Proceso en marcha. Alimentación desde tanque ${estado.salidas.SOL2?'B':'A'}; salida ${estado.salidas.SOL1?'desviada':'producto final'}.`;
+    else aviso='Simulación pausada. Puedes modificar los actuadores y luego reanudar.';
+    $('sim-status').textContent=aviso;
+    if(aviso!==ultimoAviso&&(estado.temperaturaCorte||estado.vacio)) registrar(aviso);
+    ultimoAviso=aviso;
+  }
+  function pintarGrafica(){
+    const canvas=$('sim-trend'),cx=canvas.getContext('2d');
+    if(!cx)return;
+    const w=canvas.width,h=canvas.height;
+    cx.clearRect(0,0,w,h);
+    const css=getComputedStyle(document.documentElement);
+    const text=css.getPropertyValue('--tenue').trim()||'#6b7380';
+    const border=css.getPropertyValue('--borde').trim()||'#dde1e6';
+    const left=48,right=w-17,top=15,bottom=h-28;
+    const y=v=>bottom-(Math.max(15,Math.min(100,v))-15)/(100-15)*(bottom-top);
+    cx.font='12px system-ui,sans-serif';cx.textBaseline='middle';
+    for(const t of [20,40,60,80,100]){
+      cx.beginPath();cx.moveTo(left,y(t));cx.lineTo(right,y(t));cx.strokeStyle=border;cx.lineWidth=1;cx.stroke();
+      cx.fillStyle=text;cx.fillText(t+'°',10,y(t));
+    }
+    if(hist.length<1)return;
+    const inicio=hist[0].tiempo,final=hist[hist.length-1].tiempo;
+    const x=t=>left+((t-inicio)/Math.max(1,final-inicio))*(right-left);
+    for(const [campo,color] of [['T2','#d66d2b'],['T1','#2d80c7'],['T3','#22a2a0']]){
+      cx.beginPath();hist.forEach((v,i)=>{if(i===0)cx.moveTo(x(v.tiempo),y(v[campo]));else cx.lineTo(x(v.tiempo),y(v[campo]));});
+      cx.strokeStyle=color;cx.lineWidth=2.5;cx.stroke();
+    }
+    cx.fillStyle=text;cx.textBaseline='bottom';cx.fillText(tiempo(inicio),left,bottom+22);
+    const to=tiempo(final);cx.fillText(to,right-cx.measureText(to).width,bottom+22);
+  }
+  function muestrear(){
+    const t=estado.tiempo;
+    if(t-ultimoTiempoGrafica<2 && hist.length)return;
+    const o=modelo.observaciones(estado);
+    hist.push({tiempo:t,T1:o.T1,T2:o.T2,T3:o.T3});
+    if(hist.length>140)hist.shift();
+    ultimoTiempoGrafica=t;
+    pintarGrafica();
+  }
+  function actualizar(){actualizarIndicadores();muestrear();}
+  function configurarControles(){
+    for(const id of ['SOL1','SOL2','SOL3','SOL4','SOL5','N1','N2']){
+      $(`g-${id}`).addEventListener('click',()=>{
+        estado.salidas[id]=!estado.salidas[id];
+        registrar(`${id}: ${estado.salidas[id]?'activada':'desactivada'}`);
+        actualizar();
+      });
+    }
+    for(const id of ['N1','N2']){
+      $(`b-${id}`).addEventListener('click',()=>{
+        estado.salidas[id]=!estado.salidas[id];
+        registrar(`${id}: ${estado.salidas[id]?'encendida':'apagada'}`);
+        actualizar();
+      });
+    }
+    for(const [id,titulo,detalle] of VALVULAS){
+      const t=document.createElement('div');
+      t.className='tarjeta';t.id=`t-${id}`;
+      t.innerHTML=`<h3>${titulo}</h3><small>${detalle}</small>
+        <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
+        <button class="grande" id="b-${id}">Activar</button>`;
+      if(id==='RES')$('tarjetas-bombas').insertBefore(t,$('t-N1')); // entre heat unit y feed unit
+      else $('tarjetas-valvulas').appendChild(t);
+      $(`b-${id}`).addEventListener('click',()=>{
+        estado.salidas[id]=!estado.salidas[id];
+        registrar(`${titulo}: ${estado.salidas[id]?(id==='RES'?'encendida':'activada'):(id==='RES'?'apagada':'desactivada')}`);
+        actualizar();
+      });
+    }
+    $('cerrar-valvulas').addEventListener('click',()=>{
+      for(const [id] of VALVULAS)if(id.startsWith('SOL'))estado.salidas[id]=false;
+      registrar('Electroválvulas cerradas');actualizar();
+    });
+    for(const bt of todos('.btn-sentido')){
+      const id=bt.dataset.bomba;
+      bt.addEventListener('click',()=>{
+        estado.giro[id]=!estado.giro[id];
+        registrar(`Sentido de giro ${id}: ${+estado.giro[id]} (${id==='N2'?'OUT05':'OUT06'})`);
+        actualizar();
+      });
+    }
+    // Deslizadores: potencia de la resistencia (ráfagas de 50 ciclos) y velocidad PWM de cada bomba.
+    for(const id of Object.keys(CONSIGNAS)){
+      const fila=document.createElement('div');
+      fila.className='consigna';
+      fila.innerHTML=`<label for="r-${id}">${CONSIGNAS[id].nombre}</label>
+        <div class="fila"><input type="range" id="r-${id}" min="0" max="100" value="${estado.consignas[id]}">
+        <output id="o-${id}">${textoConsigna(id,estado.consignas[id])}</output></div>`;
+      if(id==='R')$('t-RES').appendChild(fila);else $(`c-${id}`).replaceWith(fila);
+      const range=fila.querySelector('input');
+      range.addEventListener('input',()=>{consigna(id,range.value);actualizarIndicadores();});
+      range.addEventListener('change',()=>registrar(`${CONSIGNAS[id].nombre} (${id}): ${textoConsigna(id,estado.consignas[id])}`));
+    }
+    $('parar-bombas').addEventListener('click',()=>{
+      estado.salidas.N1=estado.salidas.N2=false;estado.giro.N1=estado.giro.N2=false;
+      registrar('Bombas detenidas');actualizar();
+    });
+    const pararTodo=document.createElement('button');pararTodo.textContent='Parar todo';
+    pararTodo.id='sim-stop-all';
+    pararTodo.addEventListener('click',()=>{
+      for(const k of modelo.OUTPUT_IDS)estado.salidas[k]=false;
+      estado.giro.N1=estado.giro.N2=false;
+      for(const k of Object.keys(CONSIGNAS))consigna(k,0);
+      registrar('Parada general; la temperatura se enfría con el tiempo');actualizar();
+    });
+    $('controles').appendChild(pararTodo);
+    $('sim-play').addEventListener('click',()=>{estado.ejecutando=true;registrar('Simulación iniciada');actualizar();});
+    $('sim-pause').addEventListener('click',()=>{estado.ejecutando=false;registrar('Simulación pausada');actualizar();});
+    $('sim-reset').addEventListener('click',()=>{
+      estado=modelo.crearEstado();hist.length=0;ultimoTiempoGrafica=-1;ultimoAviso='';
+      for(const k of Object.keys(CONSIGNAS))consigna(k,estado.consignas[k]);
+      $('sim-log').replaceChildren();registrar('Simulador reiniciado');actualizar();
+    });
+    $('sim-velocidad').addEventListener('change',e=>{
+      estado.velocidad=Number(e.target.value);registrar(`Velocidad de simulación: ${estado.velocidad}×`);actualizar();
+    });
+    $('sim-ejemplo').addEventListener('click',()=>{
+      modelo.activarEjemplo(estado);
+      for(const k of Object.keys(CONSIGNAS))consigna(k,estado.consignas[k]);
+      estado.ejecutando=true;
+      registrar('Ejemplo: alimentación A, calor N2, refrigeración SOL3 y producto final');actualizar();
+    });
+  }
+  configurarControles();
+  registrar('Sesión local cargada: no hay conexión con máquinas');
+  actualizar();
+  // Tick real fijo; en cada tick avanzan segundos simulados según velocidad elegida.
+  setInterval(()=>{
+    if(!estado.ejecutando)return;
+    modelo.avanzar(estado,0.25*estado.velocidad);
+    actualizar();
+  },250);
+  window.simuladorPCT23={estado:()=>estado,modelo}; // Inspección y pruebas locales.
+})();
+
+</script>
+</body>
+</html>

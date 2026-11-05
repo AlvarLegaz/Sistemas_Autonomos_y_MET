@@ -65,7 +65,13 @@
   .estado-bomba { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
   .grande { padding: 14px 6px; font-size: 16px; font-weight: 600; }
   .grande.on { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .tarjeta .consigna { display: flex; flex-direction: column; gap: 4px; }
+  .tarjeta .consigna label { font-weight: 600; font-size: 13px; }
+  .tarjeta .consigna .fila { display: flex; align-items: center; gap: 10px; }
+  .tarjeta .consigna input[type=range] { flex: 1; min-width: 0; }
+  .tarjeta .consigna output { min-width: 44px; text-align: right; }
   .opciones { display: grid; gap: 6px; }
+  .tarjeta .sentido { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--borde); }
   .opciones button.sel { background: var(--acento); border-color: var(--acento); color: #fff; }
   p.nota { color: var(--tenue); font-size: 13px; margin: 10px 0 0; }
 </style>
@@ -135,7 +141,7 @@
        <circle class="instr" cx="175" cy="62" r="15"/><text x="175" y="66" class="etiqueta">T2</text>
        <text x="175" y="90" class="lectura" id="v-T2">—</text></g>
     <g id="g-PWR"><line x1="85" y1="170" x2="85" y2="190" class="tubo"/>
-       <circle class="instr" id="c-PWR" cx="85" cy="205" r="15"/><text x="85" y="209" class="etiqueta" style="font-size:11px">R1·R2</text>
+       <circle class="instr" id="c-PWR" cx="85" cy="205" r="15"/><text x="85" y="209" class="etiqueta" style="font-size:11px">RES</text>
        <text x="85" y="236" class="lectura" id="v-PWR">—</text></g>
     <g>
       <circle class="instr" id="c-LVLC" cx="45" cy="262" r="13"/><text x="45" y="266" class="etiqueta" style="font-size:9px">LVL</text>
@@ -161,7 +167,7 @@
     <g><rect class="manual" x="248" y="195" width="24" height="24"/><path d="M248 219 L272 195" stroke="var(--tubo)" stroke-width="1.5"/>
        <text x="300" y="212" class="lectura">FILTER</text></g>
     <g><circle class="instr" cx="260" cy="272" r="15"/><text x="260" y="276" class="etiqueta">T4</text>
-       <text x="228" y="276" class="lectura" id="v-T4">—</text></g>
+       <text x="282" y="276" class="lectura" style="text-anchor:start" id="v-T4">—</text></g>
     <!-- ============ intercambiadores de placas ============ -->
     <!-- Disposición cotejada con el panel de Armfield. Trazos dentados dentro
          de las tuberías reales; NO añadir figuras sueltas sobre las líneas. -->
@@ -199,7 +205,7 @@
     <g class="accion" id="g-SOL2" data-salida="SOL2">
        <path class="valvula" d="M848 238 L865 250 L848 262 Z M882 238 L865 250 L882 262 Z M853 276 L865 250 L877 276 Z"/>
        <text x="905" y="270" class="etiqueta">SOL2</text></g>
-    <g><path class="manual" d="M795 226 L803 234 L795 242 Z M811 226 L803 234 L811 242 Z"/><text x="803" y="256" class="lectura">V3</text></g>
+    <g><path class="manual" d="M795 226 L803 234 L795 242 Z M811 226 L803 234 L811 242 Z"/><text x="787" y="238" class="lectura" style="text-anchor:end">V3</text></g>
     <g><path class="manual" d="M857 205 L865 213 L873 205 Z"/><text x="890" y="226" class="lectura">V2</text></g>
     <g><line x1="770" y1="100" x2="780" y2="100" class="tubo"/>
        <circle class="instr" id="c-HL" cx="757" cy="100" r="13"/><text x="757" y="104" class="etiqueta">HL</text></g>
@@ -211,22 +217,30 @@
   </svg>
   </div>
   <section class="panel" id="panel-bombas">
-    <h2>Bombas peristálticas</h2>
-    <div class="tarjetas">
-      <div class="tarjeta" id="t-N1"><h3>Feed unit</h3><small>Acción: J7 OUT08</small>
-        <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
-        <button class="grande" id="b-N1">Encender</button></div>
+    <h2>Bombas peristálticas y calefacción</h2>
+    <div class="tarjetas" id="tarjetas-bombas">
       <div class="tarjeta" id="t-N2"><h3>Heat unit</h3><small>Acción: J7 OUT07</small>
         <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
-        <button class="grande" id="b-N2">Encender</button></div>
-      <div class="tarjeta" id="t-sentido"><h3>Sentido de giro</h3><small>J7 OUT05 y OUT06</small>
-        <div class="opciones" id="opciones-sentido"></div>
-        <small id="lectura-sentido">—</small></div>
+        <button class="grande" id="b-N2">Encender</button>
+        <div class="sentido"><small>Sentido de giro · J7 OUT05</small>
+          <button class="btn-sentido" data-bomba="N2">—</button></div>
+        <div class="consigna" id="c-N2V"></div></div>
+      <div class="tarjeta" id="t-N1"><h3>Feed unit</h3><small>Acción: J7 OUT08</small>
+        <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
+        <button class="grande" id="b-N1">Encender</button>
+        <div class="sentido"><small>Sentido de giro · J7 OUT06</small>
+          <button class="btn-sentido" data-bomba="N1">—</button></div>
+        <div class="consigna" id="c-N1V"></div></div>
     </div>
     <div class="controles" style="margin-top:12px"><button id="parar-bombas">Parar bombas</button></div>
   </section>
+  <section class="panel" id="panel-valvulas">
+    <h2>Electroválvulas</h2>
+    <div class="tarjetas" id="tarjetas-valvulas"></div>
+    <div class="controles" style="margin-top:12px"><button id="cerrar-valvulas">Cerrar electroválvulas</button></div>
+  </section>
   <div class="controles" id="controles"></div>
-  <p class="nota">Con los deslizadores se manejan las resistencias y la velocidad de la bomba 1. Pulsa una bomba o una electroválvula para activarla o desactivarla; el color es el estado real que publica el gateway.
+  <p class="nota">Con los deslizadores se manejan la potencia de la resistencia (por ráfagas de 50 ciclos) y la velocidad PWM de cada bomba. Pulsa una bomba o una electroválvula para activarla o desactivarla; el color es el estado real que publica el gateway.
      Las válvulas manuales (V1, V2, V3, PRV1) y el filtro son solo dibujo.
      Qué canal del gateway es cada elemento está en la tabla <code>MAPA</code> al principio del script de esta página.</p>
 </main>
@@ -238,19 +252,35 @@
 // ---------------------------------------------------------------------------
 const MAPA = {
   salidas: {                        // salidas digitales del gateway -> maqueta
-    SOL1: 'DigitalOut3_value', SOL2: 'DigitalOut4_value', SOL3: 'DigitalOut5_value',
-    SOL4: 'DigitalOut6_value', SOL5: 'DigitalOut7_value',
+    // Electrovalvulas SOL1-SOL5: reles K2-K6 (DigitalOut2..6).
+    SOL1: 'DigitalOut2_value', SOL2: 'DigitalOut3_value', SOL3: 'DigitalOut4_value',
+    SOL4: 'DigitalOut5_value', SOL5: 'DigitalOut6_value',
     N1: 'TransistorOut8_value',     // bomba peristaltica FEED UNIT (N1): J7 OUT08
     N2: 'TransistorOut7_value',     // bomba peristaltica HEAT UNIT (N2): J7 OUT07
+    RES: 'TransistorOut4_value',    // resistencia de calefaccion (on/off): J7 OUT04, junto a los motores
   },
-  // Sentido de giro: dos salidas a transistor (J7 OUT05 y OUT06), (1,0), (0,1) o (0,0).
-  sentido: {a: 'TransistorOut5_value', b: 'TransistorOut6_value'},
+  // Tarjetas del panel de electrovalvulas y calefaccion: [id en MAPA.salidas, titulo, detalle].
+  valvulas: [
+    ['SOL1', 'SOL1', 'Desvío de producto · relé K2'],
+    ['SOL2', 'SOL2', 'Depósitos A/B · relé K3'],
+    ['SOL3', 'SOL3', 'Agua fría · relé K4'],
+    ['SOL4', 'SOL4', 'Ramal depósito A · relé K5'],
+    ['SOL5', 'SOL5', 'Ramal depósito B · relé K6'],
+    ['RES', 'Calefacción', 'Resistencia heat unit · J7 OUT04'],
+  ],
+  // Sentido de giro: una salida a transistor por bomba, que se conmuta entre 0 y 1.
+  // Heat unit (N2) en J7 OUT05 y feed unit (N1) en J7 OUT06. Sin confirmar que valor es adelante.
+  sentido: {N2: 'TransistorOut5_value', N1: 'TransistorOut6_value'},
   // Consignas continuas 0-100 %: canal del gateway. Las AnalogOut no tienen
   // hardware todavia y el gateway no las devuelve, asi que la pagina recuerda su valor.
   consignas: {
-    R1: {canal: 'AnalogOut1_value', nombre: 'Resistencia 1'},
-    R2: {canal: 'AnalogOut2_value', nombre: 'Resistencia 2'},
-    N1V: {canal: 'PWMOut1_value', nombre: 'Bomba 1 velocidad'},
+    // Las dos resistencias de 120 V c.a. van en serie y forman una sola, alimentada a 230 V.
+    // Se regula por rafagas de 50 ciclos: 100 % = 50 ciclos, 50 % = 25 ciclos, etc.
+    // Canal AnalogOut1 (supuesto; la salida real es OUT04 u otra por definir).
+    RES: {canal: 'AnalogOut1_value', nombre: 'Potencia de la resistencia', ciclos: 50},
+    // Velocidad de las peristalticas por PWM. PWMOut2 sin hardware todavia (supuesto).
+    N1V: {canal: 'PWMOut1_value', nombre: 'Velocidad (PWM)'},
+    N2V: {canal: 'PWMOut2_value', nombre: 'Velocidad (PWM)'},
   },
   // Sondas T: 10 mV/°C (grados = voltios x 100), 1,5 V = 150 °C.
   // Entradas analogicas. `fondo` es la tension (V) que ve el ADC a fondo de
@@ -297,16 +327,20 @@ document.querySelectorAll('[data-salida]').forEach(g => {
 });
 // Deslizadores de consigna (resistencias y velocidad de bomba 1).
 const consigna = {};   // valor recordado: el gateway no devuelve las AnalogOut
+let filaRES = null;
 for (const [id, c] of Object.entries(MAPA.consignas)) {
   consigna[id] = 0;
   const fila = document.createElement('div');
-  fila.style.cssText = 'display:flex;align-items:center;gap:12px;flex:1 1 320px';
-  fila.innerHTML = `<label for="r-${id}" style="font-weight:600;min-width:130px">${c.nombre}</label>
-    <input type="range" id="r-${id}" min="0" max="100" step="1" value="0" style="flex:1">
-    <output id="o-${id}" style="width:48px;text-align:right">0 %</output>`;
-  $('controles').appendChild(fila);
+  fila.className = 'consigna';
+  fila.innerHTML = `<label for="r-${id}">${c.nombre}</label>
+    <div class="fila"><input type="range" id="r-${id}" min="0" max="100" step="1" value="0">
+    <output id="o-${id}">0 %</output></div>`;
+  if (id === 'RES') filaRES = fila;                  // se coloca en la tarjeta Calefaccion al crearla
+  else $(`c-${id}`).replaceWith(fila);               // bajo el selector de sentido de su bomba
   const r = fila.querySelector('input');
-  r.oninput = () => { $(`o-${id}`).textContent = `${r.value} %`; };
+  const texto = v => c.ciclos ? `${v} % · ${Math.round(v * c.ciclos / 100)}/${c.ciclos} ciclos` : `${v} %`;
+  c.texto = texto;
+  r.oninput = () => { $(`o-${id}`).textContent = texto(r.value); };
   r.onchange = () => {
     consigna[id] = Number(r.value);
     enviar({[c.canal]: consigna[id]});
@@ -314,23 +348,35 @@ for (const [id, c] of Object.entries(MAPA.consignas)) {
   };
 }
 // Panel de bombas.
-const sentidos = [['A  (OUT05 = 1, OUT06 = 0)', true, false], ['B  (OUT05 = 0, OUT06 = 1)', false, true], ['Sin sentido  (0, 0)', false, false]];
-const botonesSentido = sentidos.map(([texto, a, b]) => {
-  const bt = document.createElement('button');
-  bt.textContent = texto;
-  bt.onclick = () => enviar({[MAPA.sentido.a]: a, [MAPA.sentido.b]: b});
-  $('opciones-sentido').appendChild(bt);
-  return bt;
+const botonesSentido = {};
+document.querySelectorAll('.btn-sentido').forEach(bt => {
+  const id = bt.dataset.bomba;
+  botonesSentido[id] = bt;
+  bt.onclick = () => enviar({[MAPA.sentido[id]]: !actual(MAPA.sentido[id])});
 });
 for (const id of ['N1', 'N2']) {
   $(`b-${id}`).onclick = () => enviar({[MAPA.salidas[id]]: !actual(MAPA.salidas[id])});
 }
 $('parar-bombas').onclick = () => enviar({
-  [MAPA.salidas.N1]: false, [MAPA.salidas.N2]: false, [MAPA.sentido.a]: false, [MAPA.sentido.b]: false});
+  [MAPA.salidas.N1]: false, [MAPA.salidas.N2]: false, [MAPA.sentido.N1]: false, [MAPA.sentido.N2]: false});
+// Panel de electrovalvulas y calefaccion.
+for (const [id, titulo, detalle] of MAPA.valvulas) {
+  const t = document.createElement('div');
+  t.className = 'tarjeta'; t.id = `t-${id}`;
+  t.innerHTML = `<h3>${titulo}</h3><small>${detalle}</small>
+    <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
+    <button class="grande" id="b-${id}">Activar</button>`;
+  if (id === 'RES') t.appendChild(filaRES);
+  if (id === 'RES') $('tarjetas-bombas').insertBefore(t, $('t-N1'));   // entre heat unit y feed unit
+  else $('tarjetas-valvulas').appendChild(t);
+  $(`b-${id}`).onclick = () => enviar({[MAPA.salidas[id]]: !actual(MAPA.salidas[id])});
+}
+$('cerrar-valvulas').onclick = () => enviar(Object.fromEntries(
+  MAPA.valvulas.filter(([id]) => id.startsWith('SOL')).map(([id]) => [MAPA.salidas[id], false])));
 const parar = document.createElement('button');
 parar.textContent = 'Parar todo';
 parar.onclick = () => {
-  const orden = Object.fromEntries([...Object.values(MAPA.salidas), MAPA.sentido.a, MAPA.sentido.b].map(c => [c, false]));
+  const orden = Object.fromEntries([...Object.values(MAPA.salidas), ...Object.values(MAPA.sentido)].map(c => [c, false]));
   for (const [id, c] of Object.entries(MAPA.consignas)) {
     orden[c.canal] = 0; consigna[id] = 0;
     $(`r-${id}`).value = 0; $(`o-${id}`).textContent = '0 %';
@@ -340,9 +386,11 @@ parar.onclick = () => {
 };
 $('controles').appendChild(parar);
 function resumenCalentador() {
-  $('c-PWR').classList.toggle('on', consigna.R1 > 0 || consigna.R2 > 0);
-  $('v-PWR').textContent = `${consigna.R1} % · ${consigna.R2} %`;
-  $('resistencia').style.stroke = (consigna.R1 > 0 || consigna.R2 > 0) ? 'var(--caliente)' : '';
+  const res = actual(MAPA.salidas.RES);
+  const on = res && consigna.RES > 0;
+  $('c-PWR').classList.toggle('on', on);
+  $('v-PWR').textContent = `${res ? 'ON' : 'OFF'} · ${MAPA.consignas.RES.texto(consigna.RES)}`;
+  $('resistencia').style.stroke = on ? 'var(--caliente)' : '';
 }
 
 function marcar(id, on, clase = 'on') {
@@ -381,16 +429,15 @@ function pintar(s) {
   // La velocidad de la bomba 1 si vuelve del gateway (PWMOut1); las resistencias no.
   const v1 = MAPA.consignas.N1V.canal;
   if (v1 in d && document.activeElement !== $('r-N1V')) {
-    $('r-N1V').value = d[v1]; $('o-N1V').textContent = `${Math.round(d[v1])} %`;
+    $('r-N1V').value = d[v1]; $('o-N1V').textContent = MAPA.consignas.N1V.texto(Math.round(d[v1]));
   }
   resumenCalentador();
-  const sa = !!d[MAPA.sentido.a], sb = !!d[MAPA.sentido.b];
-  botonesSentido.forEach((bt, i) => {
-    const [, a, b] = sentidos[i];
-    bt.classList.toggle('sel', sa === a && sb === b);
+  for (const [id, bt] of Object.entries(botonesSentido)) {
+    const v = !!d[MAPA.sentido[id]];
+    bt.classList.toggle('sel', v);
+    bt.textContent = `Sentido ${+v} · pulsa para invertir`;
     bt.disabled = !s.broker;
-  });
-  $('lectura-sentido').textContent = `Estado real: OUT05 = ${+sa}, OUT06 = ${+sb}`;
+  }
   for (const id of ['N1', 'N2']) {
     const on = !!d[MAPA.salidas[id]];
     const bt = $(`b-${id}`);
@@ -401,6 +448,17 @@ function pintar(s) {
     est.className = `estado-bomba ${on ? 'ok' : ''}`;
     est.lastElementChild.textContent = on ? 'En marcha' : 'Parada';
   }
+  for (const [id] of MAPA.valvulas) {
+    const on = !!d[MAPA.salidas[id]];
+    const bt = $(`b-${id}`);
+    bt.classList.toggle('on', on);
+    bt.textContent = on ? 'Desactivar' : 'Activar';
+    bt.disabled = !s.broker;
+    const est = $(`t-${id}`).querySelector('.estado-bomba');
+    est.className = `estado-bomba ${on ? 'ok' : ''}`;
+    est.lastElementChild.textContent = id === 'RES' ? (on ? 'Calentando' : 'Apagada') : (on ? 'Abierta' : 'Cerrada');
+  }
+  $('cerrar-valvulas').disabled = !s.broker;
   for (const [tag, m] of Object.entries(MAPA.analogicas)) {
     const v = Number(d[m.canal] ?? 0);
     const fisico = m.min + (m.max - m.min) * Math.min(1, Math.max(0, v / m.fondo));

@@ -41,7 +41,7 @@ Cada entrada pasa por un divisor (10 kΩ en serie, 20 kΩ a masa) y un zener de 
 
 ## Salidas
 
-**Relés (`DigitalOut1-8`, K1-K8):** las electroválvulas SOL1-SOL5 están en `DigitalOut3` a `DigitalOut7` (SOL1 = D3). `DigitalOut1`, `2` y `8` sin asignar.
+**Relés (`DigitalOut1-8`, K1-K8):** las electroválvulas SOL1-SOL5 están en `DigitalOut2` a `DigitalOut6` (relés K2-K6, SOL1 = K2). `DigitalOut1`, `7` y `8` sin asignar.
 
 **Transistor (`TransistorOut1-8` = OUT01-OUT08 del conector J7):**
 
@@ -49,10 +49,12 @@ Cada entrada pasa por un divisor (10 kΩ en serie, 20 kΩ a masa) y un zener de 
 | --- | --- |
 | OUT08 | Acción de la bomba peristáltica del **feed unit** (N1 en el esquema) |
 | OUT07 | Acción de la bomba peristáltica del **heat unit** (N2) |
-| OUT05 y OUT06 | Sentido de giro: A = (1, 0), B = (0, 1). **Supuesto**: un único par para las dos bombas; no se sabe cuál es adelante y cuál atrás |
-| OUT01-OUT04 | Sin asignar |
+| OUT05 | Sentido de giro del **heat unit**: se invierte cambiando el valor de la salida (0/1) |
+| OUT06 | Sentido de giro del **feed unit**: igual que OUT05. **Supuesto**: no se sabe qué valor es adelante |
+| OUT04 | Resistencia de calefacción del heat unit (on/off), el pin junto a los de los motores |
+| OUT01-OUT03 | Sin asignar |
 
-**Sin hardware operativo todavía:** la velocidad de las bombas (PWM) y las resistencias de calentamiento (salidas analógicas por el MCP4728 de 0x60, que no responde). `PWM_GPIO_PIN` sigue en `None` en `runtime.py`.
+**Sin hardware operativo todavía:** la velocidad de las bombas (PWM; en el sinóptico, `PWMOut1` = feed unit y `PWMOut2` = heat unit, esta última supuesta) y la resistencia de calentamiento (salida analógica por el MCP4728 de 0x60, que no responde). Las dos resistencias de 120 V c.a. van en serie y forman una sola, alimentada a 230 V, regulada por ráfagas de 50 ciclos (100 % = 50 ciclos, 50 % = 25). En el sinóptico es `AnalogOut1`, canal supuesto. `PWM_GPIO_PIN` sigue en `None` en `runtime.py`.
 
 ## Interfaces web
 
@@ -61,7 +63,7 @@ El servicio `gateway-web` sirve dos páginas en el puerto 8080:
 | URL | Contenido |
 | --- | --- |
 | `/` | Vista de canales: entradas, salidas a relé, salidas a transistor y diagnóstico |
-| `/pct23` | Sinóptico del esquema de la planta, con panel de bombas (acción y sentido) |
+| `/pct23` | Sinóptico del esquema de la planta, con panel de bombas (acción y sentido de giro bajo cada bomba), resistencia de calefacción entre ambas y panel de electroválvulas SOL1-SOL5 |
 
 La asignación de canales del sinóptico está en la tabla `MAPA`, al principio del script de `pct23.html`.
 
@@ -73,7 +75,7 @@ La asignación de canales del sinóptico está en la tabla `MAPA`, al principio 
 
 ## Pendiente
 
-1. Confirmar qué sentido (A o B) gira hacia dónde, y si cada bomba tiene su propio sentido.
+1. Confirmar qué valor (0 o 1) de OUT05 y OUT06 gira hacia adelante.
 2. Comprobar el MCP4728 (0x60) para poder manejar las resistencias de calentamiento.
 3. Mapear el PWM de velocidad de las bombas, si la entrada lo admite.
 4. Decidir dónde dibujar T5 (no aparece en el esquema de la placa de la PCT23).
