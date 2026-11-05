@@ -56,14 +56,16 @@
     for(const valvula of ['SOL1','SOL2','SOL3','SOL4','SOL5','N1','N2']){
       marcar(`g-${valvula}`,estado.salidas[valvula]);
     }
-    todos('[data-bomba]').forEach(x=>x.classList.toggle('activo',estado.salidas[x.dataset.bomba]));
+    todos('.tubo[data-bomba]').forEach(x=>x.classList.toggle('activo',estado.salidas[x.dataset.bomba]));
+    // SOL1 reparte tras el tubo de residencia: solo se ilumina la rama por la que circula el producto.
+    todos('[data-ruta]').forEach(x=>x.classList.toggle('activo',estado.salidas.N1&&(x.dataset.ruta==='desvio')===estado.salidas.SOL1));
     todos('[data-solenoide]').forEach(x=>x.classList.toggle('activo',estado.salidas[x.dataset.solenoide]));
     todos('[data-circuito="frio"]').forEach(x=>x.classList.toggle('activo',estado.salidas.SOL3));
     todos('[data-circuito="colector-frio"]').forEach(x=>x.classList.toggle('activo',
       ['SOL3','SOL4','SOL5'].some(id=>estado.salidas[id])));
 
     // Sensores y niveles visuales. No se modifican coordenadas de depósitos ni sensores.
-    const maxAltura=98;
+    const maxAltura=136;   // interior del depósito dibujado: 100 % llena hasta arriba
     for(const [id,volumen] of [['A',estado.aMl],['B',estado.bMl]]){
       const alto=maxAltura*volumen/modelo.PARAMS.capacidadMl;
       $(`nivel-${id}`).setAttribute('y',String(208-alto));
@@ -74,6 +76,17 @@
     $('c-LL').classList.toggle('alarma',o.LL);
     $('c-LVLC').classList.remove('alarma');
     $('c-HLC').classList.remove('alarma');
+    // porcentaje de llenado de los depósitos (se refleja el consumo y el relleno)
+    for(const d of ['A','B']){
+      const sl=$(`llen-${d}`);
+      if(!sl)continue;
+      sl.disabled=estado.ejecutando;   // en marcha el nivel ya no se ajusta: solo se vacía o se rellena con el proceso
+      const pct=modelo.porcentajeLlenado(estado,d),ml=d==='B'?estado.bMl:estado.aMl;
+      if(document.activeElement!==sl)sl.value=String(Math.round(pct));
+      $(`ollen-${d}`).textContent=`${Math.round(pct)} %`;
+      const det=$(`dllen-${d}`);
+      if(det)det.textContent=`${nf.format(ml)} ml de ${modelo.PARAMS.capacidadMl}`+(d==='A'?` · L1 = ${nf.format(pct*2.5)} mm`:` · ${o.HL?'HL activo':o.LL?'LL activo':'entre LL y HL'}`);
+    }
 
     const calefaccion=estado.salidas.RES&&estado.consignas.R>0;
     $('c-PWR').classList.toggle('on',calefaccion);
@@ -115,6 +128,9 @@
     $('sim-B').textContent=`${nf.format(estado.bMl)} ml`;
     $('sim-finished').textContent=`${nf.format(estado.finalMl)} ml`;
     $('sim-diverted').textContent=`${nf.format(estado.desviadoMl)} ml`;
+    // contadores de producto: miden mientras circula producto, según SOL1 esté en salida normal o activada (desvío)
+    $('v-QF').textContent=`${nf.format(estado.finalMl)} ml`;
+    $('v-QD').textContent=`${nf.format(estado.desviadoMl)} ml`;
     $('sim-drain').textContent=`${c(estado.desagueMl/1000)} L`;
     $('sim-play').disabled=estado.ejecutando;
     $('sim-pause').disabled=!estado.ejecutando;
@@ -235,6 +251,12 @@
     $('controles').appendChild(pararTodo);
     $('sim-play').addEventListener('click',()=>{estado.ejecutando=true;registrar('Simulación iniciada');actualizar();});
     $('sim-pause').addEventListener('click',()=>{estado.ejecutando=false;registrar('Simulación pausada');actualizar();});
+    for(const d of ['A','B']){
+      const sl=$(`llen-${d}`);
+      if(!sl)continue;
+      sl.addEventListener('input',()=>{modelo.ponerLlenado(estado,d,Number(sl.value));actualizar();});
+      sl.addEventListener('change',()=>registrar(`Llenado del tanque ${d}: ${sl.value} %`));
+    }
     $('sim-reset').addEventListener('click',()=>{
       estado=modelo.crearEstado();hist.length=0;ultimoTiempoGrafica=-1;ultimoAviso='';
       for(const k of Object.keys(CONSIGNAS))consigna(k,estado.consignas[k]);

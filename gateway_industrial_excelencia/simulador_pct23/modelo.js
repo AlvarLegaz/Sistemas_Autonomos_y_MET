@@ -6,12 +6,16 @@
     ambiente: 22, capacidadMl: 2400, caudalN1MaxMlMin: 550,
     llenadoMlMin: 260, refrigeracionMlMin: 450,
     tauCalentadorS: 200, tauEnfriamientoS: 360, limiteTermicoC: 91,
+    deltaCalentadorC: 69,        // subida del agua caliente con el calefactor al 100 %
+    eficienciaIntercambio: 0.79, // fraccion del salto agua-producto que se transfiere
+    reduccionPorCaudal: 0.25,    // perdida de eficiencia al subir N1 al 100 %
+    acoplamientoCaudal: 0.15,    // calor que el producto en circulacion le quita al agua caliente (T2 baja al aumentar el caudal)
   });
   const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
   const OUTPUT_IDS=Object.freeze(['N1','N2','SOL1','SOL2','SOL3','SOL4','SOL5','RES']); // RES: resistencia de calefacción on/off (J7 OUT04), solo indicador
   function crearEstado() {
     return {
-      tiempo: 0, ejecutando: false, velocidad: 20,
+      tiempo: 0, ejecutando: false, velocidad: 1,
       salidas: Object.fromEntries(OUTPUT_IDS.map(id=>[id,false])),
       // giro: valor de OUT06 (N1) y OUT05 (N2); 0 = sentido de proceso (supuesto, sin confirmar).
       giro: {N1:false,N2:false}, consignas: {R:100,N1V:100,N2V:100},
@@ -36,6 +40,11 @@
     return s;
   }
   // Integración Euler suavizada en pasos de hasta 1 segundo para estabilidad.
+  /** Fraccion de calor que el producto en marcha le quita al agua caliente. fraccionCaudal: 0..1 del caudal maximo de N1. */
+  function factorAcoplamiento(n2Encendida,n1vPct,fraccionCaudal) {
+    const eficiencia=n2Encendida?(1-PARAMS.reduccionPorCaudal*n1vPct/100):0.08/PARAMS.eficienciaIntercambio;
+    return PARAMS.acoplamientoCaudal*clamp(fraccionCaudal,0,1)*eficiencia;
+  }
   function avanzar(s, segundos) {
     let pendientes=clamp(Number(segundos)||0,0,10000);
     while (pendientes>0) {
@@ -51,10 +60,14 @@
     const sol=s.salidas;
     // Las dos resistencias de 120 V van en serie (una sola a 230 V), por ráfagas de 50 ciclos: R % = R/100 de los ciclos.
     const r=s.salidas.RES?clamp(s.consignas.R/100,0,1):0;
-    const objetivoAgua=p.ambiente+69*r;
+    const objetivoAgua=p.ambiente+p.deltaCalentadorC*r;
     const temperaturaObjetivo=s.temperaturaCorte?p.ambiente:objetivoAgua;
     const tau=s.temperaturaCorte?p.tauEnfriamientoS:(r? p.tauCalentadorS:p.tauEnfriamientoS);
-    s.aguaCalienteC+=(temperaturaObjetivo-s.aguaCalienteC)*(1-Math.exp(-dt/tau));
+    // El producto que circula por el intercambiador le quita calor al agua caliente: con caudal el equilibrio de T2 baja
+    // y T2 se mueve algo mas deprisa. k es la fraccion de ese efecto (paso anterior: caudal ya calculado).
+    const k=factorAcoplamiento(s.salidas.N2,s.consignas.N1V,s.caudalProductoMlMin/p.caudalN1MaxMlMin);
+    const objetivoEfectivo=p.ambiente+(temperaturaObjetivo-p.ambiente)/(1+k);
+    s.aguaCalienteC+=(objetivoEfectivo-s.aguaCalienteC)*(1-Math.exp(-dt*(1+k)/tau));
     s.aguaCalienteC=clamp(s.aguaCalienteC,p.ambiente,97);
     // Termostato con histéresis; simulado, no sistema certificado de protección.
     if(s.aguaCalienteC>=p.limiteTermicoC) s.temperaturaCorte=true;
@@ -70,30 +83,40 @@
     const drenado=Math.min(volumen,nominal*dt/60);
     s.caudalProductoMlMin=(habilitada&&dt>0)?drenado/dt*60:0;
     s.vacio=habilitada && volumen<1;
-    if(elegidoB) s.bMl=Math.max(0,s.bMl-drenado);
-    else s.aMl=Math.max(0,s.aMl-drenado);
+    // Con SOL1 activa el producto rechazado vuelve al tanque de alimentacion (manual PCT23): el
+    // volumen recirculado se cuenta aparte y el tanque no baja. Con SOL1 normal sale como producto acabado.
     if(sol.SOL1) s.desviadoMl+=drenado;
-    else s.finalMl+=drenado;
+    else{
+      if(elegidoB) s.bMl=Math.max(0,s.bMl-drenado);
+      else s.aMl=Math.max(0,s.aMl-drenado);
+      s.finalMl+=drenado;
+    }
 
     // El frío circula si SOL3 está abierta; los ramales SOL4/SOL5 se ilustran por separado.
     s.caudalFrioMlMin=sol.SOL3?p.refrigeracionMlMin:0;
     s.desagueMl+=s.caudalFrioMlMin*dt/60;
-    s.t4=p.ambiente; // Mezcla/temperatura de entrada simplificada.
-    s.t5=p.ambiente; // Sonda separada de los circuitos en el esquema.
+    const entrada=p.ambiente; // el producto entra desde el tanque a temperatura ambiente
     if (s.caudalProductoMlMin>0) {
       // Ganancia térmica: circulación de N2 + diferencia con agua caliente.
-      const factorFlujo=1-0.25*(s.consignas.N1V/100);
-      const eficiencia=sol.N2 ? 0.79*factorFlujo : 0.08;
-      const objetivoProducto=s.t4+(s.aguaCalienteC-s.t4)*eficiencia;
+      const factorFlujo=1-p.reduccionPorCaudal*(s.consignas.N1V/100);
+      const eficiencia=sol.N2 ? p.eficienciaIntercambio*factorFlujo : 0.08;
+      const objetivoProducto=entrada+(s.aguaCalienteC-entrada)*eficiencia;
+      // T4 es el producto que sale de la sección de calentamiento (antes del filtro, F1 y el tubo de residencia):
+      // se adelanta a T1, que llega con el retraso del tubo de residencia.
+      s.t4+=(objetivoProducto-s.t4)*(1-Math.exp(-dt/8));
       s.t1+=(objetivoProducto-s.t1)*(1-Math.exp(-dt/20));
-      const recuperacion=0.22*(s.t1-s.t4);
+      const recuperacion=0.22*(s.t1-entrada);
       const enfriamiento=sol.SOL3?0.77:0.09;
-      const objetivoSalida=s.t4+(s.t1-s.t4-recuperacion)*(1-enfriamiento);
+      const objetivoSalida=entrada+(s.t1-entrada-recuperacion)*(1-enfriamiento);
       s.t3+=(objetivoSalida-s.t3)*(1-Math.exp(-dt/22));
     } else {
       s.t1+=(p.ambiente-s.t1)*(1-Math.exp(-dt/320));
       s.t3+=(p.ambiente-s.t3)*(1-Math.exp(-dt/200));
+      s.t4+=(p.ambiente-s.t4)*(1-Math.exp(-dt/320));
     }
+    s.t4=clamp(s.t4,p.ambiente,100);
+    // T5 está conectada a la sección de calentamiento: producto a mitad de camino entre la entrada y T4 (supuesto)
+    s.t5=p.ambiente+(s.t4-p.ambiente)*0.5;
     s.t1=clamp(s.t1,p.ambiente,100);
     s.t3=clamp(s.t3,p.ambiente,100);
   }
@@ -102,13 +125,22 @@
     return {
       T1:s.t1,T2:s.aguaCalienteC,T3:s.t3,T4:s.t4,T5:s.t5,
       F1:s.caudalProductoMlMin,L1:(s.aMl/p.capacidadMl)*250,
-      HL:s.bMl/p.capacidadMl>=0.90,
-      LL:s.bMl/p.capacidadMl<=0.15,
+      HL:s.bMl/p.capacidadMl>=0.80,
+      LL:s.bMl/p.capacidadMl<=0.20,
       TERM:s.temperaturaCorte,
       LVLC:false,HLC:false,
     };
   }
-  const api=Object.freeze({PARAMS,OUTPUT_IDS,crearEstado,activarEjemplo,avanzar,observaciones});
+  /** Fija el llenado de un depósito (A o B) como porcentaje de su capacidad. */
+  function ponerLlenado(s, deposito, porcentaje) {
+    const ml = clamp(Number(porcentaje) || 0, 0, 100) / 100 * PARAMS.capacidadMl;
+    if (deposito === 'B') s.bMl = ml; else s.aMl = ml;
+    return s;
+  }
+  function porcentajeLlenado(s, deposito) {
+    return (deposito === 'B' ? s.bMl : s.aMl) / PARAMS.capacidadMl * 100;
+  }
+  const api=Object.freeze({PARAMS,OUTPUT_IDS,crearEstado,activarEjemplo,avanzar,observaciones,ponerLlenado,porcentajeLlenado,factorAcoplamiento});
   if(typeof module!=='undefined'&&module.exports) module.exports=api;
   root.PCT23Modelo=api;
 })(typeof window!=='undefined'?window:globalThis);

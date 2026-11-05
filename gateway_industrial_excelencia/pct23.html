@@ -105,7 +105,7 @@
 
     <!-- CIRCUITO 3. Producto desde SOL1: paso inferior de calentamiento ->
          paso superior del enfriador -> T3 -> FINISHED PRODUCT. -->
-    <path class="tubo" data-bomba="N1"
+    <path class="tubo" data-ruta="normal"
           d="M468 80 H480 V296 H432 V346 H444 H459 V351 L481 365 H505 L527 351 V346 H546 H554 V322 H570 H585 V330 L607 344 H631 L653 330 V322 H672 V400 H970"/>
 
     <!-- Misma geometría del colector; se divide en tres paths para iluminar
@@ -124,13 +124,13 @@
          regeneracion/calefaccion y a la salida derecha del enfriador. -->
     <g aria-label="Cruces de tuberías independientes">
       <rect x="428" y="316" width="8" height="12" fill="var(--panel)"/>
-      <path class="tubo" data-bomba="N1" d="M432 314 V330"/>
+      <path class="tubo" data-ruta="normal" d="M432 314 V330"/>
       <rect x="668" y="340" width="8" height="12" fill="var(--panel)"/>
       <path class="tubo frio" data-circuito="frio" d="M662 346 H684"/>
     </g>
     <path class="tubo" data-bomba="N1" d="M865 262 V215 M815 210 V250 H850 M915 210 V250 H880 M800 210 V240"/>
-    <!-- toma de desvío independiente por SOL1, como en el panel real -->
-    <path class="tubo" d="M460 64 V30" />
+    <!-- toma de desvío independiente por SOL1, como en el panel real: con SOL1 activa se ilumina el desvío y se apaga el producto acabado -->
+    <path class="tubo" data-ruta="desvio" d="M460 64 V30" />
     <text x="521" y="24" class="lectura">DIVERTED PRODUCT <tspan font-size="17" font-weight="700">↑</tspan></text>
     <!-- ============ depósito de calor ============ -->
     <rect class="caja" x="30" y="40" width="110" height="130" rx="4"/>
@@ -407,13 +407,18 @@ function pintar(s) {
   if (!d) return;
 
   for (const [el, canal] of Object.entries(MAPA.salidas)) marcar(`g-${el}`, !!d[canal]);
-  document.querySelectorAll('[data-bomba]').forEach(t => {
+  document.querySelectorAll('.tubo[data-bomba]').forEach(t => {
     t.classList.toggle('activo', !!d[MAPA.salidas[t.dataset.bomba]]);
   });
   // Refrigeración: SOL3 ilumina su recorrido; SOL4 y SOL5 iluminan
   // por separado cada ramal superior. El colector común se activa si
   // cualquiera de las tres electroválvulas publica estado abierto.
   // Es una indicación de salida, no una medida del caudal de agua.
+  // Tras el tubo de residencia SOL1 reparte: normal -> producto acabado; activa -> desvio. Solo se ilumina la rama por la que circula.
+  const n1 = !!d[MAPA.salidas.N1], desvio = !!d[MAPA.salidas.SOL1];
+  document.querySelectorAll('[data-ruta]').forEach(t => {
+    t.classList.toggle('activo', n1 && (t.dataset.ruta === 'desvio') === desvio);
+  });
   document.querySelectorAll('[data-circuito="frio"]').forEach(t => {
     t.classList.toggle('activo', !!d[MAPA.salidas.SOL3]);
   });
