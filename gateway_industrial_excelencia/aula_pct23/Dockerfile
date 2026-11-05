@@ -34,4 +34,4 @@ HEALTHCHECK --interval=30s --timeout=4s --start-period=10s --retries=3 \
   CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/salud', timeout=3).status == 200 else 1)"
 
 # Un solo proceso con varios hilos: el bloqueo por intentos fallidos vive en memoria.
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "1", "--threads", "8", "--access-logfile", "-", "app:crear_app()"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "1", "--threads", "8", "--no-control-socket", "--access-logfile", "-", "app:crear_app()"]

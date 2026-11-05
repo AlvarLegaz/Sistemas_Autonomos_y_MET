@@ -55,6 +55,7 @@ services:
       - SETGID
       - SETUID
       - NET_BIND_SERVICE
+      - DAC_READ_SEARCH      # solo lectura: leer certs/aula.key (600, de otro usuario) sin abrir permisos en el servidor
     security_opt:
       - no-new-privileges:true
 
