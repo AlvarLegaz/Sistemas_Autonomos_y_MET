@@ -358,7 +358,10 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
       <rect x="668" y="340" width="8" height="12" fill="var(--panel)"/>
       <path class="tubo frio" data-circuito="frio" d="M662 346 H684"/>
     </g>
-    <path class="tubo" data-bomba="N1" d="M865 262 V215 M815 210 V250 H850 M915 210 V250 H880 M800 210 V240"/>
+    <path class="tubo" data-bomba="N1" d="M865 262 V215 M800 210 V240"/>
+    <!-- SOL2 reparte entre los dos depósitos: activa -> tubería del depósito A; sin activar -> la del depósito B -->
+    <path class="tubo" data-sol2="B" d="M815 210 V250 H850"/>
+    <path class="tubo" data-sol2="A" d="M915 210 V250 H880"/>
     <!-- toma de desvío independiente por SOL1, como en el panel real: con SOL1 activa se ilumina el desvío y se apaga el producto acabado -->
     <path class="tubo" data-ruta="desvio" d="M460 64 V30" />
     <text x="521" y="24" class="lectura">DIVERTED PRODUCT <tspan font-size="17" font-weight="700">↑</tspan></text>
@@ -696,6 +699,10 @@ function pintar(s) {
   });
   document.querySelectorAll('[data-solenoide]').forEach(t => {
     t.classList.toggle('activo', !!d[MAPA.salidas[t.dataset.solenoide]]);
+  });
+  const sol2 = !!d[MAPA.salidas.SOL2];
+  document.querySelectorAll('[data-sol2]').forEach(t => {
+    t.classList.toggle('activo', (t.dataset.sol2 === 'A') === sol2);
   });
   document.querySelectorAll('[data-circuito="colector-frio"]').forEach(t => {
     t.classList.toggle('activo', ['SOL3', 'SOL4', 'SOL5'].some(id => !!d[MAPA.salidas[id]]));
