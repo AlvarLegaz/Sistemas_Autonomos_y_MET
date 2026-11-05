@@ -71,7 +71,7 @@ El servicio `gateway-web` sirve dos páginas en el puerto 8080:
 | URL | Contenido |
 | --- | --- |
 | `/` | Vista de canales: entradas, salidas a relé, salidas a transistor y diagnóstico |
-| `/pct23` | Sinóptico del esquema de la planta, con panel de bombas (acción y sentido de giro bajo cada bomba), resistencia de calefacción entre ambas y panel de electroválvulas SOL1-SOL5 |
+| `/pct23` | SCADA de la planta: esquema con las lecturas en vivo, barra superior con el estado de la conexión (broker, gateway y E/S) y el botón **Parar todo** siempre a la vista (en móvil, abajo), aviso si se pierde la conexión o salta el termostato, y columna lateral con pestañas *Controles* (bombas, calefacción y electroválvulas SOL1-SOL5) y *Lecturas* (T1-T5, F1, L1 y entradas de protección). Mismo diseño que el simulador, en claro u oscuro según el sistema |
 
 La asignación de canales del sinóptico está en la tabla `MAPA`, al principio del script de `pct23.html`.
 

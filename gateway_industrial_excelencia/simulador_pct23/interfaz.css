@@ -259,3 +259,13 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
 .opcion ul { margin: 0; padding-left: 18px; color: var(--tenue); }
 .opcion .entrar { margin-top: auto; padding-top: 10px; font-weight: 700; color: var(--acento); }
 @media (max-width: 720px) { .opcion { border-left: 0; border-top: 1px solid var(--borde); } .opcion:first-child { border-top: 0; } }
+
+/* electroválvulas bajo el esquema (modo manual) */
+.grupo-valvulas { padding: 14px 0 0; border-top: 0; }
+.grupo-valvulas > h2 { margin: 0 0 8px; }
+.grupo-valvulas #tarjetas-valvulas { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-top: 0; }
+.grupo-valvulas .fila-botones { margin-top: 10px; }
+@media (max-width: 960px) {
+  .grupo-valvulas { order: 2; padding: 14px; background: var(--panel); margin-top: 12px; }
+  #p-controles { order: 5; background: var(--panel); margin-top: 14px; }
+}

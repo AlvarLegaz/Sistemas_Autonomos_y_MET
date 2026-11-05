@@ -3,92 +3,322 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PCT23 Sinóptico</title>
+<title>PCT23 · SCADA</title>
 <style>
+/* PCT23 · interfaz.
+   Lenguaje de sala de control: fondo neutro y el color solo para decir el estado (producto, calor, frío, alarma).
+   La pieza que manda es la pista de fases de la barra superior; el resto se mantiene callado. */
+
+:root {
+  --fondo: #E2E7EB; --panel: #F5F7F8; --texto: #16202A; --tenue: #56636F; --borde: #BAC4CC;
+  --acento: #0B5CAD; --sobre-acento: #FFFFFF;
+  --ok: #1A7F4B; --error: #C0262D; --aviso: #9A5B00; --apagado: #9AA6B1;
+  --tubo: #6A7886; --agua: #1F78B4; --caliente: #D9480F; --frio: #14877F;
+  --fuente: Bahnschrift, "DIN Alternate", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --alto-barra: 76px;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
   :root {
-    --fondo: #f4f5f7; --panel: #ffffff; --texto: #1b1f24; --tenue: #6b7380; --borde: #dde1e6;
-    --ok: #2e9e44; --error: #c62828; --aviso: #d99100; --apagado: #9aa1ab; --acento: #1565c0;
-    --tubo: #3a3f47; --agua: #4aa3df; --caliente: #e8590c; --frio: #1ba8a0;
+    --fondo: #0F1418; --panel: #182027; --texto: #E8EDF1; --tenue: #9AA7B2; --borde: #34414B;
+    --acento: #5AA7F5; --sobre-acento: #08121C;
+    --ok: #4CC28A; --error: #F0605F; --aviso: #E0A33A; --apagado: #5B6874;
+    --tubo: #8FA0AE; --agua: #4AA3DF; --caliente: #FF8A3D; --frio: #29C1BA;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --fondo: #14171b; --panel: #1d2127; --texto: #e6e9ed; --tenue: #98a1ad; --borde: #2f353d;
-      --ok: #4cc264; --error: #ef5350; --aviso: #f2b134; --apagado: #646c77; --acento: #64a8f5;
-      --tubo: #8a93a0; --agua: #4aa3df; --caliente: #ff8a3d; --frio: #29c1ba;
-    }
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--fondo); color: var(--texto);
-         font: 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  main { max-width: 1100px; margin: 0 auto; padding: 16px; }
-  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; margin-bottom: 10px; }
-  h1 { font-size: 20px; margin: 0; }
-  header a { color: var(--acento); font-size: 14px; }
-  .estado { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
-          background: var(--panel); border: 1px solid var(--borde); font-size: 13px; }
-  .punto { width: 9px; height: 9px; border-radius: 50%; background: var(--apagado); }
-  .ok .punto { background: var(--ok); } .error .punto { background: var(--error); }
-  .aviso .punto { background: var(--aviso); }
-  .lienzo { background: var(--panel); border: 1px solid var(--borde); border-radius: 10px; padding: 8px; }
-  svg { width: 100%; height: auto; display: block; }
-  svg text { fill: var(--texto); font: 12px system-ui, sans-serif; }
-  .tubo { fill: none; stroke: var(--tubo); stroke-width: 3; stroke-linejoin: round; }
-  .tubo.activo { stroke: var(--agua); stroke-width: 3.6; filter: drop-shadow(0 0 2px var(--agua)); }
-  .tubo.caliente.activo { stroke: var(--caliente); filter: drop-shadow(0 0 2px var(--caliente)); }
-  .tubo.frio.activo { stroke: var(--frio); filter: drop-shadow(0 0 2px var(--frio)); }
-  .caja { fill: none; stroke: var(--tubo); stroke-width: 2.5; }
-  .liquido { fill: var(--agua); opacity: .45; }
-  .instr { fill: var(--panel); stroke: var(--tubo); stroke-width: 2; }
-  .instr.on { fill: var(--ok); stroke: var(--ok); }
-  .instr.alarma { fill: var(--error); stroke: var(--error); }
-  .etiqueta { font-weight: 600; text-anchor: middle; }
-  .lectura { font-size: 11px; text-anchor: middle; fill: var(--tenue) !important; font-variant-numeric: tabular-nums; }
-  .valvula { fill: var(--apagado); stroke: var(--tubo); stroke-width: 1.5; }
-  .valvula.on { fill: var(--ok); }
-  .manual { fill: var(--panel); stroke: var(--tubo); stroke-width: 1.5; }
-  .accion { cursor: pointer; }
-  .accion:hover .valvula, .accion:hover .instr { stroke: var(--acento); stroke-width: 3; }
-  .accion.bloqueado { cursor: not-allowed; opacity: .6; }
-  .controles { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 12px; }
-  .controles label { font-weight: 600; }
-  .controles input[type=range] { flex: 1; min-width: 180px; }
-  .controles output { width: 56px; text-align: right; font-variant-numeric: tabular-nums; }
-  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--borde);
-           background: var(--fondo); color: var(--texto); padding: 8px 14px; }
-  .panel { background: var(--panel); border: 1px solid var(--borde); border-radius: 10px; padding: 14px; margin-top: 12px; }
-  .panel h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--tenue); margin: 0 0 10px; }
-  .tarjetas { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
-  .tarjeta { border: 1px solid var(--borde); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
-  .tarjeta h3 { margin: 0; font-size: 16px; }
-  .tarjeta small { color: var(--tenue); }
-  .estado-bomba { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
-  .grande { padding: 14px 6px; font-size: 16px; font-weight: 600; }
-  .grande.on { background: var(--ok); border-color: var(--ok); color: #fff; }
-  .tarjeta .consigna { display: flex; flex-direction: column; gap: 4px; }
-  .tarjeta .consigna label { font-weight: 600; font-size: 13px; }
-  .tarjeta .consigna .fila { display: flex; align-items: center; gap: 10px; }
-  .tarjeta .consigna input[type=range] { flex: 1; min-width: 0; }
-  .tarjeta .consigna output { min-width: 44px; text-align: right; }
-  .opciones { display: grid; gap: 6px; }
-  .tarjeta .sentido { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--borde); }
-  .opciones button.sel { background: var(--acento); border-color: var(--acento); color: #fff; }
-  p.nota { color: var(--tenue); font-size: 13px; margin: 10px 0 0; }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--fondo); color: var(--texto); font: 15px/1.45 var(--fuente); font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
+button, select, input { font: inherit; color: inherit; }
+a { color: var(--acento); }
+
+/* ---------- cabecera ---------- */
+.cab { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 22px; padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--borde); }
+.cab h1 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: .01em; }
+.modos { display: flex; gap: 2px; padding: 3px; background: var(--fondo); border-radius: 8px; }
+.modos a { padding: 6px 14px; border-radius: 6px; color: var(--tenue); text-decoration: none; font-weight: 600; }
+.modos a:hover { color: var(--texto); }
+.modos a[aria-current="page"] { background: var(--panel); color: var(--texto); box-shadow: 0 0 0 1px var(--borde); }
+.cab .etiqueta-demo { display: none; }
+
+/* ---------- barra de operación fija ---------- */
+.barra { position: sticky; top: 0; z-index: 20; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px 22px;
+         padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--borde); }
+.acciones { display: flex; align-items: center; gap: 8px; min-width: 300px; }
+.btn, .acciones button, .velocidad button, .mas summary, #b-reconocer { min-height: 40px; padding: 0 16px; border-radius: 6px; border: 1px solid var(--borde); background: var(--panel); font-weight: 600; cursor: pointer; }
+.acciones button:hover:not(:disabled) { border-color: var(--acento); }
+.acciones button:disabled { display: none; }
+#b-iniciar { background: var(--acento); border-color: var(--acento); color: var(--sobre-acento); min-width: 150px; }
+#b-emergencia { background: var(--error); border-color: var(--error); color: #fff; margin-left: 10px; }
+
+/* pista de fases: la pieza que se recuerda */
+.pista { min-width: 0; }
+#fases { display: flex; list-style: none; margin: 0; padding: 0; counter-reset: none; }
+#fases li { flex: 1 1 0; min-width: 0; margin-left: -8px; padding: 0 14px 0 18px; height: 30px; display: flex; align-items: center; justify-content: center;
+            font-size: 12.5px; font-weight: 600; color: var(--tenue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            background: var(--fondo); border: 0; border-radius: 0;
+            clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 12px 50%); }
+#fases li:first-child { margin-left: 0; padding-left: 14px; clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%); }
+#fases li::before { content: none; }
+#fases li.hecha { background: color-mix(in srgb, var(--ok) 24%, var(--panel)); color: var(--ok); }
+#fases li.actual { background: var(--acento); color: var(--sobre-acento); }
+#fases li.actual.hecha { background: var(--acento); color: var(--sobre-acento); }
+body[data-estado="marcha"] #fases li.actual {
+  background: repeating-linear-gradient(115deg, var(--acento) 0 14px, color-mix(in srgb, var(--acento) 80%, #fff) 14px 28px);
+  background-size: 200% 100%; animation: avance 1.6s linear infinite; }
+body[data-estado="marcha"] #fases li.actual[style*="--avance"] {
+  animation: none; background: linear-gradient(90deg, var(--acento) calc(var(--avance) * 1%), color-mix(in srgb, var(--acento) 38%, var(--panel)) 0);
+  color: var(--texto); }
+body[data-estado="alarma"] #fases li.actual { background: var(--error); color: #fff; animation: none; }
+body[data-estado="fin"] #fases li.actual { background: var(--ok); color: #fff; }
+@keyframes avance { to { background-position: 28px 0; } }
+.pista-estado { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin: 6px 0 0; font-size: 14px; color: var(--tenue); }
+.pista-estado b { font-size: 16px; color: var(--texto); }
+
+.derecha { display: flex; align-items: center; gap: 10px; }
+.velocidad { display: inline-flex; border: 1px solid var(--borde); border-radius: 6px; overflow: hidden; }
+.velocidad button { border: 0; border-radius: 0; min-height: 38px; padding: 0 12px; background: var(--panel); }
+.velocidad button + button { border-left: 1px solid var(--borde); }
+.velocidad button[aria-pressed="true"] { background: var(--texto); color: var(--panel); }
+.velocidad-select { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.mas { position: relative; }
+.mas summary { list-style: none; display: inline-flex; align-items: center; }
+.mas summary::-webkit-details-marker { display: none; }
+.mas-menu { position: absolute; right: 0; top: 46px; z-index: 30; display: grid; gap: 6px; min-width: 190px; padding: 10px; background: var(--panel); border: 1px solid var(--borde); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.2); }
+.mas-menu button { min-height: 38px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--borde); background: var(--panel); text-align: left; cursor: pointer; }
+.mas-menu button:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ---------- alarma ---------- */
+#alarma-caja { position: sticky; top: var(--alto-barra); z-index: 19; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 18px; padding: 10px 20px; background: var(--error); color: #fff; }
+#alarma-causa { font-weight: 700; }
+#alarma-accion { flex: 1 1 280px; }
+#b-reconocer { background: #fff; color: var(--error); border-color: #fff; }
+#b-reconocer:disabled { opacity: .5; }
+
+/* ---------- cuerpo ---------- */
+.cuerpo { display: grid; grid-template-columns: minmax(0, 1fr) 390px; max-width: 1560px; margin: 0 auto; align-items: start; }
+.escena { padding: 18px 20px 28px; min-width: 0; }
+.lateral { position: sticky; top: var(--alto-barra); max-height: calc(100vh - var(--alto-barra)); overflow: auto; background: var(--panel); border-left: 1px solid var(--borde); }
+.lateral section { border-top: 1px solid var(--borde); }
+.lateral section:first-child { border-top: 0; }
+
+.lienzo { background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; padding: 8px; overflow-x: auto; }
+.lienzo svg { display: block; width: 100%; height: auto; min-width: 720px; }
+.pie-sim { margin: 8px 2px 0; font-size: 12.5px; color: var(--tenue); }
+
+/* esquema */
+svg text { fill: var(--texto); font: 12px var(--fuente); }
+.tubo { fill: none; stroke: var(--tubo); stroke-width: 3; stroke-linejoin: round; }
+.tubo.activo { stroke: var(--agua); stroke-width: 3.6; }
+.tubo.caliente.activo { stroke: var(--caliente); }
+.tubo.frio.activo { stroke: var(--frio); }
+.caja { fill: none; stroke: var(--tubo); stroke-width: 2.5; }
+.liquido { fill: var(--agua); opacity: .4; }
+.instr { fill: var(--panel); stroke: var(--tubo); stroke-width: 2; }
+.instr.on { fill: var(--ok); stroke: var(--ok); }
+.instr.alarma { fill: var(--error); stroke: var(--error); }
+.etiqueta { font-weight: 700; text-anchor: middle; }
+.lectura { font-size: 11.5px; text-anchor: middle; fill: var(--tenue) !important; font-variant-numeric: tabular-nums; }
+.valvula { fill: var(--apagado); stroke: var(--tubo); stroke-width: 1.5; }
+.valvula.on { fill: var(--ok); }
+.manual { fill: var(--panel); stroke: var(--tubo); stroke-width: 1.5; }
+.accion { cursor: default; }
+
+/* ---------- lateral: lecturas ---------- */
+.term { padding: 14px 20px 12px; }
+.term-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.term-nombre { font-size: 13.5px; color: var(--tenue); }
+.term-valor { font-size: 34px; font-weight: 700; line-height: 1; }
+.term-valor small { margin-left: 3px; font-size: 15px; font-weight: 600; color: var(--tenue); }
+.term-barra { position: relative; height: 8px; margin: 10px 0 6px; background: var(--fondo); border-radius: 4px; }
+.term-relleno { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--color, var(--agua)); transition: width .25s linear; }
+.term-marca { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--texto); }
+.term-pie { margin: 0; min-height: 1.3em; font-size: 12.5px; color: var(--tenue); }
+
+.bloque { padding: 14px 20px; }
+.bloque h2 { margin: 0 0 8px; font-size: 15px; font-weight: 700; }
+.cifra { font-size: 30px; font-weight: 700; line-height: 1.1; }
+.cifra small { font-size: 14px; font-weight: 600; color: var(--tenue); }
+.barra-llenado { height: 8px; margin: 8px 0 6px; background: var(--fondo); border-radius: 4px; overflow: hidden; }
+.barra-llenado i { display: block; height: 100%; background: var(--agua); transition: width .25s linear; }
+.pares { display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; margin: 8px 0 0; font-size: 14px; }
+.pares dt { color: var(--tenue); } .pares dd { margin: 0; font-weight: 600; text-align: right; }
+.estados { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 10px 20px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--tenue); }
+.punto { width: 9px; height: 9px; border-radius: 50%; background: var(--apagado); }
+.chip.ok .punto { background: var(--ok); } .chip.error .punto { background: var(--error); } .chip.aviso .punto { background: var(--aviso); }
+
+/* ---------- lateral: pestañas ---------- */
+.pestanas { position: sticky; top: 0; z-index: 3; display: flex; background: var(--panel); border-bottom: 1px solid var(--borde); padding: 0 12px; }
+.pestanas button { border: 0; background: none; padding: 13px 12px; font-size: 15px; margin-bottom: -1px; font-weight: 600; color: var(--tenue); border-bottom: 3px solid transparent; cursor: pointer; }
+.pestanas button[aria-selected="true"] { color: var(--texto); border-bottom-color: var(--acento); }
+.panel-pestana { padding: 6px 20px 20px; }
+fieldset { margin: 14px 0 0; padding: 0; border: 0; }
+legend { padding: 0; margin-bottom: 6px; font-weight: 700; font-size: 14px; }
+.campo, .cfg label { display: block; margin: 10px 0 0; font-size: 14px; }
+.campo > span:first-child { display: block; margin-bottom: 3px; }
+.fila { display: flex; align-items: center; gap: 10px; }
+.fila input[type="range"] { flex: 1; min-width: 0; accent-color: var(--acento); }
+.fila output { min-width: 4.5em; text-align: right; font-weight: 600; }
+select { width: 100%; min-height: 38px; padding: 6px 8px; background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; }
+.sec-aviso { margin: 8px 0 0; font-size: 13px; color: var(--tenue); }
+.sec-aviso.mal { color: var(--error); font-weight: 600; }
+details.avanzado { margin-top: 16px; border-top: 1px solid var(--borde); padding-top: 10px; }
+details.avanzado summary { cursor: pointer; font-weight: 700; }
+
+.grafica { display: block; width: 100%; height: 230px; background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; }
+.leyenda { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 18px 0 8px; font-size: 13px; color: var(--tenue); }
+.leyenda i { display: inline-block; width: 18px; height: 3px; margin-right: 6px; vertical-align: middle; }
+.registros { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow: auto; font-size: 13px; }
+.registros li { padding: 7px 0; border-top: 1px solid var(--borde); }
+.registros li:first-child { border-top: 0; }
+.nota { margin: 18px 0 0; font-size: 12.5px; color: var(--tenue); max-width: 70ch; }
+
+/* ---------- móvil ---------- */
+@media (max-width: 960px) {
+  :root { --alto-barra: 0px; }
+  /* los bloques de la columna lateral y de la escena se reordenan: primero cómo va la planta, luego el esquema */
+  .cuerpo { display: flex; flex-direction: column; align-items: stretch; }
+  .escena, .lateral { display: contents; }
+  .pestanas { display: none; }
+  #p-lecturas[hidden], #p-ajustes[hidden], #p-registro[hidden] { display: block !important; }
+  .lienzo { order: 1; margin: 12px 12px 0; } #ayuda-pista { order: 2; margin: 8px 14px 0; }
+  .leyenda { order: 3; margin: 16px 14px 8px; } .grafica { order: 4; width: calc(100% - 24px); margin: 0 12px; }
+  #p-ajustes { order: 5; } #p-lecturas { order: 6; } #p-registro { order: 7; } .nota { order: 8; margin: 18px 14px 0; }
+  #p-ajustes, #p-lecturas, #p-registro { background: var(--panel); margin-top: 14px; }
+  .barra { position: static; grid-template-columns: minmax(0, 1fr); padding: 10px 12px; }
+  .derecha { justify-content: space-between; }
+  .acciones { position: fixed; z-index: 40; left: 0; right: 0; bottom: 0; min-width: 0; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); background: var(--panel); border-top: 1px solid var(--borde); box-shadow: 0 -6px 18px rgba(0,0,0,.12); }
+  .acciones button { flex: 1 1 0; padding: 0 8px; }
+  #b-emergencia { margin-left: 0; flex: 0 0 auto; }
+  body { padding-bottom: 70px; }
+  #alarma-caja { position: static; padding: 10px 12px; }
+  .cab { padding: 10px 12px; }
+  .term { padding: 12px 14px 10px; } .term-valor { font-size: 28px; } .bloque { padding: 14px; } .estados { padding: 10px 14px; }
+  /* pista: solo la fase actual lleva texto; las demás son tramos de color */
+  #fases li { font-size: 0; padding: 0 8px 0 12px; }
+  #fases li.actual { flex: 3 1 0; font-size: 12.5px; }
+  .pie-sim::after { content: " Desliza el esquema para verlo entero."; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-estado="marcha"] #fases li.actual { animation: none; }
+  .term-relleno, .barra-llenado i { transition: none; }
+}
+
+/* demostración / automático: lo que se ve en cada modo */
+body[data-demo="1"] [data-solo="auto"] { display: none; }
+body:not([data-demo="1"]) [data-solo="demo"] { display: none; }
+output[data-u]::after { content: attr(data-u); font-weight: 400; color: var(--tenue); }
+
+#chip-fase { display: none; }
+
+/* lo que hay que hacer cuando la planta está parada */
+body[data-estado="reposo"] .pista-estado #fase-motivo, body[data-estado="fin"] .pista-estado #fase-motivo { color: var(--texto); font-weight: 600; }
+
+/* ---------- cabecera ---------- */
+.cab h1 a { color: inherit; text-decoration: none; }
+
+/* ---------- modo manual ---------- */
+.estado-manual { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; color: var(--tenue); font-size: 14px; }
+.estado-manual b { font-size: 28px; line-height: 1.1; color: var(--texto); font-weight: 700; }
+.estado-manual #sim-status { flex: 1 1 240px; min-width: 0; }
+.grupo { padding: 2px 20px 16px; border-top: 1px solid var(--borde); }
+.grupo:first-child { border-top: 0; }
+.grupo > h2 { margin: 14px 0 2px; font-size: 15px; }
+.tarjetas { display: grid; }
+.tarjeta { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-top: 1px solid var(--borde); }
+.tarjetas > .tarjeta:first-child { border-top: 0; }
+.tarjeta h3 { margin: 0; font-size: 15px; }
+.tarjeta small { color: var(--tenue); font-size: 12.5px; }
+.estado-bomba { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--tenue); }
+.estado-bomba.ok { color: var(--ok); font-weight: 600; }
+.estado-bomba.ok .punto { background: var(--ok); }
+button.grande, .btn-sentido { width: 100%; min-height: 40px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--borde); background: var(--panel); font-weight: 600; cursor: pointer; }
+button.grande:hover:not(:disabled), .btn-sentido:hover { border-color: var(--acento); }
+button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; }
+.btn-sentido.sel { background: var(--acento); border-color: var(--acento); color: var(--sobre-acento); }
+.sentido { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px dashed var(--borde); }
+.consigna { display: flex; flex-direction: column; gap: 4px; }
+.consigna label { font-weight: 600; font-size: 14px; }
+.consigna output { min-width: 4.5em; text-align: right; font-weight: 600; }
+.consigna .fila input { flex: 1; min-width: 0; accent-color: var(--acento); }
+#tarjetas-valvulas { grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+#tarjetas-valvulas .tarjeta { padding: 10px; border: 1px solid var(--borde); border-radius: 6px; }
+.fila-botones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.fila-botones button { min-height: 38px; padding: 0 14px; border-radius: 6px; border: 1px solid var(--borde); background: var(--panel); font-weight: 600; cursor: pointer; }
+#sim-play { background: var(--acento); border-color: var(--acento); color: var(--sobre-acento); min-width: 150px; }
+#sim-stop-all { border-color: var(--error); color: var(--error); }
+#sim-stop-all:hover { background: color-mix(in srgb, var(--error) 10%, var(--panel)); }
+#controles { display: contents; }
+
+/* ---------- inicio ---------- */
+.inicio { max-width: 1040px; margin: 0 auto; padding: 36px 20px 48px; }
+.inicio h1 { margin: 0 0 6px; font-size: 30px; }
+.inicio .intro { margin: 0 0 28px; max-width: 62ch; color: var(--tenue); font-size: 16px; }
+.opciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 0; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); overflow: hidden; }
+.opcion { display: flex; flex-direction: column; gap: 10px; padding: 24px; color: var(--texto); text-decoration: none; border-left: 1px solid var(--borde); }
+.opcion:first-child { border-left: 0; }
+.opcion:hover, .opcion:focus-visible { background: color-mix(in srgb, var(--acento) 8%, var(--panel)); outline-offset: -3px; }
+.opcion h2 { margin: 0; font-size: 21px; }
+.opcion p { margin: 0; color: var(--tenue); }
+.opcion ul { margin: 0; padding-left: 18px; color: var(--tenue); }
+.opcion .entrar { margin-top: auto; padding-top: 10px; font-weight: 700; color: var(--acento); }
+@media (max-width: 720px) { .opcion { border-left: 0; border-top: 1px solid var(--borde); } .opcion:first-child { border-top: 0; } }
+
+/* ---------- SCADA real ---------- */
+.cab .enlace-canales { margin-left: auto; }
+.estado-planta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; min-width: 0; }
+.estado-planta .chip { font-size: 14px; color: var(--texto); }
+.estado-planta .chip.ok { color: var(--texto); }
+#parar-todo { min-height: 44px; padding: 0 22px; border-radius: 6px; font-weight: 700; cursor: pointer; background: var(--error); border: 1px solid var(--error); color: #fff; }
+#parar-todo:hover { filter: brightness(1.08); }
+.accion.bloqueado { cursor: not-allowed; opacity: .6; }
+.accion { cursor: pointer; }
+.accion:hover .valvula, .accion:hover .instr { stroke: var(--acento); stroke-width: 3; }
+.aviso-real { padding: 8px 20px; }
+.lista-digitales dd.alarma { color: var(--error); }
+.grupo-valvulas { padding: 14px 0 0; border-top: 0; }
+.grupo-valvulas > h2 { margin: 0 0 8px; }
+.grupo-valvulas #tarjetas-valvulas { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-top: 0; }
+.grupo-valvulas .fila-botones { margin-top: 10px; }
+@media (max-width: 960px) {
+  #p-controles[hidden] { display: block !important; }
+  .grupo-valvulas { order: 2; padding: 14px; background: var(--panel); margin-top: 12px; }
+  #p-controles { order: 5; background: var(--panel); margin-top: 14px; }
+  #p-lecturas { order: 6; }
+  .estado-planta { gap: 4px 14px; }
+  #parar-todo { min-height: 46px; flex: 1 1 auto; }
+}
+
 </style>
 </head>
 <body>
-<main>
-  <header>
-    <h1>PCT23 · Process Plant Trainer</h1>
-    <a href="/">Vista de canales</a>
-  </header>
-  <div class="estado">
-    <span class="chip" id="chip-broker"><i class="punto"></i><span>Broker: conectando…</span></span>
-    <span class="chip" id="chip-gateway"><i class="punto"></i><span>Gateway: sin datos</span></span>
-    <span class="chip" id="chip-io"><i class="punto"></i><span>E/S: —</span></span>
+<header class="cab">
+  <h1>PCT23</h1>
+  <span class="seccion">SCADA de la planta</span>
+  <a class="enlace-canales" href="/">Vista de canales</a>
+</header>
+
+<div class="barra" role="region" aria-label="Estado y paro de la planta">
+  <div class="acciones"><div id="controles"></div></div>
+  <div class="pista">
+    <div class="estado-planta" aria-live="polite">
+      <span class="chip" id="chip-broker"><i class="punto"></i><span>Broker: conectando…</span></span>
+      <span class="chip" id="chip-gateway"><i class="punto"></i><span>Gateway: sin datos</span></span>
+      <span class="chip" id="chip-io"><i class="punto"></i><span>E/S: —</span></span>
+    </div>
   </div>
-  <div class="lienzo">
-  <svg viewBox="0 0 1000 480" role="img" aria-label="Esquema de la planta PCT23">
+  <div class="derecha"></div>
+</div>
+
+<div id="alarma-caja" role="alert" hidden><strong id="alarma-causa"></strong><span id="alarma-accion"></span></div>
+
+<div class="cuerpo">
+  <main class="escena">
+    <div class="lienzo">
+<svg viewBox="0 0 1000 480" role="img" aria-label="Esquema de la planta PCT23">
     <!-- ============ tuberías ============ -->
     <!-- CIRCUITO 1. Agua caliente: N2 -> paso inferior del regenerador -> HEAT UNIT.
          La ida (y=346) y el retorno inferior (y=384) no comparten nodos
@@ -157,8 +387,10 @@
     <text x="370" y="140" class="etiqueta">HOLDING TUBE</text>
     <g><circle class="instr" cx="330" cy="45" r="15"/><text x="330" y="49" class="etiqueta">T1</text>
        <text x="330" y="22" class="lectura" id="v-T1">—</text><line x1="330" y1="60" x2="330" y2="78" class="tubo"/></g>
-    <g><circle class="instr" cx="657" cy="108" r="15"/><text x="657" y="112" class="etiqueta">T5</text>
-       <text x="657" y="86" class="lectura" id="v-T5">—</text><text x="657" y="141" class="lectura">MEASURE PROBE</text></g>
+    <!-- T5 conectada a la sección de calentamiento del intercambiador (el manual permite colocarla en cualquier conector) -->
+    <g><line x1="513" y1="288" x2="513" y2="309" class="tubo"/>
+       <circle class="instr" cx="513" cy="275" r="13"/><text x="513" y="279" class="etiqueta">T5</text>
+       <text x="513" y="257" class="lectura" id="v-T5">—</text></g>
     <g class="accion" id="g-SOL1" data-salida="SOL1">
        <path class="valvula" d="M446 68 L460 80 L446 92 Z M474 68 L460 80 L474 92 Z"/>
        <text x="500" y="66" class="etiqueta">SOL1</text><text x="500" y="52" class="lectura">desvío</text></g>
@@ -215,35 +447,73 @@
        <circle class="instr" cx="975" cy="170" r="13"/><text x="975" y="174" class="etiqueta">L1</text>
        <text x="962" y="196" class="lectura" id="v-L1">—</text></g>
   </svg>
-  </div>
-  <section class="panel" id="panel-bombas">
-    <h2>Bombas peristálticas y calefacción</h2>
-    <div class="tarjetas" id="tarjetas-bombas">
-      <div class="tarjeta" id="t-N2"><h3>Heat unit</h3><small>Acción: J7 OUT07</small>
-        <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
-        <button class="grande" id="b-N2">Encender</button>
-        <div class="sentido"><small>Sentido de giro · J7 OUT05</small>
-          <button class="btn-sentido" data-bomba="N2">—</button></div>
-        <div class="consigna" id="c-N2V"></div></div>
-      <div class="tarjeta" id="t-N1"><h3>Feed unit</h3><small>Acción: J7 OUT08</small>
-        <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
-        <button class="grande" id="b-N1">Encender</button>
-        <div class="sentido"><small>Sentido de giro · J7 OUT06</small>
-          <button class="btn-sentido" data-bomba="N1">—</button></div>
-        <div class="consigna" id="c-N1V"></div></div>
     </div>
-    <div class="controles" style="margin-top:12px"><button id="parar-bombas">Parar bombas</button></div>
-  </section>
-  <section class="panel" id="panel-valvulas">
-    <h2>Electroválvulas</h2>
-    <div class="tarjetas" id="tarjetas-valvulas"></div>
-    <div class="controles" style="margin-top:12px"><button id="cerrar-valvulas">Cerrar electroválvulas</button></div>
-  </section>
-  <div class="controles" id="controles"></div>
-  <p class="nota">Con los deslizadores se manejan la potencia de la resistencia (por ráfagas de 50 ciclos) y la velocidad PWM de cada bomba. Pulsa una bomba o una electroválvula para activarla o desactivarla; el color es el estado real que publica el gateway.
-     Las válvulas manuales (V1, V2, V3, PRV1) y el filtro son solo dibujo.
-     Qué canal del gateway es cada elemento está en la tabla <code>MAPA</code> al principio del script de esta página.</p>
-</main>
+    <section class="grupo grupo-valvulas" id="panel-valvulas">
+      <h2>Electroválvulas</h2>
+      <div class="tarjetas" id="tarjetas-valvulas"></div>
+      <div class="fila-botones"><button id="cerrar-valvulas" type="button">Cerrar electroválvulas</button></div>
+    </section>
+    <p class="nota">Pulsa una bomba o una electroválvula, en el esquema o en sus tarjetas (las bombas a la derecha y las electroválvulas bajo el esquema), para activarla o desactivarla. El color es el estado real que publica el gateway.
+    Las válvulas manuales (V1, V2, V3, PRV1) y el filtro son solo dibujo. Qué canal del gateway es cada elemento está en la tabla <code>MAPA</code> al principio del script de esta página.</p>
+  </main>
+
+  <aside class="lateral" aria-label="Controles y lecturas">
+    <div class="pestanas" role="tablist" aria-label="Controles y lecturas">
+      <button type="button" role="tab" id="tab-controles" aria-selected="true" aria-controls="p-controles">Controles</button>
+      <button type="button" role="tab" id="tab-lecturas" aria-selected="false" aria-controls="p-lecturas">Lecturas</button>
+    </div>
+
+    <div id="p-controles" role="tabpanel" aria-labelledby="tab-controles">
+      <section class="grupo" id="panel-bombas">
+        <h2>Bombas y calefacción</h2>
+        <div class="tarjetas" id="tarjetas-bombas">
+          <div class="tarjeta" id="t-N2"><h3>Heat unit</h3><small>Acción: J7 OUT07</small>
+            <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
+            <button class="grande" id="b-N2">Encender</button>
+            <div class="sentido"><small>Sentido de giro · J7 OUT05</small>
+              <button class="btn-sentido" data-bomba="N2">—</button></div>
+            <div class="consigna" id="c-N2V"></div></div>
+          <div class="tarjeta" id="t-N1"><h3>Feed unit</h3><small>Acción: J7 OUT08</small>
+            <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
+            <button class="grande" id="b-N1">Encender</button>
+            <div class="sentido"><small>Sentido de giro · J7 OUT06</small>
+              <button class="btn-sentido" data-bomba="N1">—</button></div>
+            <div class="consigna" id="c-N1V"></div></div>
+        </div>
+        <div class="fila-botones"><button id="parar-bombas" type="button">Parar bombas</button></div>
+      </section>
+    </div>
+
+    <div id="p-lecturas" role="tabpanel" aria-labelledby="tab-lecturas" hidden>
+      <section class="term" id="term-t1" style="--color:var(--agua)">
+        <div class="term-cab"><span class="term-nombre">T1 · salida del tubo de residencia</span><output class="term-valor" id="k-t1">—</output></div>
+        <div class="term-barra"><span class="term-relleno" id="r-t1"></span></div>
+      </section>
+      <section class="term" id="term-t2" style="--color:var(--caliente)">
+        <div class="term-cab"><span class="term-nombre">T2 · agua caliente</span><output class="term-valor" id="k-t2">—</output></div>
+        <div class="term-barra"><span class="term-relleno" id="r-t2"></span></div>
+      </section>
+      <section class="term" id="term-t3" style="--color:var(--frio)">
+        <div class="term-cab"><span class="term-nombre">T3 · producto final</span><output class="term-valor" id="k-t3">—</output></div>
+        <div class="term-barra"><span class="term-relleno" id="r-t3"></span></div>
+      </section>
+      <section class="bloque">
+        <h2>Caudal y nivel</h2>
+        <dl class="pares">
+          <dt>Caudal del producto (F1)</dt><dd id="k-f1">—</dd>
+          <dt>Nivel del tanque A (L1)</dt><dd id="k-l1">—</dd>
+          <dt>Temperatura T4</dt><dd id="k-t4">—</dd>
+          <dt>Temperatura T5</dt><dd id="k-t5">—</dd>
+        </dl>
+      </section>
+      <section class="bloque">
+        <h2>Entradas de protección y nivel</h2>
+        <dl class="pares lista-digitales" id="lista-digitales"></dl>
+      </section>
+    </div>
+  </aside>
+</div>
+
 <script>
 // ---------------------------------------------------------------------------
 // Asignacion de canales del gateway a la planta, segun la lista de E/S de la
@@ -374,6 +644,7 @@ for (const [id, titulo, detalle] of MAPA.valvulas) {
 $('cerrar-valvulas').onclick = () => enviar(Object.fromEntries(
   MAPA.valvulas.filter(([id]) => id.startsWith('SOL')).map(([id]) => [MAPA.salidas[id], false])));
 const parar = document.createElement('button');
+parar.id = 'parar-todo'; parar.type = 'button';
 parar.textContent = 'Parar todo';
 parar.onclick = () => {
   const orden = Object.fromEntries([...Object.values(MAPA.salidas), ...Object.values(MAPA.sentido)].map(c => [c, false]));
@@ -404,6 +675,7 @@ function pintar(s) {
        !d ? 'Gateway: sin datos' : !s.gateway ? 'Gateway: sin respuesta' : d.running ? 'Gateway: en marcha' : 'Gateway: parado');
   chip('chip-io', !d ? '' : d.io_ok ? 'ok' : 'error', !d ? 'E/S: —' : d.io_ok ? 'E/S: correcta' : 'E/S: error de bus');
   document.querySelectorAll('.accion').forEach(g => g.classList.toggle('bloqueado', !s.broker));
+  avisoPlanta(s, d);
   if (!d) return;
 
   for (const [el, canal] of Object.entries(MAPA.salidas)) marcar(`g-${el}`, !!d[canal]);
@@ -468,7 +740,7 @@ function pintar(s) {
     const fisico = m.min + (m.max - m.min) * Math.min(1, Math.max(0, v / m.fondo));
     $(`v-${tag}`).textContent = `${fisico.toFixed(m.unidad === '°C' ? 1 : 0)} ${m.unidad}`;
     if (tag === 'L1') {
-      const alto = 98 * (fisico - m.min) / (m.max - m.min);   // el tanque A mide 98 px de alto
+      const alto = 136 * (fisico - m.min) / (m.max - m.min);   // interior del tanque A dibujado: 100 % llena hasta arriba
       $('nivel-A').setAttribute('y', 208 - alto);
       $('nivel-A').setAttribute('height', alto);
     }
@@ -476,10 +748,73 @@ function pintar(s) {
   for (const [tag, m] of Object.entries(MAPA.digitales)) {
     $(`c-${tag}`).classList.toggle('alarma', !!d[m.canal] === m.alarmaSi);
   }
+  pintarLecturas(d);
 }
+
+// ---------------------------------------------------------------------------
+// Presentacion: aviso de conexion/proteccion, lecturas y pestañas.
+// No cambia nada de lo que se envia a la planta.
+// ---------------------------------------------------------------------------
+const NOMBRES_DIGITALES = {
+  TERM: 'Termostato del depósito caliente (sobretemperatura)', HLC: 'Nivel alto del depósito caliente',
+  HL: 'Nivel alto del tanque B', LL: 'Nivel bajo del tanque B', LVLC: 'Nivel del depósito caliente',
+};
+let servidorCaido = false;
+function avisoPlanta(s, d) {
+  const caja = $('alarma-caja');
+  let causa = '', accion = '';
+  if (servidorCaido) {
+    causa = 'Sin conexión con el servidor del SCADA';
+    accion = 'Los controles y las lecturas no se actualizan. Comprueba que el equipo del gateway está encendido y en la red.';
+  } else if (!s.broker) {
+    causa = 'Sin conexión con la planta';
+    accion = 'Los controles están bloqueados hasta que el broker vuelva a responder.';
+  } else if (d && !s.gateway) {
+    causa = 'El gateway no responde';
+    accion = 'Las lecturas pueden no ser actuales. Comprueba la Raspberry Pi y su servicio.';
+  } else if (d && !!d[MAPA.digitales.TERM.canal] === MAPA.digitales.TERM.alarmaSi) {
+    causa = 'Termostato disparado: sobretemperatura en el depósito caliente';
+    accion = 'La protección corta el calefactor. Deja enfriar el agua antes de volver a calentar.';
+  }
+  caja.hidden = !causa;
+  $('alarma-causa').textContent = causa;
+  $('alarma-accion').textContent = accion;
+}
+const ESCALA_T = [0, 100];
+function termometro(id, tag, d) {
+  const m = MAPA.analogicas[tag];
+  const v = Number(d[m.canal] ?? 0);
+  const fisico = m.min + (m.max - m.min) * Math.min(1, Math.max(0, v / m.fondo));
+  $(`k-${id}`).innerHTML = `${fisico.toFixed(1).replace('.', ',')}<small>°C</small>`;
+  $(`r-${id}`).style.width = (Math.min(1, Math.max(0, (fisico - ESCALA_T[0]) / (ESCALA_T[1] - ESCALA_T[0]))) * 100) + '%';
+}
+function pintarLecturas(d) {
+  termometro('t1', 'T1', d); termometro('t2', 'T2', d); termometro('t3', 'T3', d);
+  for (const [tag, id] of [['F1', 'k-f1'], ['L1', 'k-l1'], ['T4', 'k-t4'], ['T5', 'k-t5']]) $(id).textContent = $(`v-${tag}`).textContent;
+  const lista = $('lista-digitales');
+  if (!lista.children.length) {
+    for (const tag of Object.keys(MAPA.digitales)) {
+      lista.insertAdjacentHTML('beforeend', `<dt>${NOMBRES_DIGITALES[tag] || tag}</dt><dd id="e-${tag}">—</dd>`);
+    }
+  }
+  for (const [tag, m] of Object.entries(MAPA.digitales)) {
+    const alarma = !!d[m.canal] === m.alarmaSi;
+    const dd = $(`e-${tag}`);
+    dd.textContent = alarma ? 'Activa' : 'Normal';
+    dd.classList.toggle('alarma', alarma);
+  }
+}
+// pestañas Controles / Lecturas
+const pestanas = [['tab-controles', 'p-controles'], ['tab-lecturas', 'p-lecturas']];
+function mostrar(tab) {
+  for (const [t, p] of pestanas) { $(t).setAttribute('aria-selected', String(t === tab)); $(p).hidden = t !== tab; }
+}
+for (const [t] of pestanas) $(t).addEventListener('click', () => mostrar(t));
+
 const es = new EventSource('/api/eventos');
-es.onmessage = e => pintar(JSON.parse(e.data));
+es.onmessage = e => { servidorCaido = false; pintar(JSON.parse(e.data)); };
 es.onerror = () => {
+  servidorCaido = true;
   pintar({broker: false, rechazo: null, gateway: false, datos: ultimo && ultimo.datos});
   chip('chip-broker', 'error', 'Servidor web: sin conexión');
 };
