@@ -1,0 +1,2 @@
+# Estos archivos se ejecutan/leen en Linux (contenedor o servidor): siempre con saltos de línea LF
+* text eol=lf
