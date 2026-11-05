@@ -278,3 +278,7 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
 .lectura:has(> tspan) { font-size: 15px; font-weight: 700; fill: var(--texto) !important; }
 /* Bomba con el sentido de giro invertido: la flecha del símbolo se da la vuelta */
 svg path.invertida { transform-box: fill-box; transform-origin: center; transform: scaleX(-1); }
+
+/* ---------- aviso de copyright ---------- */
+.copy { margin: 28px 20px 18px; font-size: 12px; color: var(--tenue); text-align: center; }
+@media (max-width: 960px) { .copy { margin-bottom: 90px; } }   /* la barra de operación fija de móvil no debe taparlo */

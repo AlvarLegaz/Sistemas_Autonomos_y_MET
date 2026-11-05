@@ -10,3 +10,7 @@ Proyectos de sistemas autónomos y mantenimiento electrónico
 | [Rover_Submarino_MK3](Rover_Submarino_MK3) | Simulador de un submarino con cuatro propulsores, sensor de profundidad y ecosonda. Mantiene la profundidad y el cabeceo con dos PID, se maneja desde el navegador o con mando, y trae un modo de entrenamiento con aros, corriente y visor 3D (Three.js). |
 | [Sistema-Control-Industrial](Sistema-Control-Industrial) | SCADA para una planta simulada de 3 depósitos interconectados: interfaz en tiempo real con PySide6, servidor Flask, comunicaciones REST, MQTT y serie, y control manual y automático. |
 | [gateway_industrial_excelencia](gateway_industrial_excelencia) | Pasarela de E/S industrial sobre Raspberry Pi: runtime cíclico (tick de 125 µs y escaneo de 100 ms), PWM por software, entradas y salidas digitales con PCF8574, entradas analógicas con MCP3008 y publicación de entradas/salidas por MQTT. |
+
+## Licencia y copyright
+
+© 2026 Álvar Legaz Aparicio. **Todos los derechos reservados.** No se concede ninguna licencia: queda prohibida la copia, distribución, publicación, alojamiento para terceros, modificación y uso comercial sin autorización previa y por escrito del autor. El material de terceros (three.js, hojas de datos de fabricantes, nombre y logo del CIFP Politécnico Cartagena, Armfield PCT23) queda excluido y pertenece a sus titulares. Detalle completo en [LICENSE](LICENSE).

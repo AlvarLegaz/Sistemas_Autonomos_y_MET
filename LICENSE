@@ -1,0 +1,51 @@
+Copyright (c) 2026 Álvar Legaz Aparicio. Todos los derechos reservados.
+Copyright (c) 2026 Álvar Legaz Aparicio. All rights reserved.
+
+AVISO LEGAL / LEGAL NOTICE
+==========================
+
+Este repositorio y su contenido original (código fuente, documentación, interfaces,
+simuladores, diseños y demás obras del autor) son propiedad de Álvar Legaz Aparicio y
+están protegidos por la legislación de propiedad intelectual.
+
+1. NO SE CONCEDE NINGUNA LICENCIA. Sin autorización previa, expresa y por escrito del
+   autor queda prohibido:
+     - copiar o reproducir total o parcialmente este contenido;
+     - distribuirlo, comunicarlo públicamente o publicarlo, por cualquier medio;
+     - alojarlo, instalarlo o desplegarlo para uso de terceros, incluido su ofrecimiento
+       como servicio web o su uso en aulas, centros u organizaciones ajenas al autor;
+     - modificarlo o crear obras derivadas a partir de él;
+     - sublicenciarlo, venderlo o usarlo con fines comerciales;
+     - retirar o alterar los avisos de copyright.
+
+2. Que el repositorio sea visible en una plataforma de alojamiento no implica licencia
+   alguna. Las condiciones de uso de esa plataforma pueden permitir ver el contenido
+   dentro de ella; eso no otorga ningún derecho adicional sobre él.
+
+3. MATERIAL DE TERCEROS. Lo siguiente no pertenece al autor, está excluido de este aviso y
+   se rige por sus propios derechos o licencias:
+     - three.js (Rover_Submarino_MK3/submarino_sim/three.min.js): © Three.js Authors,
+       licencia MIT.
+     - Hojas de datos del L298 y del módulo L298N (Rover_Diferencial_MK2/docu): propiedad
+       de sus fabricantes.
+     - El nombre y el logotipo del CIFP Politécnico Cartagena: propiedad del centro. Se
+       usan únicamente para identificarlo; este aviso no los licencia.
+     - La planta PCT23, su marca y su manual: propiedad de Armfield. El manual no se
+       incluye en este repositorio.
+   Las demás marcas citadas pertenecen a sus respectivos titulares.
+
+4. SIN GARANTÍA. El contenido se ofrece "tal cual", con fines didácticos, sin garantía de
+   ningún tipo. Los modelos y simuladores son aproximaciones no verificadas con equipos
+   reales y no deben usarse para tomar decisiones de seguridad.
+
+Para solicitar autorización de uso: https://github.com/AlvarLegaz
+
+--------------------------------------------------------------------------------------
+
+English summary: all original content in this repository is copyright (c) 2026 Álvar
+Legaz Aparicio, all rights reserved. No licence is granted. Copying, distribution,
+publication, hosting for third parties, modification, derivative works, sublicensing and
+commercial use are prohibited without the author's prior written permission. Third-party
+material (three.js, manufacturer datasheets, the CIFP Politécnico Cartagena name and
+logo, Armfield PCT23 and its manual) is excluded and remains with its owners.
+Provided "as is", without warranty.

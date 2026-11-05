@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="author" content="Álvar Legaz Aparicio">
+<meta name="copyright" content="© 2026 Álvar Legaz Aparicio. Todos los derechos reservados.">
 <title>PCT23 · SCADA</title>
 <style>
 /* PCT23 · interfaz.
@@ -292,6 +294,7 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
   #parar-todo { min-height: 46px; flex: 1 1 auto; }
 }
 
+.copy { margin: 24px 16px 16px; font-size: 12px; color: var(--tenue, #56636F); text-align: center; }
 </style>
 </head>
 <body>
@@ -826,5 +829,6 @@ es.onerror = () => {
   chip('chip-broker', 'error', 'Servidor web: sin conexión');
 };
 </script>
+<footer class="copy">© 2026 Álvar Legaz Aparicio · Todos los derechos reservados. Prohibida la copia y la distribución sin autorización.</footer>
 </body>
 </html>
