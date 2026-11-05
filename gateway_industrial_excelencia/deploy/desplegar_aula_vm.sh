@@ -27,14 +27,14 @@ done
 [ -n "$DESTINO" ] || { echo "Uso: $0 usuario@servidor [-i clave] [--migrar-datos RUTA] [--env-antiguo FICHERO]"; exit 2; }
 
 RAIZ="$(cd "$(dirname "$0")/.." && pwd)"            # gateway_industrial_excelencia
-REPO="$(git -C "$RAIZ" rev-parse --show-toplevel)"
+PREFIJO="$(git -C "$RAIZ" rev-parse --show-prefix)"      # carpeta de este proyecto dentro del repositorio ("" o "xxx/")
 SSH=(ssh -o BatchMode=yes -o ConnectTimeout=15); [ -n "$CLAVE" ] && SSH+=(-i "$CLAVE" -o IdentitiesOnly=yes)
 
-if [ -n "$(git -C "$REPO" status --porcelain -- "$RAIZ/aula_pct23" "$RAIZ/simulador_pct23")" ]; then
+if [ -n "$(git -C "$RAIZ" status --porcelain -- aula_pct23 simulador_pct23)" ]; then
   echo "Hay cambios sin commitear en aula_pct23 o simulador_pct23: se despliega el último commit, sin ellos."
 fi
-echo "== Subiendo el código del commit $(git -C "$REPO" rev-parse --short HEAD) a $DESTINO =="
-git -C "$REPO" archive --format=tar "HEAD:${RAIZ#$REPO/}" -- aula_pct23 simulador_pct23 .dockerignore \
+echo "== Subiendo el código del commit $(git -C "$RAIZ" rev-parse --short HEAD) a $DESTINO =="
+git -C "$RAIZ" archive --format=tar "HEAD${PREFIJO:+:${PREFIJO%/}}" -- aula_pct23 simulador_pct23 .dockerignore \
     ':(exclude)aula_pct23/tests' ':(exclude)simulador_pct23/tests' \
   | "${SSH[@]}" "$DESTINO" 'mkdir -p ~/pct23-docker && tar -C ~/pct23-docker -xf - 2>&1 | grep -v "in the future" || true'
 
