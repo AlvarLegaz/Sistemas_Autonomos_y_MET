@@ -4,7 +4,7 @@
 
 :root {
   --fondo: #E2E7EB; --panel: #F5F7F8; --texto: #16202A; --tenue: #56636F; --borde: #BAC4CC;
-  --acento: #0B5CAD; --sobre-acento: #FFFFFF;
+  --acento: #F68B11; --acento-texto: #A85200; --sobre-acento: #16202A; --marca-gris: #5A5758;
   --ok: #1A7F4B; --error: #C0262D; --aviso: #9A5B00; --apagado: #9AA6B1;
   --tubo: #6A7886; --agua: #1F78B4; --caliente: #D9480F; --frio: #14877F;
   --fuente: Bahnschrift, "DIN Alternate", "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -14,7 +14,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --fondo: #0F1418; --panel: #182027; --texto: #E8EDF1; --tenue: #9AA7B2; --borde: #34414B;
-    --acento: #5AA7F5; --sobre-acento: #08121C;
+    --acento: #F68B11; --acento-texto: #FFA640; --sobre-acento: #16202A; --marca-gris: #C9C5C6;
     --ok: #4CC28A; --error: #F0605F; --aviso: #E0A33A; --apagado: #5B6874;
     --tubo: #8FA0AE; --agua: #4AA3DF; --caliente: #FF8A3D; --frio: #29C1BA;
   }
@@ -23,12 +23,12 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { margin: 0; background: var(--fondo); color: var(--texto); font: 15px/1.45 var(--fuente); font-variant-numeric: tabular-nums; }
-:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
+:focus-visible { outline: 3px solid var(--acento-texto); outline-offset: 2px; }
 button, select, input { font: inherit; color: inherit; }
-a { color: var(--acento); }
+a { color: var(--acento-texto); }
 
 /* ---------- cabecera ---------- */
-.cab { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 22px; padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--borde); }
+.cab { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 22px; padding: 10px 20px; background: var(--panel); border-bottom: 3px solid var(--acento); }
 .cab h1 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: .01em; }
 .modos { display: flex; gap: 2px; padding: 3px; background: var(--fondo); border-radius: 8px; }
 .modos a { padding: 6px 14px; border-radius: 6px; color: var(--tenue); text-decoration: none; font-weight: 600; }
@@ -98,7 +98,7 @@ body[data-estado="fin"] #fases li.actual { background: var(--ok); color: #fff; }
 .lateral section:first-child { border-top: 0; }
 
 .lienzo { background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; padding: 8px; overflow-x: auto; }
-.lienzo svg { display: block; width: 100%; height: auto; min-width: 720px; }
+.lienzo svg { display: block; width: 100%; height: auto; min-width: 820px; }
 .pie-sim { margin: 8px 2px 0; font-size: 12.5px; color: var(--tenue); }
 
 /* esquema */
@@ -113,7 +113,7 @@ svg text { fill: var(--texto); font: 12px var(--fuente); }
 .instr.on { fill: var(--ok); stroke: var(--ok); }
 .instr.alarma { fill: var(--error); stroke: var(--error); }
 .etiqueta { font-weight: 700; text-anchor: middle; }
-.lectura { font-size: 11.5px; text-anchor: middle; fill: var(--tenue) !important; font-variant-numeric: tabular-nums; }
+.lectura { font-size: 14px; text-anchor: middle; fill: var(--tenue) !important; font-variant-numeric: tabular-nums; }
 .valvula { fill: var(--apagado); stroke: var(--tubo); stroke-width: 1.5; }
 .valvula.on { fill: var(--ok); }
 .manual { fill: var(--panel); stroke: var(--tubo); stroke-width: 1.5; }
@@ -257,7 +257,7 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
 .opcion h2 { margin: 0; font-size: 21px; }
 .opcion p { margin: 0; color: var(--tenue); }
 .opcion ul { margin: 0; padding-left: 18px; color: var(--tenue); }
-.opcion .entrar { margin-top: auto; padding-top: 10px; font-weight: 700; color: var(--acento); }
+.opcion .entrar { margin-top: auto; padding-top: 10px; font-weight: 700; color: var(--acento-texto); }
 @media (max-width: 720px) { .opcion { border-left: 0; border-top: 1px solid var(--borde); } .opcion:first-child { border-top: 0; } }
 
 /* electroválvulas bajo el esquema (modo manual) */
@@ -269,3 +269,12 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
   .grupo-valvulas { order: 2; padding: 14px; background: var(--panel); margin-top: 12px; }
   #p-controles { order: 5; background: var(--panel); margin-top: 14px; }
 }
+
+/* ---------- identidad CIFP Politécnico Cartagena (naranja #F68B11, gris #5A5758) ---------- */
+.logo { display: block; height: 60px; width: auto; }
+.cab h1 a, .cab h1 { display: flex; align-items: center; gap: 14px; }
+.cab .sim { font-size: 24px; padding-left: 14px; border-left: 2px solid var(--borde); color: var(--marca-gris); }
+/* Etiquetas de entrada y salida del esquema (FINISHED PRODUCT, COLD WATER...): más grandes y en el color de texto */
+.lectura:has(> tspan) { font-size: 15px; font-weight: 700; fill: var(--texto) !important; }
+/* Bomba con el sentido de giro invertido: la flecha del símbolo se da la vuelta */
+svg path.invertida { transform-box: fill-box; transform-origin: center; transform: scaleX(-1); }

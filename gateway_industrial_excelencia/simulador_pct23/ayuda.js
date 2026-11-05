@@ -52,7 +52,7 @@
       q: 'Interruptor de nivel del depósito de agua caliente. Protege al calefactor: si el nivel es bajo la consola enciende la alarma de nivel bajo.', s: 'En el simulador no está modelado: permanece apagado.', m: 'p. 8 y 15' },
     TERM: { t: 'STAT · Termostato del depósito caliente', tag: 'Protección',
       q: 'Termostato del tanque de agua caliente. Si hay sobretemperatura corta el calefactor y la consola lo indica con el piloto OVER TEMP.',
-      s: 'Salta (corte térmico simulado) cuando T2 supera 91 °C y se rearma 5 °C por debajo.', m: 'p. 8 y 15' },
+      s: 'Salta (corte térmico simulado) cuando T2 llega a 91 °C: desconecta la resistencia y el agua se enfría despacio. Se rearma por debajo de 70 °C y hay que volver a conectar la resistencia a mano.', m: 'p. 8 y 15' },
     RES: { t: 'Resistencia de calefacción (PWR)', tag: 'Calefactor',
       q: 'Elemento calefactor del depósito de agua caliente. La consola tiene un ajuste de potencia y un indicador en kW. En la maqueta son dos resistencias de 120 V en serie, alimentadas a 230 V.',
       s: 'OUT04 la conecta; su potencia se reparte por ráfagas de 50 ciclos de red (50 % = 25 ciclos de cada 50).', m: 'p. 8 y 15' },
@@ -69,7 +69,7 @@
     V2: { t: 'V2 · Válvula manual', tag: 'Válvula manual',
       q: 'Válvula manual del circuito de alimentación entre los tanques. El manual no detalla su función.', s: 'Solo dibujo: sin efecto en el modelo.', m: 'p. 12 (diagrama)' },
     V3: { t: 'V3 · Válvula manual', tag: 'Válvula manual',
-      q: 'Válvula manual situada junto al tanque B. El manual no detalla su función.', s: 'Solo dibujo: sin efecto en el modelo.', m: 'p. 12 (diagrama)' },
+      q: 'Válvula manual situada junto al tanque B. El manual no detalla su función.', s: 'En el modo manual, clic para abrirla: vacía el tanque B (unos 600 ml/min, supuesto didáctico). En los otros modos es solo dibujo.', m: 'p. 12 (diagrama)' },
     FILTER: { t: 'FILTER · Filtro en línea', tag: 'Filtro',
       q: 'Filtro anterior a F1 que previene la entrada de suciedad en el tubo de residencia.', s: 'Solo dibujo: no se simula obstrucción.', m: 'p. 9' },
     HOLDING: { t: 'HOLDING TUBE · Tubo de residencia', tag: 'Tubería con aislamiento',
@@ -237,8 +237,7 @@
     ['Modo manual: qué haces tú', '<p>Gobiernas cada actuador a mano, como en la consola de la planta. Nada se mueve solo salvo la física del proceso.</p>'],
     ['Barra de arriba', li([
       '<b>Iniciar / Pausar</b>: la simulación solo avanza el tiempo mientras está en marcha. Puedes cambiar actuadores en pausa.',
-      '<b>Velocidad</b>: 1×, 5× o 20× el tiempo real. En «Más», <b>Reiniciar planta</b> devuelve todo al estado inicial.',
-      '<b>Preparar ejemplo</b>: deja N1, N2, SOL3 y el calefactor listos y arranca la simulación. Es la forma más rápida de ver el proceso funcionando.',
+      '<b>Velocidad</b>: 1×, 5× o 20× el tiempo real. <b>Reiniciar</b> devuelve toda la planta al estado inicial (depósitos vacíos).',
       'La columna de la derecha tiene tres pestañas: <b>Controles</b> (bombas, calefacción, electroválvulas y depósitos), <b>Lecturas</b> (caudal, tanques y producto) y <b>Registro</b>.',
     ])],
     ['Bombas peristálticas', li([
@@ -252,7 +251,7 @@
     ])],
     ['Electroválvulas', li([
       '<b>SOL1</b>: desvío del producto (activa = rechazo, el producto vuelve al tanque). <b>SOL2</b>: elige el tanque de origen (reposo = A, activa = B).',
-      '<b>SOL3</b>: agua fría de refrigeración. <b>SOL4</b> y <b>SOL5</b>: llenado de los tanques A y B.',
+      '<b>SOL3</b>: agua fría de refrigeración. <b>SOL4</b> y <b>SOL5</b>: llenado de los tanques A y B. <b>V3</b> (clic en el esquema): válvula manual; abierta, vacía el tanque B.',
       'También puedes pulsar directamente sobre la válvula o la bomba en el esquema.',
     ])],
     ['Depósitos de alimentación', li([
@@ -264,7 +263,7 @@
       '<b>Parar bombas</b>: apaga N1 y N2. <b>Cerrar electroválvulas</b>: cierra SOL1-SOL5. <b>Parar todo</b> (en la barra de arriba): apaga todas las salidas, pero las temperaturas y los niveles no vuelven al instante a su valor inicial.',
     ])],
     ['Una prueba sencilla', li([
-      'Pulsa <b>Preparar ejemplo</b> y observa cómo T2 sube y, un poco después, T1 y T3.',
+      'Llena el tanque A con SOL4, enciende N1, N2, SOL3 y la resistencia y pulsa <b>Iniciar</b>: observa cómo T2 sube y, un poco después, T1 y T3.',
       'Activa <b>SOL1</b>: el producto pasa a la salida de desvío y el contador de producto acabado deja de subir.',
       'Cierra <b>SOL3</b>: T3 sube porque el producto ya no se enfría.',
       'Cambia a <b>sentido 1</b> en N1: el caudal F1 cae a 0.',
@@ -379,17 +378,17 @@
 
   /* ---------- ventana ---------- */
   const css = `
-  #ayuda-pct23{position:fixed;z-index:9999;left:50%;top:50%;transform:translate(-50%,-50%);max-height:calc(100vh - 24px);overflow:auto;width:min(420px,calc(100vw - 24px));background:color-mix(in srgb,var(--acento,#1565c0) 16%,var(--panel,#fff));color:var(--texto,#1b1f24);
+  #ayuda-pct23{position:fixed;z-index:9999;left:50%;top:50%;transform:translate(-50%,-50%);max-height:calc(100vh - 24px);overflow:auto;width:min(420px,calc(100vw - 24px));background:color-mix(in srgb,var(--acento,#1565c0) 5%,var(--panel,#fff));color:var(--texto,#1b1f24);
     border:2px solid var(--acento,#1565c0);border-radius:12px;box-shadow:0 0 0 1px rgba(0,0,0,.3),0 16px 48px rgba(0,0,0,.55);font:14px/1.45 system-ui,sans-serif}
   #ayuda-pct23[hidden]{display:none}
   #ayuda-velo{position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.5)}
   #ayuda-velo[hidden]{display:none}
-  #ayuda-pct23 header{background:color-mix(in srgb,var(--acento,#1565c0) 30%,transparent);border-radius:10px 10px 0 0;margin-bottom:8px!important}
+  #ayuda-pct23 header{background:color-mix(in srgb,var(--acento,#1565c0) 20%,transparent);border-radius:10px 10px 0 0;margin-bottom:8px!important}
   #ayuda-pct23 header{display:flex;align-items:flex-start;gap:8px;padding:10px 12px 6px;margin:0}
   #ayuda-pct23 h3{margin:0;font-size:15px;flex:1}
   #ayuda-pct23 .etq{display:inline-block;margin:0 12px 6px;padding:1px 8px;border-radius:999px;border:1px solid var(--borde,#dde1e6);
     color:var(--tenue,#6b7380);font-size:12px}
-  #ayuda-pct23 .cuerpo{padding:0 12px 10px}
+  #ayuda-pct23 .cuerpo{display:block;max-width:none;margin:0;padding:0 12px 10px}
   #ayuda-pct23 .cuerpo p{margin:0 0 8px}
   #ayuda-pct23 .tit{font-weight:700;font-size:12px;color:var(--tenue,#6b7380);text-transform:uppercase;letter-spacing:.03em;margin:0 0 2px}
   #ayuda-pct23 .viva{padding:6px 8px;border-radius:6px;background:rgba(0,0,0,.28);border:1px solid color-mix(in srgb,var(--acento,#1565c0) 50%,transparent);font-variant-numeric:tabular-nums}
@@ -398,12 +397,12 @@
   #ayuda-pct23 button:hover{background:color-mix(in srgb,var(--error,#c62828) 18%,transparent)}
 
   #guia-pct23{position:fixed;z-index:9999;left:50%;top:50%;transform:translate(-50%,-50%);width:min(760px,calc(100vw - 24px));max-height:calc(100vh - 24px);
-    display:flex;flex-direction:column;background:color-mix(in srgb,var(--acento,#1565c0) 16%,var(--panel,#fff));color:var(--texto,#1b1f24);
+    display:flex;flex-direction:column;background:color-mix(in srgb,var(--acento,#1565c0) 5%,var(--panel,#fff));color:var(--texto,#1b1f24);
     border:2px solid var(--acento,#1565c0);border-radius:12px;box-shadow:0 0 0 1px rgba(0,0,0,.3),0 16px 48px rgba(0,0,0,.55);font:14px/1.5 system-ui,sans-serif}
   #guia-pct23[hidden]{display:none}
-  #guia-pct23 header{display:flex;align-items:center;gap:8px;padding:10px 14px;margin:0;background:color-mix(in srgb,var(--acento,#1565c0) 30%,transparent);border-radius:10px 10px 0 0}
+  #guia-pct23 header{display:flex;align-items:center;gap:8px;padding:10px 14px;margin:0;background:color-mix(in srgb,var(--acento,#1565c0) 20%,transparent);border-radius:10px 10px 0 0}
   #guia-pct23 h3{margin:0;font-size:17px;flex:1}
-  #guia-pct23 .cuerpo{overflow:auto;padding:4px 16px 12px}
+  #guia-pct23 .cuerpo{display:block;max-width:none;margin:0;overflow:auto;padding:4px 16px 12px}
   #guia-pct23 h4{margin:14px 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--acento,#1565c0)}
   #guia-pct23 p{margin:0 0 8px} #guia-pct23 ul{margin:0 0 6px;padding-left:20px} #guia-pct23 li{margin:3px 0}
   #guia-pct23 .pie{padding:6px 14px;border-top:1px solid var(--borde,#dde1e6);color:var(--tenue,#6b7380);font-size:12px}

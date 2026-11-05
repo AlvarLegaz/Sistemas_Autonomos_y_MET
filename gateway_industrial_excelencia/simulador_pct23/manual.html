@@ -4,11 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PCT23 · Modo manual</title>
+<link rel="icon" type="image/png" href="img/favicon.png">
 <link rel="stylesheet" href="interfaz.css">
 </head>
 <body>
 <header class="cab">
-  <h1><a href="index.html" title="Inicio">PCT23</a></h1>
+  <h1><a href="index.html" title="Inicio"><img class="logo" src="img/logo-politecnico.png" alt="CIFP Politécnico Cartagena" width="166" height="60"><span class="sim">PCT23</span></a></h1>
   <nav class="modos" aria-label="Modo de operación">
     <a href="manual.html" aria-current="page">Manual</a>
     <a href="automatico.html">Automático</a>
@@ -20,20 +21,17 @@
   <div class="acciones">
     <button id="sim-play" type="button">Iniciar</button>
     <button id="sim-pause" type="button" disabled>Pausar</button>
-    <button id="sim-ejemplo" type="button">Preparar ejemplo</button>
+    <button id="sim-reset" type="button">Reiniciar</button>
     <div id="controles"></div>
   </div>
   <div class="pista">
-    <p class="estado-manual" aria-live="polite"><b id="sim-time">00:00:00</b><span id="sim-status">Prepara las bombas y válvulas, o pulsa «Preparar ejemplo», y después Iniciar.</span></p>
+    <p class="estado-manual" aria-live="polite"><b id="sim-time">00:00:00</b><span id="sim-status">Prepara los depósitos, las bombas y las válvulas, y después pulsa Iniciar.</span></p>
   </div>
   <div class="derecha">
     <div class="velocidad" role="group" aria-label="Velocidad de simulación">
       <button type="button" data-v="1" aria-pressed="true">1×</button><button type="button" data-v="5" aria-pressed="false">5×</button><button type="button" data-v="20" aria-pressed="false">20×</button>
     </div>
     <select id="sim-velocidad" class="velocidad-select" aria-label="Velocidad de simulación"><option value="1" selected>1×</option><option value="5">5×</option><option value="20">20×</option></select>
-    <details class="mas"><summary>Más</summary>
-      <div class="mas-menu"><button id="sim-reset" type="button">Reiniciar planta</button></div>
-    </details>
   </div>
 </div>
 
@@ -65,7 +63,10 @@
     <path class="tubo frio" data-solenoide="SOL5" d="M815 35 V18 H915"/>
     <path class="tubo frio" data-solenoide="SOL4" d="M915 35 V18"/>
     <path class="tubo frio" data-circuito="colector-frio" d="M915 18 H985 V420 H610 V440"/>
-    <path class="tubo frio" data-circuito="frio" d="M562 440 H652 M680 440 H706 M742 440 H960"/>
+    <!-- entrada de agua fría: PRV1 y V1 hasta la derivación del colector (610,440); se ilumina con SOL3, SOL4 o SOL5 -->
+    <path class="tubo frio" data-circuito="colector-frio" d="M610 440 H652 M680 440 H706 M742 440 H960"/>
+    <!-- ramal de SOL3 hacia el intercambiador: solo con SOL3 -->
+    <path class="tubo frio" data-circuito="frio" d="M562 440 H610"/>
 
     <!-- Agua de enfriamiento: tramo izquierdo de SOL3, paso inferior del
          intercambiador de enfriamiento y ascenso independiente a TO DRAIN. -->
@@ -80,7 +81,10 @@
       <rect x="668" y="340" width="8" height="12" fill="var(--panel)"/>
       <path class="tubo frio" data-circuito="frio" d="M662 346 H684"/>
     </g>
-    <path class="tubo" data-bomba="N1" d="M865 262 V215 M815 210 V250 H850 M915 210 V250 H880 M800 210 V240"/>
+    <path class="tubo" data-bomba="N1" d="M865 262 V215 M800 210 V240"/>
+    <!-- salida del tanque elegido por SOL2 hasta la electroválvula: B (izquierda) con SOL2 activa, A (derecha) sin activar -->
+    <path class="tubo" data-tanque="B" d="M815 210 V250 H850"/>
+    <path class="tubo" data-tanque="A" d="M915 210 V250 H880"/>
     <!-- toma de desvío independiente por SOL1, como en el panel real: con SOL1 activa se ilumina el desvío y se apaga el producto acabado -->
     <path class="tubo" data-ruta="desvio" d="M460 64 V30" />
     <text x="521" y="24" class="lectura">DIVERTED PRODUCT <tspan font-size="17" font-weight="700">↑</tspan></text>
@@ -145,8 +149,8 @@
     <g class="accion" id="g-SOL3" data-salida="SOL3">
        <path class="valvula" d="M538 430 L550 440 L538 450 Z M562 430 L550 440 L562 450 Z"/>
        <text x="550" y="468" class="etiqueta">SOL3</text></g>
-    <g><path class="manual" d="M652 431 L665 440 L652 449 Z M680 431 L667 440 L680 449 Z"/><text x="666" y="468" class="etiqueta">V1</text></g>
-    <g><path class="manual" d="M706 430 L718 440 L706 450 Z M742 430 L718 440 L742 450 Z"/><text x="724" y="468" class="etiqueta">PRV1</text></g>
+    <g><path class="valvula on" d="M652 431 L665 440 L652 449 Z M680 431 L667 440 L680 449 Z"/><text x="666" y="468" class="etiqueta">V1</text></g>
+    <g><path class="valvula on" d="M706 430 L718 440 L706 450 Z M742 430 L718 440 L742 450 Z"/><text x="724" y="468" class="etiqueta">PRV1</text></g>
     <text x="880" y="460" class="lectura">COLD WATER <tspan font-size="20" font-weight="700">←</tspan></text>
     <!-- ============ depósitos A y B ============ -->
     <rect class="caja" x="780" y="70" width="70" height="140"/>
@@ -161,7 +165,7 @@
     <g class="accion" id="g-SOL2" data-salida="SOL2">
        <path class="valvula" d="M848 238 L865 250 L848 262 Z M882 238 L865 250 L882 262 Z M853 276 L865 250 L877 276 Z"/>
        <text x="905" y="270" class="etiqueta">SOL2</text></g>
-    <g><path class="manual" d="M795 226 L803 234 L795 242 Z M811 226 L803 234 L811 242 Z"/><text x="787" y="238" class="lectura" style="text-anchor:end">V3</text></g>
+    <g id="g-V3" class="accion" style="cursor:pointer"><path class="valvula" d="M795 226 L803 234 L795 242 Z M811 226 L803 234 L811 242 Z"/><text x="787" y="238" class="lectura" style="text-anchor:end">V3</text></g>
     <g><path class="manual" d="M857 205 L865 213 L873 205 Z"/><text x="890" y="226" class="lectura">V2</text></g>
     <g><line x1="770" y1="100" x2="780" y2="100" class="tubo"/>
        <circle class="instr" id="c-HL" cx="757" cy="100" r="13"/><text x="757" y="104" class="etiqueta">HL</text></g>
@@ -169,7 +173,7 @@
        <circle class="instr" id="c-LL" cx="757" cy="180" r="13"/><text x="757" y="184" class="etiqueta">LL</text></g>
     <g><line x1="950" y1="170" x2="962" y2="170" class="tubo"/>
        <circle class="instr" cx="975" cy="170" r="13"/><text x="975" y="174" class="etiqueta">L1</text>
-       <text x="962" y="196" class="lectura" id="v-L1">—</text></g>
+       <text x="925" y="236" class="lectura" id="v-L1" style="text-anchor:start;font-weight:700;fill:var(--texto) !important">—</text></g>
   </svg>
     </div>
     <section class="grupo grupo-valvulas" id="panel-valvulas"><h2>Electroválvulas</h2>
@@ -179,7 +183,7 @@
     <div class="leyenda"><span><i style="background:#d66d2b"></i>T2 · agua caliente</span><span><i style="background:#2d80c7"></i>T1 · salida del tubo</span><span><i style="background:#22a2a0"></i>T3 · producto final</span></div>
     <canvas id="sim-trend" class="grafica" width="1000" height="260" aria-label="Evolución simulada de T1, T2 y T3"></canvas>
     <p class="nota"><strong>Simulación didáctica aproximada.</strong> Las relaciones térmicas, volúmenes y caudales son valores orientativos, no parámetros verificados de la Armfield PCT23.
-    V1, V2, V3 y PRV1 son símbolos fijos y SOL2 elige el tanque de alimentación solo en este modelo simplificado. No hay conexión con equipos físicos.</p>
+    V1 y PRV1 se muestran abiertas (accionadas); V2 y V3 son símbolos fijos y SOL2 elige el tanque de alimentación solo en este modelo simplificado. No hay conexión con equipos físicos.</p>
   </main>
 
   <aside class="lateral" aria-label="Controles, lecturas y registro">
@@ -210,10 +214,10 @@
       <section class="grupo" id="panel-depositos"><h2>Depósitos de alimentación</h2>
     <div class="tarjetas">
       <div class="tarjeta" id="t-TANKA"><h3>Tanque A</h3><small>Sensor de nivel L1 · llenado con SOL4</small>
-        <div class="consigna"><label for="llen-A">Llenado</label><div class="fila"><input type="range" id="llen-A" min="0" max="100" step="1" value="73"><output id="ollen-A">73 %</output></div></div>
+        <div class="consigna"><label for="llen-A">Llenado</label><div class="fila"><input type="range" id="llen-A" min="0" max="100" step="1" value="0"><output id="ollen-A">0 %</output></div></div>
         <small id="dllen-A">—</small></div>
       <div class="tarjeta" id="t-TANKB"><h3>Tanque B</h3><small>Flotadores HL y LL · llenado con SOL5</small>
-        <div class="consigna"><label for="llen-B">Llenado</label><div class="fila"><input type="range" id="llen-B" min="0" max="100" step="1" value="53"><output id="ollen-B">53 %</output></div></div>
+        <div class="consigna"><label for="llen-B">Llenado</label><div class="fila"><input type="range" id="llen-B" min="0" max="100" step="1" value="0"><output id="ollen-B">0 %</output></div></div>
         <small id="dllen-B">—</small></div>
     </div>
     <p class="sec-aviso">Es el porcentaje de la capacidad del depósito (2400 ml en el modelo). Con la simulación parada o en pausa puedes ajustarlo y el nivel cambia al instante. Con la simulación en marcha el deslizador queda bloqueado y solo muestra el nivel, que baja con N1 y sube con SOL4/SOL5.</p>

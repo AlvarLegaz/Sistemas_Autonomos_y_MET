@@ -3,7 +3,9 @@
 (()=>{
   'use strict';
   const modelo=window.PCT23Modelo;
-  let estado=modelo.crearEstado();
+  // En modo manual la planta arranca con los dos depósitos vacíos; el alumno los llena con los deslizadores o con SOL4/SOL5.
+  const estadoInicial=()=>{const s=modelo.crearEstado();s.aMl=0;s.bMl=0;return s;};
+  let estado=estadoInicial();
   const $=id=>document.getElementById(id);
   const todos=s=>Array.from(document.querySelectorAll(s));
   const nf=new Intl.NumberFormat('es-ES',{maximumFractionDigits:0});
@@ -56,7 +58,10 @@
     for(const valvula of ['SOL1','SOL2','SOL3','SOL4','SOL5','N1','N2']){
       marcar(`g-${valvula}`,estado.salidas[valvula]);
     }
+    marcar('g-V3',estado.v3);
+    for(const id of ['N1','N2'])$(`g-${id}`).querySelector('path').classList.toggle('invertida',!!estado.giro[id]); // flecha de la bomba según el sentido de giro
     todos('.tubo[data-bomba]').forEach(x=>x.classList.toggle('activo',estado.salidas[x.dataset.bomba]));
+todos('[data-tanque]').forEach(x=>x.classList.toggle('activo',(x.dataset.tanque==='B')===!!estado.salidas.SOL2)); // tanque elegido por SOL2: se ilumina su tubería hasta la válvula
     // SOL1 reparte tras el tubo de residencia: solo se ilumina la rama por la que circula el producto.
     todos('[data-ruta]').forEach(x=>x.classList.toggle('activo',estado.salidas.N1&&(x.dataset.ruta==='desvio')===estado.salidas.SOL1));
     todos('[data-solenoide]').forEach(x=>x.classList.toggle('activo',estado.salidas[x.dataset.solenoide]));
@@ -136,7 +141,7 @@
     $('sim-pause').disabled=!estado.ejecutando;
     $('sim-velocidad').value=String(estado.velocidad);
     let aviso='';
-    if(estado.temperaturaCorte) aviso='Corte térmico simulado: el calefactor supera el umbral del modelo.';
+    if(estado.temperaturaCorte) aviso='Corte térmico simulado: resistencia desconectada. Se rearma por debajo de 70 °C; después vuelve a conectarla.';
     else if(estado.vacio) aviso='Depósito seleccionado vacío: la bomba N1 no suministra producto.';
     else if(estado.salidas.N1 && estado.giro.N1) aviso='N1 encendida con el sentido de giro invertido (OUT06 = 1). El flujo inverso no se simula.';
     else if(estado.salidas.N1 && estado.consignas.N1V===0) aviso='N1 encendida, pero la consigna de velocidad es 0 %.';
@@ -192,6 +197,7 @@
   }
   function actualizar(){actualizarIndicadores();muestrear();}
   function configurarControles(){
+    $('g-V3').addEventListener('click',()=>{estado.v3=!estado.v3;registrar(`V3: ${estado.v3?'abierta (vacía el tanque B)':'cerrada'}`);actualizar();});
     for(const id of ['SOL1','SOL2','SOL3','SOL4','SOL5','N1','N2']){
       $(`g-${id}`).addEventListener('click',()=>{
         estado.salidas[id]=!estado.salidas[id];
@@ -253,8 +259,10 @@
     pararTodo.addEventListener('click',()=>{
       for(const k of modelo.OUTPUT_IDS)estado.salidas[k]=false;
       estado.giro.N1=estado.giro.N2=false;
+      estado.v3=false;
       for(const k of Object.keys(CONSIGNAS))consigna(k,0);
-      registrar('Parada general; la temperatura se enfría con el tiempo');actualizar();
+      estado.ejecutando=false; // pausa también el reloj: así se desbloquea el llenado de los tanques y se puede volver a Iniciar
+      registrar('Parada general: simulación en pausa; pulsa Iniciar para continuar');actualizar();
     });
     $('controles').appendChild(pararTodo);
     $('sim-play').addEventListener('click',()=>{estado.ejecutando=true;registrar('Simulación iniciada');actualizar();});
@@ -266,18 +274,12 @@
       sl.addEventListener('change',()=>registrar(`Llenado del tanque ${d}: ${sl.value} %`));
     }
     $('sim-reset').addEventListener('click',()=>{
-      estado=modelo.crearEstado();hist.length=0;ultimoTiempoGrafica=-1;ultimoAviso='';
+      estado=estadoInicial();hist.length=0;ultimoTiempoGrafica=-1;ultimoAviso='';
       for(const k of Object.keys(CONSIGNAS))consigna(k,estado.consignas[k]);
       $('sim-log').replaceChildren();registrar('Simulador reiniciado');actualizar();
     });
     $('sim-velocidad').addEventListener('change',e=>{
       estado.velocidad=Number(e.target.value);registrar(`Velocidad de simulación: ${estado.velocidad}×`);actualizar();
-    });
-    $('sim-ejemplo').addEventListener('click',()=>{
-      modelo.activarEjemplo(estado);
-      for(const k of Object.keys(CONSIGNAS))consigna(k,estado.consignas[k]);
-      estado.ejecutando=true;
-      registrar('Ejemplo: alimentación A, calor N2, refrigeración SOL3 y producto final');actualizar();
     });
   }
   configurarControles();

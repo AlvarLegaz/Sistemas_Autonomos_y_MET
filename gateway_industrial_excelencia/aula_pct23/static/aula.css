@@ -1,30 +1,30 @@
 /* Aula PCT23: registro, acceso y aula del profesor. Mismo lenguaje que el simulador (sala de control). */
 :root {
   --fondo: #E2E7EB; --panel: #F5F7F8; --texto: #16202A; --tenue: #56636F; --borde: #BAC4CC;
-  --acento: #0B5CAD; --sobre-acento: #FFFFFF; --ok: #1A7F4B; --error: #C0262D; --aviso: #9A5B00;
+  --acento: #F68B11; --acento-texto: #A85200; --sobre-acento: #16202A; --marca-gris: #5A5758; --ok: #1A7F4B; --error: #C0262D; --aviso: #9A5B00;
   --fuente: Bahnschrift, "DIN Alternate", "Segoe UI", system-ui, -apple-system, sans-serif;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --fondo: #0F1418; --panel: #182027; --texto: #E8EDF1; --tenue: #9AA7B2; --borde: #34414B;
-    --acento: #5AA7F5; --sobre-acento: #08121C; --ok: #4CC28A; --error: #F0605F; --aviso: #E0A33A;
+    --acento: #F68B11; --acento-texto: #FFA640; --sobre-acento: #16202A; --marca-gris: #C9C5C6; --ok: #4CC28A; --error: #F0605F; --aviso: #E0A33A;
   }
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { margin: 0; background: var(--fondo); color: var(--texto); font: 15px/1.5 var(--fuente); }
-a { color: var(--acento); }
-:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
+a { color: var(--acento-texto); }
+:focus-visible { outline: 3px solid var(--acento-texto); outline-offset: 2px; }
 button, input, select { font: inherit; color: inherit; }
 
-.cab { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--borde); }
+.cab { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; padding: 12px 20px; background: var(--panel); border-bottom: 3px solid var(--acento); }
 .marca { font-size: 19px; font-weight: 700; color: var(--texto); text-decoration: none; letter-spacing: .01em; }
 .seccion { color: var(--tenue); }
 .cab-nav { margin-left: auto; display: flex; align-items: center; gap: 16px; }
 .cab-nav form { margin: 0; }
 .quien { color: var(--tenue); max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-button.enlace { background: none; border: 0; padding: 0; color: var(--acento); text-decoration: underline; cursor: pointer; }
+button.enlace { background: none; border: 0; padding: 0; color: var(--acento-texto); text-decoration: underline; cursor: pointer; }
 
 .contenido { max-width: 1100px; margin: 0 auto; padding: 28px 20px 56px; }
 .formulario { max-width: 520px; margin: 0 auto; padding: 26px; background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; }
@@ -85,3 +85,8 @@ form input:focus, form select:focus { border-color: var(--acento); }
   .tabla td.acciones::before { content: none; }
   .mas-menu { position: static; box-shadow: none; }
 }
+
+/* ---------- identidad CIFP Politécnico Cartagena (naranja #F68B11, gris #5A5758) ---------- */
+.logo { display: block; height: 60px; width: auto; }
+.marca { display: flex; align-items: center; gap: 14px; }
+.marca .sim { font-size: 24px; padding-left: 14px; border-left: 2px solid var(--borde); color: var(--marca-gris); }

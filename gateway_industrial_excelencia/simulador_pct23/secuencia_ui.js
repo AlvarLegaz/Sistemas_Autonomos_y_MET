@@ -120,6 +120,7 @@
     $('v-L1').textContent=`${nf.format(o.L1)} mm`;
     for(const v of ['SOL1','SOL2','SOL3','SOL4','SOL5','N1','N2'])marcar(`g-${v}`,estado.salidas[v]);
     todos('.tubo[data-bomba]').forEach(x=>x.classList.toggle('activo',estado.salidas[x.dataset.bomba]));
+todos('[data-tanque]').forEach(x=>x.classList.toggle('activo',(x.dataset.tanque==='B')===!!estado.salidas.SOL2)); // tanque elegido por SOL2: se ilumina su tubería hasta la válvula
     todos('[data-ruta]').forEach(x=>x.classList.toggle('activo',estado.salidas.N1&&(x.dataset.ruta==='desvio')===estado.salidas.SOL1));
     todos('[data-solenoide]').forEach(x=>x.classList.toggle('activo',estado.salidas[x.dataset.solenoide]));
     todos('[data-circuito="frio"]').forEach(x=>x.classList.toggle('activo',estado.salidas.SOL3));

@@ -4,8 +4,8 @@
   'use strict';
   const PARAMS = Object.freeze({
     ambiente: 22, capacidadMl: 2400, caudalN1MaxMlMin: 550,
-    llenadoMlMin: 260, refrigeracionMlMin: 450,
-    tauCalentadorS: 200, tauEnfriamientoS: 360, limiteTermicoC: 91,
+    llenadoMlMin: 260, refrigeracionMlMin: 450, vaciadoMlMin: 600, // vaciadoMlMin: V3 abierta (didáctico)
+    tauCalentadorS: 200, tauEnfriamientoS: 360, limiteTermicoC: 91, margenDisparoC: 0.05, rearmeC: 70, tauCorteS: 900, // tras el disparo: rearme por debajo de rearmeC y enfriamiento lento (tauCorteS). margenDisparoC: con la resistencia al 100 % T2 tiende a 91,0 sin llegar, y así salta al mostrar 91,0
     deltaCalentadorC: 69,        // subida del agua caliente con el calefactor al 100 %
     eficienciaIntercambio: 0.79, // fraccion del salto agua-producto que se transfiere
     reduccionPorCaudal: 0.25,    // perdida de eficiencia al subir N1 al 100 %
@@ -18,6 +18,7 @@
       tiempo: 0, ejecutando: false, velocidad: 1,
       salidas: Object.fromEntries(OUTPUT_IDS.map(id=>[id,false])),
       // giro: valor de OUT06 (N1) y OUT05 (N2); 0 = sentido de proceso (supuesto, sin confirmar).
+      v3: false, // válvula manual de vaciado del tanque B
       giro: {N1:false,N2:false}, consignas: {R:100,N1V:100,N2V:100},
       aMl: 1760, bMl: 1270, aguaCalienteC: PARAMS.ambiente,
       t1:PARAMS.ambiente,t3:PARAMS.ambiente,t4:PARAMS.ambiente,t5:PARAMS.ambiente,
@@ -62,7 +63,7 @@
     const r=s.salidas.RES?clamp(s.consignas.R/100,0,1):0;
     const objetivoAgua=p.ambiente+p.deltaCalentadorC*r;
     const temperaturaObjetivo=s.temperaturaCorte?p.ambiente:objetivoAgua;
-    const tau=s.temperaturaCorte?p.tauEnfriamientoS:(r? p.tauCalentadorS:p.tauEnfriamientoS);
+    const tau=s.temperaturaCorte?p.tauCorteS:(r? p.tauCalentadorS:p.tauEnfriamientoS);
     // El producto que circula por el intercambiador le quita calor al agua caliente: con caudal el equilibrio de T2 baja
     // y T2 se mueve algo mas deprisa. k es la fraccion de ese efecto (paso anterior: caudal ya calculado).
     const k=factorAcoplamiento(s.salidas.N2,s.consignas.N1V,s.caudalProductoMlMin/p.caudalN1MaxMlMin);
@@ -70,12 +71,13 @@
     s.aguaCalienteC+=(objetivoEfectivo-s.aguaCalienteC)*(1-Math.exp(-dt*(1+k)/tau));
     s.aguaCalienteC=clamp(s.aguaCalienteC,p.ambiente,97);
     // Termostato con histéresis; simulado, no sistema certificado de protección.
-    if(s.aguaCalienteC>=p.limiteTermicoC) s.temperaturaCorte=true;
-    if(s.temperaturaCorte && s.aguaCalienteC<=p.limiteTermicoC-5) s.temperaturaCorte=false;
+    if(!s.temperaturaCorte && s.aguaCalienteC>=p.limiteTermicoC-p.margenDisparoC){s.temperaturaCorte=true;s.salidas.RES=false;} // el termostato desconecta la resistencia
+    if(s.temperaturaCorte && s.aguaCalienteC<=p.rearmeC) s.temperaturaCorte=false; // rearmado: la resistencia sigue desconectada hasta que se vuelva a conectar
 
     // SOL4 repone A; SOL5 repone B (hipótesis didáctica).
     if(sol.SOL4) s.aMl=clamp(s.aMl+p.llenadoMlMin*dt/60,0,p.capacidadMl);
     if(sol.SOL5) s.bMl=clamp(s.bMl+p.llenadoMlMin*dt/60,0,p.capacidadMl);
+    if(s.v3) s.bMl=Math.max(0,s.bMl-p.vaciadoMlMin*dt/60); // V3 abierta vacía el tanque B
     const elegidoB=!!sol.SOL2;
     const volumen=elegidoB?s.bMl:s.aMl;
     const habilitada=sol.N1 && !s.giro.N1 && s.consignas.N1V>0;
