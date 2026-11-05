@@ -229,15 +229,17 @@
       'Los círculos T1-T5, F1 y L1 muestran el valor medido (temperaturas, caudal y nivel del tanque A). HL, LL, LVL y TERM son los interruptores de nivel y el termostato; se ponen en rojo cuando saltan.',
       'Tras el tubo de residencia, SOL1 reparte: sin activar sale el producto acabado, activa se ilumina la salida de desvío y se apaga la otra.',
       '<b>Contadores de producto</b>: junto a DIVERTED PRODUCT y FINISHED PRODUCT se ve la cantidad (ml) que ha pasado por cada salida. Miden siempre que circula producto: suman en el desvío cuando SOL1 está activada y en el producto acabado cuando no lo está.',
-      '<b>Clic derecho</b> sobre cualquier elemento del esquema (o sobre una tarjeta de control) para saber qué es, qué hace y su estado ahora.',
+      '<b>Clic derecho</b> sobre cualquier elemento del esquema (o sobre un control de la columna de la derecha) para saber qué es, qué hace y su estado ahora.',
+      'La <b>barra de arriba</b> siempre está a la vista: ahí están Iniciar, Pausar y las paradas, la velocidad de la simulación (1×, 5×, 20×) y el menú «Más». La columna de la derecha tiene pestañas.',
     ])],
   ];
   const MANUAL = [
     ['Modo manual: qué haces tú', '<p>Gobiernas cada actuador a mano, como en la consola de la planta. Nada se mueve solo salvo la física del proceso.</p>'],
-    ['Motor de simulación', li([
+    ['Barra de arriba', li([
       '<b>Iniciar / Pausar</b>: la simulación solo avanza el tiempo mientras está en marcha. Puedes cambiar actuadores en pausa.',
-      '<b>Velocidad</b>: 1×, 5× o 20× el tiempo real. <b>Reiniciar</b>: devuelve la planta al estado inicial.',
+      '<b>Velocidad</b>: 1×, 5× o 20× el tiempo real. En «Más», <b>Reiniciar planta</b> devuelve todo al estado inicial.',
       '<b>Preparar ejemplo</b>: deja N1, N2, SOL3 y el calefactor listos y arranca la simulación. Es la forma más rápida de ver el proceso funcionando.',
+      'La columna de la derecha tiene tres pestañas: <b>Controles</b> (bombas, calefacción, electroválvulas y depósitos), <b>Lecturas</b> (caudal, tanques y producto) y <b>Registro</b>.',
     ])],
     ['Bombas peristálticas', li([
       '<b>Heat unit (N2)</b>: circula el agua caliente por el intercambiador. <b>Feed unit (N1)</b>: mueve el producto. Cada una se enciende y apaga con su botón (J7 OUT07 y OUT08).',
@@ -259,7 +261,7 @@
       'Un tanque vacío detiene a N1 y provoca la alarma de «sin producto en origen».',
     ])],
     ['Botones de parada', li([
-      '<b>Parar bombas</b>: apaga N1 y N2. <b>Cerrar electroválvulas</b>: cierra SOL1-SOL5. <b>Parar todo</b>: apaga todas las salidas, pero las temperaturas y los niveles no vuelven al instante a su valor inicial.',
+      '<b>Parar bombas</b>: apaga N1 y N2. <b>Cerrar electroválvulas</b>: cierra SOL1-SOL5. <b>Parar todo</b> (en la barra de arriba): apaga todas las salidas, pero las temperaturas y los niveles no vuelven al instante a su valor inicial.',
     ])],
     ['Una prueba sencilla', li([
       'Pulsa <b>Preparar ejemplo</b> y observa cómo T2 sube y, un poco después, T1 y T3.',
@@ -288,7 +290,7 @@
         '<b>Precalentamiento → producción</b>: cuando T1 lleva 30 s seguidos a la consigna menos 1 °C o más.',
         '<b>Producción → lavado</b>: cuando alcanzas la <b>producción de referencia</b>, cuando el <b>tanque de origen se agota</b> o cuando pulsas <b>Terminar producción</b>. Hasta entonces la producción sigue; un tanque poco lleno la acorta.',
         '<b>Lavado → parada</b>: tras 2 minutos simulados de lavado. <b>Parada → finalizada</b>: cuando T2 baja de 45 °C.',
-        'El panel muestra siempre el <b>motivo del último cambio de fase</b> y el registro lo anota con su hora.',
+        'La <b>pista de fases</b> de la barra de arriba muestra en qué fase está la planta (se llena la actual, en rojo si hay una alarma) y debajo el <b>motivo del último cambio de fase</b>; el registro lo anota con su hora.',
       ])],
       ['Parámetros', li([
         '<b>Producción de referencia</b> (ml): cuánto producto acabado quieres; el máximo es lo que hay en el tanque de origen.',
@@ -299,7 +301,7 @@
         'La configuración se bloquea mientras la secuencia está en curso.',
       ])],
       ['Botones', li([
-        '<b>Iniciar secuencia</b>, <b>Pausar / Reanudar</b> (congela el tiempo), <b>Terminar producción</b> (pasa al lavado cuando tú decidas; en la demostración también está) y <b>Saltar fase</b> (fuerza el paso a la siguiente).',
+        '<b>Iniciar secuencia</b>, <b>Pausar / Reanudar</b> (congela el tiempo), <b>Parada ordenada</b> y <b>Emergencia</b> están siempre en la barra. En <b>Más</b>: <b>Terminar producción</b> (pasa al lavado cuando tú decidas), <b>Saltar fase</b> y <b>Reiniciar planta</b>.',
         '<b>Parada ordenada</b>: va a la fase de parada y apaga con orden. <b>Emergencia</b>: apaga todo al instante.',
         '<b>Reconocer alarma</b>: tras una alarma pasa a parada ordenada (tras emergencia vuelve a reposo). <b>Reiniciar planta</b>: devuelve todo al estado inicial.',
       ])],
@@ -339,7 +341,7 @@
           '<b>Fases</b>: arranque, precalentamiento (el producto recircula con SOL1 activa), producción (SOL1 desvía si T1 baja de la consigna), lavado y parada.',
         ])],
         ['Botones', li([
-          '<b>Iniciar secuencia</b>, <b>Pausar / Reanudar</b>, <b>Parada ordenada</b> y <b>Emergencia</b> (apaga todo al instante). Tras una alarma, <b>Reconocer alarma</b>. <b>Reiniciar planta</b> lo devuelve todo al inicio.',
+          '<b>Iniciar secuencia</b>, <b>Pausar / Reanudar</b>, <b>Parada ordenada</b> y <b>Emergencia</b> (apaga todo al instante). Tras una alarma, <b>Reconocer alarma</b>. En <b>Más</b>: <b>Terminar producción</b> y <b>Reiniciar planta</b>.',
           '<b>Velocidad</b>: empieza en 1× (tiempo real). Súbela a 5× o 20× para ver la secuencia completa en pocos minutos.',
         ])],
         ['Límites', '<p>El rango de temperatura llega hasta donde el modelo es capaz (unos 65 °C). La temperatura y los tiempos son los de una <b>simulación didáctica</b>: no son valores del fabricante. Para ajustar todo (modo de regulación, consignas, tanque, caudal) usa el modo automático.</p>'],

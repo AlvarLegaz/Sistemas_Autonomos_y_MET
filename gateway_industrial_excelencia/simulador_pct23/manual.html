@@ -4,22 +4,43 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PCT23 · Modo manual</title>
-<link rel="stylesheet" href="estilos.css">
+<link rel="stylesheet" href="interfaz.css">
 </head>
 <body>
-<main>
-  <header>
-    <h1>PCT23 · Modo manual</h1>
-    <span class="etiqueta-demo">SIMULADOR LOCAL · SIN HARDWARE</span>
-    <a href="index.html">← Inicio</a> <a href="automatico.html">Cambiar a modo automático →</a> <a href="demostracion.html">Modo demostración →</a>
-  </header>
-  <div class="estado">
-    <span class="chip" id="chip-broker"><i class="punto"></i><span>Modo: simulación local</span></span>
-    <span class="chip" id="chip-gateway"><i class="punto"></i><span>Tiempo: 00:00</span></span>
-    <span class="chip" id="chip-io"><i class="punto"></i><span>Planta virtual: lista</span></span>
+<header class="cab">
+  <h1><a href="index.html" title="Inicio">PCT23</a></h1>
+  <nav class="modos" aria-label="Modo de operación">
+    <a href="manual.html" aria-current="page">Manual</a>
+    <a href="automatico.html">Automático</a>
+    <a href="demostracion.html">Demostración</a>
+  </nav>
+</header>
+
+<div class="barra" role="region" aria-label="Operación de la planta">
+  <div class="acciones">
+    <button id="sim-play" type="button">Iniciar</button>
+    <button id="sim-pause" type="button" disabled>Pausar</button>
+    <button id="sim-ejemplo" type="button">Preparar ejemplo</button>
+    <div id="controles"></div>
   </div>
-  <div class="lienzo">
-  <svg viewBox="0 0 1000 480" role="img" aria-label="Esquema de la planta PCT23">
+  <div class="pista">
+    <p class="estado-manual" aria-live="polite"><b id="sim-time">00:00:00</b><span id="sim-status">Prepara las bombas y válvulas, o pulsa «Preparar ejemplo», y después Iniciar.</span></p>
+  </div>
+  <div class="derecha">
+    <div class="velocidad" role="group" aria-label="Velocidad de simulación">
+      <button type="button" data-v="1" aria-pressed="true">1×</button><button type="button" data-v="5" aria-pressed="false">5×</button><button type="button" data-v="20" aria-pressed="false">20×</button>
+    </div>
+    <select id="sim-velocidad" class="velocidad-select" aria-label="Velocidad de simulación"><option value="1" selected>1×</option><option value="5">5×</option><option value="20">20×</option></select>
+    <details class="mas"><summary>Más</summary>
+      <div class="mas-menu"><button id="sim-reset" type="button">Reiniciar planta</button></div>
+    </details>
+  </div>
+</div>
+
+<div class="cuerpo">
+  <main class="escena">
+    <div class="lienzo">
+<svg viewBox="0 0 1000 480" role="img" aria-label="Esquema de la planta PCT23">
     <!-- ============ tuberías ============ -->
     <!-- CIRCUITO 1. Agua caliente: N2 -> paso inferior del regenerador -> HEAT UNIT.
          La ida (y=346) y el retorno inferior (y=384) no comparten nodos
@@ -150,33 +171,22 @@
        <circle class="instr" cx="975" cy="170" r="13"/><text x="975" y="174" class="etiqueta">L1</text>
        <text x="962" y="196" class="lectura" id="v-L1">—</text></g>
   </svg>
-  </div>
-  <section class="panel" id="panel-simulacion">
-    <div class="sim-cabecera">
-      <h2>Motor de simulación · evolución del proceso</h2>
-      <div class="sim-barra">
-        <button class="primario" id="sim-play">▶ Iniciar</button>
-        <button id="sim-pause" disabled>Ⅱ Pausar</button>
-        <button id="sim-reset">↻ Reiniciar</button>
-        <label for="sim-velocidad">Velocidad</label>
-        <select id="sim-velocidad"><option value="1" selected>1×</option><option value="5">5×</option><option value="20">20×</option></select>
-        <button id="sim-ejemplo">Preparar ejemplo</button>
-      </div>
     </div>
-    <div class="resumen-sim" aria-live="polite">
-      <div class="dato"><small>Tiempo simulado</small><strong id="sim-time">00:00</strong></div>
-      <div class="dato"><small>Caudal producto · F1</small><strong id="sim-flow">0 ml/min</strong></div>
-      <div class="dato"><small>Agua caliente · T2</small><strong id="sim-heat">22,0 °C</strong></div>
-      <div class="dato"><small>Tanque A</small><strong id="sim-A">—</strong></div>
-      <div class="dato"><small>Tanque B</small><strong id="sim-B">—</strong></div>
-      <div class="dato"><small>Producto terminado</small><strong id="sim-finished">0 ml</strong></div>
-      <div class="dato"><small>Producto desviado</small><strong id="sim-diverted">0 ml</strong></div>
-      <div class="dato"><small>Agua a desagüe</small><strong id="sim-drain">0 L</strong></div>
+    <div class="leyenda"><span><i style="background:#d66d2b"></i>T2 · agua caliente</span><span><i style="background:#2d80c7"></i>T1 · salida del tubo</span><span><i style="background:#22a2a0"></i>T3 · producto final</span></div>
+    <canvas id="sim-trend" class="grafica" width="1000" height="260" aria-label="Evolución simulada de T1, T2 y T3"></canvas>
+    <p class="nota"><strong>Simulación didáctica aproximada.</strong> Las relaciones térmicas, volúmenes y caudales son valores orientativos, no parámetros verificados de la Armfield PCT23.
+    V1, V2, V3 y PRV1 son símbolos fijos y SOL2 elige el tanque de alimentación solo en este modelo simplificado. No hay conexión con equipos físicos.</p>
+  </main>
+
+  <aside class="lateral" aria-label="Controles, lecturas y registro">
+    <div class="pestanas" role="tablist" aria-label="Controles, lecturas y registro">
+      <button type="button" role="tab" id="tab-controles" aria-selected="true" aria-controls="p-controles">Controles</button>
+      <button type="button" role="tab" id="tab-lecturas" aria-selected="false" aria-controls="p-lecturas">Lecturas</button>
+      <button type="button" role="tab" id="tab-registro" aria-selected="false" aria-controls="p-registro">Registro</button>
     </div>
-    <p class="sim-aviso" id="sim-status">Selecciona «Preparar ejemplo» o configura las bombas y válvulas manualmente. Pulsa Iniciar para avanzar el tiempo.</p>
-  </section>
-  <section class="panel" id="panel-bombas">
-    <h2>Bombas peristálticas y calefacción</h2>
+
+    <div id="p-controles" role="tabpanel" aria-labelledby="tab-controles">
+      <section class="grupo" id="panel-bombas"><h2>Bombas y calefacción</h2>
     <div class="tarjetas" id="tarjetas-bombas">
       <div class="tarjeta" id="t-N2"><h3>Heat unit</h3><small>Acción: J7 OUT07</small>
         <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
@@ -191,15 +201,13 @@
           <button class="btn-sentido" data-bomba="N1">—</button></div>
         <div class="consigna" id="c-N1V"></div></div>
     </div>
-    <div class="controles" style="margin-top:12px"><button id="parar-bombas">Parar bombas</button></div>
+    <div class="fila-botones"><button id="parar-bombas" type="button">Parar bombas</button></div>
   </section>
-  <section class="panel" id="panel-valvulas">
-    <h2>Electroválvulas</h2>
+      <section class="grupo" id="panel-valvulas"><h2>Electroválvulas</h2>
     <div class="tarjetas" id="tarjetas-valvulas"></div>
-    <div class="controles" style="margin-top:12px"><button id="cerrar-valvulas">Cerrar electroválvulas</button></div>
+    <div class="fila-botones"><button id="cerrar-valvulas" type="button">Cerrar electroválvulas</button></div>
   </section>
-  <section class="panel" id="panel-depositos">
-    <h2>Depósitos de alimentación</h2>
+      <section class="grupo" id="panel-depositos"><h2>Depósitos de alimentación</h2>
     <div class="tarjetas">
       <div class="tarjeta" id="t-TANKA"><h3>Tanque A</h3><small>Sensor de nivel L1 · llenado con SOL4</small>
         <div class="consigna"><label for="llen-A">Llenado</label><div class="fila"><input type="range" id="llen-A" min="0" max="100" step="1" value="73"><output id="ollen-A">73 %</output></div></div>
@@ -208,26 +216,39 @@
         <div class="consigna"><label for="llen-B">Llenado</label><div class="fila"><input type="range" id="llen-B" min="0" max="100" step="1" value="53"><output id="ollen-B">53 %</output></div></div>
         <small id="dllen-B">—</small></div>
     </div>
-    <p class="pie-sim">Es el porcentaje de la capacidad del depósito (2400 ml en el modelo). Con la simulación parada o en pausa puedes ajustarlo y el nivel cambia al instante. Con la simulación en marcha el deslizador queda bloqueado y solo muestra el nivel, que baja con N1 y sube con SOL4/SOL5.</p>
+    <p class="sec-aviso">Es el porcentaje de la capacidad del depósito (2400 ml en el modelo). Con la simulación parada o en pausa puedes ajustarlo y el nivel cambia al instante. Con la simulación en marcha el deslizador queda bloqueado y solo muestra el nivel, que baja con N1 y sube con SOL4/SOL5.</p>
   </section>
-  <div class="controles" id="controles"></div>
-  <section class="panel">
-    <h2>Temperaturas simuladas</h2>
-    <div class="leyenda"><span><i style="background:#d66d2b"></i>T2 · HEAT UNIT</span>
-      <span><i style="background:#2d80c7"></i>T1 · tubo de retención</span>
-      <span><i style="background:#22a2a0"></i>T3 · producto final</span></div>
-    <canvas id="sim-trend" class="grafica" width="900" height="220" aria-label="Evolución simulada de temperaturas T1, T2 y T3"></canvas>
-    <p class="pie-sim">Gráfica de los últimos puntos de la simulación. T5 está conectada a la sección de calentamiento y lee el producto a mitad de camino entre la entrada y T4 (supuesto).</p>
-    <h2 style="margin-top:14px">Registro de acontecimientos</h2>
-    <ul id="sim-log" class="registros"></ul>
-  </section>
-  <p class="nota"><strong>Simulación didáctica aproximada.</strong> Las relaciones térmicas, volúmenes y caudales son valores orientativos, no parámetros verificados de la Armfield PCT23. 
-  Los controles, sensores, actuadores y recorridos están representados sobre el SVG de la revisión 17, sin cambiar sus coordenadas. 
-  V1, V2, V3 y PRV1 se conservan como símbolos fijos. SOL2 selecciona el tanque de alimentación (A/B) solo en este modelo simplificado. El giro inverso B no tiene modelo hidráulico. 
-  No hay conexión con MQTT, Flask, Raspberry Pi ni con equipos físicos.</p>
-</main>
+    </div>
+
+    <div id="p-lecturas" role="tabpanel" aria-labelledby="tab-lecturas" hidden>
+      <section class="estados">
+        <span class="chip" id="chip-broker" hidden><i class="punto"></i><span>—</span></span>
+        <span class="chip" id="chip-gateway"><i class="punto"></i><span>—</span></span>
+        <span class="chip" id="chip-io"><i class="punto"></i><span>—</span></span>
+      </section>
+      <section class="bloque">
+        <h2>Datos de la planta</h2>
+        <dl class="pares">
+          <dt>Caudal del producto (F1)</dt><dd id="sim-flow">0 ml/min</dd>
+          <dt>Agua caliente (T2)</dt><dd id="sim-heat">22,0 °C</dd>
+          <dt>Tanque A</dt><dd id="sim-A">—</dd>
+          <dt>Tanque B</dt><dd id="sim-B">—</dd>
+          <dt>Producto acabado</dt><dd id="sim-finished">0 ml</dd>
+          <dt>Producto desviado</dt><dd id="sim-diverted">0 ml</dd>
+          <dt>Agua enviada a desagüe</dt><dd id="sim-drain">0 L</dd>
+        </dl>
+      </section>
+    </div>
+
+    <div class="panel-pestana" id="p-registro" role="tabpanel" aria-labelledby="tab-registro" hidden>
+      <ul id="sim-log" class="registros"></ul>
+    </div>
+  </aside>
+</div>
+
 <script src="modelo.js"></script>
 <script src="simulador.js"></script>
 <script src="ayuda.js"></script>
+<script src="interfaz_comun.js"></script>
 </body>
 </html>

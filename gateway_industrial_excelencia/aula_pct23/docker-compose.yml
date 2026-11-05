@@ -1,0 +1,31 @@
+services:
+  aula:
+    build:
+      context: ..                       # gateway_industrial_excelencia
+      dockerfile: aula_pct23/Dockerfile
+    image: pct23-aula
+    container_name: pct23-aula
+    restart: unless-stopped
+    ports:
+      - "${AULA_PUERTO:-8000}:8000"
+    environment:
+      # PIN del aula del profesor (mínimo 6 caracteres). Por defecto 12345678: cámbialo en el archivo .env
+      AULA_PIN: ${AULA_PIN:-12345678}
+      # Opcionales
+      AULA_MODULOS: ${AULA_MODULOS:-}
+      AULA_COOKIE_SEGURA: ${AULA_COOKIE_SEGURA:-0}
+      AULA_SESION_PROFESOR_MIN: ${AULA_SESION_PROFESOR_MIN:-120}
+      AULA_MAX_INTENTOS: ${AULA_MAX_INTENTOS:-5}
+      AULA_BLOQUEO_S: ${AULA_BLOQUEO_S:-300}
+    volumes:
+      - aula_datos:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  aula_datos:

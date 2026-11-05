@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block titulo %}Registro · Aula PCT23{% endblock %}
+{% block contenido %}
+<section class="formulario">
+  <h1>Registrarme</h1>
+  <p class="ayuda">Tu cuenta quedará pendiente hasta que el profesor la autorice.</p>
+  <form method="post" action="{{ url_for('registro') }}" autocomplete="on">
+    <input type="hidden" name="csrf" value="{{ csrf() }}">
+    <div class="dos">
+      <label>Nombre
+        <input type="text" name="nombre" value="{{ v.get('nombre', '') }}" autocomplete="given-name" required maxlength="80" autofocus>
+      </label>
+      <label>Apellidos
+        <input type="text" name="apellidos" value="{{ v.get('apellidos', '') }}" autocomplete="family-name" required maxlength="120">
+      </label>
+    </div>
+    <label>Módulo
+      <input type="text" name="modulo" value="{{ v.get('modulo', '') }}" required maxlength="80" {% if modulos %}list="lista-modulos"{% endif %}>
+      {% if modulos %}<datalist id="lista-modulos">{% for m in modulos %}<option value="{{ m }}">{% endfor %}</datalist>{% endif %}
+    </label>
+    <label>Correo
+      <input type="email" name="correo" value="{{ v.get('correo', '') }}" autocomplete="username" required maxlength="254">
+    </label>
+    <div class="dos">
+      <label>Contraseña
+        <input type="password" name="clave" autocomplete="new-password" required minlength="8" maxlength="200">
+      </label>
+      <label>Repite la contraseña
+        <input type="password" name="clave2" autocomplete="new-password" required minlength="8" maxlength="200">
+      </label>
+    </div>
+    <p class="ayuda">Mínimo 8 caracteres. No puede ser tu correo.</p>
+    <button class="primario" type="submit">Enviar registro</button>
+  </form>
+  <p class="pie">¿Ya tienes cuenta? <a href="{{ url_for('entrar') }}">Entrar</a>.</p>
+</section>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block titulo %}Aula del profesor · PCT23{% endblock %}
+{% block seccion %}Aula del profesor{% endblock %}
+{% block contenido %}
+<section class="formulario">
+  <h1>Aula del profesor</h1>
+  <p class="ayuda">Escribe el PIN del aula para autorizar a los alumnos registrados.</p>
+  <form method="post" action="{{ url_for('aula_entrar') }}" autocomplete="off">
+    <input type="hidden" name="csrf" value="{{ csrf() }}">
+    <label>PIN
+      <input type="password" name="pin" inputmode="numeric" autocomplete="off" required autofocus maxlength="100">
+    </label>
+    <button class="primario" type="submit">Abrir el aula</button>
+  </form>
+  <p class="pie"><a href="{{ url_for('entrar') }}">Volver a la entrada de alumnos</a></p>
+</section>
+{% endblock %}

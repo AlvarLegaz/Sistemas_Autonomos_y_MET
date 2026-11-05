@@ -4,62 +4,47 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PCT23 · Simulador</title>
-<link rel="stylesheet" href="estilos.css">
-<style>
-  .modos { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin: 24px 0; }
-  .modo { display: flex; flex-direction: column; gap: 10px; padding: 22px; border: 2px solid var(--borde); border-radius: 12px;
-          background: var(--panel); color: var(--texto); text-decoration: none; }
-  .modo:hover, .modo:focus-visible { border-color: var(--acento); outline: none;
-          background: color-mix(in srgb, var(--acento) 10%, var(--panel)); }
-  .modo h2 { margin: 0; font-size: 22px; }
-  .modo p { margin: 0; color: var(--tenue); }
-  .modo ul { margin: 0; padding-left: 20px; color: var(--tenue); }
-  .modo .ir { margin-top: auto; font-weight: 700; color: var(--acento); }
-  .intro { color: var(--tenue); max-width: 760px; }
-</style>
+<link rel="stylesheet" href="interfaz.css">
 </head>
 <body>
-<main>
-  <header>
-    <h1>PCT23 · Process Plant Trainer</h1>
-    <span class="etiqueta-demo">SIMULADOR LOCAL · SIN HARDWARE</span>
-  </header>
-  <p class="intro">Gemelo didáctico de la planta de proceso Armfield PCT23, una pasteurización a escala. Elige cómo quieres operarla.</p>
-  <div class="modos">
-    <a class="modo" href="manual.html">
+<header class="cab"><h1>PCT23</h1></header>
+<main class="inicio">
+  <h1>Planta de proceso de pasteurización</h1>
+  <p class="intro">Gemelo didáctico de la planta de pasteurización Armfield PCT23. Elige cómo quieres operarla.</p>
+  <div class="opciones">
+    <a class="opcion" href="manual.html">
       <h2>Modo manual</h2>
-      <p>Tú gobiernas cada actuador desde el esquema y los paneles, como en la consola de la planta.</p>
+      <p>Tú gobiernas cada actuador desde el esquema y los controles, como en la consola de la planta.</p>
       <ul>
-        <li>Bombas N1 y N2, sentido de giro y velocidad PWM</li>
-        <li>Electroválvulas SOL1-SOL5 y resistencia de calefacción</li>
-        <li>Ideal para aprender el proceso y probar efectos uno a uno</li>
+        <li>Bombas, sentido de giro y velocidad</li>
+        <li>Electroválvulas y resistencia de calefacción</li>
+        <li>Para aprender el proceso efecto a efecto</li>
       </ul>
-      <span class="ir">Entrar en modo manual →</span>
+      <span class="entrar">Entrar en modo manual</span>
     </a>
-    <a class="modo" href="automatico.html">
+    <a class="opcion" href="automatico.html">
       <h2>Modo automático</h2>
-      <p>La planta ejecuta sola la secuencia típica de pasteurización y tú la supervisas.</p>
+      <p>La planta ejecuta sola la secuencia de pasteurización y tú la supervisas.</p>
       <ul>
         <li>Arranque, precalentamiento, producción, lavado y parada</li>
-        <li>Desvío automático del producto con SOL1 si T1 no llega a la consigna</li>
-        <li>Alarmas con acción correctiva, pausa, parada ordenada y emergencia</li>
+        <li>Desvío automático del producto con SOL1</li>
+        <li>Seis modos de regulación del calefactor y alarmas</li>
       </ul>
-      <span class="ir">Entrar en modo automático →</span>
+      <span class="entrar">Entrar en modo automático</span>
     </a>
-    <a class="modo" href="demostracion.html">
+    <a class="opcion" href="demostracion.html">
       <h2>Modo demostración</h2>
-      <p>Marcas solo la temperatura y la planta hace todo lo demás.</p>
+      <p>Marcas la temperatura y la planta hace todo lo demás.</p>
       <ul>
-        <li>Un único ajuste: la temperatura del producto</li>
-        <li>La planta elige caudal y regulación, arranca, produce una tirada corta, lava y se para sola</li>
-        <li>Ideal para enseñar el proceso completo sin tocar nada más</li>
+        <li>Un único ajuste principal: la temperatura del producto</li>
+        <li>Elige caudal y regulación, produce, lava y se para sola</li>
+        <li>Para enseñar el proceso completo sin tocar nada más</li>
       </ul>
-      <span class="ir">Entrar en modo demostración →</span>
+      <span class="entrar">Entrar en modo demostración</span>
     </a>
   </div>
-  <p class="nota"><strong>Simulación didáctica aproximada.</strong> Los valores no son parámetros verificados de la Armfield PCT23.
-  En ambos modos, un clic derecho sobre cualquier elemento del esquema explica qué es.
-  No hay conexión con MQTT, Flask, Raspberry Pi ni con equipos físicos.</p>
+  <p class="nota">Simulación didáctica aproximada: los valores no son parámetros verificados de la Armfield PCT23.
+  En cualquier modo, un clic derecho sobre un elemento del esquema explica qué es, y el botón «? Ayuda» abre la guía de la pantalla.</p>
 </main>
 <script src="ayuda.js"></script>
 </body>

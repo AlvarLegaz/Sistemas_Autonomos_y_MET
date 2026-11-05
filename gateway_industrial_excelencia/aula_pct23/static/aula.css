@@ -1,0 +1,87 @@
+/* Aula PCT23: registro, acceso y aula del profesor. Mismo lenguaje que el simulador (sala de control). */
+:root {
+  --fondo: #E2E7EB; --panel: #F5F7F8; --texto: #16202A; --tenue: #56636F; --borde: #BAC4CC;
+  --acento: #0B5CAD; --sobre-acento: #FFFFFF; --ok: #1A7F4B; --error: #C0262D; --aviso: #9A5B00;
+  --fuente: Bahnschrift, "DIN Alternate", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fondo: #0F1418; --panel: #182027; --texto: #E8EDF1; --tenue: #9AA7B2; --borde: #34414B;
+    --acento: #5AA7F5; --sobre-acento: #08121C; --ok: #4CC28A; --error: #F0605F; --aviso: #E0A33A;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--fondo); color: var(--texto); font: 15px/1.5 var(--fuente); }
+a { color: var(--acento); }
+:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
+button, input, select { font: inherit; color: inherit; }
+
+.cab { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--borde); }
+.marca { font-size: 19px; font-weight: 700; color: var(--texto); text-decoration: none; letter-spacing: .01em; }
+.seccion { color: var(--tenue); }
+.cab-nav { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.cab-nav form { margin: 0; }
+.quien { color: var(--tenue); max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.enlace { background: none; border: 0; padding: 0; color: var(--acento); text-decoration: underline; cursor: pointer; }
+
+.contenido { max-width: 1100px; margin: 0 auto; padding: 28px 20px 56px; }
+.formulario { max-width: 520px; margin: 0 auto; padding: 26px; background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; }
+.formulario h1 { margin: 0 0 4px; font-size: 24px; }
+.ayuda { margin: 0 0 16px; color: var(--tenue); font-size: 14px; }
+form label { display: block; margin: 12px 0 0; font-weight: 600; font-size: 14px; }
+form input[type="text"], form input[type="email"], form input[type="password"], form input[type="search"], form select {
+  display: block; width: 100%; min-height: 42px; margin-top: 4px; padding: 8px 10px; background: var(--fondo); border: 1px solid var(--borde); border-radius: 6px; font-weight: 400; }
+form input:focus, form select:focus { border-color: var(--acento); }
+.dos { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+.primario, .boton { display: inline-block; min-height: 42px; margin-top: 18px; padding: 10px 20px; background: var(--acento); color: var(--sobre-acento); border: 1px solid var(--acento);
+  border-radius: 6px; font-weight: 700; cursor: pointer; text-decoration: none; }
+.primario:hover, .boton:hover { filter: brightness(1.08); }
+.formulario .primario { width: 100%; }
+.pie { margin: 18px 0 0; color: var(--tenue); font-size: 14px; }
+.datos { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 16px 0; }
+.datos dt { color: var(--tenue); } .datos dd { margin: 0; font-weight: 600; word-break: break-word; }
+
+.aviso { max-width: 760px; margin: 0 auto 16px; padding: 11px 14px; border-radius: 6px; border: 1px solid var(--borde); background: var(--panel); }
+.aviso-error { border-color: var(--error); color: var(--error); font-weight: 600; }
+.aviso-ok { border-color: var(--ok); }
+.etiqueta { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 13px; font-weight: 700; border: 1px solid currentColor; text-transform: capitalize; }
+.etiqueta-pendiente { color: var(--aviso); } .etiqueta-autorizado { color: var(--ok); } .etiqueta-rechazado { color: var(--error); }
+
+/* aula del profesor */
+.pestanas { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--borde); margin-bottom: 16px; }
+.pestanas a { padding: 10px 14px; margin-bottom: -1px; border-bottom: 3px solid transparent; color: var(--tenue); text-decoration: none; font-weight: 600; }
+.pestanas a[aria-current="page"] { color: var(--texto); border-bottom-color: var(--acento); }
+.pestanas .n { display: inline-block; min-width: 1.6em; padding: 0 6px; margin-left: 4px; border-radius: 999px; background: var(--fondo); text-align: center; font-size: 13px; }
+.filtros { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; margin-bottom: 14px; }
+.filtros label { margin: 0; } .filtros select, .filtros input[type="search"] { min-width: 200px; }
+.filtros button { min-height: 42px; padding: 0 18px; border-radius: 6px; border: 1px solid var(--borde); background: var(--panel); font-weight: 600; cursor: pointer; }
+.masivo { margin: 0 0 14px; } .masivo .primario { margin-top: 0; }
+.vacio { padding: 28px; text-align: center; color: var(--tenue); background: var(--panel); border: 1px dashed var(--borde); border-radius: 6px; }
+.tabla { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--borde); }
+.tabla th, .tabla td { padding: 10px 12px; text-align: left; border-top: 1px solid var(--borde); vertical-align: middle; }
+.tabla thead th { border-top: 0; font-size: 13px; color: var(--tenue); background: var(--fondo); }
+.acciones { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.acciones form { margin: 0; }
+.acciones button, .mas summary { min-height: 34px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--borde); background: var(--panel); font-weight: 600; cursor: pointer; }
+.acciones button.primario { margin: 0; background: var(--acento); color: var(--sobre-acento); border-color: var(--acento); }
+.acciones button.peligro { color: var(--error); border-color: var(--error); }
+.mas { position: relative; } .mas summary { list-style: none; display: inline-flex; align-items: center; } .mas summary::-webkit-details-marker { display: none; }
+.mas-menu { position: absolute; right: 0; z-index: 5; display: grid; gap: 6px; margin-top: 4px; padding: 8px; min-width: 190px; background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,.2); }
+.mas-menu button { width: 100%; text-align: left; }
+.clave-nueva { max-width: 760px; margin: 0 auto 18px; padding: 16px 20px; border: 2px solid var(--acento); border-radius: 6px; background: var(--panel); }
+.clave-nueva h2 { margin: 0 0 6px; font-size: 17px; }
+.clave { margin: 4px 0 8px; padding: 10px 14px; display: inline-block; font: 700 26px/1.2 Consolas, "Courier New", monospace; letter-spacing: .06em; background: var(--fondo); border-radius: 6px; user-select: all; }
+
+@media (max-width: 760px) {
+  .dos { grid-template-columns: 1fr; }
+  .formulario { padding: 20px 16px; }
+  .tabla thead { display: none; }
+  .tabla, .tabla tbody, .tabla tr, .tabla td { display: block; width: 100%; }
+  .tabla tr { border-top: 8px solid var(--fondo); padding: 8px 0; }
+  .tabla td { border: 0; padding: 4px 12px; }
+  .tabla td::before { content: attr(data-etiqueta) ": "; color: var(--tenue); font-size: 13px; }
+  .tabla td.acciones::before { content: none; }
+  .mas-menu { position: static; box-shadow: none; }
+}

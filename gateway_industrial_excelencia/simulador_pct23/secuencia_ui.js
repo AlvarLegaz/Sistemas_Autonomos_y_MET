@@ -234,6 +234,14 @@
     cx.fillStyle=texto;cx.textBaseline='bottom';cx.fillText(tiempo(i0),l,b+22);
     const tf=tiempo(i1);cx.fillText(tf,r-cx.measureText(tf).width,b+22);
   }
+  // el lienzo se dibuja al tamaño con que se ve (así el texto no se deforma) y se redibuja al cambiar de tamaño
+  function ajustarLienzo(){
+    const cv=$('sim-trend');
+    const w=Math.round(cv.clientWidth),h=Math.round(cv.clientHeight);
+    if(!w||(cv.width===w&&cv.height===h))return;
+    cv.width=w;cv.height=h;grafica();
+  }
+  window.addEventListener('resize',ajustarLienzo);
   function muestrear(){
     if(estado.tiempo-ultimoMuestreo<5&&hist.length)return;
     const o=modelo.observaciones(estado);
@@ -269,6 +277,7 @@
     $('sim-velocidad').addEventListener('change',e=>{velocidad=Number(e.target.value);pintar();});
   }
   iniciarSelectorModos();
+  ajustarLienzo();
   configurar();
   if(DEMO)aplicarDeposito();else vaciarNoSeleccionado(false);
   leerConfig();

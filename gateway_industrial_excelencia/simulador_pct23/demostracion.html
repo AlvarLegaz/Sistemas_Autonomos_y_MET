@@ -3,50 +3,54 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PCT23 · Modo demostración</title>
-<link rel="stylesheet" href="estilos.css">
-<style>
-  .accion { cursor: default; }
-  [hidden] { display: none !important; }
-  .sec-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-  #fases { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0 0 12px; counter-reset: f; }
-  #fases li { counter-increment: f; flex: 1 1 130px; padding: 8px 10px; border: 1px solid var(--borde); border-radius: 8px;
-              color: var(--tenue); font-size: 13px; }
-  #fases li::before { content: counter(f) ". "; font-weight: 700; }
-  #fases li.hecha { color: var(--ok); border-color: var(--ok); }
-  #fases li.actual { color: var(--texto); border-color: var(--acento); background: color-mix(in srgb, var(--acento) 14%, transparent); font-weight: 600; }
-  .fase-nombre { font-size: 22px; font-weight: 700; margin: 4px 0 10px; }
-  .fase-nombre.marcha { color: var(--ok); } .fase-nombre.alarma { color: var(--error); } .fase-nombre.fin { color: var(--acento); }
-  .datos { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 14px; }
-  .datos dt { color: var(--tenue); } .datos dd { margin: 0; font-variant-numeric: tabular-nums; }
-  .cfg { display: grid; gap: 10px; }
-  .cfg [hidden] { display: none !important; }
-  .cfg label { display: flex; flex-direction: column; gap: 3px; font-weight: 600; font-size: 13px; }
-  .cfg .fila { display: flex; align-items: center; gap: 10px; font-weight: 400; }
-  .cfg input[type=range] { flex: 1; min-width: 0; } .cfg output { min-width: 42px; text-align: right; }
-  .sec-aviso { margin: 0; font-size: 13px; color: var(--tenue); } .sec-aviso.mal { color: var(--error); }
-  #alarma-caja { border: 1px solid var(--error); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;
-                 background: color-mix(in srgb, var(--error) 12%, transparent); }
-  #alarma-caja[hidden] { display: none; }
-  #alarma-causa { font-weight: 700; color: var(--error); } #alarma-accion { margin-top: 2px; }
-  .botonera { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  button.peligro { background: var(--error); border-color: var(--error); color: #fff; }
-</style>
+<title>PCT23 · Demostración</title>
+<link rel="stylesheet" href="interfaz.css">
 </head>
 <body data-demo="1">
-<main>
-  <header>
-    <h1>PCT23 · Modo demostración</h1>
-    <span class="etiqueta-demo">SIMULADOR LOCAL · SIN HARDWARE</span>
-    <a href="index.html">← Inicio</a> <a href="automatico.html">Modo automático (todos los ajustes)</a>
-  </header>
-  <div class="estado">
-    <span class="chip" id="chip-fase"><i class="punto"></i><span>—</span></span>
-    <span class="chip" id="chip-tiempo"><i class="punto"></i><span>—</span></span>
-    <span class="chip" id="chip-io"><i class="punto"></i><span>—</span></span>
+<header class="cab">
+  <h1><a href="index.html" title="Inicio">PCT23</a></h1>
+  <nav class="modos" aria-label="Modo de operación">
+    <a href="manual.html">Manual</a>
+    <a href="automatico.html">Automático</a>
+    <a href="demostracion.html" aria-current="page">Demostración</a>
+  </nav>
+</header>
+
+<div class="barra" role="region" aria-label="Operación de la planta">
+  <div class="acciones">
+    <button id="b-iniciar" type="button">Iniciar secuencia</button>
+    <button id="b-pausa" type="button" disabled>Pausar</button>
+    <button id="b-parar" type="button" disabled>Parada ordenada</button>
+    <button id="b-emergencia" type="button" disabled>Emergencia</button>
   </div>
-  <div class="lienzo">
-  <svg viewBox="0 0 1000 480" role="img" aria-label="Esquema de la planta PCT23">
+  <div class="pista">
+    <ol id="fases" aria-label="Fases de la secuencia">
+      <li data-fase="arranque">Arranque</li><li data-fase="precalentamiento">Precalentamiento</li>
+      <li data-fase="produccion">Producción</li><li data-fase="lavado">Lavado</li>
+      <li data-fase="parada">Parada</li><li data-fase="finalizada">Finalizada</li>
+    </ol>
+    <p class="pista-estado" aria-live="polite"><b id="fase-nombre">Reposo</b><span id="d-tfase">00:00:00</span><span id="k-avance"></span><span id="fase-motivo"></span></p>
+  </div>
+  <div class="derecha">
+    <div class="velocidad" role="group" aria-label="Velocidad de simulación">
+      <button type="button" data-v="1" aria-pressed="true">1×</button><button type="button" data-v="5" aria-pressed="false">5×</button><button type="button" data-v="20" aria-pressed="false">20×</button>
+    </div>
+    <select id="sim-velocidad" class="velocidad-select" aria-label="Velocidad de simulación"><option value="1" selected>1×</option><option value="5">5×</option><option value="20">20×</option></select>
+    <details class="mas"><summary>Más</summary>
+      <div class="mas-menu"><button id="b-terminar" type="button" disabled>Terminar producción</button><button id="b-saltar" type="button" disabled>Saltar fase</button><button id="b-reset" type="button">Reiniciar planta</button></div>
+    </details>
+  </div>
+</div>
+
+<div id="alarma-caja" role="alert" hidden>
+  <strong id="alarma-causa"></strong><span id="alarma-accion"></span>
+  <button id="b-reconocer" type="button" disabled>Reconocer alarma</button>
+</div>
+
+<div class="cuerpo">
+  <main class="escena">
+    <div class="lienzo">
+<svg viewBox="0 0 1000 480" role="img" aria-label="Esquema de la planta PCT23">
     <!-- ============ tuberías ============ -->
     <!-- CIRCUITO 1. Agua caliente: N2 -> paso inferior del regenerador -> HEAT UNIT.
          La ida (y=346) y el retorno inferior (y=384) no comparten nodos
@@ -177,89 +181,117 @@
        <circle class="instr" cx="975" cy="170" r="13"/><text x="975" y="174" class="etiqueta">L1</text>
        <text x="962" y="196" class="lectura" id="v-L1">—</text></g>
   </svg>
-  </div>
-  <section class="panel" id="panel-secuencia">
-    <h2>Demostración: tú marcas la temperatura, la planta hace el resto</h2>
-    <ol id="fases">
-      <li data-fase="arranque">Arranque</li><li data-fase="precalentamiento">Precalentamiento</li>
-      <li data-fase="produccion">Producción</li><li data-fase="lavado">Lavado</li><li data-fase="parada">Parada</li>
-      <li data-fase="finalizada">Finalizada</li>
-    </ol>
-    <div id="alarma-caja" hidden><div id="alarma-causa"></div><div id="alarma-accion"></div></div>
-    <div class="sec-grid">
-      <div>
-        <div class="fase-nombre" id="fase-nombre">Reposo</div>
-        <div class="sec-aviso" id="fase-motivo" style="margin:-6px 0 10px"></div>
-        <dl class="datos">
-          <dt>Tiempo en la fase</dt><dd id="d-tfase">—</dd>
-          <dt>Tiempo de secuencia</dt><dd id="d-ttotal">—</dd>
-          <dt>T1 (tubo de residencia)</dt><dd id="d-t1">—</dd>
-          <dt>T2 (agua caliente)</dt><dd id="d-t2">—</dd>
-          <dt>T3 (producto final)</dt><dd id="d-t3">—</dd>
-          <dt>Calefactor</dt><dd id="d-r">—</dd>
-          <dt>SOL1</dt><dd id="d-sol1">—</dd>
-          <dt>Producto acabado (esta producción)</dt><dd id="d-final">—</dd>
-          <dt>Producto medido en SOL1</dt><dd id="d-medido">—</dd>
-          <dt>Desvío</dt><dd id="d-desv">—</dd>
-          <dt>Tanques</dt><dd id="d-tanque">—</dd>
-        </dl>
-      </div>
-      <div class="cfg">
-        <label>Temperatura de pasteurización (°C)
-          <span class="fila"><input type="range" id="cfg-t1" min="40" max="66" step="1" value="60"><output id="o-t1">60</output></span></label>
-        <label>Tanque de origen (el otro queda vacío)
-          <select id="cfg-origen"><option value="A" selected>Tanque A</option><option value="B">Tanque B</option></select></label>
-        <label>Llenado del tanque de origen (%) · solo con la planta parada
-          <span class="fila"><input type="range" id="llen-demo" min="0" max="100" step="1" value="73"><output id="ollen-demo">73 %</output></span></label>
-        <label>Producción de referencia (ml) · como máximo, lo que hay en el tanque de origen
-          <span class="fila"><input type="range" id="cfg-ref" min="50" max="1760" step="1" value="1760"><output id="o-ref">1760</output></span></label>
-        <p class="sec-aviso" id="cfg-aviso"></p>
-        <p class="sec-aviso">Solo marcas la temperatura del producto, el tanque de origen y cuánto lo llenas (el otro tanque queda vacío), y pulsas Iniciar. La planta elige el caudal, regula el calefactor, desvía el producto con SOL1 mientras no esté a temperatura, produce la cantidad de referencia (por defecto, todo el tanque), lava y se para sola. Si ocurre algo, salta una alarma con su acción correctiva.</p>
-        <div hidden>
-        <label>Modo de regulación del calefactor
-          <select id="cfg-modo"></select></label>
-        <p class="sec-aviso" id="cfg-modo-desc"></p>
-        <label data-modos="onoff T2">Consigna de T2, agua caliente (°C)
-          <span class="fila"><input type="range" id="cfg-t2" min="60" max="88" step="1" value="80"><output id="o-t2">80</output></span></label>
-        <label data-modos="manual">Potencia del calefactor (%)
-          <span class="fila"><input type="range" id="cfg-pot" min="10" max="90" step="5" value="90"><output id="o-pot">90</output></span></label>
-        <label data-modos="manual onoff T2 T1 cascada">Caudal de proceso, PWM de N1 (%)
-          <span class="fila"><input type="range" id="cfg-caudal" min="20" max="100" step="5" value="50"><output id="o-caudal">50</output></span></label>
-        <label data-modos="multiple">Consigna de caudal F1 (ml/min)
-          <span class="fila"><input type="range" id="cfg-f1" min="100" max="500" step="25" value="275"><output id="o-f1">275</output></span></label>
-        </div>
-      </div>
     </div>
-    <div class="botonera">
-      <button class="primario" id="b-iniciar">▶ Iniciar secuencia</button>
-      <button id="b-pausa" disabled>Ⅱ Pausar</button>
-      <button id="b-terminar" disabled>Terminar producción</button>
-      <button id="b-saltar" disabled hidden>Saltar fase ⏭</button>
-      <button id="b-parar" disabled>Parada ordenada</button>
-      <button class="peligro" id="b-emergencia" disabled>Emergencia</button>
-      <button id="b-reconocer" disabled>Reconocer alarma</button>
-      <button id="b-reset">↻ Reiniciar planta</button>
-      <label for="sim-velocidad" style="align-self:center">Velocidad</label>
-      <select id="sim-velocidad"><option value="1" selected>1×</option><option value="5">5×</option><option value="20">20×</option></select>
+    <div class="leyenda"><span><i style="background:#d66d2b"></i>T2 · agua caliente</span><span><i style="background:#2d80c7"></i>T1 · salida del tubo</span><span><i style="background:#22a2a0"></i>T3 · producto final</span><span>La línea discontinua es la consigna</span></div>
+    <canvas id="sim-trend" class="grafica" width="1000" height="260" aria-label="Evolución simulada de T1, T2 y T3"></canvas>
+    <p class="nota"><strong>Simulación didáctica aproximada.</strong> Las fases (arranque, precalentamiento, producción, lavado y parada) siguen la secuencia típica del manual de la PCT23, pero las consignas, los tiempos y la lógica de desvío son supuestos de este simulador, no valores del fabricante. El lavado se simplifica. No hay conexión con equipos físicos.</p>
+  </main>
+
+  <aside class="lateral" aria-label="Lecturas y ajustes">
+    <div class="pestanas" role="tablist" aria-label="Lecturas, ajustes y registro">
+      <button type="button" role="tab" id="tab-ajustes" aria-selected="true" aria-controls="p-ajustes">Ajustes</button>
+      <button type="button" role="tab" id="tab-lecturas" aria-selected="false" aria-controls="p-lecturas">Lecturas</button>
+      <button type="button" role="tab" id="tab-registro" aria-selected="false" aria-controls="p-registro">Registro</button>
     </div>
-  </section>
-  <section class="panel">
-    <h2>Temperaturas</h2>
-    <div class="leyenda"><span><i style="background:#d66d2b"></i>T2 · HEAT UNIT</span>
-      <span><i style="background:#2d80c7"></i>T1 · tubo de retención (la línea discontinua es la consigna)</span>
-      <span><i style="background:#22a2a0"></i>T3 · producto final</span></div>
-    <canvas id="sim-trend" class="grafica" width="900" height="220" aria-label="Evolución simulada de T1, T2 y T3"></canvas>
-    <h2 style="margin-top:14px">Registro de la secuencia</h2>
-    <ul id="sim-log" class="registros"></ul>
-  </section>
-  <p class="nota"><strong>Secuencia didáctica aproximada.</strong> Las fases (arranque, precalentamiento, producción, lavado y parada) siguen la secuencia
-  típica descrita en el manual de la PCT23, pero las consignas, los tiempos y la lógica de desvío son supuestos de este simulador, no valores del fabricante.
-  En el precalentamiento y el lavado SOL1 queda activa y el producto recircula al tanque; en producción SOL1 desvía el producto si T1 baja de la consigna menos la tolerancia.
-  El lavado se simplifica: el modelo no tiene otro fluido de limpieza. No hay conexión con MQTT, Flask, Raspberry Pi ni con equipos físicos.</p>
-</main>
+    <div id="p-lecturas" role="tabpanel" aria-labelledby="tab-lecturas" hidden>
+    <section class="estados">
+      <span class="chip" id="chip-fase"><i class="punto"></i><span>—</span></span>
+      <span class="chip" id="chip-tiempo"><i class="punto"></i><span>—</span></span>
+      <span class="chip" id="chip-io"><i class="punto"></i><span>—</span></span>
+    </section>
+
+    <section class="term" id="term-t1" style="--color:var(--agua)">
+      <div class="term-cab"><span class="term-nombre">T1 · salida del tubo de residencia</span><output class="term-valor" id="k-t1">—</output></div>
+      <div class="term-barra"><span class="term-relleno" id="r-t1"></span><i class="term-marca" id="m-t1"></i></div>
+      <p class="term-pie" id="p-t1"></p>
+    </section>
+    <section class="term" id="term-t2" style="--color:var(--caliente)">
+      <div class="term-cab"><span class="term-nombre">T2 · agua caliente</span><output class="term-valor" id="k-t2">—</output></div>
+      <div class="term-barra"><span class="term-relleno" id="r-t2"></span><i class="term-marca" id="m-t2"></i></div>
+      <p class="term-pie" id="p-t2"></p>
+    </section>
+    <section class="term" id="term-t3" style="--color:var(--frio)">
+      <div class="term-cab"><span class="term-nombre">T3 · producto final</span><output class="term-valor" id="k-t3">—</output></div>
+      <div class="term-barra"><span class="term-relleno" id="r-t3"></span></div>
+      <p class="term-pie" id="p-t3">Después de la refrigeración.</p>
+    </section>
+
+    <section class="bloque">
+      <h2>Producto acabado</h2>
+      <div class="cifra" id="k-final">0 <small>ml</small></div>
+      <div class="barra-llenado" id="barra-ref" aria-hidden="true"><i id="r-ref" style="width:0"></i></div>
+      <p class="term-pie" id="p-ref"></p>
+      <dl class="pares">
+        <dt>Desviado al tanque</dt><dd id="k-desv">0 ml</dd>
+        <dt>Total medido en SOL1</dt><dd id="k-total">0 ml</dd>
+        <dt>SOL1</dt><dd id="k-sol1">Salida normal</dd>
+      </dl>
+    </section>
+
+    <section class="bloque">
+      <h2>Tanques</h2>
+      <dl class="pares">
+        <dt>Tanque A</dt><dd id="k-ta">—</dd>
+      </dl>
+      <div class="barra-llenado" aria-hidden="true"><i id="r-ta" style="width:0"></i></div>
+      <dl class="pares">
+        <dt>Tanque B</dt><dd id="k-tb">—</dd>
+      </dl>
+      <div class="barra-llenado" aria-hidden="true"><i id="r-tb" style="width:0"></i></div>
+    </section>
+
+    </div>
+      <div class="panel-pestana cfg" id="p-ajustes" role="tabpanel" aria-labelledby="tab-ajustes">
+        <fieldset>
+          <legend>Planta</legend>
+          <label class="campo"><span>Tanque de origen</span>
+            <select id="cfg-origen"><option value="A" selected>Tanque A</option><option value="B">Tanque B</option></select></label>
+          <label class="campo" data-solo="auto"><span>Llenado del tanque A</span>
+            <span class="fila"><input type="range" id="llen-A" min="0" max="100" step="1" value="73"><output id="ollen-A">73 %</output></span></label>
+          <label class="campo" data-solo="auto"><span>Llenado del tanque B</span>
+            <span class="fila"><input type="range" id="llen-B" min="0" max="100" step="1" value="53"><output id="ollen-B">53 %</output></span></label>
+          <label class="campo" data-solo="demo"><span>Llenado del tanque de origen (el otro queda vacío)</span>
+            <span class="fila"><input type="range" id="llen-demo" min="0" max="100" step="1" value="73"><output id="ollen-demo">73 %</output></span></label>
+          <label class="campo"><span>Producción de referencia</span>
+            <span class="fila"><input type="range" id="cfg-ref" min="50" max="1760" step="1" value="1760"><output id="o-ref">1760 ml</output></span></label>
+        </fieldset>
+        <fieldset>
+          <legend>Proceso</legend>
+          <label class="campo"><span>Temperatura del producto (T1)</span>
+            <span class="fila"><input type="range" id="cfg-t1" min="40" max="70" step="1" value="60"><output id="o-t1" data-u=" °C">60</output></span></label>
+          <p class="sec-aviso" id="cfg-aviso"></p>
+        </fieldset>
+        <details class="avanzado" data-solo="auto">
+          <summary>Ajustes avanzados</summary>
+          <label class="campo"><span>Modo de regulación del calefactor</span><select id="cfg-modo"></select></label>
+          <p class="sec-aviso" id="cfg-modo-desc"></p>
+          <label class="campo" data-modos="onoff T2"><span>Temperatura del agua caliente (T2)</span>
+            <span class="fila"><input type="range" id="cfg-t2" min="60" max="88" step="1" value="80"><output id="o-t2" data-u=" °C">80</output></span></label>
+          <label class="campo" data-modos="manual"><span>Potencia del calefactor</span>
+            <span class="fila"><input type="range" id="cfg-pot" min="10" max="90" step="5" value="90"><output id="o-pot" data-u=" %">90</output></span></label>
+          <label class="campo" data-modos="manual onoff T2 T1 cascada"><span>Caudal de la bomba N1</span>
+            <span class="fila"><input type="range" id="cfg-caudal" min="20" max="100" step="5" value="50"><output id="o-caudal" data-u=" %">50</output></span></label>
+          <label class="campo" data-modos="multiple"><span>Caudal F1</span>
+            <span class="fila"><input type="range" id="cfg-f1" min="100" max="500" step="25" value="275"><output id="o-f1" data-u=" ml/min">275</output></span></label>
+        </details>
+      </div>
+
+      <div class="panel-pestana" id="p-registro" role="tabpanel" aria-labelledby="tab-registro" hidden>
+        <ul id="sim-log" class="registros"></ul>
+      </div>
+
+    <div hidden>
+      <span id="d-t1"></span><span id="d-t2"></span><span id="d-t3"></span><span id="d-r"></span><span id="d-sol1"></span>
+      <span id="d-final"></span><span id="d-medido"></span><span id="d-desv"></span><span id="d-tanque"></span><span id="d-ttotal"></span>
+    </div>
+  </aside>
+</div>
+
 <script src="modelo.js"></script>
 <script src="secuencia.js"></script>
 <script src="secuencia_ui.js"></script>
 <script src="ayuda.js"></script>
+<script src="interfaz_comun.js"></script>
+<script src="interfaz_auto.js"></script>
 </body>
 </html>

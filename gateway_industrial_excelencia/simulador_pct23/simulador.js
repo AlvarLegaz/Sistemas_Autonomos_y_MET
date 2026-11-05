@@ -173,6 +173,14 @@
     cx.fillStyle=text;cx.textBaseline='bottom';cx.fillText(tiempo(inicio),left,bottom+22);
     const to=tiempo(final);cx.fillText(to,right-cx.measureText(to).width,bottom+22);
   }
+  // el lienzo se dibuja al tamaño con que se ve (así el texto no se deforma) y se redibuja al cambiar de tamaño
+  function ajustarLienzo(){
+    const cv=$('sim-trend');
+    const w=Math.round(cv.clientWidth),h=Math.round(cv.clientHeight);
+    if(!w||(cv.width===w&&cv.height===h))return;
+    cv.width=w;cv.height=h;pintarGrafica();
+  }
+  window.addEventListener('resize',ajustarLienzo);
   function muestrear(){
     const t=estado.tiempo;
     if(t-ultimoTiempoGrafica<2 && hist.length)return;
@@ -273,6 +281,7 @@
     });
   }
   configurarControles();
+  ajustarLienzo();
   registrar('Sesión local cargada: no hay conexión con máquinas');
   actualizar();
   // Tick real fijo; en cada tick avanzan segundos simulados según velocidad elegida.

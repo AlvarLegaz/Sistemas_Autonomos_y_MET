@@ -167,3 +167,8 @@ python3 test_analog.py    # tabla RAW/voltaje de los 8 canales del MCP3008
 2. `PWMOut1_value` controla el duty: 16 niveles, periodo de 2 ms (500 Hz).
 
 El PWM por software en Python tiene jitter: depende de la carga de la CPU y de los otros hilos (MQTT), y la espera activa ocupa un núcleo. Si hace falta precisión, es mejor un PWM por hardware (GPIO 12/13/18/19) o `gpiozero.PWMOutputDevice`, que genera la señal fuera de Python.
+
+## Simulador y aula de clase
+
+- `simulador_pct23/`: simulador didáctico de la planta (modos manual, automático y demostración), sin conexión a la planta real. Ver su README.
+- `aula_pct23/`: servidor con registro de alumnos, acceso con correo y contraseña, y aula del profesor con PIN para autorizarlos. Se despliega con Docker. Ver su README.

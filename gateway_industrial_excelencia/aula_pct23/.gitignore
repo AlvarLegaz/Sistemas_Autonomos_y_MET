@@ -1,0 +1,10 @@
+# Secretos y datos de ejecución: nunca al repositorio
+.env
+datos/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+secret_key
+__pycache__/
+servidor.log
+servidor.err

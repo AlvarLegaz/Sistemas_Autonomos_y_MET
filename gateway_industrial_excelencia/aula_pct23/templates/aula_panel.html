@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block titulo %}Aula del profesor · PCT23{% endblock %}
+{% block seccion %}Aula del profesor{% endblock %}
+{% block nav %}
+  <a href="/simulador/">Abrir el simulador</a>
+  <form method="post" action="{{ url_for('aula_salir') }}"><input type="hidden" name="csrf" value="{{ csrf() }}"><button class="enlace" type="submit">Salir del aula</button></form>
+{% endblock %}
+{% block contenido %}
+{% if pin_por_defecto %}
+<p class="aviso" role="status">PIN por defecto en uso ({{ pin_defecto_valor }}): vale para pruebas. Antes de usarlo con una clase, cámbialo con <code>AULA_PIN</code> en el archivo <code>.env</code>, porque cualquiera que conozca el PIN puede autorizar alumnos.</p>
+{% endif %}
+{% if clave_nueva %}
+<section class="clave-nueva" role="alert">
+  <h2>Clave nueva para {{ clave_nueva.nombre }}</h2>
+  <p class="clave">{{ clave_nueva.clave }}</p>
+  <p>Cópiala y dásela al alumno ({{ clave_nueva.correo }}). No se volverá a mostrar. Podrá cambiarla pidiéndote otra.</p>
+</section>
+{% endif %}
+
+<nav class="pestanas" aria-label="Estado de las cuentas">
+  {% for e, nombre in (('pendiente', 'Pendientes'), ('autorizado', 'Autorizados'), ('rechazado', 'Rechazados')) %}
+    <a href="{{ url_for('aula', estado=e, modulo=modulo or None, q=q or None) }}" {% if estado == e %}aria-current="page"{% endif %}>{{ nombre }} <span class="n">{{ cuentas[e] }}</span></a>
+  {% endfor %}
+  <a href="{{ url_for('aula', estado='todos', modulo=modulo or None, q=q or None) }}" {% if estado == 'todos' %}aria-current="page"{% endif %}>Todos <span class="n">{{ cuentas.values() | sum }}</span></a>
+</nav>
+
+<form class="filtros" method="get" action="{{ url_for('aula') }}">
+  <input type="hidden" name="estado" value="{{ estado }}">
+  <label>Módulo
+    <select name="modulo">
+      <option value="">Todos</option>
+      {% for m in modulos_bd %}<option value="{{ m }}" {% if m|lower == modulo|lower %}selected{% endif %}>{{ m }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Buscar
+    <input type="search" name="q" value="{{ q }}" placeholder="Nombre o correo" maxlength="80">
+  </label>
+  <button type="submit">Filtrar</button>
+</form>
+
+{% if estado == 'pendiente' and cuentas['pendiente'] %}
+<form method="post" action="{{ url_for('aula_accion') }}" class="masivo"
+      onsubmit="return confirm('¿Autorizar a todos los alumnos pendientes{% if modulo %} del módulo {{ modulo|e }}{% endif %}?')">
+  <input type="hidden" name="csrf" value="{{ csrf() }}">
+  <input type="hidden" name="accion" value="autorizar_todos">
+  <input type="hidden" name="estado" value="{{ estado }}"><input type="hidden" name="modulo" value="{{ modulo }}"><input type="hidden" name="q" value="{{ q }}">
+  <button class="primario" type="submit">Autorizar a todos los pendientes{% if modulo %} de {{ modulo }}{% endif %}</button>
+</form>
+{% endif %}
+
+{% if filas %}
+<table class="tabla">
+  <thead><tr><th>Alumno</th><th>Módulo</th><th>Correo</th><th>Estado</th><th>Registro</th><th>Acciones</th></tr></thead>
+  <tbody>
+  {% for f in filas %}
+    <tr>
+      <td data-etiqueta="Alumno"><strong>{{ f['apellidos'] }}, {{ f['nombre'] }}</strong></td>
+      <td data-etiqueta="Módulo">{{ f['modulo'] }}</td>
+      <td data-etiqueta="Correo">{{ f['correo'] }}</td>
+      <td data-etiqueta="Estado"><span class="etiqueta etiqueta-{{ f['estado'] }}">{{ f['estado'] }}</span></td>
+      <td data-etiqueta="Registro">{{ f['creado'][:16].replace('T', ' ') }}</td>
+      <td data-etiqueta="Acciones" class="acciones">
+        {% macro boton(accion, texto, clase='', confirmar='') %}
+        <form method="post" action="{{ url_for('aula_accion') }}" {% if confirmar %}onsubmit="return confirm('{{ confirmar|e }}')"{% endif %}>
+          <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="id" value="{{ f['id'] }}"><input type="hidden" name="accion" value="{{ accion }}">
+          <input type="hidden" name="estado" value="{{ estado }}"><input type="hidden" name="modulo" value="{{ modulo }}"><input type="hidden" name="q" value="{{ q }}">
+          <button type="submit" class="{{ clase }}">{{ texto }}</button>
+        </form>
+        {% endmacro %}
+        {% if f['estado'] != 'autorizado' %}{{ boton('autorizar', 'Autorizar', 'primario') }}{% endif %}
+        {% if f['estado'] == 'pendiente' %}{{ boton('rechazar', 'Rechazar') }}{% endif %}
+        {% if f['estado'] == 'autorizado' %}{{ boton('rechazar', 'Quitar acceso', '', '¿Quitar el acceso a ' ~ f['nombre'] ~ '?') }}{% endif %}
+        <details class="mas"><summary>Más</summary>
+          <div class="mas-menu">
+            {{ boton('clave', 'Dar clave nueva', '', '¿Generar una clave nueva para ' ~ f['nombre'] ~ '? La anterior dejará de valer.') }}
+            {{ boton('eliminar', 'Eliminar cuenta', 'peligro', '¿Eliminar la cuenta de ' ~ f['nombre'] ~ ' ' ~ f['apellidos'] ~ '? No se puede deshacer.') }}
+          </div>
+        </details>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="vacio">
+  {% if estado == 'pendiente' %}No hay alumnos pendientes. Cuando alguien se registre aparecerá aquí.{% else %}No hay cuentas con este filtro.{% endif %}
+</p>
+{% endif %}
+<p class="pie">Sesión de profesor activa hasta las <span id="hasta" data-hasta="{{ hasta|int }}"></span>.</p>
+<script>
+  (function () {
+    var el = document.getElementById('hasta');
+    el.textContent = new Date(Number(el.dataset.hasta) * 1000).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  })();
+</script>
+{% endblock %}

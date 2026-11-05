@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block titulo %}Tu cuenta · Aula PCT23{% endblock %}
+{% block contenido %}
+<section class="formulario">
+  {% if a['estado'] == 'rechazado' %}
+    <h1>Acceso no concedido</h1>
+    <p>El profesor no ha autorizado esta cuenta. Habla con él si crees que es un error.</p>
+  {% else %}
+    <h1>Esperando autorización</h1>
+    <p>Tu registro está enviado. Cuando el profesor lo autorice podrás usar el simulador; esta página se actualiza al volver a entrar.</p>
+  {% endif %}
+  <dl class="datos">
+    <dt>Nombre</dt><dd>{{ a['nombre'] }} {{ a['apellidos'] }}</dd>
+    <dt>Módulo</dt><dd>{{ a['modulo'] }}</dd>
+    <dt>Correo</dt><dd>{{ a['correo'] }}</dd>
+    <dt>Estado</dt><dd><span class="etiqueta etiqueta-{{ a['estado'] }}">{{ a['estado'] }}</span></dd>
+  </dl>
+  <p><a class="boton" href="{{ url_for('inicio') }}">Comprobar de nuevo</a></p>
+</section>
+{% endblock %}
