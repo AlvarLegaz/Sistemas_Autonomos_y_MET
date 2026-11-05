@@ -54,7 +54,15 @@ Cada entrada pasa por un divisor (10 kΩ en serie, 20 kΩ a masa) y un zener de 
 | OUT04 | Resistencia de calefacción del heat unit (on/off), el pin junto a los de los motores |
 | OUT01-OUT03 | Sin asignar |
 
-**Sin hardware operativo todavía:** la velocidad de las bombas (PWM; en el sinóptico, `PWMOut1` = feed unit y `PWMOut2` = heat unit, esta última supuesta) y la resistencia de calentamiento (salida analógica por el MCP4728 de 0x60, que no responde). Las dos resistencias de 120 V c.a. van en serie y forman una sola, alimentada a 230 V, regulada por ráfagas de 50 ciclos (100 % = 50 ciclos, 50 % = 25). En el sinóptico es `AnalogOut1`, canal supuesto. `PWM_GPIO_PIN` sigue en `None` en `runtime.py`.
+**Potencia (hilo `scan_potencia` de `runtime.py`, cada 10 ms, sobre el expansor de OUT01-OUT08):** `TransistorOut4/7/8` son la orden de encendido y la señal física se modula así.
+
+| Salida | Control | Detalle |
+| --- | --- | --- |
+| OUT04 resistencia | Ráfagas, `AnalogOut1_value` (%) | Ventana de 50 ciclos de red (1 s): 100 % = 50 ciclos, 50 % = 25, repartidos de forma uniforme. Las dos resistencias de 120 V c.a. van en serie y forman una sola a 230 V |
+| OUT07 heat unit | PWM lento, `PWMOut2_value` (%) | Periodo de 200 ms, pasos del 5 % |
+| OUT08 feed unit | PWM lento, `PWMOut1_value` (%) | Igual que OUT07 |
+
+`AnalogOut1`, `PWMOut1` y `PWMOut2` arrancan al **100 %**. El PWM sale por el expansor I2C, así que es lento (5 Hz): vale para ajustar caudal medio, no para un motor que necesite frecuencia alta. La ráfaga se reparte por tiempo, sin sincronizar con el paso por cero de la red; con un relé de estado sólido de paso por cero, la conmutación la hace él. `PWM_GPIO_PIN` sigue en `None` en `runtime.py` (PWM por GPIO de `PWMOut1`, sin usar).
 
 ## Interfaces web
 
@@ -77,6 +85,6 @@ La asignación de canales del sinóptico está en la tabla `MAPA`, al principio 
 
 1. Confirmar qué valor (0 o 1) de OUT05 y OUT06 gira hacia adelante.
 2. Comprobar el MCP4728 (0x60) para poder manejar las resistencias de calentamiento.
-3. Mapear el PWM de velocidad de las bombas, si la entrada lo admite.
+3. Probar en la placa real el PWM de las bombas (200 ms) y las ráfagas de la resistencia; `test_pi_emulada.py` solo los comprueba con un bus I2C emulado.
 4. Decidir dónde dibujar T5 (no aparece en el esquema de la placa de la PCT23).
 5. Confirmar D5 como nivel del tanque calefactor.

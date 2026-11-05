@@ -9,6 +9,32 @@ NUM_CHANNELS = 8
 # p. ej. 17 = pin fisico 11. Con None no se crea el hilo ni se gasta CPU.
 PWM_GPIO_PIN = None
 
+# Salidas de potencia por el expansor de transistores (J7, PCF8574A 0x3A). Un hilo
+# propio las modula cada POWER_TICK_MS; el expansor no admite un PWM rapido.
+POWER_TICK_MS = 10
+CICLO_RED_TICKS = 2          # un ciclo de red (50 Hz = 20 ms) son 2 ticks de 10 ms
+BURST_CICLOS = 50            # ventana de rafaga: 50 ciclos = 1 s
+PWM_PERIODO_TICKS = 20       # PWM de bombas: 20 ticks = 200 ms (pasos del 5 %)
+OUT_RESISTENCIA = 4          # OUT04: resistencia (230 V, dos de 120 V en serie), por rafagas
+OUT_BOMBA_HEAT = 7           # OUT07: bomba heat unit, PWM = PWMOut2
+OUT_BOMBA_FEED = 8           # OUT08: bomba feed unit, PWM = PWMOut1
+POTENCIA_POR_DEFECTO = 100.0  # PWMOut1, PWMOut2 y AnalogOut1 (potencia de la resistencia) arrancan al 100 %
+
+
+def burst_activo(ciclo, porcentaje, ciclos=BURST_CICLOS):
+    """Control por rafagas: de cada ventana de `ciclos` ciclos de red conduce
+    round(porcentaje * ciclos / 100), repartidos de forma uniforme.
+    100 % -> 50 de 50 ciclos; 50 % -> 25 de 50, alternos."""
+    n = round(min(max(float(porcentaje), 0.0), 100.0) * ciclos / 100)
+    k = ciclo % ciclos
+    return (k + 1) * n // ciclos > k * n // ciclos
+
+
+def pwm_activo(tick, porcentaje, periodo=PWM_PERIODO_TICKS):
+    """PWM lento por ticks: activo durante round(porcentaje * periodo / 100) ticks de cada periodo."""
+    n = round(min(max(float(porcentaje), 0.0), 100.0) * periodo / 100)
+    return (tick % periodo) < n
+
 
 def _canales(prefijo, valor_inicial):
     return {f"{prefijo}{i}_value": valor_inicial for i in range(1, NUM_CHANNELS + 1)}
@@ -54,6 +80,12 @@ class Runtime:
         # TransistorOut1..8 = OUT01..OUT08 del conector J7 (PCF8574A 0x3A + TBD62783A).
         self.outputs = {**_canales("AnalogOut", 0.0), **_canales("PWMOut", 0.0),
                         **_canales("DigitalOut", False), **_canales("TransistorOut", False)}
+        # TransistorOut4/7/8 son la orden de encendido; la senal fisica sale del hilo
+        # de potencia: OUT04 por rafagas (AnalogOut1, %), OUT07 y OUT08 por PWM
+        # (PWMOut2 heat unit, PWMOut1 feed unit). Por defecto al 100 %.
+        self.outputs["AnalogOut1_value"] = POTENCIA_POR_DEFECTO
+        self.outputs["PWMOut1_value"] = POTENCIA_POR_DEFECTO
+        self.outputs["PWMOut2_value"] = POTENCIA_POR_DEFECTO
 
     # ============================================================
     # Control del runtime
@@ -68,7 +100,8 @@ class Runtime:
         self._abrir_drivers()
         self.stop_event.clear()
 
-        self.threads = [threading.Thread(target=self._bucle_lento, name="scan_lento", daemon=True)]
+        self.threads = [threading.Thread(target=self._bucle_lento, name="scan_lento", daemon=True),
+                        threading.Thread(target=self._bucle_potencia, name="scan_potencia", daemon=True)]
         if self.pwm is not None:
             self.threads.append(threading.Thread(target=self._bucle_rapido, name="scan_rapido", daemon=True))
 
@@ -158,10 +191,12 @@ class Runtime:
         return self._leer("RTDIn")
 
     def readOutputs(self):
-        """Estado actual de las salidas con hardware (DigitalOut1..8 y PWMOut1)."""
+        """Estado actual de las salidas con hardware: DigitalOut1..8, TransistorOut1..8,
+        PWMOut1/2 (bombas) y AnalogOut1 (potencia de la resistencia)."""
         with self.lock:
             return {k: v for k, v in self.outputs.items()
-                    if k.startswith(("DigitalOut", "TransistorOut")) or k == "PWMOut1_value"}
+                    if k.startswith(("DigitalOut", "TransistorOut"))
+                    or k in ("PWMOut1_value", "PWMOut2_value", "AnalogOut1_value")}
 
     def diagnostico(self):
         # Un hilo muerto por un error inesperado no debe seguir publicandose como en marcha.
@@ -238,21 +273,15 @@ class Runtime:
     def _scan_lento(self):
         with self.lock:
             salidas = [self.outputs[f"DigitalOut{i}_value"] for i in range(1, NUM_CHANNELS + 1)]
-            transistores = [self.outputs[f"TransistorOut{i}_value"] for i in range(1, NUM_CHANNELS + 1)]
 
         try:
             self.digital_output_driver.write_outputs(*salidas)
-            self.transistor_output_driver.write_outputs(*transistores)
             digitales = self.digital_input_driver.read_inputs()
             analogicas = self.analog_input_driver.read_inputs()
         except OSError as e:
             # Un fallo del bus no para el runtime: se reintenta en el siguiente
             # scan y la imagen conserva los ultimos valores buenos.
-            with self.lock:
-                self.io_errors += 1
-                if self.io_ok:
-                    print(f"Error de E/S en el scan lento: {e}")
-                self.io_ok = False
+            self._error_io("scan lento", e)
             return
 
         with self.lock:
@@ -261,6 +290,55 @@ class Runtime:
             self.io_ok = True
             self.inputs.update(digitales)
             self.inputs.update(analogicas)
+
+    def _error_io(self, donde, e):
+        with self.lock:
+            self.io_errors += 1
+            if self.io_ok:
+                print(f"Error de E/S en el {donde}: {e}")
+            self.io_ok = False
+
+    # ============================================================
+    # Scan de potencia: transistores (J7), con rafagas en OUT04 y PWM en OUT07/OUT08
+    # ============================================================
+
+    def transistores_efectivos(self, tick):
+        """Nivel fisico de OUT01..OUT08 en el tick dado, a partir de la imagen."""
+        with self.lock:
+            cmd = [self.outputs[f"TransistorOut{i}_value"] for i in range(1, NUM_CHANNELS + 1)]
+            potencia = self.outputs["AnalogOut1_value"]
+            heat = self.outputs["PWMOut2_value"]
+            feed = self.outputs["PWMOut1_value"]
+        cmd[OUT_RESISTENCIA - 1] = cmd[OUT_RESISTENCIA - 1] and burst_activo(tick // CICLO_RED_TICKS, potencia)
+        cmd[OUT_BOMBA_HEAT - 1] = cmd[OUT_BOMBA_HEAT - 1] and pwm_activo(tick, heat)
+        cmd[OUT_BOMBA_FEED - 1] = cmd[OUT_BOMBA_FEED - 1] and pwm_activo(tick, feed)
+        return cmd
+
+    def _bucle_potencia(self):
+        periodo = POWER_TICK_MS / 1000
+        siguiente = time.monotonic()
+        tick = 0
+        ultimo = None
+
+        while not self.stop_event.is_set():
+            niveles = self.transistores_efectivos(tick)
+            # Se escribe al cambiar y, aunque no cambie, cada 100 ms (recupera un fallo del bus).
+            if niveles != ultimo or tick % (SLOW_SCAN_MS // POWER_TICK_MS) == 0:
+                try:
+                    self.transistor_output_driver.write_outputs(*niveles)
+                    ultimo = niveles
+                except OSError as e:
+                    self._error_io("scan de potencia", e)
+                    ultimo = None
+            tick += 1
+
+            siguiente += periodo
+            ahora = time.monotonic()
+            if ahora > siguiente:
+                with self.lock:
+                    self.scan_overruns += 1
+                siguiente = ahora
+            self.stop_event.wait(siguiente - ahora if siguiente > ahora else 0)
 
     # ============================================================
     # Scan rápido: PWM por software cada 125 us

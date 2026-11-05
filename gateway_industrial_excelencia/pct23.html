@@ -276,9 +276,9 @@ const MAPA = {
   consignas: {
     // Las dos resistencias de 120 V c.a. van en serie y forman una sola, alimentada a 230 V.
     // Se regula por rafagas de 50 ciclos: 100 % = 50 ciclos, 50 % = 25 ciclos, etc.
-    // Canal AnalogOut1 (supuesto; la salida real es OUT04 u otra por definir).
+    // Canal AnalogOut1: el gateway lo aplica por rafagas a OUT04 (TransistorOut4 es el encendido).
     RES: {canal: 'AnalogOut1_value', nombre: 'Potencia de la resistencia', ciclos: 50},
-    // Velocidad de las peristalticas por PWM. PWMOut2 sin hardware todavia (supuesto).
+    // Velocidad de las peristalticas: el gateway aplica PWM lento a OUT08 (PWMOut1, feed) y OUT07 (PWMOut2, heat).
     N1V: {canal: 'PWMOut1_value', nombre: 'Velocidad (PWM)'},
     N2V: {canal: 'PWMOut2_value', nombre: 'Velocidad (PWM)'},
   },
@@ -329,12 +329,12 @@ document.querySelectorAll('[data-salida]').forEach(g => {
 const consigna = {};   // valor recordado: el gateway no devuelve las AnalogOut
 let filaRES = null;
 for (const [id, c] of Object.entries(MAPA.consignas)) {
-  consigna[id] = 0;
+  consigna[id] = 100;   // el gateway arranca con PWM y potencia al 100 %
   const fila = document.createElement('div');
   fila.className = 'consigna';
   fila.innerHTML = `<label for="r-${id}">${c.nombre}</label>
-    <div class="fila"><input type="range" id="r-${id}" min="0" max="100" step="1" value="0">
-    <output id="o-${id}">0 %</output></div>`;
+    <div class="fila"><input type="range" id="r-${id}" min="0" max="100" step="1" value="100">
+    <output id="o-${id}">${c.ciclos ? '100 % · ' + c.ciclos + '/' + c.ciclos + ' ciclos' : '100 %'}</output></div>`;
   if (id === 'RES') filaRES = fila;                  // se coloca en la tarjeta Calefaccion al crearla
   else $(`c-${id}`).replaceWith(fila);               // bajo el selector de sentido de su bomba
   const r = fila.querySelector('input');
@@ -377,10 +377,7 @@ const parar = document.createElement('button');
 parar.textContent = 'Parar todo';
 parar.onclick = () => {
   const orden = Object.fromEntries([...Object.values(MAPA.salidas), ...Object.values(MAPA.sentido)].map(c => [c, false]));
-  for (const [id, c] of Object.entries(MAPA.consignas)) {
-    orden[c.canal] = 0; consigna[id] = 0;
-    $(`r-${id}`).value = 0; $(`o-${id}`).textContent = '0 %';
-  }
+  // Las consignas (PWM y potencia) no se tocan: "Parar todo" solo apaga las ordenes de encendido.
   enviar(orden);
   resumenCalentador();
 };
@@ -426,10 +423,12 @@ function pintar(s) {
   document.querySelectorAll('[data-circuito="colector-frio"]').forEach(t => {
     t.classList.toggle('activo', ['SOL3', 'SOL4', 'SOL5'].some(id => !!d[MAPA.salidas[id]]));
   });
-  // La velocidad de la bomba 1 si vuelve del gateway (PWMOut1); las resistencias no.
-  const v1 = MAPA.consignas.N1V.canal;
-  if (v1 in d && document.activeElement !== $('r-N1V')) {
-    $('r-N1V').value = d[v1]; $('o-N1V').textContent = MAPA.consignas.N1V.texto(Math.round(d[v1]));
+  // El gateway devuelve PWMOut1/2 y AnalogOut1: se sincronizan los deslizadores (salvo el que se esta moviendo).
+  for (const [id, c] of Object.entries(MAPA.consignas)) {
+    if (c.canal in d && document.activeElement !== $(`r-${id}`)) {
+      consigna[id] = Math.round(d[c.canal]);
+      $(`r-${id}`).value = consigna[id]; $(`o-${id}`).textContent = c.texto(consigna[id]);
+    }
   }
   resumenCalentador();
   for (const [id, bt] of Object.entries(botonesSentido)) {
