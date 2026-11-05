@@ -7,22 +7,25 @@ Servidor web que publica el simulador de `../simulador_pct23` detrás de un acce
 - **Aula del profesor** (`/aula`): se abre con un **PIN**. Desde ahí autoriza o rechaza alumnos, filtra por módulo o nombre, autoriza a todos los pendientes de un módulo, quita accesos, da una **clave nueva** a quien la olvide y elimina cuentas.
 - El simulador solo se sirve a alumnos autorizados (o al profesor con el PIN puesto). Si el profesor quita el acceso, surte efecto en la siguiente petición.
 
-## Puesta en marcha con Docker
+## Puesta en marcha con Docker (nginx + HTTPS)
 
-Hace falta Docker con el plugin Compose. Desde esta carpeta (`aula_pct23`):
+El aula se publica **solo por HTTPS**, con nginx delante y un certificado propio (autofirmado). Son dos contenedores: `aula` (la aplicación, sin puerto público) y `nginx` (puertos **80** y **447**, los dos con TLS). Hace falta Docker con Compose. Desde esta carpeta (`aula_pct23`):
 
 ```bash
-cp .env.example .env          # en Windows: copy .env.example .env
+cp .env.example .env                                   # en Windows: copy .env.example .env
 # edita .env y cambia AULA_PIN por un PIN tuyo (mínimo 6 caracteres). Si no lo cambias, el PIN es 12345678
+./nginx/generar_certificado.sh 192.168.99.120 mi-servidor   # IP y/o nombres con los que se entrará; crea certs/aula.crt y certs/aula.key
 docker compose up -d --build
 ```
 
-Abre `http://localhost:8000` (o el puerto de `AULA_PUERTO`). Para comprobar el estado: `docker compose ps` (el contenedor tiene comprobación de salud) y `docker compose logs -f`.
+Abre `https://<servidor>:447` (o `https://<servidor>` en el 80). Una petición `http://` a esos puertos se redirige a `https://<servidor>:447`. Para comprobar el estado: `docker compose ps` y `docker compose logs -f`.
 
-- **Alumnos:** `http://<servidor>:8000/` → Registrarme → esperar la autorización.
-- **Profesor:** `http://<servidor>:8000/aula` → PIN.
+- **Certificado propio:** el navegador avisará de que no es de confianza la primera vez; hay que aceptarlo (o instalar `certs/aula.crt` como certificado de confianza en los equipos). Solo vale para las IP y nombres con los que se generó: si entras con otro, vuelve a generarlo (borra `certs/` y repite el script). Dura 825 días. **`certs/aula.key` es secreto y no se sube a git.**
+- **Alumnos:** `https://<servidor>:447/` → Registrarme → esperar la autorización.
+- **Profesor:** `https://<servidor>:447/aula` → PIN.
 - **Parar / actualizar:** `docker compose down` / `docker compose up -d --build`. Los datos se conservan en el volumen `aula_datos`.
 - **Cambiar el PIN:** edita `.env` y ejecuta `docker compose up -d`.
+- **IP real de los alumnos:** nginx la pasa a la aplicación (`AULA_PROXY=1`), así que el bloqueo por intentos fallidos es por alumno y no por la IP del proxy.
 
 El contexto de construcción es la carpeta `gateway_industrial_excelencia` (la imagen incluye una copia de `simulador_pct23`), así que si cambias el simulador hay que volver a construir con `--build`.
 
@@ -31,9 +34,10 @@ El contexto de construcción es la carpeta `gateway_industrial_excelencia` (la i
 | Variable | Por defecto | Qué hace |
 | --- | --- | --- |
 | `AULA_PIN` | `12345678` | PIN del aula del profesor (mínimo 6 caracteres). **El valor por defecto es público:** mientras se use, el aula muestra una nota. Sirve para pruebas; cámbialo antes de dar acceso a una clase real, porque cualquiera que lo conozca puede autorizar alumnos. |
-| `AULA_PUERTO` | `8000` | Puerto publicado en el equipo. |
+| `AULA_PUERTO_HTTP` / `AULA_PUERTO_HTTPS` | `80` / `447` | Puertos que publica nginx; los dos van por HTTPS. |
 | `AULA_MODULOS` | vacío | Módulos sugeridos al registrarse, separados por comas. El alumno puede escribir otro. |
-| `AULA_COOKIE_SEGURA` | `0` | Pon `1` si la publicas detrás de HTTPS: la cookie de sesión solo viajará por HTTPS. |
+| `AULA_COOKIE_SEGURA` | `1` | La cookie de sesión solo viaja por HTTPS (con nginx delante déjalo en 1). |
+| `AULA_PROXY` | `1` en Docker | Solo con nginx delante: la app se fía de `X-Forwarded-*`. No lo actives si la app es alcanzable directamente. |
 | `AULA_SESION_PROFESOR_MIN` | `120` | Minutos que dura la sesión del profesor tras el PIN. |
 | `AULA_MAX_INTENTOS` / `AULA_BLOQUEO_S` | `5` / `300` | Fallos seguidos (contraseña o PIN) antes de bloquear, y segundos de bloqueo. |
 
@@ -51,7 +55,7 @@ Hace:
 
 No hace (conviene saberlo):
 
-- **No cifra el tráfico.** Por una red de clase sirve con HTTP; si lo expones a Internet, ponlo detrás de un proxy inverso con HTTPS y activa `AULA_COOKIE_SEGURA=1`.
+- **Cifra el tráfico con certificado propio.** nginx sirve todo por HTTPS (80 y 447) y la app no tiene puerto público. El certificado es autofirmado: protege la conexión, pero el navegador no puede verificar quién la presenta hasta que se acepte o se instale `certs/aula.crt` en los equipos. Para exponerlo a Internet conviene un certificado de una autoridad reconocida (por ejemplo Let's Encrypt) en lugar del propio.
 - **No verifica el correo** ni envía correos. Que alguien se registre con cualquier dirección no importa porque el profesor autoriza a mano; para recuperar una contraseña el alumno pide al profesor una clave nueva.
 - El bloqueo por intentos vive en memoria de un único proceso (por eso la imagen usa un solo proceso con varios hilos) y se reinicia al reiniciar el contenedor. Detrás de un proxy, la IP que ve la aplicación es la del proxy.
 - El PIN es un secreto compartido: quien lo conozca administra el aula. **Con el PIN por defecto (`12345678`) no hay ninguna protección real de la autorización**; el bloqueo tras 5 intentos solo frena adivinar un PIN, no leerlo en este README. Cámbialo si se filtra.

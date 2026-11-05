@@ -49,6 +49,8 @@ def config_desde_entorno():
         "simulador": Path(env.get("AULA_SIMULADOR", Path(__file__).resolve().parent.parent / "simulador_pct23")),
         "modulos": [m.strip() for m in env.get("AULA_MODULOS", "").split(",") if m.strip()],
         "cookie_segura": env.get("AULA_COOKIE_SEGURA", "0") == "1",
+        # 1 solo si hay un proxy inverso (nginx) delante y es lo único que alcanza a la app: se fía de X-Forwarded-*
+        "proxy": env.get("AULA_PROXY", "0") == "1",
         "sesion_profesor_min": int(env.get("AULA_SESION_PROFESOR_MIN", "120")),
         "max_intentos": int(env.get("AULA_MAX_INTENTOS", "5")),
         "bloqueo_s": int(env.get("AULA_BLOQUEO_S", "300")),
@@ -187,6 +189,10 @@ def crear_app(config=None):
         MAX_CONTENT_LENGTH=32 * 1024,
         AULA=cfg,
     )
+    if cfg.get("proxy"):
+        # Detrás de nginx: la IP del cliente (bloqueo por intentos), el esquema https y el host vienen de las cabeceras del proxy.
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     if cfg["pin"] == PIN_POR_DEFECTO:
         print(f"AVISO: el aula usa el PIN por defecto ({PIN_POR_DEFECTO}). Cualquiera que lo conozca puede autorizar alumnos; "
               "defina AULA_PIN en .env para cambiarlo.", flush=True)

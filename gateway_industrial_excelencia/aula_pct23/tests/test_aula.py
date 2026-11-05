@@ -332,5 +332,33 @@ class Seguridad(Base):
         self.assertGreaterEqual(len(app1.config["SECRET_KEY"]), 32)
 
 
+class DetrasDeProxy(Base):
+    """Con nginx delante, el bloqueo por intentos debe ser por cliente real y no por la IP del proxy."""
+
+    def app_con(self, proxy):
+        return aula.crear_app({"pin": PIN, "datos": self.tmp.name, "simulador": SIMULADOR, "secret_key": "clave-de-pruebas",
+                               "reloj": self.reloj, "proxy": proxy}).test_client()
+
+    def fallar(self, cliente, ip, veces=5):
+        for _ in range(veces):
+            self.post(cliente, "/entrar", {"correo": ALUMNO["correo"], "clave": "mala-clave-1"},
+                      headers={"X-Forwarded-For": ip})
+
+    def test_con_proxy_cada_cliente_tiene_su_propio_bloqueo(self):
+        c = self.app_con(True)
+        self.fallar(c, "10.0.0.1")
+        malo = self.post(c, "/entrar", {"correo": ALUMNO["correo"], "clave": "otra"}, headers={"X-Forwarded-For": "10.0.0.1"})
+        # otro alumno, desde otra IP y con otro correo (el bloqueo por correo protege la cuenta atacada aparte)
+        otro = self.post(c, "/entrar", {"correo": "otro@ejemplo.es", "clave": "otra"}, headers={"X-Forwarded-For": "10.0.0.2"})
+        self.assertEqual(malo.status_code, 429)
+        self.assertNotEqual(otro.status_code, 429)
+
+    def test_sin_proxy_la_cabecera_no_sirve_para_esquivar_el_bloqueo(self):
+        c = self.app_con(False)
+        self.fallar(c, "10.0.0.1")
+        r = self.post(c, "/entrar", {"correo": "otro@ejemplo.es", "clave": "otra"}, headers={"X-Forwarded-For": "10.0.0.99"})
+        self.assertEqual(r.status_code, 429)         # sigue siendo la misma IP (la del proxy): la cabecera se ignora
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

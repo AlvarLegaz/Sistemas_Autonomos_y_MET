@@ -8,3 +8,6 @@ secret_key
 __pycache__/
 servidor.log
 servidor.err
+
+# Certificado propio de nginx: la clave es secreta
+certs/
