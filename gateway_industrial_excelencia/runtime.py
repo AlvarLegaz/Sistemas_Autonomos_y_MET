@@ -11,10 +11,10 @@ PWM_GPIO_PIN = None
 
 # Salidas de potencia por el expansor de transistores (J7, PCF8574A 0x3A). Un hilo
 # propio las modula cada POWER_TICK_MS; el expansor no admite un PWM rapido.
-POWER_TICK_MS = 10
-CICLO_RED_TICKS = 2          # un ciclo de red (50 Hz = 20 ms) son 2 ticks de 10 ms
+POWER_TICK_MS = 5
+CICLO_RED_TICKS = 4          # un ciclo de red (50 Hz = 20 ms) son 4 ticks de 5 ms
 BURST_CICLOS = 50            # ventana de rafaga: 50 ciclos = 1 s
-PWM_PERIODO_TICKS = 20       # PWM de bombas: 20 ticks = 200 ms (pasos del 5 %)
+PWM_PERIODO_TICKS = 20       # PWM de bombas: 20 ticks = 100 ms (pasos del 5 %)
 OUT_RESISTENCIA = 4          # OUT04: resistencia (230 V, dos de 120 V en serie), por rafagas
 OUT_BOMBA_HEAT = 7           # OUT07: bomba heat unit, PWM = PWMOut2
 OUT_BOMBA_FEED = 8           # OUT08: bomba feed unit, PWM = PWMOut1
