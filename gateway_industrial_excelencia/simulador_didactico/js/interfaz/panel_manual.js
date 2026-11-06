@@ -1,0 +1,331 @@
+(function () {
+  const { $, ponerTexto, formatearEntero, formatearDecimal, formatearTiempo } = PCT.dom;
+  const { ScadaWidget, lecturasDeEstado } = PCT.scadaWidget;
+  const { registrarEventoEnPantalla, vaciarRegistro } = PCT.registroEventos;
+  const esquema = PCT.esquemaPct23;
+  const grafica = PCT.grafica;
+  const estadoPlanta = PCT.estadoPlanta;
+  const planta = PCT.planta;
+  const CAPACIDAD_ML = PCT.constantesFisicas.CONSTANTES_FISICAS.capacidadDepositoMl;
+  const ACTIVADA = ['activada', 'desactivada'];
+  const ENCENDIDA = ['encendida', 'apagada'];
+
+  const CONSIGNAS = [
+    { id: 'resistencia', nombre: 'Potencia de la resistencia', campo: 'potenciaPct', texto: v => esquema.textoPotencia(v) },
+    { id: 'velocidadN1', nombre: 'Velocidad (PWM)', campo: 'velocidadN1Pct', texto: v => `${v} %` },
+    { id: 'velocidadN2', nombre: 'Velocidad (PWM)', campo: 'velocidadN2Pct', texto: v => `${v} %` },
+  ];
+
+  const VALVULAS = [
+    { id: 'SOL1', titulo: 'SOL1', detalle: 'Desvío de producto · relé K3' },
+    { id: 'SOL2', titulo: 'SOL2', detalle: 'Depósitos A/B · relé K4' },
+    { id: 'SOL3', titulo: 'SOL3', detalle: 'Agua fría · relé K5' },
+    { id: 'SOL4', titulo: 'SOL4', detalle: 'Ramal depósito A · relé K6' },
+    { id: 'SOL5', titulo: 'SOL5', detalle: 'Ramal depósito B · relé K7' },
+    { id: 'RES', titulo: 'Calefacción', detalle: 'Resistencia heat unit · J7 OUT04' },
+  ];
+
+  let estado = null;
+  let esquemaScada = null;
+  let ultimoAviso = '';
+
+  // En modo manual la planta arranca con los dos depósitos vacíos.
+  function crearEstadoManual() {
+    const nuevo = estadoPlanta.crearEstado();
+    nuevo.depositoAMl = 0;
+    nuevo.depositoBMl = 0;
+    return nuevo;
+  }
+
+  function registrar(mensaje) {
+    registrarEventoEnPantalla(`[${formatearTiempo(estado.tiempo)}] ${mensaje}`);
+  }
+
+  function ponerConsigna(consigna, valor) {
+    estado.consignas[consigna.campo] = PCT.matematicas.limitar(Number(valor) || 0, 0, 100);
+    const actual = estado.consignas[consigna.campo];
+    $(`r-${consigna.id}`).value = String(actual);
+    $(`o-${consigna.id}`).textContent = consigna.texto(actual);
+  }
+
+  function alternarSalida(clave, nombre, palabras) {
+    estado.salidas[clave] = !estado.salidas[clave];
+    registrar(`${nombre}: ${estado.salidas[clave] ? palabras[0] : palabras[1]}`);
+    refrescarPantalla();
+  }
+
+  function alternarV3() {
+    estado.valvulaV3 = !estado.valvulaV3;
+    registrar(`V3: ${estado.valvulaV3 ? 'abierta (vacía el tanque B)' : 'cerrada'}`);
+    refrescarPantalla();
+  }
+
+  function invertirGiro(bomba) {
+    estado.giro[bomba] = !estado.giro[bomba];
+    registrar(`Sentido de giro ${bomba}: ${Number(estado.giro[bomba])} (${bomba === 'N2' ? 'OUT05' : 'OUT06'})`);
+    refrescarPantalla();
+  }
+
+  function pararBombas() {
+    estado.salidas.N1 = false;
+    estado.salidas.N2 = false;
+    estado.giro.N1 = false;
+    estado.giro.N2 = false;
+    registrar('Bombas detenidas');
+    refrescarPantalla();
+  }
+
+  function cerrarElectrovalvulas() {
+    for (const { id } of VALVULAS) if (id.startsWith('SOL')) estado.salidas[id] = false;
+    registrar('Electroválvulas cerradas');
+    refrescarPantalla();
+  }
+
+  function pararTodoEnPlanta() {
+    for (const clave of PCT.constantesFisicas.SALIDAS) estado.salidas[clave] = false;
+    estado.giro.N1 = false;
+    estado.giro.N2 = false;
+    estado.valvulaV3 = false;
+    for (const consigna of CONSIGNAS) ponerConsigna(consigna, 0);
+    estado.ejecutando = false;
+    registrar('Parada general: simulación en pausa; pulsa Iniciar para continuar');
+    refrescarPantalla();
+  }
+
+  function cambiarMarcha(marcha, mensaje) {
+    estado.ejecutando = marcha;
+    registrar(mensaje);
+    refrescarPantalla();
+  }
+
+  function reiniciarPlanta() {
+    estado = crearEstadoManual();
+    grafica.reiniciarGrafica();
+    ultimoAviso = '';
+    for (const consigna of CONSIGNAS) ponerConsigna(consigna, estado.consignas[consigna.campo]);
+    vaciarRegistro();
+    registrar('Simulador reiniciado');
+    refrescarPantalla();
+  }
+
+  function crearTarjetaValvula(valvula) {
+    const tarjeta = document.createElement('div');
+    tarjeta.className = 'tarjeta';
+    tarjeta.id = `t-${valvula.id}`;
+    tarjeta.innerHTML = `<h3>${valvula.titulo}</h3><small>${valvula.detalle}</small>
+      <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
+      <button class="grande" id="b-${valvula.id}">Activar</button>`;
+    return tarjeta;
+  }
+
+  function configurarValvulas() {
+    for (const valvula of VALVULAS) {
+      const tarjeta = crearTarjetaValvula(valvula);
+      if (valvula.id === 'RES') $('tarjetas-bombas').insertBefore(tarjeta, $('t-N1'));
+      else $('tarjetas-valvulas').appendChild(tarjeta);
+      const palabras = valvula.id === 'RES' ? ENCENDIDA : ACTIVADA;
+      $(`b-${valvula.id}`).addEventListener('click', () => alternarSalida(valvula.id, valvula.titulo, palabras));
+    }
+    $('cerrar-valvulas').addEventListener('click', cerrarElectrovalvulas);
+  }
+
+  function configurarBombas() {
+    for (const clave of ['N1', 'N2']) {
+      $(`b-${clave}`).addEventListener('click', () => alternarSalida(clave, clave, ENCENDIDA));
+    }
+    for (const boton of document.querySelectorAll('.btn-sentido')) {
+      boton.addEventListener('click', () => invertirGiro(boton.dataset.bomba));
+    }
+    $('parar-bombas').addEventListener('click', pararBombas);
+  }
+
+  function crearDeslizador(consigna) {
+    const valor = estado.consignas[consigna.campo];
+    const fila = document.createElement('div');
+    fila.className = 'consigna';
+    fila.innerHTML = `<label for="r-${consigna.id}">${consigna.nombre}</label>
+      <div class="fila"><input type="range" id="r-${consigna.id}" min="0" max="100" value="${valor}">
+      <output id="o-${consigna.id}">${consigna.texto(valor)}</output></div>`;
+    return fila;
+  }
+
+  function configurarConsignas() {
+    for (const consigna of CONSIGNAS) {
+      const fila = crearDeslizador(consigna);
+      if (consigna.id === 'resistencia') $('t-RES').appendChild(fila);
+      else $(`c-${consigna.id}`).replaceWith(fila);
+      const rango = fila.querySelector('input');
+      rango.addEventListener('input', () => { ponerConsigna(consigna, rango.value); refrescarPantalla(); });
+      rango.addEventListener('change', () => registrar(`${consigna.nombre} (${consigna.id}): ${consigna.texto(estado.consignas[consigna.campo])}`));
+    }
+  }
+
+  function configurarDepositos() {
+    for (const deposito of ['A', 'B']) {
+      const deslizador = $(`llen-${deposito}`);
+      deslizador.addEventListener('input', () => { estadoPlanta.ponerLlenado(estado, deposito, Number(deslizador.value)); refrescarPantalla(); });
+      deslizador.addEventListener('change', () => registrar(`Llenado del tanque ${deposito}: ${deslizador.value} %`));
+    }
+  }
+
+  function configurarMando() {
+    $('sim-play').addEventListener('click', () => cambiarMarcha(true, 'Simulación iniciada'));
+    $('sim-pause').addEventListener('click', () => cambiarMarcha(false, 'Simulación pausada'));
+    $('sim-reset').addEventListener('click', reiniciarPlanta);
+    const pararTodo = document.createElement('button');
+    pararTodo.textContent = 'Parar todo';
+    pararTodo.id = 'sim-stop-all';
+    pararTodo.addEventListener('click', pararTodoEnPlanta);
+    $('controles').appendChild(pararTodo);
+  }
+
+  function montarEsquema() {
+    const canvas = esquema.crearCanvasPct23();
+    esquemaScada = new ScadaWidget('esquema', canvas);
+    esquemaScada.anadirObjetos(esquema.crearObjetosPct23(canvas));
+    for (const clave of ['SOL1', 'SOL2', 'SOL3', 'SOL4', 'SOL5', 'N1', 'N2']) {
+      esquemaScada.alPulsar(`g-${clave}`, () => alternarSalida(clave, clave, ACTIVADA));
+    }
+    esquemaScada.alPulsar('g-V3', alternarV3);
+  }
+
+  function ponerChip(id, clase, texto) {
+    $(id).className = `chip ${clase}`;
+    $(id).lastElementChild.textContent = texto;
+  }
+
+  function textoEntradasSalidas(e) {
+    if (e.temperaturaCorte) return 'Corte térmico simulado';
+    if (e.vacio) return 'Sin producto en origen';
+    return 'E/S virtuales';
+  }
+
+  function refrescarChips() {
+    ponerChip('chip-broker', 'ok', 'Sin MQTT · modo local');
+    ponerChip('chip-gateway', estado.ejecutando ? 'ok' : 'aviso', estado.ejecutando ? `Simulando · ${estado.velocidad}×` : 'Simulación en pausa');
+    ponerChip('chip-io', estado.temperaturaCorte || estado.vacio ? 'error' : 'ok', textoEntradasSalidas(estado));
+  }
+
+  function refrescarTarjeta(id, on, textoBoton, textoEstado) {
+    $(`b-${id}`).classList.toggle('on', on);
+    $(`b-${id}`).textContent = textoBoton;
+    const estadoBomba = $(`t-${id}`).querySelector('.estado-bomba');
+    estadoBomba.className = `estado-bomba ${on ? 'ok' : ''}`;
+    estadoBomba.lastElementChild.textContent = textoEstado;
+  }
+
+  function refrescarValvulas() {
+    for (const { id } of VALVULAS) {
+      const on = !!estado.salidas[id];
+      const textoEstado = id === 'RES' ? (on ? 'Calentando' : 'Apagada') : (on ? 'Abierta' : 'Cerrada');
+      refrescarTarjeta(id, on, on ? 'Desactivar' : 'Activar', textoEstado);
+    }
+  }
+
+  function refrescarBombas() {
+    for (const id of ['N1', 'N2']) {
+      const on = !!estado.salidas[id];
+      refrescarTarjeta(id, on, on ? 'Apagar' : 'Encender', on ? 'En marcha' : 'Parada');
+    }
+    for (const boton of document.querySelectorAll('.btn-sentido')) {
+      const sentido = !!estado.giro[boton.dataset.bomba];
+      boton.classList.toggle('sel', sentido);
+      boton.textContent = `Sentido ${Number(sentido)} · pulsa para invertir`;
+    }
+  }
+
+  function textoFlotadores(lecturas) {
+    if (lecturas.HL) return 'HL activo';
+    return lecturas.LL ? 'LL activo' : 'entre LL y HL';
+  }
+
+  function textoDetalleDeposito(deposito, pct, lecturas) {
+    const ml = deposito === 'B' ? estado.depositoBMl : estado.depositoAMl;
+    const base = `${formatearEntero(ml)} ml de ${CAPACIDAD_ML}`;
+    if (deposito === 'A') return `${base} · L1 = ${formatearEntero(pct * 2.5)} mm`;
+    return `${base} · ${textoFlotadores(lecturas)}`;
+  }
+
+  function refrescarDepositos() {
+    const lecturas = lecturasDeEstado(estado);
+    for (const deposito of ['A', 'B']) {
+      const deslizador = $(`llen-${deposito}`);
+      const pct = estadoPlanta.porcentajeLlenado(estado, deposito);
+      deslizador.disabled = estado.ejecutando;
+      if (document.activeElement !== deslizador) deslizador.value = String(Math.round(pct));
+      ponerTexto(`ollen-${deposito}`, `${Math.round(pct)} %`);
+      ponerTexto(`dllen-${deposito}`, textoDetalleDeposito(deposito, pct, lecturas));
+    }
+  }
+
+  function refrescarDatos() {
+    const lecturas = lecturasDeEstado(estado);
+    ponerTexto('sim-time', formatearTiempo(estado.tiempo));
+    ponerTexto('sim-flow', `${formatearEntero(lecturas.F1)} ml/min`);
+    ponerTexto('sim-heat', `${formatearDecimal(lecturas.T2)} °C`);
+    ponerTexto('sim-A', `${formatearEntero(estado.depositoAMl)} ml`);
+    ponerTexto('sim-B', `${formatearEntero(estado.depositoBMl)} ml`);
+    ponerTexto('sim-finished', `${formatearEntero(estado.finalMl)} ml`);
+    ponerTexto('sim-diverted', `${formatearEntero(estado.desviadoMl)} ml`);
+    ponerTexto('sim-drain', `${formatearDecimal(estado.desagueMl / 1000)} L`);
+    $('sim-play').disabled = estado.ejecutando;
+    $('sim-pause').disabled = !estado.ejecutando;
+    $('sim-velocidad').value = String(estado.velocidad);
+  }
+
+  function textoAviso(e) {
+    if (e.temperaturaCorte) return 'Corte térmico simulado: resistencia desconectada. Se rearma por debajo de 70 °C; después vuelve a conectarla.';
+    if (e.vacio) return 'Depósito seleccionado vacío: la bomba N1 no suministra producto.';
+    if (e.salidas.N1 && e.giro.N1) return 'N1 encendida con el sentido de giro invertido (OUT06 = 1). El flujo inverso no se simula.';
+    if (e.salidas.N1 && e.consignas.velocidadN1Pct === 0) return 'N1 encendida, pero la consigna de velocidad es 0 %.';
+    if (e.salidas.N1 && !e.salidas.N2) return 'N1 circula sin N2: el producto no recibe calentamiento activo significativo.';
+    if (e.salidas.N1 && !e.salidas.SOL3) return 'Producto circulando sin refrigeración activa (SOL3 cerrada).';
+    if (e.ejecutando) return `Proceso en marcha. Alimentación desde tanque ${e.salidas.SOL2 ? 'B' : 'A'}; salida ${e.salidas.SOL1 ? 'desviada' : 'producto final'}.`;
+    return 'Simulación pausada. Puedes modificar los actuadores y luego reanudar.';
+  }
+
+  function refrescarAviso() {
+    const aviso = textoAviso(estado);
+    ponerTexto('sim-status', aviso);
+    if (aviso !== ultimoAviso && (estado.temperaturaCorte || estado.vacio)) registrar(aviso);
+    ultimoAviso = aviso;
+  }
+
+  function refrescarPantalla() {
+    esquemaScada.actualizar(estado);
+    refrescarValvulas();
+    refrescarBombas();
+    refrescarDepositos();
+    refrescarChips();
+    refrescarDatos();
+    refrescarAviso();
+    grafica.muestrear(estado);
+  }
+
+  function alPaso() {
+    if (!estado.ejecutando) return;
+    planta.avanzar(estado, 0.25 * estado.velocidad);
+    refrescarPantalla();
+  }
+
+  function ponerVelocidad(velocidad) {
+    estado.velocidad = velocidad;
+    registrar(`Velocidad de simulación: ${velocidad}×`);
+    refrescarPantalla();
+  }
+
+  function iniciarPanelManual(estadoInicial) {
+    estado = estadoInicial;
+    montarEsquema();
+    configurarValvulas();
+    configurarBombas();
+    configurarConsignas();
+    configurarDepositos();
+    configurarMando();
+    grafica.ajustarLienzo();
+    registrar('Sesión local cargada: no hay conexión con máquinas');
+    refrescarPantalla();
+  }
+
+  PCT.panelManual = { crearEstadoManual, iniciarPanelManual, alPaso, ponerVelocidad, estadoActual: () => estado };
+})();
