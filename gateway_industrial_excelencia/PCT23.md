@@ -35,8 +35,8 @@ Cada entrada pasa por un divisor (10 kΩ en serie, 20 kΩ a masa) y un zener de 
 | Canal | Señal | Escala |
 | --- | --- | --- |
 | `AnalogIn1-5` | Sondas de temperatura T1-T5 | 0-1,5 V = 0-150 °C, es decir **grados = voltios x 100** |
-| `AnalogIn6` | Caudal F1 | 0-5 V (divisor a 3,3 V) = 0-1500 ml/min |
-| `AnalogIn7` | Nivel L1 del tanque A | 0-5 V (divisor a 3,3 V) = 0-250 mm |
+| `AnalogIn6` | Nivel L1 del tanque A | 0-5 V (divisor a 3,3 V) = 0-250 mm |
+| `AnalogIn7` | Caudal F1 | 0-5 V (divisor a 3,3 V) = 0-1500 ml/min |
 | `AnalogIn8` | Sin conectar | — |
 
 ## Salidas
