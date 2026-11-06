@@ -343,8 +343,10 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
 
     <!-- CIRCUITO 3. Producto desde SOL1: paso inferior de calentamiento ->
          paso superior del enfriador -> T3 -> FINISHED PRODUCT. -->
-    <path class="tubo" data-ruta="normal"
-          d="M468 80 H480 V296 H432 V346 H444 H459 V351 L481 365 H505 L527 351 V346 H546 H554 V322 H570 H585 V330 L607 344 H631 L653 330 V322 H672 V400 H970"/>
+    <!-- Con SOL1 activa se ilumina esta línea; si la bomba N1 está apagada solo su primer tramo (data-ruta="normal"), el resto (data-ruta="resto") no. -->
+    <path class="tubo" data-ruta="normal" d="M468 80 H480 V140"/>
+    <path class="tubo" data-ruta="resto"
+          d="M480 140 V296 H432 V346 H444 H459 V351 L481 365 H505 L527 351 V346 H546 H554 V322 H570 H585 V330 L607 344 H631 L653 330 V322 H672 V400 H970"/>
 
     <!-- Misma geometría del colector; se divide en tres paths para iluminar
          las ramas de SOL4 y SOL5 independientemente y el tramo común. -->
@@ -362,7 +364,7 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
          regeneracion/calefaccion y a la salida derecha del enfriador. -->
     <g aria-label="Cruces de tuberías independientes">
       <rect x="428" y="316" width="8" height="12" fill="var(--panel)"/>
-      <path class="tubo" data-ruta="normal" d="M432 314 V330"/>
+      <path class="tubo" data-ruta="resto" d="M432 314 V330"/>
       <rect x="668" y="340" width="8" height="12" fill="var(--panel)"/>
       <path class="tubo frio" data-circuito="frio" d="M662 346 H684"/>
     </g>
@@ -370,8 +372,9 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
     <!-- SOL2 reparte entre los dos depósitos: en reposo (sin activar) -> tubería del depósito A; activa -> la del depósito B -->
     <path class="tubo" data-sol2="B" d="M815 210 V250 H850"/>
     <path class="tubo" data-sol2="A" d="M915 210 V250 H880"/>
-    <!-- toma de desvío independiente por SOL1, como en el panel real: con SOL1 activa se ilumina el desvío y se apaga el producto acabado -->
-    <path class="tubo" data-ruta="desvio" d="M460 64 V30" />
+    <!-- toma de desvío independiente por SOL1: sin activar manda el producto al desvío y se ilumina esta línea; con SOL1 activa se ilumina la otra línea. Con la bomba N1 apagada solo se ilumina un tramo corto de la línea correspondiente -->
+    <path class="tubo" data-ruta="desvio" d="M460 64 V50" />
+    <path class="tubo" data-ruta="desvio-resto" d="M460 50 V30" />
     <text x="521" y="24" class="lectura">DIVERTED PRODUCT <tspan font-size="17" font-weight="700">↑</tspan></text>
     <!-- ============ depósito de calor ============ -->
     <rect class="caja" x="30" y="40" width="110" height="130" rx="4"/>
@@ -697,10 +700,13 @@ function pintar(s) {
   // por separado cada ramal superior. El colector común se activa si
   // cualquiera de las tres electroválvulas publica estado abierto.
   // Es una indicación de salida, no una medida del caudal de agua.
-  // Tras el tubo de residencia SOL1 reparte: normal -> producto acabado; activa -> desvio. Solo se ilumina la rama por la que circula.
-  const n1 = !!d[MAPA.salidas.N1], desvio = !!d[MAPA.salidas.SOL1];
+  // Tras el tubo de residencia SOL1 reparte entre el desvío (sin activar) y la otra línea (activa).
+  // SOL1 sin activar: el producto va al desvío (se ilumina su línea). SOL1 activa: se ilumina la otra línea.
+  // Con la bomba N1 apagada solo se ilumina un tramo corto de la línea correspondiente.
+  const sol1 = !!d[MAPA.salidas.SOL1], n1 = !!d[MAPA.salidas.N1];
   document.querySelectorAll('[data-ruta]').forEach(t => {
-    t.classList.toggle('activo', n1 && (t.dataset.ruta === 'desvio') === desvio);
+    const encendida = {desvio: !sol1, 'desvio-resto': !sol1 && n1, normal: sol1, resto: sol1 && n1}[t.dataset.ruta];
+    t.classList.toggle('activo', !!encendida);
   });
   document.querySelectorAll('[data-circuito="frio"]').forEach(t => {
     t.classList.toggle('activo', !!d[MAPA.salidas.SOL3]);
