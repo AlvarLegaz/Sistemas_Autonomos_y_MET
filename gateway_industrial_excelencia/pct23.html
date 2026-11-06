@@ -405,10 +405,6 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
     <text x="370" y="140" class="etiqueta">HOLDING TUBE</text>
     <g><circle class="instr" cx="330" cy="45" r="15"/><text x="330" y="49" class="etiqueta">T1</text>
        <text x="330" y="22" class="lectura" id="v-T1">—</text><line x1="330" y1="60" x2="330" y2="78" class="tubo"/></g>
-    <!-- T5 conectada a la sección de calentamiento del intercambiador (el manual permite colocarla en cualquier conector) -->
-    <g><line x1="513" y1="288" x2="513" y2="309" class="tubo"/>
-       <circle class="instr" cx="513" cy="275" r="13"/><text x="513" y="279" class="etiqueta">T5</text>
-       <text x="513" y="257" class="lectura" id="v-T5">—</text></g>
     <g class="accion" id="g-SOL1" data-salida="SOL1">
        <path class="valvula" d="M446 68 L460 80 L446 92 Z M474 68 L460 80 L474 92 Z"/>
        <text x="500" y="66" class="etiqueta">SOL1</text><text x="500" y="52" class="lectura">desvío</text></g>
@@ -521,7 +517,6 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
           <dt>Caudal del producto (F1)</dt><dd id="k-f1">—</dd>
           <dt>Nivel del tanque A (L1)</dt><dd id="k-l1">—</dd>
           <dt>Temperatura T4</dt><dd id="k-t4">—</dd>
-          <dt>Temperatura T5</dt><dd id="k-t5">—</dd>
         </dl>
       </section>
       <section class="bloque">
@@ -579,8 +574,7 @@ const MAPA = {
     T2: {canal: 'AnalogIn2_value', fondo: 1.5, min: 0, max: 150, unidad: '°C'},
     T3: {canal: 'AnalogIn3_value', fondo: 1.5, min: 0, max: 150, unidad: '°C'},
     T4: {canal: 'AnalogIn4_value', fondo: 1.5, min: 0, max: 150, unidad: '°C'},
-    T5: {canal: 'AnalogIn5_value', fondo: 1.5, min: 0, max: 150, unidad: '°C'},
-    L1: {canal: 'AnalogIn6_value', fondo: 3.3, min: 0, max: 250, unidad: 'mm'},   // nivel tanque A (CH5)
+    L1: {canal: 'AnalogIn5_value', fondo: 3.3, min: 0, max: 250, unidad: 'mm'},   // nivel tanque A: el sensor llega por la entrada de T5 (AnalogIn5)
     F1: {canal: 'AnalogIn7_value', fondo: 3.3, min: 0, max: 1500, unidad: 'ml/min'},   // caudal (CH6)
   },
   // Entradas digitales de la maqueta. `alarmaSi`: valor que se pinta en rojo.
@@ -822,7 +816,7 @@ function termometro(id, tag, d) {
 }
 function pintarLecturas(d) {
   termometro('t1', 'T1', d); termometro('t2', 'T2', d); termometro('t3', 'T3', d);
-  for (const [tag, id] of [['F1', 'k-f1'], ['L1', 'k-l1'], ['T4', 'k-t4'], ['T5', 'k-t5']]) $(id).textContent = $(`v-${tag}`).textContent;
+  for (const [tag, id] of [['F1', 'k-f1'], ['L1', 'k-l1'], ['T4', 'k-t4']]) $(id).textContent = $(`v-${tag}`).textContent;
   const lista = $('lista-digitales');
   if (!lista.children.length) {
     for (const tag of Object.keys(MAPA.digitales)) {
