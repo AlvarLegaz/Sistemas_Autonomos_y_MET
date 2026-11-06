@@ -124,6 +124,8 @@ svg text { fill: var(--texto); font: 12px var(--fuente); }
 .instr.alarma { fill: var(--error); stroke: var(--error); }
 .etiqueta { font-weight: 700; text-anchor: middle; }
 .lectura { font-size: 11.5px; text-anchor: middle; fill: var(--tenue) !important; font-variant-numeric: tabular-nums; }
+/* Etiquetas de entrada y salida del esquema (DIVERTED PRODUCT, FINISHED PRODUCT, COLD WATER, TO DRAIN): más grandes y en el color de texto, como en el simulador */
+.lectura:has(> tspan) { font-size: 15px; font-weight: 700; fill: var(--texto) !important; }
 .valvula { fill: var(--apagado); stroke: var(--tubo); stroke-width: 1.5; }
 .valvula.on { fill: var(--ok); }
 .manual { fill: var(--panel); stroke: var(--tubo); stroke-width: 1.5; }
