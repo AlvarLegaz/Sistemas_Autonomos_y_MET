@@ -763,6 +763,12 @@ function pintar(s) {
   for (const [tag, m] of Object.entries(MAPA.digitales)) {
     $(`c-${tag}`).classList.toggle('alarma', !!d[m.canal] === m.alarmaSi);
   }
+  // Tanque B: solo tiene interruptores de nivel. Nivel bajo (LL en alarma) -> sin agua; nivel alto (HL) -> lleno; entre ambos, a media altura.
+  const sinAguaB = !!d[MAPA.digitales.LL.canal] === MAPA.digitales.LL.alarmaSi;
+  const llenoB = !sinAguaB && !!d[MAPA.digitales.HL.canal] === MAPA.digitales.HL.alarmaSi;
+  const altoB = sinAguaB ? 0 : llenoB ? 136 : 58;
+  $('nivel-B').setAttribute('y', 208 - altoB);
+  $('nivel-B').setAttribute('height', altoB);
   pintarLecturas(d);
 }
 
