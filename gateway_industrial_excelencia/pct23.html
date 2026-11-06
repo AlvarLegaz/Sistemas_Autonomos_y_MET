@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="/img/favicon.png">
 <meta name="author" content="Álvar Legaz Aparicio">
 <meta name="copyright" content="© 2026 Álvar Legaz Aparicio. Todos los derechos reservados.">
 <title>PCT23 · SCADA</title>
@@ -13,7 +14,7 @@
 
 :root {
   --fondo: #E2E7EB; --panel: #F5F7F8; --texto: #16202A; --tenue: #56636F; --borde: #BAC4CC;
-  --acento: #0B5CAD; --sobre-acento: #FFFFFF;
+  --acento: #F68B11; --acento-texto: #A85200; --sobre-acento: #16202A; --marca-gris: #5A5758;
   --ok: #1A7F4B; --error: #C0262D; --aviso: #9A5B00; --apagado: #9AA6B1;
   --tubo: #6A7886; --agua: #1F78B4; --caliente: #D9480F; --frio: #14877F;
   --fuente: Bahnschrift, "DIN Alternate", "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -23,7 +24,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --fondo: #0F1418; --panel: #182027; --texto: #E8EDF1; --tenue: #9AA7B2; --borde: #34414B;
-    --acento: #5AA7F5; --sobre-acento: #08121C;
+    --acento: #F68B11; --acento-texto: #FFA640; --sobre-acento: #16202A; --marca-gris: #C9C5C6;
     --ok: #4CC28A; --error: #F0605F; --aviso: #E0A33A; --apagado: #5B6874;
     --tubo: #8FA0AE; --agua: #4AA3DF; --caliente: #FF8A3D; --frio: #29C1BA;
   }
@@ -32,12 +33,12 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { margin: 0; background: var(--fondo); color: var(--texto); font: 15px/1.45 var(--fuente); font-variant-numeric: tabular-nums; }
-:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
+:focus-visible { outline: 3px solid var(--acento-texto); outline-offset: 2px; }
 button, select, input { font: inherit; color: inherit; }
-a { color: var(--acento); }
+a { color: var(--acento-texto); }
 
 /* ---------- cabecera ---------- */
-.cab { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 22px; padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--borde); }
+.cab { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 22px; padding: 10px 20px; background: var(--panel); border-bottom: 3px solid var(--acento); }
 .cab h1 { margin: 0; font-size: 19px; font-weight: 700; letter-spacing: .01em; }
 .modos { display: flex; gap: 2px; padding: 3px; background: var(--fondo); border-radius: 8px; }
 .modos a { padding: 6px 14px; border-radius: 6px; color: var(--tenue); text-decoration: none; font-weight: 600; }
@@ -266,7 +267,7 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
 .opcion h2 { margin: 0; font-size: 21px; }
 .opcion p { margin: 0; color: var(--tenue); }
 .opcion ul { margin: 0; padding-left: 18px; color: var(--tenue); }
-.opcion .entrar { margin-top: auto; padding-top: 10px; font-weight: 700; color: var(--acento); }
+.opcion .entrar { margin-top: auto; padding-top: 10px; font-weight: 700; color: var(--acento-texto); }
 @media (max-width: 720px) { .opcion { border-left: 0; border-top: 1px solid var(--borde); } .opcion:first-child { border-top: 0; } }
 
 /* ---------- SCADA real ---------- */
@@ -294,12 +295,16 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
   #parar-todo { min-height: 46px; flex: 1 1 auto; }
 }
 
+/* ---------- identidad CIFP Politécnico Cartagena (naranja #F68B11, gris #5A5758) ---------- */
+.logo { display: block; height: 60px; width: auto; }
+.cab h1 { display: flex; align-items: center; gap: 14px; }
+.cab .sim { font-size: 24px; padding-left: 14px; border-left: 2px solid var(--borde); color: var(--marca-gris); }
 .copy { margin: 24px 16px 16px; font-size: 12px; color: var(--tenue, #56636F); text-align: center; }
 </style>
 </head>
 <body>
 <header class="cab">
-  <h1>PCT23</h1>
+  <h1><img class="logo" src="/img/logo-politecnico.png" alt="CIFP Politécnico Cartagena" width="166" height="60"><span class="sim">SCADA PCT23</span></h1>
   <span class="seccion">SCADA de la planta</span>
   <a class="enlace-canales" href="/">Vista de canales</a>
 </header>
@@ -576,7 +581,7 @@ const MAPA = {
     TERM: {canal: 'DigitalIn1_value', alarmaSi: false},   // D1 termostato: abre si sobretemperatura
     HLC:  {canal: 'DigitalIn2_value', alarmaSi: true},    // D2 nivel alto heat unit
     HL:   {canal: 'DigitalIn3_value', alarmaSi: true},    // D3 nivel alto tanque B
-    LL:   {canal: 'DigitalIn4_value', alarmaSi: true},    // D4 nivel bajo tanque B
+    LL:   {canal: 'DigitalIn4_value', alarmaSi: false},   // D4 nivel bajo tanque B, lógica negada: en alarma cuando NO hay nivel
     LVLC: {canal: 'DigitalIn5_value', alarmaSi: true},    // D5 nivel tanque calefactor (supuesto)
   },
 };

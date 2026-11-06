@@ -13,7 +13,7 @@ import threading
 import time
 
 import paho.mqtt.client as mqtt
-from flask import Flask, Response, jsonify, request, send_file
+from flask import Flask, Response, jsonify, request, send_file, send_from_directory
 
 from gateway_main_app import (BROKER_POR_DEFECTO, TOPIC_ENTRADAS, TOPIC_SALIDAS,
                               broker, credenciales)
@@ -82,6 +82,12 @@ def pagina():
 @app.get("/pct23")
 def sinoptico_pct23():
     return send_file("pct23.html")
+
+
+@app.get("/img/<path:nombre>")
+def imagen(nombre):
+    """Logo y favicon del centro, compartidos con el simulador del aula."""
+    return send_from_directory("simulador_pct23/img", nombre)
 
 
 @app.get("/api/estado")
