@@ -126,6 +126,8 @@ svg text { fill: var(--texto); font: 12px var(--fuente); }
 .lectura { font-size: 11.5px; text-anchor: middle; fill: var(--tenue) !important; font-variant-numeric: tabular-nums; }
 /* Etiquetas de entrada y salida del esquema (DIVERTED PRODUCT, FINISHED PRODUCT, COLD WATER, TO DRAIN): más grandes y en el color de texto, como en el simulador */
 .lectura:has(> tspan) { font-size: 15px; font-weight: 700; fill: var(--texto) !important; }
+/* Bomba con el sentido de giro invertido: la flecha del símbolo se da la vuelta */
+svg path.invertida { transform-box: fill-box; transform-origin: center; transform: scaleX(-1); }
 .valvula { fill: var(--apagado); stroke: var(--tubo); stroke-width: 1.5; }
 .valvula.on { fill: var(--ok); }
 .manual { fill: var(--panel); stroke: var(--tubo); stroke-width: 1.5; }
@@ -736,6 +738,7 @@ function pintar(s) {
     bt.classList.toggle('sel', v);
     bt.textContent = `Sentido ${+v} · pulsa para invertir`;
     bt.disabled = !s.broker;
+    $(`g-${id}`).querySelector('path').classList.toggle('invertida', v);   // la flecha de la bomba en el esquema sigue el sentido de giro
   }
   for (const id of ['N1', 'N2']) {
     const on = !!d[MAPA.salidas[id]];
