@@ -91,14 +91,15 @@ body[data-estado="fin"] #fases li.actual { background: var(--ok); color: #fff; }
 #b-reconocer:disabled { opacity: .5; }
 
 /* ---------- cuerpo ---------- */
-.cuerpo { display: grid; grid-template-columns: minmax(0, 1fr) 390px; max-width: 1560px; margin: 0 auto; align-items: start; }
+.cuerpo { display: block; }
 .escena { padding: 18px 20px 28px; min-width: 0; }
-.lateral { position: sticky; top: var(--alto-barra); max-height: calc(100vh - var(--alto-barra)); overflow: auto; background: var(--panel); border-left: 1px solid var(--borde); }
+.lateral { background: var(--panel); border-top: 1px solid var(--borde); }
 .lateral section { border-top: 1px solid var(--borde); }
 .lateral section:first-child { border-top: 0; }
+@media (min-width: 700px) { .lateral .tarjetas { grid-template-columns: 1fr 1fr; column-gap: 28px; } .lateral .tarjeta { border-top: 0; } }
 
 .lienzo { background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; padding: 8px; overflow-x: auto; }
-.lienzo svg { display: block; width: 100%; height: auto; min-width: 820px; }
+.lienzo svg { display: block; width: 100%; height: auto; }
 .pie-sim { margin: 8px 2px 0; font-size: 12.5px; color: var(--tenue); }
 
 /* esquema */
@@ -156,7 +157,7 @@ svg text { fill: var(--texto); font: 12px var(--fuente); }
 .chip.ok .punto { background: var(--ok); } .chip.error .punto { background: var(--error); } .chip.aviso .punto { background: var(--aviso); }
 
 /* ---------- lateral: pestañas ---------- */
-.pestanas { position: sticky; top: 0; z-index: 3; display: flex; background: var(--panel); border-bottom: 1px solid var(--borde); padding: 0 12px; }
+.pestanas { display: flex; background: var(--panel); border-bottom: 1px solid var(--borde); padding: 0 12px; }
 .pestanas button { border: 0; background: none; padding: 13px 12px; font-size: 15px; margin-bottom: -1px; font-weight: 600; color: var(--tenue); border-bottom: 3px solid transparent; cursor: pointer; }
 .pestanas button[aria-selected="true"] { color: var(--texto); border-bottom-color: var(--acento); }
 .panel-pestana { padding: 6px 20px 20px; }
@@ -174,31 +175,43 @@ details.avanzado { margin-top: 16px; border-top: 1px solid var(--borde); padding
 details.avanzado summary { cursor: pointer; font-weight: 700; }
 
 .grafica { display: block; width: 100%; height: 230px; background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; }
-.leyenda { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 18px 0 8px; font-size: 13px; color: var(--tenue); }
+.grafica-activaciones { height: 256px; }
+.titulo-grafica { margin: 16px 0 6px; font-size: 14px; }
+.leyenda { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 8px; font-size: 13px; color: var(--tenue); }
+.ley-boton { display: inline-flex; align-items: center; min-height: 38px; padding: 0 14px; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); color: var(--tenue); font-weight: 600; cursor: pointer; }
+.ley-boton[aria-pressed="true"] { background: var(--fondo); color: var(--texto); border-color: var(--acento); box-shadow: inset 0 -3px 0 var(--acento); }
 .leyenda i { display: inline-block; width: 18px; height: 3px; margin-right: 6px; vertical-align: middle; }
 .registros { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow: auto; font-size: 13px; }
 .registros li { padding: 7px 0; border-top: 1px solid var(--borde); }
 .registros li:first-child { border-top: 0; }
 .nota { margin: 18px 0 0; font-size: 12.5px; color: var(--tenue); max-width: 70ch; }
 
+/* ---------- tableta: una columna, barra arriba y esquema entero ---------- */
+@media (min-width: 700px) and (max-width: 1100px) {
+  .barra { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 10px 14px; }
+  .derecha { justify-content: flex-end; }
+  .escena { padding: 14px 14px 20px; }
+}
+
 /* ---------- móvil ---------- */
-@media (max-width: 960px) {
+@media (max-width: 699px) {
+  .lienzo svg { min-width: 820px; }
   :root { --alto-barra: 0px; }
   /* los bloques de la columna lateral y de la escena se reordenan: primero cómo va la planta, luego el esquema */
   .cuerpo { display: flex; flex-direction: column; align-items: stretch; }
   .escena, .lateral { display: contents; }
-  .pestanas { display: none; }
-  #p-lecturas[hidden], #p-ajustes[hidden], #p-registro[hidden] { display: block !important; }
+  .pestanas { order: 5; margin-top: 14px; overflow-x: auto; flex-wrap: nowrap; border-top: 1px solid var(--borde); }
+  .pestanas button { flex: 0 0 auto; white-space: nowrap; }
   .lienzo { order: 1; margin: 12px 12px 0; } #pista-ayuda { order: 2; margin: 8px 14px 0; }
-  .leyenda { order: 3; margin: 16px 14px 8px; } .grafica { order: 4; width: calc(100% - 24px); margin: 0 12px; }
-  #p-ajustes { order: 5; } #p-lecturas { order: 6; } #p-registro { order: 7; } .nota { order: 8; margin: 18px 14px 0; }
-  #p-ajustes, #p-lecturas, #p-registro { background: var(--panel); margin-top: 14px; }
+  .grafica { width: 100%; }
+  #p-ajustes, #p-lecturas, #p-graficas, #p-registro, #p-controles { order: 6; background: var(--panel); }
+  #p-graficas { padding: 12px; } .nota { order: 9; margin: 18px 14px 0; }
   .barra { position: static; grid-template-columns: minmax(0, 1fr); padding: 10px 12px; }
   .derecha { justify-content: space-between; }
   .acciones { position: fixed; z-index: 40; left: 0; right: 0; bottom: 0; min-width: 0; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); background: var(--panel); border-top: 1px solid var(--borde); box-shadow: 0 -6px 18px rgba(0,0,0,.12); }
   .acciones button { flex: 1 1 0; padding: 0 8px; }
   #b-emergencia { margin-left: 0; flex: 0 0 auto; }
-  body { padding-bottom: 70px; }
+  body { padding-bottom: calc(86px + env(safe-area-inset-bottom)); }
   #alarma-caja { position: static; padding: 10px 12px; }
   .cab { padding: 10px 12px; }
   .term { padding: 12px 14px 10px; } .term-valor { font-size: 28px; } .bloque { padding: 14px; } .estados { padding: 10px 14px; }
@@ -237,20 +250,10 @@ body[data-estado="reposo"] .pista-estado #fase-motivo, body[data-estado="fin"] .
 .tarjetas > .tarjeta:first-child { border-top: 0; }
 .tarjeta h3 { margin: 0; font-size: 15px; }
 .tarjeta small { color: var(--tenue); font-size: 12.5px; }
-.estado-bomba { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--tenue); }
-.estado-bomba.ok { color: var(--ok); font-weight: 600; }
-.estado-bomba.ok .punto { background: var(--ok); }
-button.grande, .btn-sentido { width: 100%; min-height: 40px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--borde); background: var(--panel); font-weight: 600; cursor: pointer; }
-button.grande:hover:not(:disabled), .btn-sentido:hover { border-color: var(--acento); }
-button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; }
-.btn-sentido.sel { background: var(--acento); border-color: var(--acento); color: var(--sobre-acento); }
-.sentido { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px dashed var(--borde); }
 .consigna { display: flex; flex-direction: column; gap: 4px; }
 .consigna label { font-weight: 600; font-size: 14px; }
 .consigna output { min-width: 4.5em; text-align: right; font-weight: 600; }
 .consigna .fila input { flex: 1; min-width: 0; accent-color: var(--acento); }
-#tarjetas-valvulas { grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
-#tarjetas-valvulas .tarjeta { padding: 10px; border: 1px solid var(--borde); border-radius: 6px; }
 .fila-botones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .fila-botones button { min-height: 38px; padding: 0 14px; border-radius: 6px; border: 1px solid var(--borde); background: var(--panel); font-weight: 600; cursor: pointer; }
 #sim-play { background: var(--acento); border-color: var(--acento); color: var(--sobre-acento); min-width: 150px; }
@@ -272,14 +275,7 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
 .opcion .entrar { margin-top: auto; padding-top: 10px; font-weight: 700; color: var(--acento-texto); }
 @media (max-width: 720px) { .opcion { border-left: 0; border-top: 1px solid var(--borde); } .opcion:first-child { border-top: 0; } }
 
-/* electroválvulas bajo el esquema (modo manual) */
-.grupo-valvulas { padding: 14px 0 0; border-top: 0; }
-.grupo-valvulas > h2 { margin: 0 0 8px; }
-.grupo-valvulas #tarjetas-valvulas { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-top: 0; }
-.grupo-valvulas .fila-botones { margin-top: 10px; }
-@media (max-width: 960px) {
-  .grupo-valvulas { order: 2; padding: 14px; background: var(--panel); margin-top: 12px; }
-  #p-controles { order: 5; background: var(--panel); margin-top: 14px; }
+@media (max-width: 699px) {
 }
 
 /* ---------- identidad CIFP Politécnico Cartagena (naranja #F68B11, gris #5A5758) ---------- */
@@ -293,7 +289,7 @@ svg path.invertida { transform-box: fill-box; transform-origin: center; transfor
 
 /* ---------- aviso de copyright ---------- */
 .copy { margin: 28px 20px 18px; font-size: 12px; color: var(--tenue); text-align: center; }
-@media (max-width: 960px) { .copy { margin-bottom: 90px; } }   /* la barra de operación fija de móvil no debe taparlo */
+@media (max-width: 699px) { .copy { margin-bottom: 90px; } }   /* la barra de operación fija de móvil no debe taparlo */
 
 /* Ayuda contextual y guía */
   #ventana-ayuda{position:fixed;z-index:9999;left:50%;top:50%;transform:translate(-50%,-50%);max-height:calc(100vh - 24px);overflow:auto;width:min(420px,calc(100vw - 24px));background:color-mix(in srgb,var(--acento,#1565c0) 5%,var(--panel,#fff));color:var(--texto,#1b1f24);
@@ -328,3 +324,6 @@ svg path.invertida { transform-box: fill-box; transform-origin: center; transfor
   #guia-ayuda button:hover{background:color-mix(in srgb,var(--error,#c62828) 18%,transparent)}
   #boton-ayuda{border:1px solid var(--acento,#1565c0);background:transparent;color:var(--acento,#1565c0);border-radius:999px;padding:3px 12px;font:600 13px system-ui,sans-serif;cursor:pointer;margin-left:auto}
   #boton-ayuda:hover{background:color-mix(in srgb,var(--acento,#1565c0) 14%,transparent)}
+
+/* pulsación larga en táctil: sin menú de copiar ni selección de texto sobre el esquema y las tarjetas */
+.lienzo, .tarjeta { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }

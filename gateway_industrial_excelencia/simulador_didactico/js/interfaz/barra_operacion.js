@@ -35,6 +35,7 @@
       t.setAttribute('aria-selected', String(seleccionada));
       $(t.getAttribute('aria-controls')).hidden = !seleccionada;
     });
+    window.dispatchEvent(new Event('resize'));
     pestanas.forEach(t => t.addEventListener('click', () => mostrar(t)));
     mostrar(pestanas.find(t => t.getAttribute('aria-selected') === 'true') || pestanas[0]);
   }

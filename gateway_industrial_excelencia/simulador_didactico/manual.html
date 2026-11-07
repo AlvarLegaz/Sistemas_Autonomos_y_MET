@@ -36,45 +36,20 @@
     <select id="sim-velocidad" class="velocidad-select" aria-label="Velocidad de simulación"><option value="1" selected>1×</option><option value="5">5×</option><option value="20">20×</option></select>
   </div>
 </div>
-
 <div class="cuerpo">
   <main class="escena">
     <div class="lienzo" id="esquema"></div>
-    <section class="grupo grupo-valvulas" id="panel-valvulas"><h2>Electroválvulas</h2>
-    <div class="tarjetas" id="tarjetas-valvulas"></div>
-    <div class="fila-botones"><button id="cerrar-valvulas" type="button">Cerrar electroválvulas</button></div>
-  </section>
-    <div class="leyenda"><span><i style="background:#d66d2b"></i>T2 · agua caliente</span><span><i style="background:#2d80c7"></i>T1 · salida del tubo</span><span><i style="background:#22a2a0"></i>T3 · producto final</span></div>
-    <canvas id="sim-trend" class="grafica" width="1000" height="260" aria-label="Evolución simulada de T1, T2 y T3"></canvas>
-    <p class="nota"><strong>Simulación didáctica aproximada.</strong> Las relaciones térmicas, volúmenes y caudales son valores orientativos, no parámetros verificados de la Armfield PCT23.
-    V1 y PRV1 se muestran abiertas (accionadas); V2 y V3 son símbolos fijos y SOL2 elige el tanque de alimentación solo en este modelo simplificado. No hay conexión con equipos físicos.</p>
   </main>
 
   <aside class="lateral" aria-label="Controles, lecturas y registro">
     <div class="pestanas" role="tablist" aria-label="Controles, lecturas y registro">
       <button type="button" role="tab" id="tab-controles" aria-selected="true" aria-controls="p-controles">Controles</button>
       <button type="button" role="tab" id="tab-lecturas" aria-selected="false" aria-controls="p-lecturas">Lecturas</button>
+      <button type="button" role="tab" id="tab-graficas" aria-selected="false" aria-controls="p-graficas">Gráficas</button>
       <button type="button" role="tab" id="tab-registro" aria-selected="false" aria-controls="p-registro">Registro</button>
     </div>
 
     <div id="p-controles" role="tabpanel" aria-labelledby="tab-controles">
-      <section class="grupo" id="panel-bombas"><h2>Bombas y calefacción</h2>
-    <div class="tarjetas" id="tarjetas-bombas">
-      <div class="tarjeta" id="t-N2"><h3>Heat unit</h3><small>Acción: J7 OUT07</small>
-        <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
-        <button class="grande" id="b-N2">Encender</button>
-        <div class="sentido"><small>Sentido de giro · J7 OUT05</small>
-          <button class="btn-sentido" data-bomba="N2">—</button></div>
-        <div class="consigna" id="c-velocidadN2"></div></div>
-      <div class="tarjeta" id="t-N1"><h3>Feed unit</h3><small>Acción: J7 OUT08</small>
-        <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
-        <button class="grande" id="b-N1">Encender</button>
-        <div class="sentido"><small>Sentido de giro · J7 OUT06</small>
-          <button class="btn-sentido" data-bomba="N1">—</button></div>
-        <div class="consigna" id="c-velocidadN1"></div></div>
-    </div>
-    <div class="fila-botones"><button id="parar-bombas" type="button">Parar bombas</button></div>
-  </section>
       <section class="grupo" id="panel-depositos"><h2>Depósitos de alimentación</h2>
     <div class="tarjetas">
       <div class="tarjeta" id="t-TANKA"><h3>Tanque A</h3><small>Sensor de nivel L1 · llenado con SOL4</small>
@@ -85,6 +60,10 @@
         <small id="dllen-B">—</small></div>
     </div>
     <p class="sec-aviso">Es el porcentaje de la capacidad del depósito (2400 ml en el modelo). Con la simulación parada o en pausa puedes ajustarlo y el nivel cambia al instante. Con la simulación en marcha el deslizador queda bloqueado y solo muestra el nivel, que baja con N1 y sube con SOL4/SOL5.</p>
+  </section>
+      <section class="grupo" id="panel-valvulas"><h2>Electroválvulas</h2>
+    <p class="sec-aviso">SOL1 a SOL5 se accionan pulsando su símbolo en el esquema.</p>
+    <div class="fila-botones"><button id="cerrar-valvulas" type="button">Cerrar electroválvulas</button></div>
   </section>
     </div>
 
@@ -108,6 +87,14 @@
       </section>
     </div>
 
+    <div class="panel-pestana" id="p-graficas" role="tabpanel" aria-labelledby="tab-graficas" hidden>
+      <div class="leyenda" id="leyenda-temp" role="group" aria-label="Series de temperatura"></div>
+      <canvas id="sim-trend" class="grafica" width="1000" height="260" aria-label="Evolución simulada de T1, T2 y T3"></canvas>
+      <h3 class="titulo-grafica">Activaciones</h3>
+      <div class="leyenda" id="leyenda-act" role="group" aria-label="Señales de activación"></div>
+      <canvas id="sim-activaciones" class="grafica grafica-activaciones" width="1000" height="256" aria-label="Potencia de la resistencia y estado de bombas y electroválvulas en el tiempo"></canvas>
+    </div>
+
     <div class="panel-pestana" id="p-registro" role="tabpanel" aria-labelledby="tab-registro" hidden>
       <ul id="sim-log" class="registros"></ul>
     </div>
@@ -124,7 +111,9 @@
 <script src="js/modelo/planta.js"></script>
 <script src="js/interfaz/dom.js"></script>
 <script src="js/interfaz/registro_eventos.js"></script>
+<script src="js/interfaz/escala_grafica.js"></script>
 <script src="js/interfaz/grafica.js"></script>
+<script src="js/interfaz/grafica_activaciones.js"></script>
 <script src="js/interfaz/scada/canvas.js"></script>
 <script src="js/interfaz/scada/objeto_scada.js"></script>
 <script src="js/interfaz/scada/scada_widget.js"></script>
@@ -141,6 +130,7 @@
 <script src="js/interfaz/barra_operacion.js"></script>
 <script src="js/interfaz/bucle.js"></script>
 <script src="js/interfaz/ayuda_textos.js"></script>
+<script src="js/interfaz/pulsacion_larga.js"></script>
 <script src="js/interfaz/ayuda.js"></script>
 <script src="js/interfaz/panel_manual.js"></script>
 <script src="js/interfaz/pagina_manual.js"></script>

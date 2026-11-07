@@ -11,7 +11,7 @@ Es una simulación aproximada: los valores no son los del fabricante.
    - **Manual**: tú accionas bombas, válvulas y la resistencia.
    - **Automático**: la planta ejecuta la secuencia de pasteurización; tú eliges la configuración.
    - **Demostración**: solo eliges la temperatura; la planta decide el resto.
-4. Pulsa el botón **? Ayuda** para leer la guía de cada pantalla, o haz **clic derecho** sobre
+4. Pulsa el botón **? Ayuda** para leer la guía de cada pantalla, o haz **clic derecho** (o mantén pulsado 3 s en pantallas táctiles) sobre
    cualquier elemento del esquema para saber qué es.
 
 No necesita instalación ni conexión a Internet.
@@ -65,11 +65,13 @@ DISENO.md     documento de diseño interno
 **js/interfaz** (pantalla)
 - `dom.js`: funciones pequeñas para leer y escribir en la página y dar formato a los números.
 - `registro_eventos.js`: escribe las líneas del registro de eventos.
-- `grafica.js`: dibuja la gráfica de temperaturas.
+- `grafica.js`: dibuja la gráfica de temperaturas (pestaña Gráficas).
+- `grafica_activaciones.js`: potencia de la resistencia y cronograma de bombas y electroválvulas, con el mismo eje de tiempo.
 - `barra_operacion.js`: botones de velocidad, menú «Más» y pestañas.
 - `bucle.js`: temporizador que hace avanzar la simulación.
 - `ayuda_textos.js`: textos de la ayuda (solo datos).
-- `ayuda.js`: ventana de ayuda por clic derecho y guía de cada pantalla.
+- `ayuda.js`: ventana de ayuda por clic derecho o pulsación larga y guía de cada pantalla.
+- `pulsacion_larga.js`: temporizador de pulsación larga (3 s) para pantallas táctiles.
 - `panel_manual.js`: controles y lecturas del modo manual.
 - `panel_automatico.js`: ajustes, lecturas y pista de fases de los modos automático y demostración.
 - `pagina_manual.js`, `pagina_automatico.js`, `pagina_demostracion.js`: arrancan cada pantalla.

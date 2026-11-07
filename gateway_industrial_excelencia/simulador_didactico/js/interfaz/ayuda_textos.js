@@ -165,30 +165,30 @@
       'Tras el tubo de residencia, SOL1 reparte: sin activar sale el producto acabado, activa se ilumina la salida de desvío y se apaga la otra.',
       '<b>Contadores de producto</b>: junto a DIVERTED PRODUCT y FINISHED PRODUCT se ve la cantidad (ml) que ha pasado por cada salida. Miden ' +
           'siempre que circula producto: suman en el desvío cuando SOL1 está activada y en el producto acabado cuando no lo está.',
-      '<b>Clic derecho</b> sobre cualquier elemento del esquema (o sobre un control de la columna de la derecha) para saber qué es, qué hace y su ' +
+      '<b>Clic derecho</b> (o mantener pulsado 3 s en pantallas táctiles) sobre cualquier elemento del esquema (o sobre un control de las pestañas) para saber qué es, qué hace y su ' +
           'estado ahora.',
-      'La <b>barra de arriba</b> siempre está a la vista: ahí están Iniciar, Pausar y las paradas, la velocidad de la simulación (1×, 5×, 20×) y ' +
-          'el menú «Más». La columna de la derecha tiene pestañas.',
+      'La <b>barra de operación</b> siempre está a la vista: ahí están Iniciar, Pausar y las paradas, la velocidad de la simulación (1×, 5×, 20×) y ' +
+          'el menú «Más». Bajo el esquema hay pestañas con los controles o ajustes, las lecturas y el registro.',
     ])],
   ];
   const GUIA_MANUAL = [
     ['Modo manual: qué haces tú', '<p>Gobiernas cada actuador a mano, como en la consola de la planta. Nada se mueve solo salvo la física del proceso.</p>'],
-    ['Barra de arriba', lista([
+    ['Barra de operación', lista([
       '<b>Iniciar / Pausar</b>: la simulación solo avanza el tiempo mientras está en marcha. Puedes cambiar actuadores en pausa.',
       '<b>Velocidad</b>: 1×, 5× o 20× el tiempo real. <b>Reiniciar</b> devuelve toda la planta al estado inicial (depósitos vacíos).',
-      'La columna de la derecha tiene tres pestañas: <b>Controles</b> (bombas, calefacción, electroválvulas y depósitos), <b>Lecturas</b> ' +
+      'Bajo el esquema hay tres pestañas: <b>Controles</b> (depósitos de alimentación y cerrar electroválvulas), <b>Lecturas</b> ' +
           '(caudal, tanques y producto) y <b>Registro</b>.',
     ])],
     ['Bombas peristálticas', lista([
       '<b>Heat unit (N2)</b>: circula el agua caliente por el intercambiador. <b>Feed unit (N1)</b>: mueve el producto. Cada una se enciende y ' +
-          'apaga con su botón (J7 OUT07 y OUT08).',
-      '<b>Sentido de giro</b>: un botón por bomba que alterna la salida entre 0 y 1 (OUT05 para heat unit, OUT06 para feed unit). En el ' +
+          'apaga pulsando su símbolo en el esquema (J7 OUT07 y OUT08).',
+      '<b>Sentido de giro</b>: el botón de cada bomba, en el panel de controles del esquema, alterna la salida entre 0 y 1 (OUT05 para heat unit, OUT06 para feed unit). En el ' +
           'simulador, 0 es el sentido de proceso y 1 el inverso, en el que N1 no mueve producto. Cuál es el valor «adelante» real está sin ' +
           'confirmar.',
-      '<b>Velocidad (PWM)</b>: porcentaje de la velocidad de la bomba. Si N1 está al 0 % no hay caudal aunque esté encendida.',
+      '<b>Velocidad (PWM)</b>: deslizador del panel de controles del esquema, en porcentaje de la velocidad de la bomba. Si N1 está al 0 % no hay caudal aunque esté encendida.',
     ])],
     ['Calefacción', lista([
-      'Interruptor de la resistencia (OUT04) y deslizador de <b>potencia</b>. Las dos resistencias de 120 V van en serie (una de 230 V) y se ' +
+      'Se enciende y apaga pulsando el círculo RES del esquema (OUT04), y la <b>potencia</b> se ajusta en el panel de controles. Las dos resistencias de 120 V van en serie (una de 230 V) y se ' +
           'regulan por <b>ráfagas de 50 ciclos de red</b>: 100 % son 50 ciclos de 50, 50 % son 25.',
       'Solo calienta si está en ON <b>y</b> la potencia es mayor que 0. T2 sube despacio (el agua tarda minutos). Si T2 pasa de 91 °C salta el ' +
           'termostato y corta el calefactor.',
@@ -197,7 +197,7 @@
       '<b>SOL1</b>: desvío del producto (activa = rechazo, el producto vuelve al tanque). <b>SOL2</b>: elige el tanque de origen (reposo = A, activa = B).',
       '<b>SOL3</b>: agua fría de refrigeración. <b>SOL4</b> y <b>SOL5</b>: llenado de los tanques A y B. <b>V3</b> (clic en el esquema): válvula ' +
           'manual; abierta, vacía el tanque B.',
-      'También puedes pulsar directamente sobre la válvula o la bomba en el esquema.',
+      'Se accionan pulsando su símbolo en el esquema; en la pestaña Controles, <b>Cerrar electroválvulas</b> cierra SOL1-SOL5 de una vez.',
     ])],
     ['Depósitos de alimentación', lista([
       'Cada tanque (A y B) tiene un deslizador de <b>porcentaje de llenado</b> sobre su capacidad (2400 ml en el modelo). Con la simulación ' +
@@ -207,7 +207,7 @@
       'Un tanque vacío detiene a N1 y provoca la alarma de «sin producto en origen».',
     ])],
     ['Botones de parada', lista([
-      '<b>Parar bombas</b>: apaga N1 y N2. <b>Cerrar electroválvulas</b>: cierra SOL1-SOL5. <b>Parar todo</b> (en la barra de arriba): apaga ' +
+      '<b>Parar todo</b> (en la barra de operación): apaga ' +
           'todas las salidas, pero las temperaturas y los niveles no vuelven al instante a su valor inicial.',
     ])],
     ['Una prueba sencilla', lista([
@@ -243,7 +243,7 @@
       '<b>Producción → lavado</b>: cuando alcanzas la <b>producción de referencia</b>, cuando el <b>tanque de origen se agota</b> o cuando pulsas ' +
           '<b>Terminar producción</b>. Hasta entonces la producción sigue; un tanque poco lleno la acorta.',
       '<b>Lavado → parada</b>: tras 2 minutos simulados de lavado. <b>Parada → finalizada</b>: cuando T2 baja de 45 °C.',
-      'La <b>pista de fases</b> de la barra de arriba muestra en qué fase está la planta (se llena la actual, en rojo si hay una alarma) y debajo ' +
+      'La <b>pista de fases</b> de la barra de operación muestra en qué fase está la planta (se llena la actual, en rojo si hay una alarma) y debajo ' +
           'el <b>motivo del último cambio de fase</b>; el registro lo anota con su hora.',
     ])],
     ['Parámetros', lista([
@@ -271,8 +271,9 @@
       'Cada alarma corta el calefactor y recircula el producto antes de esperar a que la reconozcas.',
     ])],
     ['Gráfica y registro', lista([
-      'La gráfica muestra T1 (azul), T2 (naranja) y T3 (verde azulado). La línea gris discontinua es la consigna de T1 y la naranja, la de T2 ' +
+      'En la pestaña Gráficas, la primera gráfica muestra T1 (azul), T2 (naranja) y T3 (verde azulado). La línea gris discontinua es la consigna de T1 y la naranja, la de T2 ' +
           'cuando el modo la usa.',
+      'Los botones de la leyenda muestran una sola serie o señal, con la escala ajustada; «Todas» vuelve a la vista completa. La segunda gráfica muestra la potencia efectiva de la resistencia (0-100 %) y, debajo, cuándo están activas N1, N2 y SOL1 a SOL5.',
       'El registro anota cada cambio de fase, los desvíos de SOL1 y las alarmas con su hora simulada.',
     ])],
   ];
@@ -304,7 +305,7 @@
   const GUIA_INICIO = [
     ['Los dos modos', lista(['<b>Modo manual</b>: tú gobiernas cada bomba, válvula y el calefactor desde el esquema y los paneles.',
       '<b>Modo automático</b>: la planta ejecuta sola la secuencia de pasteurización y tú la supervisas; puedes elegir cómo se regula el calefactor.'])],
-    ['En cualquier modo', '<p>Pulsa el botón <b>? Ayuda</b> para ver la guía de esa pantalla, y haz <b>clic derecho</b> sobre cualquier elemento ' +
+    ['En cualquier modo', '<p>Pulsa el botón <b>? Ayuda</b> para ver la guía de esa pantalla, y haz <b>clic derecho</b> (o mantén pulsado 3 s en pantallas táctiles) sobre cualquier elemento ' +
         'del esquema para saber qué es.</p>'],
   ];
 

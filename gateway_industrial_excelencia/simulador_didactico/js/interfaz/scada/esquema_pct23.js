@@ -148,7 +148,7 @@
   ];
 
   function textoPotencia(potenciaPct) {
-    return `${potenciaPct} % · ${Math.round(potenciaPct * 50 / 100)}/50 ciclos`;
+    return `${Math.round(potenciaPct)} % · ${Math.round(potenciaPct * 50 / 100)}/50 ciclos`;
   }
 
   function crearCanvasPct23() {

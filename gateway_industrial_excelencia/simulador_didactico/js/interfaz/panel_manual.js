@@ -16,15 +16,6 @@
     { id: 'velocidadN2', nombre: 'Velocidad (PWM)', campo: 'velocidadN2Pct', texto: v => `${v} %` },
   ];
 
-  const VALVULAS = [
-    { id: 'SOL1', titulo: 'SOL1', detalle: 'Desvío de producto · relé K3' },
-    { id: 'SOL2', titulo: 'SOL2', detalle: 'Depósitos A/B · relé K4' },
-    { id: 'SOL3', titulo: 'SOL3', detalle: 'Agua fría · relé K5' },
-    { id: 'SOL4', titulo: 'SOL4', detalle: 'Ramal depósito A · relé K6' },
-    { id: 'SOL5', titulo: 'SOL5', detalle: 'Ramal depósito B · relé K7' },
-    { id: 'RES', titulo: 'Calefacción', detalle: 'Resistencia heat unit · J7 OUT04' },
-  ];
-
   let estado = null;
   let esquemaScada = null;
   let ultimoAviso = '';
@@ -43,9 +34,6 @@
 
   function ponerConsigna(consigna, valor) {
     estado.consignas[consigna.campo] = PCT.matematicas.limitar(Number(valor) || 0, 0, 100);
-    const actual = estado.consignas[consigna.campo];
-    $(`r-${consigna.id}`).value = String(actual);
-    $(`o-${consigna.id}`).textContent = consigna.texto(actual);
   }
 
   function alternarSalida(clave, nombre, palabras) {
@@ -66,17 +54,8 @@
     refrescarPantalla();
   }
 
-  function pararBombas() {
-    estado.salidas.N1 = false;
-    estado.salidas.N2 = false;
-    estado.giro.N1 = false;
-    estado.giro.N2 = false;
-    registrar('Bombas detenidas');
-    refrescarPantalla();
-  }
-
   function cerrarElectrovalvulas() {
-    for (const { id } of VALVULAS) if (id.startsWith('SOL')) estado.salidas[id] = false;
+    for (const clave of ['SOL1', 'SOL2', 'SOL3', 'SOL4', 'SOL5']) estado.salidas[clave] = false;
     registrar('Electroválvulas cerradas');
     refrescarPantalla();
   }
@@ -102,62 +81,13 @@
     estado = crearEstadoManual();
     grafica.reiniciarGrafica();
     ultimoAviso = '';
-    for (const consigna of CONSIGNAS) ponerConsigna(consigna, estado.consignas[consigna.campo]);
     vaciarRegistro();
     registrar('Simulador reiniciado');
     refrescarPantalla();
   }
 
-  function crearTarjetaValvula(valvula) {
-    const tarjeta = document.createElement('div');
-    tarjeta.className = 'tarjeta';
-    tarjeta.id = `t-${valvula.id}`;
-    tarjeta.innerHTML = `<h3>${valvula.titulo}</h3><small>${valvula.detalle}</small>
-      <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
-      <button class="grande" id="b-${valvula.id}">Activar</button>`;
-    return tarjeta;
-  }
-
   function configurarValvulas() {
-    for (const valvula of VALVULAS) {
-      const tarjeta = crearTarjetaValvula(valvula);
-      if (valvula.id === 'RES') $('tarjetas-bombas').insertBefore(tarjeta, $('t-N1'));
-      else $('tarjetas-valvulas').appendChild(tarjeta);
-      const palabras = valvula.id === 'RES' ? ENCENDIDA : ACTIVADA;
-      $(`b-${valvula.id}`).addEventListener('click', () => alternarSalida(valvula.id, valvula.titulo, palabras));
-    }
     $('cerrar-valvulas').addEventListener('click', cerrarElectrovalvulas);
-  }
-
-  function configurarBombas() {
-    for (const clave of ['N1', 'N2']) {
-      $(`b-${clave}`).addEventListener('click', () => alternarSalida(clave, clave, ENCENDIDA));
-    }
-    for (const boton of document.querySelectorAll('.btn-sentido')) {
-      boton.addEventListener('click', () => invertirGiro(boton.dataset.bomba));
-    }
-    $('parar-bombas').addEventListener('click', pararBombas);
-  }
-
-  function crearDeslizador(consigna) {
-    const valor = estado.consignas[consigna.campo];
-    const fila = document.createElement('div');
-    fila.className = 'consigna';
-    fila.innerHTML = `<label for="r-${consigna.id}">${consigna.nombre}</label>
-      <div class="fila"><input type="range" id="r-${consigna.id}" min="0" max="100" value="${valor}">
-      <output id="o-${consigna.id}">${consigna.texto(valor)}</output></div>`;
-    return fila;
-  }
-
-  function configurarConsignas() {
-    for (const consigna of CONSIGNAS) {
-      const fila = crearDeslizador(consigna);
-      if (consigna.id === 'resistencia') $('t-RES').appendChild(fila);
-      else $(`c-${consigna.id}`).replaceWith(fila);
-      const rango = fila.querySelector('input');
-      rango.addEventListener('input', () => { ponerConsigna(consigna, rango.value); refrescarPantalla(); });
-      rango.addEventListener('change', () => registrar(`${consigna.nombre} (${consigna.id}): ${consigna.texto(estado.consignas[consigna.campo])}`));
-    }
   }
 
   function configurarDepositos() {
@@ -183,7 +113,7 @@
     return CONSIGNAS.find(consigna => consigna.campo === campo);
   }
 
-  // Deslizador del esquema: mueve la misma consigna que el de la pestaña Controles.
+  // Deslizador del panel de controles dentro del esquema.
   function comportamientoDeslizador(campo) {
     const consigna = consignaDe(campo);
     return {
@@ -259,34 +189,6 @@
     ponerChip('chip-io', estado.temperaturaCorte || estado.vacio ? 'error' : 'ok', textoEntradasSalidas(estado));
   }
 
-  function refrescarTarjeta(id, on, textoBoton, textoEstado) {
-    $(`b-${id}`).classList.toggle('on', on);
-    $(`b-${id}`).textContent = textoBoton;
-    const estadoBomba = $(`t-${id}`).querySelector('.estado-bomba');
-    estadoBomba.className = `estado-bomba ${on ? 'ok' : ''}`;
-    estadoBomba.lastElementChild.textContent = textoEstado;
-  }
-
-  function refrescarValvulas() {
-    for (const { id } of VALVULAS) {
-      const on = !!estado.salidas[id];
-      const textoEstado = id === 'RES' ? (on ? 'Calentando' : 'Apagada') : (on ? 'Abierta' : 'Cerrada');
-      refrescarTarjeta(id, on, on ? 'Desactivar' : 'Activar', textoEstado);
-    }
-  }
-
-  function refrescarBombas() {
-    for (const id of ['N1', 'N2']) {
-      const on = !!estado.salidas[id];
-      refrescarTarjeta(id, on, on ? 'Apagar' : 'Encender', on ? 'En marcha' : 'Parada');
-    }
-    for (const boton of document.querySelectorAll('.btn-sentido')) {
-      const sentido = !!estado.giro[boton.dataset.bomba];
-      boton.classList.toggle('sel', sentido);
-      boton.textContent = textoSentido(sentido);
-    }
-  }
-
   function textoFlotadores(lecturas) {
     if (lecturas.HL) return 'HL activo';
     return lecturas.LL ? 'LL activo' : 'entre LL y HL';
@@ -346,8 +248,6 @@
 
   function refrescarPantalla() {
     esquemaScada.actualizar(estado);
-    refrescarValvulas();
-    refrescarBombas();
     refrescarDepositos();
     refrescarChips();
     refrescarDatos();
@@ -371,8 +271,6 @@
     estado = estadoInicial;
     montarEsquema();
     configurarValvulas();
-    configurarBombas();
-    configurarConsignas();
     configurarDepositos();
     configurarMando();
     grafica.ajustarLienzo();

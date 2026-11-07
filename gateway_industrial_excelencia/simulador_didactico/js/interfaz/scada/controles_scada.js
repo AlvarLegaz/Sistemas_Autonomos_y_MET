@@ -16,7 +16,7 @@
     actualizar(estado) {
       const valor = this.o.valorDe(estado);
       this.rango.value = String(valor);
-      this.salida.textContent = `${valor} %`;
+      this.salida.textContent = `${Math.round(valor)} %`;
     }
   }
 

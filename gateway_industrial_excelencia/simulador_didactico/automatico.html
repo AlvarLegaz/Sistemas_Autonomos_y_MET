@@ -53,15 +53,13 @@
 <div class="cuerpo">
   <main class="escena">
     <div class="lienzo" id="esquema"></div>
-    <div class="leyenda"><span><i style="background:#d66d2b"></i>T2 · agua caliente</span><span><i style="background:#2d80c7"></i>T1 · salida del tubo</span><span><i style="background:#22a2a0"></i>T3 · producto final</span></div>
-    <canvas id="sim-trend" class="grafica" width="1000" height="260" aria-label="Evolución simulada de T1, T2 y T3"></canvas>
-    <p class="nota"><strong>Simulación didáctica aproximada.</strong> Las fases (arranque, precalentamiento, producción, lavado y parada) siguen la secuencia típica del manual de la PCT23, pero las consignas, los tiempos y la lógica de desvío son supuestos de este simulador, no valores del fabricante. El lavado se simplifica. No hay conexión con equipos físicos.</p>
   </main>
 
   <aside class="lateral" aria-label="Lecturas y ajustes">
     <div class="pestanas" role="tablist" aria-label="Lecturas, ajustes y registro">
       <button type="button" role="tab" id="tab-ajustes" aria-selected="true" aria-controls="p-ajustes">Ajustes</button>
       <button type="button" role="tab" id="tab-lecturas" aria-selected="false" aria-controls="p-lecturas">Lecturas</button>
+      <button type="button" role="tab" id="tab-graficas" aria-selected="false" aria-controls="p-graficas">Gráficas</button>
       <button type="button" role="tab" id="tab-registro" aria-selected="false" aria-controls="p-registro">Registro</button>
     </div>
     <div id="p-lecturas" role="tabpanel" aria-labelledby="tab-lecturas" hidden>
@@ -147,7 +145,15 @@
         </details>
       </div>
 
-      <div class="panel-pestana" id="p-registro" role="tabpanel" aria-labelledby="tab-registro" hidden>
+<div class="panel-pestana" id="p-graficas" role="tabpanel" aria-labelledby="tab-graficas" hidden>
+      <div class="leyenda" id="leyenda-temp" role="group" aria-label="Series de temperatura"></div>
+      <canvas id="sim-trend" class="grafica" width="1000" height="260" aria-label="Evolución simulada de T1, T2 y T3"></canvas>
+      <h3 class="titulo-grafica">Activaciones</h3>
+      <div class="leyenda" id="leyenda-act" role="group" aria-label="Señales de activación"></div>
+      <canvas id="sim-activaciones" class="grafica grafica-activaciones" width="1000" height="256" aria-label="Potencia de la resistencia y estado de bombas y electroválvulas en el tiempo"></canvas>
+    </div>
+
+          <div class="panel-pestana" id="p-registro" role="tabpanel" aria-labelledby="tab-registro" hidden>
         <ul id="sim-log" class="registros"></ul>
       </div>
   </aside>
@@ -168,7 +174,9 @@
 <script src="js/control/secuencia.js"></script>
 <script src="js/interfaz/dom.js"></script>
 <script src="js/interfaz/registro_eventos.js"></script>
+<script src="js/interfaz/escala_grafica.js"></script>
 <script src="js/interfaz/grafica.js"></script>
+<script src="js/interfaz/grafica_activaciones.js"></script>
 <script src="js/interfaz/scada/canvas.js"></script>
 <script src="js/interfaz/scada/objeto_scada.js"></script>
 <script src="js/interfaz/scada/scada_widget.js"></script>
@@ -183,6 +191,7 @@
 <script src="js/interfaz/barra_operacion.js"></script>
 <script src="js/interfaz/bucle.js"></script>
 <script src="js/interfaz/ayuda_textos.js"></script>
+<script src="js/interfaz/pulsacion_larga.js"></script>
 <script src="js/interfaz/ayuda.js"></script>
 <script src="js/interfaz/panel_automatico.js"></script>
 <script src="js/interfaz/pagina_automatico.js"></script>

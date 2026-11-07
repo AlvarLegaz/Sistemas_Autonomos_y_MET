@@ -230,13 +230,16 @@
     if (!lienzo) return;
     const pista = document.createElement('p');
     pista.id = 'pista-ayuda'; pista.className = 'pie-sim';
-    pista.textContent = 'Clic derecho sobre cualquier elemento del esquema (bombas, válvulas, sensores, depósitos…) para ver qué es.';
+    pista.textContent = 'Clic derecho (o mantén pulsado 3 s en pantallas táctiles) sobre cualquier elemento del esquema (bombas, válvulas, sensores, depósitos…) para ver qué es.';
     lienzo.insertAdjacentElement('afterend', pista);
   }
 
   /* ---------- eventos ---------- */
+  let tactil = false, suprimirClic = false;
+
   function alPulsarDerecho(evento) {
     if (ventana.contains(evento.target) || guia.contains(evento.target)) return;
+    if (tactil) { evento.preventDefault(); return; }
     const clave = claveDelElemento(evento);
     if (!clave || !ELEMENTOS[clave]) { cerrarAyuda(); return; }
     evento.preventDefault();
@@ -244,8 +247,36 @@
   }
 
   function alPulsarFuera(evento) {
+    if (suprimirClic) return;
     const abierto = !ventana.hidden || !guia.hidden;
     if (abierto && !ventana.contains(evento.target) && !guia.contains(evento.target) && evento.button === 0) cerrarAyuda();
+  }
+
+  function abrirPorPulsacion(evento) {
+    const clave = claveDelElemento(evento);
+    if (!clave || !ELEMENTOS[clave]) return;
+    suprimirClic = true;
+    setTimeout(() => { suprimirClic = false; }, 800);
+    abrirAyuda(clave);
+  }
+
+  function iniciarPulsacionLarga() {
+    const larga = PCT.pulsacionLarga.crearPulsacionLarga({ alCumplir: abrirPorPulsacion });
+    const esTactil = e => e.pointerType === 'touch' || e.pointerType === 'pen';
+    document.addEventListener('pointerdown', e => {
+      tactil = esTactil(e);
+      if (!tactil || ventana.contains(e.target) || guia.contains(e.target)) return;
+      larga.empezar(e.clientX, e.clientY, { target: e.target, clientX: e.clientX, clientY: e.clientY });
+    });
+    document.addEventListener('pointermove', e => { if (esTactil(e)) larga.mover(e.clientX, e.clientY); });
+    document.addEventListener('pointerup', e => { if (esTactil(e)) larga.terminar(); });
+    document.addEventListener('pointercancel', larga.cancelar);
+    document.addEventListener('scroll', larga.cancelar, true);
+    document.addEventListener('click', e => {
+      if (!suprimirClic) return;
+      suprimirClic = false;
+      e.preventDefault(); e.stopImmediatePropagation();
+    }, true);
   }
 
   /** tipo: 'manual', 'automatico', 'demostracion' o 'inicio'; obtener() devuelve el estado de la planta. */
@@ -258,6 +289,7 @@
     anadirPista();
     document.addEventListener('contextmenu', alPulsarDerecho);
     document.addEventListener('mousedown', alPulsarFuera);
+    iniciarPulsacionLarga();
     document.addEventListener('keydown', evento => { if (evento.key === 'Escape') cerrarAyuda(); });
   }
 
