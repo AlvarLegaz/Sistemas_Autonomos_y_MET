@@ -251,6 +251,19 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
 .consigna label { font-weight: 600; font-size: 14px; }
 .consigna output { min-width: 4.5em; text-align: right; font-weight: 600; }
 .consigna .fila input { flex: 1; min-width: 0; accent-color: var(--acento); }
+/* bloque de controles dentro del esquema (abajo a la izquierda) */
+.panel-ctl { display: flex; flex-direction: column; gap: 6px; height: 100%; padding: 8px; background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; font: 600 12px var(--fuente); color: var(--texto); }
+.fila-ctl { display: flex; flex-direction: column; gap: 4px; }
+.fila-ctl + .fila-ctl { padding-top: 6px; border-top: 1px dashed var(--borde); }
+.cab-ctl { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.ctl-desl { display: flex; align-items: center; gap: 6px; }
+.ctl-desl input { flex: 1; min-width: 0; accent-color: var(--acento); }
+.ctl-desl output { min-width: 3.2em; text-align: right; }
+.ctl-boton { padding: 2px 8px; border: 1px solid var(--borde); border-radius: 4px; background: var(--fondo); font-size: 11px; white-space: nowrap; cursor: pointer; }
+.ctl-boton:hover:not(:disabled) { border-color: var(--acento); }
+.ctl-boton.sel { background: var(--acento); border-color: var(--acento); color: var(--sobre-acento); }
+.ctl-boton.on { background: var(--ok); border-color: var(--ok); color: #fff; }
+.ctl-boton:disabled { opacity: .6; cursor: not-allowed; }
 #tarjetas-valvulas { grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
 #tarjetas-valvulas .tarjeta { padding: 10px; border: 1px solid var(--borde); border-radius: 6px; }
 .fila-botones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
@@ -388,7 +401,7 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
     <g><line x1="140" y1="62" x2="160" y2="62" class="tubo"/>
        <circle class="instr" cx="175" cy="62" r="15"/><text x="175" y="66" class="etiqueta">T2</text>
        <text x="175" y="90" class="lectura" id="v-T2">—</text></g>
-    <g id="g-PWR"><line x1="85" y1="170" x2="85" y2="190" class="tubo"/>
+    <g id="g-PWR" class="accion" data-salida="RES" role="button" aria-label="Encender o apagar la resistencia"><line x1="85" y1="170" x2="85" y2="190" class="tubo"/>
        <circle class="instr" id="c-PWR" cx="85" cy="205" r="15"/><text x="85" y="209" class="etiqueta" style="font-size:11px">RES</text>
        <text x="85" y="236" class="lectura" id="v-PWR">—</text></g>
     <g>
@@ -460,6 +473,9 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
     <g><line x1="950" y1="170" x2="962" y2="170" class="tubo"/>
        <circle class="instr" cx="975" cy="170" r="13"/><text x="975" y="174" class="etiqueta">L1</text>
        <text x="962" y="196" class="lectura" id="v-L1">—</text></g>
+    <foreignObject x="6" y="288" width="190" height="180">
+      <div class="panel-ctl" id="panel-ctl" xmlns="http://www.w3.org/1999/xhtml" role="group" aria-label="Controles de bombas y calefactor"></div>
+    </foreignObject>
   </svg>
     </div>
     <section class="grupo grupo-valvulas" id="panel-valvulas">
@@ -665,6 +681,50 @@ parar.onclick = () => {
   resumenCalentador();
 };
 $('controles').appendChild(parar);
+// Bloque de controles dentro del esquema: mismas salidas y consignas que las tarjetas laterales.
+const PANEL = [   // [titulo, id de consigna, boton: 'sentido' o 'RES']
+  ['Bomba N1', 'N1V', 'N1'], ['Bomba N2', 'N2V', 'N2'], ['Calefactor', 'RES', 'RES'],
+];
+const panelCtl = {};
+function enviarConsigna(id) {
+  enviar({[MAPA.consignas[id].canal]: consigna[id]});
+  resumenCalentador();
+}
+for (const [titulo, id, bomba] of PANEL) {
+  const c = MAPA.consignas[id];
+  const fila = document.createElement('div');
+  fila.className = 'fila-ctl';
+  fila.innerHTML = `<div class="cab-ctl"><span>${titulo}</span><button type="button" class="ctl-boton"></button></div>
+    <div class="ctl-desl"><input type="range" min="0" max="100" step="1" value="100" aria-label="${c.nombre}"><output>100 %</output></div>`;
+  $('panel-ctl').appendChild(fila);
+  const [boton, r, o] = [fila.querySelector('button'), fila.querySelector('input'), fila.querySelector('output')];
+  let temporizador;
+  r.oninput = () => {   // se envia con un retardo corto mientras se arrastra, y al soltar
+    o.textContent = `${r.value} %`;
+    consigna[id] = Number(r.value);
+    clearTimeout(temporizador);
+    temporizador = setTimeout(() => enviarConsigna(id), 250);
+  };
+  r.onchange = () => { clearTimeout(temporizador); enviarConsigna(id); };
+  boton.onclick = () => {
+    const canal = id === 'RES' ? MAPA.salidas.RES : MAPA.sentido[bomba];
+    enviar({[canal]: !actual(canal)});
+  };
+  panelCtl[id] = {boton, r, o, bomba};
+}
+function pintarPanel(d, conectado) {
+  for (const [id, p] of Object.entries(panelCtl)) {
+    const res = id === 'RES';
+    const v = !!d[res ? MAPA.salidas.RES : MAPA.sentido[p.bomba]];
+    p.boton.textContent = res ? (v ? 'Apagar' : 'Encender') : (v ? 'Atrás' : 'Adelante');
+    p.boton.classList.toggle(res ? 'on' : 'sel', v);
+    p.boton.disabled = !conectado;
+    const canal = MAPA.consignas[id].canal;
+    if (canal in d && document.activeElement !== p.r) {
+      p.r.value = Math.round(d[canal]); p.o.textContent = `${p.r.value} %`;
+    }
+  }
+}
 function resumenCalentador() {
   const res = actual(MAPA.salidas.RES);
   const on = res && consigna.RES > 0;
@@ -727,6 +787,7 @@ function pintar(s) {
     }
   }
   resumenCalentador();
+  pintarPanel(d, s.broker);
   for (const [id, bt] of Object.entries(botonesSentido)) {
     const v = !!d[MAPA.sentido[id]];
     bt.classList.toggle('sel', v);
