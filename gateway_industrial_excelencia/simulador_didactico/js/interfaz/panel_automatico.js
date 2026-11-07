@@ -14,12 +14,12 @@
   const limitar = PCT.matematicas.limitar;
   const FASES_VISIBLES = CONTROL.ORDEN_FASES.concat(['finalizada']);
   const ORDEN_SALTO = CONTROL.ORDEN_FASES.slice(0, -1);
-  const AJUSTES = ['modo', 'origen', 'ref', 'caudal', 't1', 't2', 'pot', 'f1'];
+  const AJUSTES = ['modo', 'reg', 'origen', 'ref', 'caudal', 't1', 't2', 'hist', 'pot', 'f1'];
   const FASES_CON_PRODUCTO = ['produccion', 'lavado', 'parada', 'finalizada'];
 
   let estado = null, secuencia = null, esquemaScada = null;
   let ejecutando = false, velocidad = 1, demo = false;
-  let refTodo = true, origenPrevio = null;
+  let refTodo = true, origenPrevio = null, modoPrevio = null;
 
   const todos = selector => Array.from(document.querySelectorAll(selector));
   const otroTanque = deposito => (deposito === 'A' ? 'B' : 'A');
@@ -70,11 +70,12 @@
 
   function leerValoresDelPanel() {
     const ajustes = secuencia.ajustes;
-    ajustes.modoRegulacion = $('cfg-modo').value;
+    ajustes.modoRegulacion = demo ? $('cfg-reg').value : $('cfg-modo').value;
     ajustes.origen = $('cfg-origen').value;
     ajustes.caudalPct = Number($('cfg-caudal').value);
     ajustes.consignaT1C = Number($('cfg-t1').value);
     ajustes.consignaT2C = Number($('cfg-t2').value);
+    ajustes.histeresisT2C = Number($('cfg-hist').value);
     ajustes.potenciaManualPct = Number($('cfg-pot').value);
     ajustes.consignaF1MlMin = Number($('cfg-f1').value);
   }
@@ -82,6 +83,10 @@
   // Demostración: solo se elige la temperatura; el caudal y el modo los decide la planta.
   function aplicarModoDemostracion() {
     $('cfg-t1').max = String(alcance.t1MaximaDemostracion());
+    if (secuencia.ajustes.modoRegulacion === 'onoff') {
+      Object.assign(secuencia.ajustes, alcance.configDemostracionTodoNada($('cfg-t1').value, $('cfg-origen').value, secuencia.ajustes));
+      return;
+    }
     const decision = alcance.configDemostracion($('cfg-t1').value, $('cfg-origen').value);
     $('cfg-caudal').value = String(decision.caudalPct);
     Object.assign(secuencia.ajustes, decision);
@@ -111,10 +116,17 @@
     return { mal: false, texto: `T1 podrá llegar a ${ajustes.consignaT1C} °C con esta configuración (el modelo da hasta ≈ ${formatearDecimal(maximo)} °C).` };
   }
 
+  function avisoDemostracionTodoNada(ajustes, pocoProducto, fin) {
+    const texto = `Todo o nada sobre T2: la resistencia se conecta al ${ajustes.potenciaMaxPct} % por debajo de ${ajustes.consignaT2C - ajustes.histeresisT2C} °C y se desconecta por encima de ${ajustes.consignaT2C + ajustes.histeresisT2C} °C. N1 al ${ajustes.caudalPct} %; producirá ${fin}.`;
+    const extra = pocoProducto ? ` Con el tanque ${ajustes.origen} tan vacío no arrancará: saltará la alarma.` : '';
+    return { mal: pocoProducto, texto: texto + extra };
+  }
+
   function avisoDemostracion(ajustes) {
     const ml = Number($('llen-demo').value) / 100 * FISICA.capacidadDepositoMl;
     const pocoProducto = ml < ajustes.volumenMinimoMl;
     const fin = ajustes.volumenObjetivoMl != null ? `${ajustes.volumenObjetivoMl} ml` : 'hasta agotar el tanque';
+    if (ajustes.modoRegulacion === 'onoff') return avisoDemostracionTodoNada(ajustes, pocoProducto, fin);
     const texto = `Hasta ${alcance.t1MaximaDemostracion()} °C con este modelo. Para ${ajustes.consignaT1C} °C la planta usará N1 al ${ajustes.caudalPct} % (el mayor caudal con el que llega) y producirá ${fin} (o hasta que pulses Terminar producción).`;
     const extra = pocoProducto ? ` Con el tanque ${ajustes.origen} tan vacío (${Math.round(ml)} ml) no arrancará: saltará la alarma.` : '';
     return { mal: pocoProducto, texto: texto + extra };
@@ -134,6 +146,9 @@
     const modo = CONTROL.MODOS_REGULACION.find(m => m.id === ajustes.modoRegulacion);
     $('cfg-modo-desc').textContent = `${modo.detalle} (manual, ${modo.manual}; consignas y ganancias supuestas)`;
     todos('[data-modos]').forEach(campo => { campo.hidden = !campo.dataset.modos.split(' ').includes(ajustes.modoRegulacion); });
+    $('avanzado').hidden = demo && ajustes.modoRegulacion !== 'onoff';
+    if (ajustes.modoRegulacion === 'onoff' && modoPrevio !== 'onoff') $('avanzado').open = true;
+    modoPrevio = ajustes.modoRegulacion;
   }
 
   function leerConfiguracionDelPanel() {
@@ -142,7 +157,7 @@
     aplicarReferencia();
     mostrarCamposDelModo();
     pintarAvisoConfiguracion();
-    for (const id of ['t1', 't2', 'pot', 'f1', 'caudal']) $(`o-${id}`).textContent = $(`cfg-${id}`).value;
+    for (const id of ['t1', 't2', 'hist', 'pot', 'f1', 'caudal']) $(`o-${id}`).textContent = $(`cfg-${id}`).value;
   }
 
   function bloquearAjustes(bloqueado) {
@@ -263,7 +278,8 @@
   function textoPieT2(ajustes) {
     const calefactor = estado.salidas.RES ? `encendido al ${formatearDecimal(estado.consignas.potenciaPct)} %` : 'apagado';
     switch (ajustes.modoRegulacion) {
-      case 'T2': case 'onoff': return `Consigna ${ajustes.consignaT2C} °C. Calefactor ${calefactor}.`;
+      case 'onoff': return `Consigna ${ajustes.consignaT2C} °C ± ${ajustes.histeresisT2C} °C. Calefactor ${calefactor}.`;
+      case 'T2': return `Consigna ${ajustes.consignaT2C} °C. Calefactor ${calefactor}.`;
       case 'cascada': return secuencia.consignaT2Activa != null ? `Consigna calculada ${formatearDecimal(secuencia.consignaT2Activa)} °C. Calefactor ${calefactor}.` : `Calefactor ${calefactor}.`;
       case 'manual': return `Potencia fija. Calefactor ${calefactor}.`;
       default: return `Calefactor ${calefactor}.`;

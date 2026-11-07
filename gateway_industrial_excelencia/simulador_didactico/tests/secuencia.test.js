@@ -391,3 +391,58 @@ test('La producción de referencia no puede superar el contenido del tanque de o
   ponerLlenado(s, 'A', 100);
   assert.equal(secuencia.referenciaMaxima(s, 'A'), C.capacidadDepositoMl);
 });
+
+function conmutaciones(sec, s, segundos) {
+  let previa = null, cambios = 0, minimo = Infinity, maximo = -Infinity;
+  for (let t = 0; t < segundos && sec.fase === 'produccion'; t++) {
+    secuencia.paso(sec, s, 1);
+    if (previa !== null && previa !== s.salidas.RES) cambios++;
+    previa = s.salidas.RES;
+    if (t > 120) { minimo = Math.min(minimo, s.aguaCalienteC); maximo = Math.max(maximo, s.aguaCalienteC); }
+  }
+  return { cambios, minimo, maximo };
+}
+
+function aProduccion(ajustes) {
+  const s = crearEstado(), sec = secuencia.crearSecuencia(ajustes);
+  secuencia.iniciar(sec, s);
+  correr(sec, s, x => x.fase === 'produccion');
+  return { s, sec };
+}
+
+test('Todo/nada en automático: la resistencia conmuta al máximo con la histéresis dada', () => {
+  for (const histeresisT2C of [1, 4]) {
+    const { s, sec } = aProduccion({ modoRegulacion: 'onoff', consignaT2C: 66, histeresisT2C, caudalPct: 50, consignaT1C: 40 });
+    const r = conmutaciones(sec, s, 400);
+    assert.ok(r.cambios >= 2, `conmutó ${r.cambios} veces`);
+    assert.ok(r.minimo >= 66 - histeresisT2C - 1 && r.maximo <= 66 + histeresisT2C + 1, `T2 entre ${r.minimo.toFixed(1)} y ${r.maximo.toFixed(1)}`);
+    assert.equal(s.consignas.potenciaPct, sec.ajustes.potenciaMaxPct);
+  }
+});
+
+test('Todo/nada: más histéresis, menos conmutaciones', () => {
+  const cambios = h => { const { s, sec } = aProduccion({ modoRegulacion: 'onoff', consignaT2C: 66, histeresisT2C: h, consignaT1C: 40 }); return conmutaciones(sec, s, 400).cambios; };
+  assert.ok(cambios(1) > cambios(5));
+});
+
+test('Todo/nada: el caudal de N1 elegido se aplica', () => {
+  for (const caudalPct of [40, 70]) {
+    const { s } = aProduccion({ modoRegulacion: 'onoff', consignaT2C: 66, caudalPct, consignaT1C: 40 });
+    assert.equal(s.consignas.velocidadN1Pct, caudalPct);
+  }
+});
+
+test('Demostración con todo/nada: conmuta con la histéresis y aplica el caudal elegido', () => {
+  const cfg = alcanzabilidad.configDemostracionTodoNada(40, 'A', { consignaT2C: 68, histeresisT2C: 3, caudalPct: 45 });
+  assert.equal(cfg.modoRegulacion, 'onoff');
+  assert.equal(cfg.caudalPct, 45);
+  const { s, sec } = aProduccion(cfg);
+  assert.equal(s.consignas.velocidadN1Pct, 45);
+  const r = conmutaciones(sec, s, 400);
+  assert.ok(r.cambios >= 2, `conmutó ${r.cambios} veces`);
+  assert.ok(r.minimo >= 68 - 3 - 1 && r.maximo <= 68 + 3 + 1, `T2 entre ${r.minimo.toFixed(1)} y ${r.maximo.toFixed(1)}`);
+});
+
+test('Demostración en cascada no cambia: sigue eligiendo el caudal ella', () => {
+  assert.equal(alcanzabilidad.configDemostracion(60, 'A').modoRegulacion, 'cascada');
+});

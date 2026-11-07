@@ -10,7 +10,7 @@ Es una simulación aproximada: los valores no son los del fabricante.
 3. Elige un modo:
    - **Manual**: tú accionas bombas, válvulas y la resistencia.
    - **Automático**: la planta ejecuta la secuencia de pasteurización; tú eliges la configuración.
-   - **Demostración**: solo eliges la temperatura; la planta decide el resto.
+   - **Demostración**: solo eliges la temperatura; la planta decide el resto (regulación en cascada). Si lo prefieres, el selector **Regulación** permite elegir *Todo o nada sobre T2* y ajustar la histéresis de T2, su consigna y el caudal de N1.
 4. Pulsa el botón **? Ayuda** para leer la guía de cada pantalla, o haz **clic derecho** (o mantén pulsado 3 s en pantallas táctiles) sobre
    cualquier elemento del esquema para saber qué es.
 

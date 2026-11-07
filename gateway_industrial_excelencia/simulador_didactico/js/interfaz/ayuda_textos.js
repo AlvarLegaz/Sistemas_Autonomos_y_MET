@@ -252,7 +252,7 @@
           'El tanque que no es el de origen empieza vacío; al cambiar de origen, el nuevo recibe el llenado del anterior, <b>modo de ' +
           'regulación</b>, <b>tanque de origen</b> (A o B).',
       '<b>T1 del producto</b>: la consigna en los modos de T1, cascada y lazos múltiples, y en todos los modos la mínima para no desviar el producto.',
-      'Según el modo aparecen además la <b>consigna de T2</b>, la <b>potencia</b> fija, el <b>caudal PWM de N1</b> o la <b>consigna de caudal F1</b>.',
+      'Según el modo aparecen además la <b>consigna de T2</b>, la <b>histéresis de T2</b> (solo en todo/nada: la resistencia se conecta al máximo por debajo de consigna - histéresis y se desconecta por encima de consigna + histéresis), la <b>potencia</b> fija, el <b>caudal PWM de N1</b> o la <b>consigna de caudal F1</b>.',
       'La línea bajo los deslizadores avisa si con esa configuración el modelo no llegaría a la temperatura pedida; en ese caso salta la alarma ' +
           'de precalentamiento.',
       'La configuración se bloquea mientras la secuencia está en curso.',
@@ -284,7 +284,7 @@
         'proceso y se para al terminar.</p>'],
     ['Qué decide la planta por ti', lista([
       '<b>Caudal de N1</b>: el mayor (hasta el 50 %) con el que el modelo llega a esa temperatura. Cuanto más alta es la temperatura, menos caudal.',
-      '<b>Regulación del calefactor</b>: en cascada (T1 fija la consigna de T2 y T2 la potencia), uno de los modos que cita el manual.',
+      '<b>Regulación del calefactor</b>: por defecto en cascada (T1 fija la consigna de T2 y T2 la potencia). En el selector <b>Regulación</b> puedes elegir <b>Todo o nada sobre T2</b>: la resistencia se conecta y desconecta al máximo según la consigna de T2 y su histéresis, y entonces eliges tú la <b>histéresis</b>, la <b>consigna de T2</b> y el <b>caudal de N1</b>.',
       '<b>Producción</b>: por defecto sigue hasta agotar el tanque de origen. Puedes fijar una <b>producción de referencia</b> (ml) menor; nunca ' +
           'puede superar lo que hay en el tanque. También puedes cortarla antes con <b>Terminar producción</b>.',
       'También eliges el <b>tanque de origen</b> (A o B) y <b>cuánto lo llenas</b> (en %). El otro tanque queda vacío. El dibujo de los ' +

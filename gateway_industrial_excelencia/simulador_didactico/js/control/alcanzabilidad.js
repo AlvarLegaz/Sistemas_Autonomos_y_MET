@@ -49,6 +49,13 @@
     return { modoRegulacion: 'cascada', origen: origen === 'B' ? 'B' : 'A', consignaT1C: t, caudalPct: caudal };
   }
 
-  const api = { t1Estacionaria, t1Alcanzable, t1MaximaDemostracion, configDemostracion };
+  /** Demostración con todo/nada sobre T2: el usuario fija T1 mínima, consigna de T2, histéresis y caudal de N1. */
+  function configDemostracionTodoNada(temperaturaC, origen, ajustesUsuario) {
+    const base = configDemostracion(temperaturaC, origen);
+    return { modoRegulacion: 'onoff', origen: base.origen, consignaT1C: base.consignaT1C,
+      consignaT2C: ajustesUsuario.consignaT2C, histeresisT2C: ajustesUsuario.histeresisT2C, caudalPct: ajustesUsuario.caudalPct };
+  }
+
+  const api = { t1Estacionaria, t1Alcanzable, t1MaximaDemostracion, configDemostracion, configDemostracionTodoNada };
   if (typeof module !== 'undefined') module.exports = api; else PCT.alcanzabilidad = api;
 })();

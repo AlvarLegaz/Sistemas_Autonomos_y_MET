@@ -128,14 +128,18 @@
           <legend>Proceso</legend>
           <label class="campo"><span>Temperatura del producto (T1)</span>
             <span class="fila"><input type="range" id="cfg-t1" min="40" max="70" step="1" value="60"><output id="o-t1" data-u=" °C">60</output></span></label>
+          <label class="campo" data-solo="demo"><span>Regulación</span>
+            <select id="cfg-reg"><option value="cascada" selected>Cascada (automática)</option><option value="onoff">Todo o nada sobre T2</option></select></label>
           <p class="sec-aviso" id="cfg-aviso"></p>
         </fieldset>
-        <details class="avanzado" data-solo="auto">
+        <details class="avanzado" id="avanzado">
           <summary>Ajustes avanzados</summary>
-          <label class="campo"><span>Modo de regulación del calefactor</span><select id="cfg-modo"></select></label>
+          <label class="campo" data-solo="auto"><span>Modo de regulación del calefactor</span><select id="cfg-modo"></select></label>
           <p class="sec-aviso" id="cfg-modo-desc"></p>
           <label class="campo" data-modos="onoff T2"><span>Temperatura del agua caliente (T2)</span>
             <span class="fila"><input type="range" id="cfg-t2" min="60" max="88" step="1" value="80"><output id="o-t2" data-u=" °C">80</output></span></label>
+          <label class="campo" data-modos="onoff"><span>Histéresis de T2 (± °C)</span>
+            <span class="fila"><input type="range" id="cfg-hist" min="0.5" max="10" step="0.5" value="2"><output id="o-hist" data-u=" °C">2</output></span></label>
           <label class="campo" data-modos="manual"><span>Potencia del calefactor</span>
             <span class="fila"><input type="range" id="cfg-pot" min="10" max="90" step="5" value="90"><output id="o-pot" data-u=" %">90</output></span></label>
           <label class="campo" data-modos="manual onoff T2 T1 cascada"><span>Caudal de la bomba N1</span>
