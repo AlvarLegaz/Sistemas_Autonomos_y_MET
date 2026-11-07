@@ -1,10 +1,11 @@
 'use strict';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const path = require('node:path');
 const { test } = require('node:test');
 const { ESQUEMA_PCT23 } = require('../js/interfaz/scada/esquema_pct23.js');
 
-const ORIGINAL = 'C:/Users/alegaz/Desktop/Sistemas_Autonomos_y_MET/gateway_industrial_excelencia/simulador_pct23/manual.html';
+const ORIGINAL = path.join(__dirname, '..', '..', 'simulador_pct23', 'manual.html');
 
 function idsDelEsquema(spec, acumulado = []) {
   if (!Array.isArray(spec)) return acumulado;

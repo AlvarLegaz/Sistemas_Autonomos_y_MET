@@ -179,14 +179,55 @@
     $('controles').appendChild(pararTodo);
   }
 
+  function consignaDe(campo) {
+    return CONSIGNAS.find(consigna => consigna.campo === campo);
+  }
+
+  // Deslizador del esquema: mueve la misma consigna que el de la pestaña Controles.
+  function comportamientoDeslizador(campo) {
+    const consigna = consignaDe(campo);
+    return {
+      valorDe: e => e.consignas[campo],
+      alCambiar: valor => { ponerConsigna(consigna, valor); refrescarPantalla(); },
+      alSoltar: () => registrar(`${consigna.nombre} (${consigna.id}): ${consigna.texto(estado.consignas[campo])}`),
+    };
+  }
+
+  function comportamientoGiro(bomba) {
+    return {
+      textoDe: e => `Sentido ${Number(e.giro[bomba])} · invertir`,
+      alPulsar: () => invertirGiro(bomba),
+    };
+  }
+
+  function comportamientosControles() {
+    return {
+      potenciaPct: comportamientoDeslizador('potenciaPct'),
+      velocidadN1Pct: comportamientoDeslizador('velocidadN1Pct'),
+      velocidadN2Pct: comportamientoDeslizador('velocidadN2Pct'),
+      giroN1: comportamientoGiro('N1'),
+      giroN2: comportamientoGiro('N2'),
+    };
+  }
+
+  // La resistencia se pulsa en su círculo RES; el cursor indica que es un botón.
+  function hacerPulsableResistencia() {
+    const grupo = esquemaScada.canvas.buscar('g-PWR');
+    grupo.style.cursor = 'pointer';
+    grupo.setAttribute('role', 'button');
+    esquemaScada.alPulsar('g-PWR', () => alternarSalida('RES', 'Calefacción', ENCENDIDA));
+  }
+
   function montarEsquema() {
     const canvas = esquema.crearCanvasPct23();
     esquemaScada = new ScadaWidget('esquema', canvas);
     esquemaScada.anadirObjetos(esquema.crearObjetosPct23(canvas));
+    esquemaScada.anadirObjetos(esquema.crearControlesPct23(canvas, comportamientosControles()));
     for (const clave of ['SOL1', 'SOL2', 'SOL3', 'SOL4', 'SOL5', 'N1', 'N2']) {
       esquemaScada.alPulsar(`g-${clave}`, () => alternarSalida(clave, clave, ACTIVADA));
     }
     esquemaScada.alPulsar('g-V3', alternarV3);
+    hacerPulsableResistencia();
   }
 
   function ponerChip(id, clase, texto) {

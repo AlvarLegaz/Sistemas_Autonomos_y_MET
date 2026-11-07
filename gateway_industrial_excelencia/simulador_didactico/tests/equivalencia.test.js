@@ -4,7 +4,7 @@ const path = require('node:path');
 const { test } = require('node:test');
 
 // Código original (solo lectura) y reescritura, ejecutados en paralelo con la misma entrada.
-const ORIGEN = path.join(__dirname, '..', '..', '..', 'Sistemas_Autonomos_y_MET', 'gateway_industrial_excelencia', 'simulador_pct23');
+const ORIGEN = path.join(__dirname, '..', '..', 'simulador_pct23');
 const modeloViejo = require(path.join(ORIGEN, 'modelo.js'));
 const secuenciaVieja = require(path.join(ORIGEN, 'secuencia.js'));
 const estadoPlanta = require('../js/modelo/estado_planta.js');

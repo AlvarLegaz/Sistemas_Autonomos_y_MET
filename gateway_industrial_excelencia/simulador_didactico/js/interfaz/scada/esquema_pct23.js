@@ -214,6 +214,24 @@
     ];
   }
 
-  const api = { ESQUEMA_PCT23, textoPotencia, crearCanvasPct23, crearObjetosPct23 };
+  // Controles del modo manual junto a cada bomba y a la resistencia (solo los crea manual.html).
+  const POSICIONES_CONTROLES = [
+    { clave: 'potenciaPct', tipo: 'deslizador', nombre: 'Potencia', x: 20, y: 284, ancho: 170, alto: 28 },
+    { clave: 'velocidadN2Pct', tipo: 'deslizador', nombre: 'Vel. N2', x: 20, y: 320, ancho: 170, alto: 28 },
+    { clave: 'giroN2', tipo: 'boton', x: 20, y: 354, ancho: 170, alto: 28 },
+    { clave: 'velocidadN1Pct', tipo: 'deslizador', nombre: 'Vel. N1', x: 570, y: 128, ancho: 170, alto: 28 },
+    { clave: 'giroN1', tipo: 'boton', x: 570, y: 162, ancho: 170, alto: 28 },
+  ];
+
+  // El comportamiento (valorDe, alCambiar, textoDe...) lo aporta la pantalla de cada clave.
+  function crearControlesPct23(canvas, comportamiento) {
+    const { ControlDeslizador, ControlBoton } = PCT.controlesScada;
+    return POSICIONES_CONTROLES.map(posicion => {
+      const datos = Object.assign({}, posicion, comportamiento[posicion.clave]);
+      return posicion.tipo === 'boton' ? new ControlBoton(canvas, datos) : new ControlDeslizador(canvas, datos);
+    });
+  }
+
+  const api = { ESQUEMA_PCT23, textoPotencia, crearCanvasPct23, crearObjetosPct23, crearControlesPct23 };
   if (typeof module !== 'undefined') module.exports = api; else PCT.esquemaPct23 = api;
 })();

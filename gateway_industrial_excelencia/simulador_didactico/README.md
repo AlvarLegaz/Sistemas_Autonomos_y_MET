@@ -78,6 +78,7 @@ DISENO.md     documento de diseño interno
 - `canvas.js`: construye el dibujo SVG a partir de una descripción.
 - `objeto_scada.js`, `scada_widget.js`: base de los elementos del esquema y su actualización.
 - `bomba.js`, `valvula.js`, `sensor.js`, `deposito.js`, `resistencia.js`, `tuberia.js`, `etiqueta.js`: cada elemento del dibujo.
+- `controles_scada.js`: deslizador y botón que se dibujan dentro del esquema (solo modo manual).
 - `esquema_pct23.js`: describe el esquema completo de la planta.
 
 **tests**
