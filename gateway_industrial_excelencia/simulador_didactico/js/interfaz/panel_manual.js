@@ -193,10 +193,21 @@
     };
   }
 
+  function textoSentido(girando) {
+    return `Sentido: ${girando ? 'atrás' : 'adelante'}`;
+  }
+
   function comportamientoGiro(bomba) {
     return {
-      textoDe: e => `Sentido ${Number(e.giro[bomba])} · invertir`,
+      textoDe: e => textoSentido(e.giro[bomba]),
       alPulsar: () => invertirGiro(bomba),
+    };
+  }
+
+  function comportamientoCalefactor() {
+    return {
+      textoDe: e => `RES: ${e.salidas.RES ? 'encendida' : 'apagada'}`,
+      alPulsar: () => alternarSalida('RES', 'Calefacción', ENCENDIDA),
     };
   }
 
@@ -207,6 +218,7 @@
       velocidadN2Pct: comportamientoDeslizador('velocidadN2Pct'),
       giroN1: comportamientoGiro('N1'),
       giroN2: comportamientoGiro('N2'),
+      RES: comportamientoCalefactor(),
     };
   }
 
@@ -271,7 +283,7 @@
     for (const boton of document.querySelectorAll('.btn-sentido')) {
       const sentido = !!estado.giro[boton.dataset.bomba];
       boton.classList.toggle('sel', sentido);
-      boton.textContent = `Sentido ${Number(sentido)} · pulsa para invertir`;
+      boton.textContent = textoSentido(sentido);
     }
   }
 
