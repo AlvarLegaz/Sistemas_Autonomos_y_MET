@@ -317,6 +317,12 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
 .cab h1 { display: flex; align-items: center; gap: 14px; }
 .cab .sim { font-size: 24px; padding-left: 14px; border-left: 2px solid var(--borde); color: var(--marca-gris); }
 .copy { margin: 24px 16px 16px; font-size: 12px; color: var(--tenue, #56636F); text-align: center; }
+
+/* Grabación de datos: botón dentro del esquema */
+.herramientas-scada { display: flex; justify-content: flex-end; position: sticky; left: 0; margin-bottom: 6px; }
+.btn-grabar { min-height: 36px; padding: 0 14px; border-radius: 6px; border: 1px solid var(--borde); background: var(--panel); color: var(--texto); font: 600 14px var(--fuente); cursor: pointer; }
+.btn-grabar:hover { border-color: var(--acento); }
+.btn-grabar.grabando { border-color: #d33; color: #d33; }
 </style>
 </head>
 <body>
@@ -749,6 +755,7 @@ function pintar(s) {
   document.querySelectorAll('.accion').forEach(g => g.classList.toggle('bloqueado', !s.broker));
   avisoPlanta(s, d);
   if (!d) return;
+  if (s.gateway) registro.muestrear(d);
 
   for (const [el, canal] of Object.entries(MAPA.salidas)) marcar(`g-${el}`, !!d[canal]);
   document.querySelectorAll('.tubo[data-bomba]').forEach(t => {
@@ -897,6 +904,68 @@ function mostrar(tab) {
   for (const [t, p] of pestanas) { $(t).setAttribute('aria-selected', String(t === tab)); $(p).hidden = t !== tab; }
 }
 for (const [t] of pestanas) $(t).addEventListener('click', () => mostrar(t));
+
+// ---------------------------------------------------------------------------
+// Registro de datos: un botón graba cada segundo todos los sensores y actuadores
+// y, al pararlo, descarga un CSV (separador ';', decimales con coma, estados 0/1).
+const registro = (() => {
+  const PERIODO_MS = 1000;
+  const columnas = [
+    ['T1_C', d => fisico('T1', d)], ['T2_C', d => fisico('T2', d)], ['T3_C', d => fisico('T3', d)],
+    ['T4_C', d => fisico('T4', d)], ['L1_mm', d => fisico('L1', d)], ['F1_ml_min', d => fisico('F1', d)],
+    ...Object.keys(MAPA.digitales).map(tag => [tag, d => !!d[MAPA.digitales[tag].canal]]),
+    ...Object.keys(MAPA.salidas).map(id => [id, d => !!d[MAPA.salidas[id]]]),
+    ['sentido_N1', d => !!d[MAPA.sentido.N1]], ['sentido_N2', d => !!d[MAPA.sentido.N2]],
+    ['potencia_RES_pct', () => consigna.RES], ['velocidad_N1_pct', () => consigna.N1V], ['velocidad_N2_pct', () => consigna.N2V],
+  ];
+  let filas = [], grabando = false, inicio = 0, ultima = 0;
+  const boton = document.createElement('button');
+  boton.type = 'button'; boton.className = 'btn-grabar';
+
+  function fisico(tag, d) {
+    const m = MAPA.analogicas[tag];
+    const v = Number(d[m.canal] ?? 0);
+    return m.min + (m.max - m.min) * Math.min(1, Math.max(0, v / m.fondo));
+  }
+  function texto(valor) {
+    if (typeof valor === 'boolean') return valor ? '1' : '0';
+    if (typeof valor === 'number') return String(Math.round(valor * 100) / 100).replace('.', ',');
+    return valor === undefined ? '' : String(valor);
+  }
+  function pintarBoton() {
+    boton.textContent = grabando ? `■ Parar y descargar (${filas.length})` : '● Grabar datos';
+    boton.classList.toggle('grabando', grabando);
+    boton.setAttribute('aria-pressed', String(grabando));
+  }
+  function descargar() {
+    const cabecera = ['hora', 'tiempo_s', ...columnas.map(c => c[0])].join(';');
+    const csv = '\ufeff' + [cabecera, ...filas.map(f => f.join(';'))].join('\r\n');
+    const enlace = document.createElement('a');
+    enlace.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv;charset=utf-8'}));
+    enlace.download = `scada_pct23_${new Date(inicio - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`;
+    document.body.appendChild(enlace); enlace.click(); enlace.remove();
+    setTimeout(() => URL.revokeObjectURL(enlace.href), 5000);
+  }
+  boton.onclick = () => {
+    if (grabando) { grabando = false; if (filas.length) descargar(); }
+    else { filas = []; inicio = Date.now(); ultima = 0; grabando = true; }
+    pintarBoton();
+  };
+  // Se llama con cada lectura recibida del gateway; guarda como mucho una fila por segundo.
+  function muestrear(d) {
+    const ahora = Date.now();
+    if (!grabando || ahora - ultima < PERIODO_MS) return;
+    ultima = ahora;
+    const hora = new Date(ahora - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19).replace('T', ' ');
+    filas.push([hora, Math.round((ahora - inicio) / 1000), ...columnas.map(c => c[1](d))].map(texto));
+    pintarBoton();
+  }
+  const barra = document.createElement('div');
+  barra.className = 'herramientas-scada'; barra.appendChild(boton);
+  document.querySelector('.lienzo').prepend(barra);
+  pintarBoton();
+  return {muestrear};
+})();
 
 const es = new EventSource('/api/eventos');
 es.onmessage = e => { servidorCaido = false; pintar(JSON.parse(e.data)); };
