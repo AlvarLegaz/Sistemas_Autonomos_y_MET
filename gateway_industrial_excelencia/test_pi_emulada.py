@@ -3,7 +3,7 @@
 Se ejecutan los drivers reales (PCFDigitalOutput, PCFDigitalInput, MCP3008AnalogInput)
 y el Runtime con simular=False; solo el bus y el SPI son de mentira. Cada escritura
 I2C queda registrada con su instante, y de esa linea de tiempo se miden el reparto
-de las rafagas (OUT04) y el PWM de las bombas (OUT07 y OUT08).
+de las rafagas (OUT03) y el PWM de las bombas (OUT07 y OUT08).
 
 Ejecutar:  python test_pi_emulada.py      (tarda unos 15 s)
 """
@@ -116,25 +116,25 @@ class PiEmulada(unittest.TestCase):
         self.assertEqual((s["PWMOut1_value"], s["PWMOut2_value"], s["AnalogOut1_value"]), (100.0, 100.0, 100.0))
         self.assertFalse(any(s[f"TransistorOut{i}_value"] for i in range(1, 9)))
 
-    # -- rafagas en OUT04 ----------------------------------------------------
+    # -- rafagas en OUT03 ----------------------------------------------------
     def test_resistencia_100_por_100_siempre_activa(self):
-        self.rt.update_outputs({"TransistorOut4_value": True})
+        self.rt.update_outputs({"TransistorOut3_value": True})
         time.sleep(0.3)
-        self.assertGreater(ciclo_de_trabajo(4, 2.0), 0.97)
+        self.assertGreater(ciclo_de_trabajo(3, 2.0), 0.97)
 
     def test_resistencia_50_por_100_son_25_ciclos_de_50(self):
-        self.rt.update_outputs({"TransistorOut4_value": True, "AnalogOut1_value": 50})
+        self.rt.update_outputs({"TransistorOut3_value": True, "AnalogOut1_value": 50})
         time.sleep(0.3)
-        self.assertAlmostEqual(ciclo_de_trabajo(4, 3.0), 0.50, delta=0.10)
+        self.assertAlmostEqual(ciclo_de_trabajo(3, 3.0), 0.50, delta=0.10)
 
     def test_resistencia_apagada_aunque_haya_potencia(self):
-        self.rt.update_outputs({"AnalogOut1_value": 100})   # orden de encendido (OUT04) sin dar
-        self.assertLess(ciclo_de_trabajo(4, 1.0), 0.01)
+        self.rt.update_outputs({"AnalogOut1_value": 100})   # orden de encendido (OUT03) sin dar
+        self.assertLess(ciclo_de_trabajo(3, 1.0), 0.01)
 
     def test_resistencia_0_por_100_no_conduce(self):
-        self.rt.update_outputs({"TransistorOut4_value": True, "AnalogOut1_value": 0})
+        self.rt.update_outputs({"TransistorOut3_value": True, "AnalogOut1_value": 0})
         time.sleep(0.3)
-        self.assertLess(ciclo_de_trabajo(4, 1.5), 0.01)
+        self.assertLess(ciclo_de_trabajo(3, 1.5), 0.01)
 
     # -- PWM de las bombas en OUT07 (heat) y OUT08 (feed) --------------------
     def test_pwm_independiente_en_cada_bomba(self):
@@ -154,7 +154,7 @@ class PiEmulada(unittest.TestCase):
 
     # -- seguridad -----------------------------------------------------------
     def test_al_parar_todo_queda_apagado(self):
-        self.rt.update_outputs({"TransistorOut4_value": True, "TransistorOut7_value": True,
+        self.rt.update_outputs({"TransistorOut3_value": True, "TransistorOut7_value": True,
                                 "TransistorOut8_value": True, "DigitalOut3_value": True})
         time.sleep(0.4)
         self.rt.stop()

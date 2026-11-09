@@ -15,7 +15,7 @@ POWER_TICK_MS = 5
 CICLO_RED_TICKS = 4          # un ciclo de red (50 Hz = 20 ms) son 4 ticks de 5 ms
 BURST_CICLOS = 50            # ventana de rafaga: 50 ciclos = 1 s
 PWM_PERIODO_TICKS = 20       # PWM de bombas: 20 ticks = 100 ms (pasos del 5 %)
-OUT_RESISTENCIA = 4          # OUT04: resistencia (230 V, dos de 120 V en serie), por rafagas
+OUT_RESISTENCIA = 3          # OUT03 (J7 pin 4, PCF P2): resistencia (230 V, dos de 120 V en serie), por rafagas
 OUT_BOMBA_HEAT = 7           # OUT07: bomba heat unit, PWM = PWMOut2
 OUT_BOMBA_FEED = 8           # OUT08: bomba feed unit, PWM = PWMOut1
 POTENCIA_POR_DEFECTO = 100.0  # PWMOut1, PWMOut2 y AnalogOut1 (potencia de la resistencia) arrancan al 100 %
@@ -80,8 +80,8 @@ class Runtime:
         # TransistorOut1..8 = OUT01..OUT08 del conector J7 (PCF8574A 0x3A + TBD62783A).
         self.outputs = {**_canales("AnalogOut", 0.0), **_canales("PWMOut", 0.0),
                         **_canales("DigitalOut", False), **_canales("TransistorOut", False)}
-        # TransistorOut4/7/8 son la orden de encendido; la senal fisica sale del hilo
-        # de potencia: OUT04 por rafagas (AnalogOut1, %), OUT07 y OUT08 por PWM
+        # TransistorOut3/7/8 son la orden de encendido; la senal fisica sale del hilo
+        # de potencia: OUT03 por rafagas (AnalogOut1, %), OUT07 y OUT08 por PWM
         # (PWMOut2 heat unit, PWMOut1 feed unit). Por defecto al 100 %.
         self.outputs["AnalogOut1_value"] = POTENCIA_POR_DEFECTO
         self.outputs["PWMOut1_value"] = POTENCIA_POR_DEFECTO
@@ -299,7 +299,7 @@ class Runtime:
             self.io_ok = False
 
     # ============================================================
-    # Scan de potencia: transistores (J7), con rafagas en OUT04 y PWM en OUT07/OUT08
+    # Scan de potencia: transistores (J7), con rafagas en OUT03 y PWM en OUT07/OUT08
     # ============================================================
 
     def transistores_efectivos(self, tick):

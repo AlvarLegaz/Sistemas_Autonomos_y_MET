@@ -52,14 +52,14 @@ Cada entrada pasa por un divisor (10 kΩ en serie, 20 kΩ a masa) y un zener de 
 | OUT07 | Acción de la bomba peristáltica del **heat unit** (N2) |
 | OUT05 | Sentido de giro del **heat unit**: se invierte cambiando el valor de la salida (0/1) |
 | OUT06 | Sentido de giro del **feed unit**: igual que OUT05. **Supuesto**: no se sabe qué valor es adelante |
-| OUT04 | Resistencia de calefacción del heat unit (on/off), el pin junto a los de los motores |
-| OUT01-OUT03 | Sin asignar |
+| OUT03 | Resistencia de calefacción del heat unit (on/off): pin 4 de J7, bit P2 del PCF 0x3A |
+| OUT01, OUT02, OUT04 | Sin asignar |
 
-**Potencia (hilo `scan_potencia` de `runtime.py`, cada 10 ms, sobre el expansor de OUT01-OUT08):** `TransistorOut4/7/8` son la orden de encendido y la señal física se modula así.
+**Potencia (hilo `scan_potencia` de `runtime.py`, cada 5 ms, sobre el expansor de OUT01-OUT08):** `TransistorOut3/7/8` son la orden de encendido y la señal física se modula así.
 
 | Salida | Control | Detalle |
 | --- | --- | --- |
-| OUT04 resistencia | Ráfagas, `AnalogOut1_value` (%) | Ventana de 50 ciclos de red (1 s): 100 % = 50 ciclos, 50 % = 25, repartidos de forma uniforme. Las dos resistencias de 120 V c.a. van en serie y forman una sola a 230 V |
+| OUT03 resistencia | Ráfagas, `AnalogOut1_value` (%) | Ventana de 50 ciclos de red (1 s): 100 % = 50 ciclos, 50 % = 25, repartidos de forma uniforme. Las dos resistencias de 120 V c.a. van en serie y forman una sola a 230 V |
 | OUT07 heat unit | PWM lento, `PWMOut2_value` (%) | Periodo de 200 ms, pasos del 5 % |
 | OUT08 feed unit | PWM lento, `PWMOut1_value` (%) | Igual que OUT07 |
 

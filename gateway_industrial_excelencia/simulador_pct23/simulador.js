@@ -35,14 +35,14 @@
     const g=$(id);
     if(g) g.querySelectorAll('.valvula,.instr').forEach(e=>e.classList.toggle('on',on));
   }
-  // Electroválvulas en los relés K3-K7 y resistencia en J7 OUT04, igual que el sinóptico real.
+  // Electroválvulas en los relés K3-K7 y resistencia en J7 OUT03, igual que el sinóptico real.
   const VALVULAS=[
     ['SOL1','SOL1','Desvío de producto · relé K3'],
     ['SOL2','SOL2','Depósitos A/B · relé K4'],
     ['SOL3','SOL3','Agua fría · relé K5'],
     ['SOL4','SOL4','Ramal depósito A · relé K6'],
     ['SOL5','SOL5','Ramal depósito B · relé K7'],
-    ['RES','Calefacción','Resistencia heat unit · J7 OUT04'],
+    ['RES','Calefacción','Resistencia heat unit · J7 OUT03'],
   ];
   const canales={
     T1:'v-T1',T2:'v-T2',T3:'v-T3',T4:'v-T4',T5:'v-T5',

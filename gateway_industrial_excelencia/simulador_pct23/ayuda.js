@@ -55,7 +55,7 @@
       s: 'Salta (corte térmico simulado) cuando T2 llega a 91 °C: desconecta la resistencia y el agua se enfría despacio. Se rearma por debajo de 70 °C y hay que volver a conectar la resistencia a mano.', m: 'p. 8 y 15' },
     RES: { t: 'Resistencia de calefacción (PWR)', tag: 'Calefactor',
       q: 'Elemento calefactor del depósito de agua caliente. La consola tiene un ajuste de potencia y un indicador en kW. En la maqueta son dos resistencias de 120 V en serie, alimentadas a 230 V.',
-      s: 'OUT04 la conecta; su potencia se reparte por ráfagas de 50 ciclos de red (50 % = 25 ciclos de cada 50).', m: 'p. 8 y 15' },
+      s: 'OUT03 la conecta; su potencia se reparte por ráfagas de 50 ciclos de red (50 % = 25 ciclos de cada 50).', m: 'p. 8 y 15' },
     HEAT: { t: 'HEAT UNIT · Depósito de agua caliente', tag: 'Depósito',
       q: 'Depósito de agua caliente con elemento calefactor eléctrico (la resistencia), bomba de agua N2, termostato (STAT) e interruptor de nivel (LVL). Su agua caliente circula por la sección de calentamiento del intercambiador y calienta el producto. Si el nivel es bajo o hay sobretemperatura, la protección corta el calefactor.', s: 'Su temperatura es T2. El simulador lo supone siempre lleno: el interruptor de nivel no se modela. Se regula con la potencia de la resistencia y se mueve con N2.', m: 'p. 8 y 15' },
     TANKA: { t: 'Tanque de alimentación A', tag: 'Depósito',
@@ -246,7 +246,7 @@
       '<b>Velocidad (PWM)</b>: porcentaje de la velocidad de la bomba. Si N1 está al 0 % no hay caudal aunque esté encendida.',
     ])],
     ['Calefacción', li([
-      'Interruptor de la resistencia (OUT04) y deslizador de <b>potencia</b>. Las dos resistencias de 120 V van en serie (una de 230 V) y se regulan por <b>ráfagas de 50 ciclos de red</b>: 100 % son 50 ciclos de 50, 50 % son 25.',
+      'Interruptor de la resistencia (OUT03) y deslizador de <b>potencia</b>. Las dos resistencias de 120 V van en serie (una de 230 V) y se regulan por <b>ráfagas de 50 ciclos de red</b>: 100 % son 50 ciclos de 50, 50 % son 25.',
       'Solo calienta si está en ON <b>y</b> la potencia es mayor que 0. T2 sube despacio (el agua tarda minutos). Si T2 pasa de 91 °C salta el termostato y corta el calefactor.',
     ])],
     ['Electroválvulas', li([

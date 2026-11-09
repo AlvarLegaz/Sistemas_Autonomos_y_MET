@@ -562,7 +562,7 @@ const MAPA = {
     SOL4: 'DigitalOut6_value', SOL5: 'DigitalOut7_value',
     N1: 'TransistorOut8_value',     // bomba peristaltica FEED UNIT (N1): J7 OUT08
     N2: 'TransistorOut7_value',     // bomba peristaltica HEAT UNIT (N2): J7 OUT07
-    RES: 'TransistorOut4_value',    // resistencia de calefaccion (on/off): J7 OUT04, junto a los motores
+    RES: 'TransistorOut3_value',    // resistencia de calefaccion (on/off): J7 OUT03 (pin 4 de J7, bit P2 del PCF 0x3A)
   },
   // Tarjetas del panel de electrovalvulas y calefaccion: [id en MAPA.salidas, titulo, detalle].
   valvulas: [
@@ -571,7 +571,7 @@ const MAPA = {
     ['SOL3', 'SOL3', 'Agua fría · relé K5'],
     ['SOL4', 'SOL4', 'Ramal depósito A · relé K6'],
     ['SOL5', 'SOL5', 'Ramal depósito B · relé K7'],
-    ['RES', 'Calefacción', 'Resistencia heat unit · J7 OUT04'],
+    ['RES', 'Calefacción', 'Resistencia heat unit · J7 OUT03'],
   ],
   // Sentido de giro: una salida a transistor por bomba, que se conmuta entre 0 y 1.
   // Heat unit (N2) en J7 OUT05 y feed unit (N1) en J7 OUT06. Sin confirmar que valor es adelante.
@@ -581,7 +581,7 @@ const MAPA = {
   consignas: {
     // Las dos resistencias de 120 V c.a. van en serie y forman una sola, alimentada a 230 V.
     // Se regula por rafagas de 50 ciclos: 100 % = 50 ciclos, 50 % = 25 ciclos, etc.
-    // Canal AnalogOut1: el gateway lo aplica por rafagas a OUT04 (TransistorOut4 es el encendido).
+    // Canal AnalogOut1: el gateway lo aplica por rafagas a OUT03 (TransistorOut3 es el encendido).
     RES: {canal: 'AnalogOut1_value', nombre: 'Potencia de la resistencia', ciclos: 50},
     // Velocidad de las peristalticas: el gateway aplica PWM lento a OUT08 (PWMOut1, feed) y OUT07 (PWMOut2, heat).
     N1V: {canal: 'PWMOut1_value', nombre: 'Velocidad (PWM)'},

@@ -12,7 +12,7 @@
     acoplamientoCaudal: 0.15,    // calor que el producto en circulacion le quita al agua caliente (T2 baja al aumentar el caudal)
   });
   const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
-  const OUTPUT_IDS=Object.freeze(['N1','N2','SOL1','SOL2','SOL3','SOL4','SOL5','RES']); // RES: resistencia de calefacción on/off (J7 OUT04), solo indicador
+  const OUTPUT_IDS=Object.freeze(['N1','N2','SOL1','SOL2','SOL3','SOL4','SOL5','RES']); // RES: resistencia de calefacción on/off (J7 OUT03), solo indicador
   function crearEstado() {
     return {
       tiempo: 0, ejecutando: false, velocidad: 1,
