@@ -1,6 +1,6 @@
 # Aula PCT23: simulador con registro de alumnos y aula del profesor
 
-Servidor web que publica el simulador de `../simulador_pct23` detrás de un acceso con cuenta:
+Servidor web que publica el simulador de `../simulador_didactico` detrás de un acceso con cuenta:
 
 - **Alumnos:** se registran con nombre, apellidos, módulo, correo y contraseña, y entran con correo y contraseña.
 - **Cuenta nueva = pendiente.** Hasta que el profesor la autoriza, el alumno solo ve el estado de su cuenta.
@@ -37,7 +37,7 @@ Desde la raíz de `gateway_industrial_excelencia`, con los cambios ya commiteado
 
 La primera vez instala Docker, crea el certificado propio (para la IP y el nombre de la VM) y el `.env`; después solo actualiza el código y reconstruye, sin tocar los datos de los alumnos. Si ya había un aula sin Docker (servicio systemd `pct23-aula`), añade `--migrar-datos <carpeta datos> --env-antiguo <aula.env>` para pasar la base de alumnos al volumen y parar el servicio antiguo; si la comprobación final falla, lo vuelve a arrancar. Cambia el PIN en `~/pct23-docker/aula_pct23/.env` de la VM (y `docker compose up -d`).
 
-El contexto de construcción es la carpeta `gateway_industrial_excelencia` (la imagen incluye una copia de `simulador_pct23`), así que si cambias el simulador hay que volver a construir con `--build`.
+El contexto de construcción es la carpeta `gateway_industrial_excelencia` (la imagen incluye una copia de `simulador_didactico`), así que si cambias el simulador hay que volver a construir con `--build`.
 
 ## Configuración (`.env`)
 

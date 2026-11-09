@@ -29,12 +29,12 @@ done
 RAIZ="$(cd "$(dirname "$0")/.." && pwd)"            # gateway_industrial_excelencia
 SSH=(ssh -o BatchMode=yes -o ConnectTimeout=15); [ -n "$CLAVE" ] && SSH+=(-i "$CLAVE" -o IdentitiesOnly=yes)
 
-if [ -n "$(git -C "$RAIZ" status --porcelain -- aula_pct23 simulador_pct23)" ]; then
-  echo "Hay cambios sin commitear en aula_pct23 o simulador_pct23: se despliega el último commit, sin ellos."
+if [ -n "$(git -C "$RAIZ" status --porcelain -- aula_pct23 simulador_didactico)" ]; then
+  echo "Hay cambios sin commitear en aula_pct23 o simulador_didactico: se despliega el último commit, sin ellos."
 fi
 echo "== Subiendo el código del commit $(git -C "$RAIZ" rev-parse --short HEAD) a $DESTINO =="
-git -C "$RAIZ" archive --format=tar HEAD -- aula_pct23 simulador_pct23 .dockerignore \
-    ':(exclude)aula_pct23/tests' ':(exclude)simulador_pct23/tests' \
+git -C "$RAIZ" archive --format=tar HEAD -- aula_pct23 simulador_didactico .dockerignore \
+    ':(exclude)aula_pct23/tests' ':(exclude)simulador_didactico/tests' \
   | "${SSH[@]}" "$DESTINO" 'mkdir -p ~/pct23-docker && tar -C ~/pct23-docker -xf - 2>&1 | grep -v "in the future" || true'
 
 echo "== Desplegando en la VM =="

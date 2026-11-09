@@ -13,7 +13,7 @@ RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ))
 import app as aula  # noqa: E402
 
-SIMULADOR = RAIZ.parent / "simulador_pct23"
+SIMULADOR = RAIZ.parent / "simulador_didactico"
 PIN = "482913"
 ALUMNO = {"nombre": "Lucía", "apellidos": "Pérez Gómez", "modulo": "Sistemas autónomos", "correo": "Lucia@Ejemplo.es",
           "clave": "contraseña-larga-1", "clave2": "contraseña-larga-1"}
@@ -173,7 +173,7 @@ class Simulador(Base):
         self.assertIn("Lucía Pérez Gómez", html)
         for pagina in ("manual.html", "automatico.html", "demostracion.html"):
             self.assertEqual(alumno.get("/simulador/" + pagina).status_code, 200, pagina)
-        for recurso in ("interfaz.css", "modelo.js", "secuencia.js", "ayuda.js"):
+        for recurso in ("css/interfaz.css", "js/modelo/planta.js", "js/control/secuencia.js", "js/interfaz/ayuda.js"):
             with alumno.get("/simulador/" + recurso) as resp:
                 self.assertEqual(resp.status_code, 200, recurso)
 
@@ -186,7 +186,7 @@ class Simulador(Base):
 
     def test_no_se_sirve_nada_fuera_del_simulador(self):
         alumno, _ = self.autorizado()
-        for ruta in ("/simulador/../app.py", "/simulador/%2e%2e/app.py", "/simulador/README.md", "/simulador/tests/modelo.test.js",
+        for ruta in ("/simulador/../app.py", "/simulador/%2e%2e/app.py", "/simulador/README.md", "/simulador/tests/modelo.test.js", "/simulador/DISENO.md",
                      "/simulador/.git/config", "/simulador/inexistente.html"):
             self.assertEqual(alumno.get(ruta).status_code, 404, ruta)
 

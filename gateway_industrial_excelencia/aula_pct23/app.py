@@ -3,7 +3,7 @@
     - Los alumnos se registran (nombre, apellidos, módulo, correo y contraseña) y entran con correo y contraseña.
     - Una cuenta nueva queda *pendiente*: solo puede ver su estado hasta que el profesor la autorice.
     - El profesor entra al aula con un PIN (variable AULA_PIN), autoriza o rechaza alumnos y puede darles una clave nueva.
-    - El simulador (carpeta simulador_pct23) solo se sirve a alumnos autorizados o al profesor con el PIN puesto.
+    - El simulador (carpeta simulador_didactico) solo se sirve a alumnos autorizados o al profesor con el PIN puesto.
 
 Arranque local:   AULA_PIN=482913 python app.py        (http://localhost:8000)
 Con Docker:       ver README.md
@@ -46,7 +46,7 @@ def config_desde_entorno():
         "pin": env.get("AULA_PIN") or PIN_POR_DEFECTO,
         "secret_key": env.get("AULA_SECRET_KEY") or None,
         "datos": Path(env.get("AULA_DATOS", "./datos")),
-        "simulador": Path(env.get("AULA_SIMULADOR", Path(__file__).resolve().parent.parent / "simulador_pct23")),
+        "simulador": Path(env.get("AULA_SIMULADOR", Path(__file__).resolve().parent.parent / "simulador_didactico")),
         "modulos": [m.strip() for m in env.get("AULA_MODULOS", "").split(",") if m.strip()],
         "cookie_segura": env.get("AULA_COOKIE_SEGURA", "0") == "1",
         # 1 solo si hay un proxy inverso (nginx) delante y es lo único que alcanza a la app: se fía de X-Forwarded-*

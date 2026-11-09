@@ -4,7 +4,7 @@
 !aula_pct23/app.py
 !aula_pct23/templates
 !aula_pct23/static
-!simulador_pct23
-simulador_pct23/tests
+!simulador_didactico
+simulador_didactico/tests
 **/__pycache__
 **/*.pyc
