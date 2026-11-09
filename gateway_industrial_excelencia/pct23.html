@@ -318,11 +318,9 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
 .cab .sim { font-size: 24px; padding-left: 14px; border-left: 2px solid var(--borde); color: var(--marca-gris); }
 .copy { margin: 24px 16px 16px; font-size: 12px; color: var(--tenue, #56636F); text-align: center; }
 
-/* Grabación de datos: botón dentro del esquema */
-.herramientas-scada { display: flex; justify-content: flex-end; position: sticky; left: 0; margin-bottom: 6px; }
-.btn-grabar { min-height: 36px; padding: 0 14px; border-radius: 6px; border: 1px solid var(--borde); background: var(--panel); color: var(--texto); font: 600 14px var(--fuente); cursor: pointer; }
-.btn-grabar:hover { border-color: var(--acento); }
-.btn-grabar.grabando { border-color: #d33; color: #d33; }
+/* Grabación de datos: botón en la barra superior, junto a «Parar todo» (hereda el estilo de .acciones button) */
+.btn-grabar { color: var(--texto); font-weight: 600; cursor: pointer; }
+.btn-grabar.grabando { border-color: #d33 !important; color: #d33; }
 </style>
 </head>
 <body>
@@ -960,9 +958,7 @@ const registro = (() => {
     filas.push([hora, Math.round((ahora - inicio) / 1000), ...columnas.map(c => c[1](d))].map(texto));
     pintarBoton();
   }
-  const barra = document.createElement('div');
-  barra.className = 'herramientas-scada'; barra.appendChild(boton);
-  document.querySelector('.lienzo').prepend(barra);
+  document.querySelector('.acciones').appendChild(boton);   // junto a «Parar todo», en la barra superior
   pintarBoton();
   return {muestrear};
 })();
