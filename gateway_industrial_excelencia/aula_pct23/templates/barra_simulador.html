@@ -1,9 +1,11 @@
-<form method="post" action="/salir" id="aula-barra" aria-label="Sesión del aula">
+<form method="post" action="/salir" id="aula-barra" aria-label="Sesión del aula"{% if con_cuenta %} data-uso="1" data-pagina="{{ pagina }}"{% endif %}>
   <input type="hidden" name="csrf" value="{{ csrf() }}">
   <span>{{ nombre }}{% if es_profesor %} (profesor){% endif %}</span>
   {% if es_profesor %}<a href="/aula">Aula</a>{% endif %}
+  {% if con_cuenta %}<a href="/cuenta">Mi cuenta</a>{% endif %}
   <button type="submit">Cerrar sesión</button>
 </form>
+{% if con_cuenta %}<script src="/static/uso.js" defer></script>{% endif %}
 <style>
   #aula-barra { position: fixed; z-index: 45; left: 12px; bottom: 12px; display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 24px);
                 padding: 6px 8px 6px 12px; border-radius: 999px; background: var(--panel, #fff); color: var(--texto, #16202A);

@@ -7,13 +7,13 @@
 <meta name="copyright" content="© 2026 Álvar Legaz Aparicio. Todos los derechos reservados.">
 <title>PCT23 · Simulador</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
-<link rel="stylesheet" href="interfaz.css">
+<link rel="stylesheet" href="css/interfaz.css">
 </head>
 <body>
 <header class="cab"><h1><img class="logo" src="img/logo-politecnico.png" alt="CIFP Politécnico Cartagena" width="166" height="60"><span class="sim">GEMELO DIGITAL PCT23+</span></h1></header>
 <main class="inicio">
   <h1>Planta de proceso de pasteurización</h1>
-  <p class="intro">Gemelo didáctico de la planta de pasteurización Armfield PCT23. Elige cómo quieres operarla.</p>
+  <p class="intro">Gemelo digital de la planta de pasteurización Armfield PCT23. Elige cómo quieres operarla.</p>
   <div class="opciones">
     <a class="opcion" href="manual.html">
       <h2>Modo manual</h2>
@@ -46,10 +46,14 @@
       <span class="entrar">Entrar en modo demostración</span>
     </a>
   </div>
-  <p class="nota">Simulación didáctica aproximada: los valores no son parámetros verificados de la Armfield PCT23.
-  En cualquier modo, un clic derecho sobre un elemento del esquema explica qué es, y el botón «? Ayuda» abre la guía de la pantalla.</p>
+  <p class="nota">Simulación aproximada: los valores no son parámetros verificados de la Armfield PCT23.
+  En cualquier modo, un clic derecho (o mantener pulsado 3 s en pantallas táctiles) sobre un elemento del esquema explica qué es, y el botón «? Ayuda» abre la guía de la pantalla.</p>
 </main>
-<script src="ayuda.js"></script>
 <footer class="copy">© 2026 Álvar Legaz Aparicio · Todos los derechos reservados. Prohibida la copia y la distribución sin autorización.</footer>
+<script src="js/utilidades/modulos.js"></script>
+<script src="js/interfaz/ayuda_textos.js"></script>
+<script src="js/interfaz/pulsacion_larga.js"></script>
+<script src="js/interfaz/ayuda.js"></script>
+<script>PCT.ayuda.iniciarAyuda("inicio");</script>
 </body>
 </html>

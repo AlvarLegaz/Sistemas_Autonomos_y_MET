@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block titulo %}Actividad de {{ f['nombre'] }} · Aula PCT23{% endblock %}
+{% block seccion %}Aula del profesor{% endblock %}
+{% block nav %}
+  <a href="{{ url_for('aula') }}">Volver al aula</a>
+{% endblock %}
+{% block contenido %}
+<section class="actividad">
+  <h1>{{ f['apellidos'] }}, {{ f['nombre'] }}</h1>
+  <p class="ayuda">{{ f['modulo'] }} · {{ f['correo'] }} · <span class="etiqueta etiqueta-{{ f['estado'] }}">{{ f['estado'] }}</span></p>
+
+  <div class="resumen">
+    <div><b>{{ r['total']|duracion }}</b><span>tiempo de uso</span></div>
+    <div><b>{{ r['entradas'] }}</b><span>inicios de sesión</span></div>
+    <div><b>{{ r['acciones'] }}</b><span>acciones en el simulador</span></div>
+    <div><b>{% if r['ultimo'] %}<time class="local" datetime="{{ r['ultimo'] }}">{{ r['ultimo'][:16].replace('T', ' ') }}</time>{% else %}—{% endif %}</b><span>último acceso</span></div>
+  </div>
+
+  <h2>Tiempo por pantalla</h2>
+  {% if r['por_pagina'] %}
+  <table class="tabla"><thead><tr><th>Pantalla</th><th>Tiempo</th></tr></thead><tbody>
+    {% for p in r['por_pagina'] %}<tr><td data-etiqueta="Pantalla">{{ {'index': 'Inicio', 'manual': 'Modo manual', 'automatico': 'Modo automático', 'demostracion': 'Demostración'}.get(p['pagina'], p['pagina']) }}</td><td data-etiqueta="Tiempo">{{ p['s']|duracion }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<p class="vacio">Todavía no hay tiempo registrado.</p>{% endif %}
+
+  <h2>Tiempo por día (últimos 30 días con actividad)</h2>
+  {% if r['por_dia'] %}
+  <table class="tabla"><thead><tr><th>Día (UTC)</th><th>Tiempo</th></tr></thead><tbody>
+    {% for d in r['por_dia'] %}<tr><td data-etiqueta="Día">{{ d['dia'] }}</td><td data-etiqueta="Tiempo">{{ d['s']|duracion }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<p class="vacio">Sin datos.</p>{% endif %}
+
+  <h2>Registro de actividad <small>(últimos 300 eventos)</small></h2>
+  {% if eventos %}
+  <table class="tabla"><thead><tr><th>Cuándo</th><th>Tipo</th><th>Qué hizo</th></tr></thead><tbody>
+    {% for e in eventos %}<tr><td data-etiqueta="Cuándo"><time class="local" datetime="{{ e['momento'] }}">{{ e['momento'][:19].replace('T', ' ') }}</time></td><td data-etiqueta="Tipo">{{ e['tipo'] }}</td><td data-etiqueta="Qué hizo">{{ e['detalle'] }}</td></tr>{% endfor %}
+  </tbody></table>
+  <p class="pie"><a href="{{ url_for('aula_alumno_csv', uid=f['id']) }}">Descargar el registro completo (CSV)</a></p>
+  {% else %}<p class="vacio">Todavía no hay actividad.</p>{% endif %}
+</section>
+<script>
+  document.querySelectorAll('time.local').forEach(function (t) { t.textContent = new Date(t.dateTime).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'medium' }); });
+</script>
+{% endblock %}

@@ -1,4 +1,6 @@
-# Informe del tester: simulador didáctico PCT23
+# Informe del tester: simulador PCT23
+
+> Nota: esta reescritura sustituyó al simulador original, que se retiró del repositorio. El original sigue en el historial de git (último commit con él: `082baf0`).
 
 Comparación frente al original (solo lectura): `C:\Users\alegaz\Desktop\Sistemas_Autonomos_y_MET\gateway_industrial_excelencia\simulador_pct23\`.
 No se ha modificado ningún archivo del proyecto. Los escenarios extra están en el scratchpad del tester (ver sección 2).
@@ -43,7 +45,7 @@ Nota de método: dos escenarios no alcanzaban lo que pretendían y se ajustaron 
 
 ## 3. Navegador
 
-Servidor local `python -m http.server 8765` sobre la carpeta de la versión didáctica. Páginas abiertas en el navegador integrado.
+Servidor local `python -m http.server 8765` sobre la carpeta de la reescritura. Páginas abiertas en el navegador integrado.
 
 - Consola: sin errores en `index`, `manual`, `automatico` ni `demostracion`.
 - Esquema SCADA: 139 nodos SVG en `manual`, `automatico` y `demostracion`.
@@ -55,7 +57,7 @@ Aviso conocido, líneas de consigna: **confirmado**. Ver H1.
 
 ## 4. Hallazgos
 
-Gravedad: **bloqueante** = impide un uso didáctico previsto; **media** = comportamiento incorrecto o engañoso sin impedir el uso; **menor** = estilo o mantenibilidad.
+Gravedad: **bloqueante** = impide un uso previsto; **media** = comportamiento incorrecto o engañoso sin impedir el uso; **menor** = estilo o mantenibilidad.
 
 ### H1. Gráfica del automático sin líneas de consigna (regresión) — media
 

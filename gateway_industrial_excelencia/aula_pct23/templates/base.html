@@ -16,6 +16,7 @@
   <nav class="cab-nav">
     {% if alumno_sesion %}
       <span class="quien">{{ alumno_sesion['nombre'] }} {{ alumno_sesion['apellidos'] }}</span>
+      <a href="{{ url_for('cuenta') }}">Mi cuenta</a>
       <form method="post" action="{{ url_for('salir') }}"><input type="hidden" name="csrf" value="{{ csrf() }}"><button class="enlace" type="submit">Cerrar sesión</button></form>
     {% else %}
       {% block nav %}<a href="{{ url_for('entrar') }}">Entrar</a><a href="{{ url_for('registro') }}">Registrarme</a>{% endblock %}

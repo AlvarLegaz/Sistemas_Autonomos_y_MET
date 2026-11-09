@@ -100,7 +100,7 @@
           'Solo dibujo: sin efecto en el modelo.', paginas: 'p. 12 (diagrama)' },
     V3: { titulo: 'V3 · Válvula manual', etiqueta: 'Válvula manual',
       queEs: 'Válvula manual situada junto al tanque B. El manual no detalla su función.', enSimulador:
-          'En el modo manual, clic para abrirla: vacía el tanque B (unos 600 ml/min, supuesto didáctico). En los otros modos es solo dibujo.', paginas:
+          'En el modo manual, clic para abrirla: vacía el tanque B (unos 600 ml/min, valor supuesto). En los otros modos es solo dibujo.', paginas:
           'p. 12 (diagrama)' },
     FILTER: { titulo: 'FILTER · Filtro en línea', etiqueta: 'Filtro',
       queEs: 'Filtro anterior a F1 que previene la entrada de suciedad en el tubo de residencia.', enSimulador:
@@ -152,7 +152,7 @@
 
 
   const GUIA_COMUN = [
-    ['Qué es esto', '<p>Un <b>gemelo digital didáctico</b> de la planta de proceso Armfield PCT23: una pasteurización en miniatura. El líquido ' +
+    ['Qué es esto', '<p>Un <b>gemelo digital</b> de la planta de proceso Armfield PCT23: una pasteurización en miniatura. El líquido ' +
         'sale de un tanque (A o B), lo impulsa la bomba N1, se calienta en el intercambiador de placas con agua caliente, pasa por el tubo de ' +
         'residencia y, si está a temperatura, sale como producto acabado tras enfriarse. Si no, SOL1 lo rechaza y vuelve al tanque.</p><p>Es una ' +
         '<b>simulación aproximada</b>: no está calibrada ni conectada a equipos reales. Lo que viene del manual se indica con su página; las ' +
@@ -298,7 +298,7 @@
       '<b>Velocidad</b>: empieza en 1× (tiempo real). Súbela a 5× o 20× para ver la secuencia completa en pocos minutos.',
     ])],
     ['Límites', '<p>El rango de temperatura llega hasta donde el modelo es capaz (unos 65 °C). La temperatura y los tiempos son los de una ' +
-        '<b>simulación didáctica</b>: no son valores del fabricante. Para ajustar todo (modo de regulación, consignas, tanque, caudal) usa el ' +
+        '<b>simulación aproximada</b>: no son valores del fabricante. Para ajustar todo (modo de regulación, consignas, tanque, caudal) usa el ' +
         'modo automático.</p>'],
   ];
 

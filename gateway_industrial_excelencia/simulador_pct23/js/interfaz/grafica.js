@@ -4,6 +4,11 @@
   const LIMITE_MUESTRAS = 140;
   const INTERVALO_S = 2;
   const CURVAS = [['T2', '#d66d2b'], ['T1', '#2d80c7'], ['T3', '#22a2a0']];
+  // Series con otra unidad: solo se ven al elegirlas en la leyenda, con su propia escala.
+  const SERIES_APARTE = {
+    F1: { color: '#8f6bd6', unidad: 'ml/min', tope: { minimo: 0, maximo: 600 }, margen: 10 },
+    L1: { color: '#c9a227', unidad: 'mm', tope: { minimo: 0, maximo: 250 }, margen: 5 },
+  };
   const historial = [];
   let ultimoTiempo = -1;
   const COMPLETO = { minimo: 15, maximo: 100, marcas: [20, 40, 60, 80, 100] };
@@ -26,6 +31,11 @@
     contexto.font = '12px system-ui,sans-serif';
     contexto.textBaseline = 'middle';
     contexto.lineWidth = 1;
+    const unidad = serieActiva && SERIES_APARTE[serieActiva] ? SERIES_APARTE[serieActiva].unidad : null;
+    if (unidad) {
+      contexto.fillStyle = colorCss('--tenue', '#6b7380');
+      contexto.fillText(unidad, 10, 7);
+    }
     for (const t of rango.marcas) {
       contexto.beginPath();
       contexto.moveTo(e.izquierda, e.y(t));
@@ -33,7 +43,7 @@
       contexto.strokeStyle = colorCss('--borde', '#dde1e6');
       contexto.stroke();
       contexto.fillStyle = colorCss('--tenue', '#6b7380');
-      contexto.fillText(t + '°', 10, e.y(t));
+      contexto.fillText(unidad ? String(t) : t + '°', 10, e.y(t));
     }
   }
 
@@ -80,6 +90,8 @@
     const inicio = historial[0].tiempo, final = historial[historial.length - 1].tiempo;
     const x = t => e.izquierda + (t - inicio) / Math.max(1, final - inicio) * (e.derecha - e.izquierda);
     for (const [campo, color] of CURVAS) if (!serieActiva || serieActiva === campo) dibujarCurva(contexto, campo, color, x, e.y);
+    const aparte = SERIES_APARTE[serieActiva];
+    if (aparte) dibujarCurva(contexto, serieActiva, aparte.color, x, e.y);
     rotularTiempos(contexto, e, inicio, final);
   }
 
@@ -93,6 +105,8 @@
     const valores = historial.map(v => v[serieActiva]);
     const consigna = consignaDe(serieActiva);
     if (consigna != null) valores.push(consigna);
+    const aparte = SERIES_APARTE[serieActiva];
+    if (aparte) return PCT.escalaGrafica.rangoLimpio(valores, aparte.margen, aparte.tope) || { minimo: aparte.tope.minimo, maximo: aparte.tope.maximo, marcas: [aparte.tope.minimo, aparte.tope.maximo] };
     return PCT.escalaGrafica.rangoLimpio(valores, 2, { minimo: 0, maximo: 120 }) || COMPLETO;
   }
 
@@ -129,7 +143,7 @@
     const t = estado.tiempo;
     if (t - ultimoTiempo < INTERVALO_S && historial.length) { pintarGrafica(); return; }
     const o = planta.observaciones(estado);
-    historial.push({ tiempo: t, T1: o.T1, T2: o.T2, T3: o.T3 });
+    historial.push({ tiempo: t, T1: o.T1, T2: o.T2, T3: o.T3, F1: o.F1, L1: o.L1 });
     if (historial.length > LIMITE_MUESTRAS) historial.shift();
     ultimoTiempo = t;
     if (PCT.graficaActivaciones) PCT.graficaActivaciones.registrar(estado);
@@ -166,8 +180,9 @@
   function iniciarLeyenda() {
     const contenedor = $('leyenda-temp');
     if (!contenedor) return;
-    const items = [['T2', 'T2 · agua caliente'], ['T1', 'T1 · salida del tubo'], ['T3', 'T3 · producto final']]
-      .map(([id, texto]) => ({ id, texto, color: CURVAS.find(c => c[0] === id)[1] }));
+    const items = [['T2', 'T2 · agua caliente'], ['T1', 'T1 · salida del tubo'], ['T3', 'T3 · producto final'],
+                   ['F1', 'F1 · caudal'], ['L1', 'L1 · nivel tanque A']]
+      .map(([id, texto]) => ({ id, texto, color: (CURVAS.find(c => c[0] === id) || [0, SERIES_APARTE[id].color])[1] }));
     crearLeyenda(contenedor, items, id => { serieActiva = id; pintarGrafica(); });
   }
 

@@ -7,7 +7,7 @@
 <meta name="copyright" content="© 2026 Álvar Legaz Aparicio. Todos los derechos reservados.">
 <title>PCT23 · Modo automático</title>
 <link rel="icon" type="image/png" href="img/favicon.png">
-<link rel="stylesheet" href="interfaz.css">
+<link rel="stylesheet" href="css/interfaz.css">
 </head>
 <body>
 <header class="cab">
@@ -21,10 +21,10 @@
 
 <div class="barra" role="region" aria-label="Operación de la planta">
   <div class="acciones">
-    <button id="b-iniciar" type="button">Iniciar secuencia</button>
+    <button id="b-iniciar" type="button">Iniciar</button>
     <button id="b-pausa" type="button" disabled>Pausar</button>
-    <button id="b-parar" type="button" disabled>Parada ordenada</button>
-    <button id="b-emergencia" type="button" disabled>Emergencia</button>
+    <button id="b-reset" type="button">Reiniciar</button>
+    <button id="b-emergencia" type="button" disabled>Parar todo</button>
   </div>
   <div class="pista">
     <ol id="fases" aria-label="Fases de la secuencia">
@@ -32,7 +32,7 @@
       <li data-fase="produccion">Producción</li><li data-fase="lavado">Lavado</li>
       <li data-fase="parada">Parada</li><li data-fase="finalizada">Finalizada</li>
     </ol>
-    <p class="pista-estado" aria-live="polite"><b id="fase-nombre">Reposo</b><span id="d-tfase">00:00:00</span><span id="k-avance"></span><span id="fase-motivo"></span></p>
+    <p class="pista-estado" aria-live="polite"><b id="fase-nombre">Reposo</b><span id="tiempo-fase">00:00:00</span><span id="k-avance"></span><span id="fase-motivo"></span></p>
   </div>
   <div class="derecha">
     <div class="velocidad" role="group" aria-label="Velocidad de simulación">
@@ -40,7 +40,7 @@
     </div>
     <select id="sim-velocidad" class="velocidad-select" aria-label="Velocidad de simulación"><option value="1" selected>1×</option><option value="5">5×</option><option value="20">20×</option></select>
     <details class="mas"><summary>Más</summary>
-      <div class="mas-menu"><button id="b-terminar" type="button" disabled>Terminar producción</button><button id="b-saltar" type="button" disabled>Saltar fase</button><button id="b-reset" type="button">Reiniciar planta</button></div>
+      <div class="mas-menu"><button id="b-parar" type="button" disabled>Parada ordenada</button><button id="b-terminar" type="button" disabled>Terminar producción</button><button id="b-saltar" type="button" disabled>Saltar fase</button></div>
     </details>
   </div>
 </div>
@@ -52,155 +52,14 @@
 
 <div class="cuerpo">
   <main class="escena">
-    <div class="lienzo">
-<svg viewBox="0 0 1000 480" role="img" aria-label="Esquema de la planta PCT23">
-    <!-- ============ tuberías ============ -->
-    <!-- CIRCUITO 1. Agua caliente: N2 -> paso inferior del regenerador -> HEAT UNIT.
-         La ida (y=346) y el retorno inferior (y=384) no comparten nodos
-         con los dos circuitos de producto. -->
-    <path class="tubo caliente" data-bomba="N2"
-          d="M140 150 H190 M226 150 H238 V346 H318 H333 V351 L354 365 H380 L401 351 V346 H420 V384 H205 V190 H120 V170"/>
-
-    <!-- CIRCUITO 2. Producto de entrada: N1 -> calentamiento (paso alto) ->
-         regeneracion (paso alto) -> T4 -> FILTER -> F1 -> HOLDING TUBE. -->
-    <path class="tubo" data-bomba="N1"
-          d="M850 250 H736 M704 250 H546 V322 H527 V330 L505 344 H481 L459 330 V322 H444 H420 H401 V330 L379 344 H355 L333 330 V322 H318 H260 V110 H330"/>
-    <path class="tubo" data-bomba="N1"
-          d="M330 110 C310 110 310 80 330 80 H400 C420 80 420 110 400 110 H440 V80 H452"/>
-
-    <!-- CIRCUITO 3. Producto desde SOL1: paso inferior de calentamiento ->
-         paso superior del enfriador -> T3 -> FINISHED PRODUCT. -->
-    <path class="tubo" data-ruta="normal"
-          d="M468 80 H480 V296 H432 V346 H444 H459 V351 L481 365 H505 L527 351 V346 H546 H554 V322 H570 H585 V330 L607 344 H631 L653 330 V322 H672 V400 H970"/>
-
-    <!-- Misma geometría del colector; se divide en tres paths para iluminar
-         las ramas de SOL4 y SOL5 independientemente y el tramo común. -->
-    <path class="tubo frio" data-solenoide="SOL5" d="M815 35 V18 H915"/>
-    <path class="tubo frio" data-solenoide="SOL4" d="M915 35 V18"/>
-    <path class="tubo frio" data-circuito="colector-frio" d="M915 18 H985 V420 H610 V440"/>
-    <!-- entrada de agua fría: PRV1 y V1 hasta la derivación del colector (610,440); se ilumina con SOL3, SOL4 o SOL5 -->
-    <path class="tubo frio" data-circuito="colector-frio" d="M610 440 H652 M680 440 H706 M742 440 H960"/>
-    <!-- ramal de SOL3 hacia el intercambiador: solo con SOL3 -->
-    <path class="tubo frio" data-circuito="frio" d="M562 440 H610"/>
-
-    <!-- Agua de enfriamiento: tramo izquierdo de SOL3, paso inferior del
-         intercambiador de enfriamiento y ascenso independiente a TO DRAIN. -->
-    <path class="tubo frio" data-circuito="frio"
-          d="M535 440 V389 H560 V346 H570 H585 V351 L607 365 H631 L653 351 V346 H672 H684 V285 H556 V242"/>
-
-    <!-- Cruces de conductos sin union hidraulica: en el claro entre
-         regeneracion/calefaccion y a la salida derecha del enfriador. -->
-    <g aria-label="Cruces de tuberías independientes">
-      <rect x="428" y="316" width="8" height="12" fill="var(--panel)"/>
-      <path class="tubo" data-ruta="normal" d="M432 314 V330"/>
-      <rect x="668" y="340" width="8" height="12" fill="var(--panel)"/>
-      <path class="tubo frio" data-circuito="frio" d="M662 346 H684"/>
-    </g>
-    <path class="tubo" data-bomba="N1" d="M865 262 V215 M800 210 V240"/>
-    <!-- salida del tanque elegido por SOL2 hasta la electroválvula: B (izquierda) con SOL2 activa, A (derecha) sin activar -->
-    <path class="tubo" data-tanque="B" d="M815 210 V250 H850"/>
-    <path class="tubo" data-tanque="A" d="M915 210 V250 H880"/>
-    <!-- toma de desvío independiente por SOL1, como en el panel real: con SOL1 activa se ilumina el desvío y se apaga el producto acabado -->
-    <path class="tubo" data-ruta="desvio" d="M460 64 V30" />
-    <text x="521" y="24" class="lectura">DIVERTED PRODUCT <tspan font-size="17" font-weight="700">↑</tspan></text>
-    <text x="657" y="24" class="lectura" id="v-QD" style="text-anchor:start;font-weight:700">0 ml</text>
-    <!-- ============ depósito de calor ============ -->
-    <rect class="caja" x="30" y="40" width="110" height="130" rx="4"/>
-    <rect class="liquido" x="32" y="75" width="106" height="93"/>
-    <polyline class="tubo" id="resistencia" points="60,70 60,100 76,85 76,115 92,100 92,130 108,115"/>
-    <text x="85" y="32" class="etiqueta">HEAT UNIT</text>
-    <g><line x1="140" y1="62" x2="160" y2="62" class="tubo"/>
-       <circle class="instr" cx="175" cy="62" r="15"/><text x="175" y="66" class="etiqueta">T2</text>
-       <text x="175" y="90" class="lectura" id="v-T2">—</text></g>
-    <g id="g-PWR"><line x1="85" y1="170" x2="85" y2="190" class="tubo"/>
-       <circle class="instr" id="c-PWR" cx="85" cy="205" r="15"/><text x="85" y="209" class="etiqueta" style="font-size:11px">RES</text>
-       <text x="85" y="236" class="lectura" id="v-PWR">—</text></g>
-    <g>
-      <circle class="instr" id="c-LVLC" cx="45" cy="262" r="13"/><text x="45" y="266" class="etiqueta" style="font-size:9px">LVL</text>
-      <circle class="instr" id="c-HLC" cx="85" cy="262" r="13"/><text x="85" y="266" class="etiqueta" style="font-size:9px">HL</text>
-      <circle class="instr" id="c-TERM" cx="125" cy="262" r="13"/><text x="125" y="266" class="etiqueta" style="font-size:9px">TERM</text>
-    </g>
-    <!-- ============ bombas ============ -->
-    <g class="accion" id="g-N2" data-salida="N2"><circle class="instr" cx="208" cy="150" r="17"/>
-       <path d="M202 141 L217 150 L202 159 Z" fill="var(--tubo)"/><text x="208" y="184" class="etiqueta">N2</text></g>
-    <g class="accion" id="g-N1" data-salida="N1"><circle class="instr" cx="720" cy="250" r="17"/>
-       <path d="M726 241 L711 250 L726 259 Z" fill="var(--tubo)"/><text x="720" y="284" class="etiqueta">N1</text></g>
-    <!-- ============ tubo de retención, SOL1, T1, F1, filtro, T4 ============ -->
-    <text x="370" y="140" class="etiqueta">HOLDING TUBE</text>
-    <g><circle class="instr" cx="330" cy="45" r="15"/><text x="330" y="49" class="etiqueta">T1</text>
-       <text x="330" y="22" class="lectura" id="v-T1">—</text><line x1="330" y1="60" x2="330" y2="78" class="tubo"/></g>
-    <!-- T5 conectada a la sección de calentamiento del intercambiador (el manual permite colocarla en cualquier conector) -->
-    <g><line x1="513" y1="288" x2="513" y2="309" class="tubo"/>
-       <circle class="instr" cx="513" cy="275" r="13"/><text x="513" y="279" class="etiqueta">T5</text>
-       <text x="513" y="257" class="lectura" id="v-T5">—</text></g>
-    <g class="accion" id="g-SOL1" data-salida="SOL1">
-       <path class="valvula" d="M446 68 L460 80 L446 92 Z M474 68 L460 80 L474 92 Z"/>
-       <text x="500" y="66" class="etiqueta">SOL1</text><text x="500" y="52" class="lectura">desvío</text></g>
-    <g><circle class="instr" cx="260" cy="168" r="15"/><text x="260" y="172" class="etiqueta">F1</text>
-       <text x="330" y="172" class="lectura" id="v-F1">—</text></g>
-    <g><rect class="manual" x="248" y="195" width="24" height="24"/><path d="M248 219 L272 195" stroke="var(--tubo)" stroke-width="1.5"/>
-       <text x="300" y="212" class="lectura">FILTER</text></g>
-    <g><circle class="instr" cx="260" cy="272" r="15"/><text x="260" y="276" class="etiqueta">T4</text>
-       <text x="282" y="276" class="lectura" style="text-anchor:start" id="v-T4">—</text></g>
-    <!-- ============ intercambiadores de placas ============ -->
-    <!-- Disposición cotejada con el panel de Armfield. Trazos dentados dentro
-         de las tuberías reales; NO añadir figuras sueltas sobre las líneas. -->
-    <g>
-      <rect class="caja" x="318" y="309" width="102" height="64"/>
-      <rect class="caja" x="444" y="309" width="102" height="64"/>
-      <rect class="caja" x="570" y="309" width="102" height="64"/>
-      <text x="369" y="399" class="lectura">regeneración</text>
-      <text x="495" y="399" class="lectura">calentamiento</text>
-      <text x="621" y="399" class="lectura">enfriamiento</text>
-    </g>
-    <!-- La salida vertical llega al colector del circuito de frío, tras SOL3. -->
-    <text x="598" y="232" class="lectura">TO DRAIN <tspan font-size="20" font-weight="700">↑</tspan></text>
-    <!-- ============ producto terminado ============ -->
-    <g><circle class="instr" cx="700" cy="400" r="15"/><text x="700" y="404" class="etiqueta">T3</text>
-       <text x="700" y="378" class="lectura" id="v-T3">—</text></g>
-    <text x="800" y="392" class="lectura">FINISHED PRODUCT <tspan font-size="20" font-weight="700">→</tspan></text>
-    <text x="800" y="376" class="lectura" id="v-QF" style="text-anchor:start;font-weight:700">0 ml</text>
-    <!-- ============ agua fría ============ -->
-    <g class="accion" id="g-SOL3" data-salida="SOL3">
-       <path class="valvula" d="M538 430 L550 440 L538 450 Z M562 430 L550 440 L562 450 Z"/>
-       <text x="550" y="468" class="etiqueta">SOL3</text></g>
-    <g><path class="valvula on" d="M652 431 L665 440 L652 449 Z M680 431 L667 440 L680 449 Z"/><text x="666" y="468" class="etiqueta">V1</text></g>
-    <g><path class="valvula on" d="M706 430 L718 440 L706 450 Z M742 430 L718 440 L742 450 Z"/><text x="724" y="468" class="etiqueta">PRV1</text></g>
-    <text x="880" y="460" class="lectura">COLD WATER <tspan font-size="20" font-weight="700">←</tspan></text>
-    <!-- ============ depósitos A y B ============ -->
-    <rect class="caja" x="780" y="70" width="70" height="140"/>
-    <rect class="liquido" id="nivel-B" x="782" y="150" width="66" height="58"/>
-    <rect class="caja" x="880" y="70" width="70" height="140"/>
-    <rect class="liquido" id="nivel-A" x="882" y="150" width="66" height="58"/>
-    <text x="815" y="125" class="etiqueta">B</text><text x="915" y="125" class="etiqueta">A</text>
-    <text x="815" y="68" class="lectura" id="v-VB" style="font-weight:700;font-size:10.5px">—</text><text x="915" y="68" class="lectura" id="v-VA" style="font-weight:700;font-size:10.5px">—</text>
-    <g class="accion" id="g-SOL5" data-salida="SOL5">
-       <path class="valvula" d="M803 36 L815 48 L827 36 Z M803 60 L815 48 L827 60 Z"/><text x="845" y="52" class="etiqueta">SOL5</text></g>
-    <g class="accion" id="g-SOL4" data-salida="SOL4">
-       <path class="valvula" d="M903 36 L915 48 L927 36 Z M903 60 L915 48 L927 60 Z"/><text x="945" y="52" class="etiqueta">SOL4</text></g>
-    <g class="accion" id="g-SOL2" data-salida="SOL2">
-       <path class="valvula" d="M848 238 L865 250 L848 262 Z M882 238 L865 250 L882 262 Z M853 276 L865 250 L877 276 Z"/>
-       <text x="905" y="270" class="etiqueta">SOL2</text></g>
-    <g><path class="manual" d="M795 226 L803 234 L795 242 Z M811 226 L803 234 L811 242 Z"/><text x="787" y="238" class="lectura" style="text-anchor:end">V3</text></g>
-    <g><path class="manual" d="M857 205 L865 213 L873 205 Z"/><text x="890" y="226" class="lectura">V2</text></g>
-    <g><line x1="770" y1="100" x2="780" y2="100" class="tubo"/>
-       <circle class="instr" id="c-HL" cx="757" cy="100" r="13"/><text x="757" y="104" class="etiqueta">HL</text></g>
-    <g><line x1="770" y1="180" x2="780" y2="180" class="tubo"/>
-       <circle class="instr" id="c-LL" cx="757" cy="180" r="13"/><text x="757" y="184" class="etiqueta">LL</text></g>
-    <g><line x1="950" y1="170" x2="962" y2="170" class="tubo"/>
-       <circle class="instr" cx="975" cy="170" r="13"/><text x="975" y="174" class="etiqueta">L1</text>
-       <text x="925" y="236" class="lectura" id="v-L1" style="text-anchor:start;font-weight:700;fill:var(--texto) !important">—</text></g>
-  </svg>
-    </div>
-    <div class="leyenda"><span><i style="background:#d66d2b"></i>T2 · agua caliente</span><span><i style="background:#2d80c7"></i>T1 · salida del tubo</span><span><i style="background:#22a2a0"></i>T3 · producto final</span><span>La línea discontinua es la consigna</span></div>
-    <canvas id="sim-trend" class="grafica" width="1000" height="260" aria-label="Evolución simulada de T1, T2 y T3"></canvas>
-    <p class="nota"><strong>Simulación didáctica aproximada.</strong> Las fases (arranque, precalentamiento, producción, lavado y parada) siguen la secuencia típica del manual de la PCT23, pero las consignas, los tiempos y la lógica de desvío son supuestos de este simulador, no valores del fabricante. El lavado se simplifica. No hay conexión con equipos físicos.</p>
+    <div class="lienzo" id="esquema"></div>
   </main>
 
   <aside class="lateral" aria-label="Lecturas y ajustes">
     <div class="pestanas" role="tablist" aria-label="Lecturas, ajustes y registro">
       <button type="button" role="tab" id="tab-ajustes" aria-selected="true" aria-controls="p-ajustes">Ajustes</button>
       <button type="button" role="tab" id="tab-lecturas" aria-selected="false" aria-controls="p-lecturas">Lecturas</button>
+      <button type="button" role="tab" id="tab-graficas" aria-selected="false" aria-controls="p-graficas">Gráficas</button>
       <button type="button" role="tab" id="tab-registro" aria-selected="false" aria-controls="p-registro">Registro</button>
     </div>
     <div id="p-lecturas" role="tabpanel" aria-labelledby="tab-lecturas" hidden>
@@ -269,40 +128,77 @@
           <legend>Proceso</legend>
           <label class="campo"><span>Temperatura del producto (T1)</span>
             <span class="fila"><input type="range" id="cfg-t1" min="35" max="55" step="1" value="45"><output id="o-t1" data-u=" °C">45</output></span></label>
+          <label class="campo" data-solo="demo"><span>Regulación</span>
+            <select id="cfg-reg"><option value="cascada" selected>Cascada (automática)</option><option value="onoff">Todo o nada sobre T2</option></select></label>
           <p class="sec-aviso" id="cfg-aviso"></p>
         </fieldset>
-        <details class="avanzado" data-solo="auto">
-          <summary>Ajustes avanzados</summary>
-          <label class="campo"><span>Modo de regulación del calefactor</span><select id="cfg-modo"></select></label>
+        <div class="avanzado" id="avanzado">
+          <h3 class="titulo-avanzado">Ajustes avanzados</h3>
+          <label class="campo" data-solo="auto"><span>Modo de regulación del calefactor</span><select id="cfg-modo"></select></label>
           <p class="sec-aviso" id="cfg-modo-desc"></p>
           <label class="campo" data-modos="onoff T2"><span>Temperatura del agua caliente (T2)</span>
             <span class="fila"><input type="range" id="cfg-t2" min="40" max="65" step="1" value="55"><output id="o-t2" data-u=" °C">55</output></span></label>
+          <label class="campo" data-modos="onoff"><span>Histéresis de T2 (± °C)</span>
+            <span class="fila"><input type="range" id="cfg-hist" min="0.5" max="10" step="0.5" value="2"><output id="o-hist" data-u=" °C">2</output></span></label>
           <label class="campo" data-modos="manual"><span>Potencia del calefactor</span>
             <span class="fila"><input type="range" id="cfg-pot" min="10" max="90" step="5" value="90"><output id="o-pot" data-u=" %">90</output></span></label>
           <label class="campo" data-modos="manual onoff T2 T1 cascada"><span>Caudal de la bomba N1</span>
             <span class="fila"><input type="range" id="cfg-caudal" min="20" max="100" step="5" value="50"><output id="o-caudal" data-u=" %">50</output></span></label>
           <label class="campo" data-modos="multiple"><span>Caudal F1</span>
             <span class="fila"><input type="range" id="cfg-f1" min="100" max="500" step="25" value="275"><output id="o-f1" data-u=" ml/min">275</output></span></label>
-        </details>
+        </div>
       </div>
 
-      <div class="panel-pestana" id="p-registro" role="tabpanel" aria-labelledby="tab-registro" hidden>
+<div class="panel-pestana" id="p-graficas" role="tabpanel" aria-labelledby="tab-graficas" hidden>
+      <div class="leyenda" id="leyenda-temp" role="group" aria-label="Series de temperatura"></div>
+      <canvas id="sim-trend" class="grafica" width="1000" height="260" aria-label="Evolución simulada de T1, T2 y T3"></canvas>
+      <h3 class="titulo-grafica">Activaciones</h3>
+      <div class="leyenda" id="leyenda-act" role="group" aria-label="Señales de activación"></div>
+      <canvas id="sim-activaciones" class="grafica grafica-activaciones" width="1000" height="256" aria-label="Potencia de la resistencia y estado de bombas y electroválvulas en el tiempo"></canvas>
+    </div>
+
+          <div class="panel-pestana" id="p-registro" role="tabpanel" aria-labelledby="tab-registro" hidden>
         <ul id="sim-log" class="registros"></ul>
       </div>
-
-    <div hidden>
-      <span id="d-t1"></span><span id="d-t2"></span><span id="d-t3"></span><span id="d-r"></span><span id="d-sol1"></span>
-      <span id="d-final"></span><span id="d-medido"></span><span id="d-desv"></span><span id="d-tanque"></span><span id="d-ttotal"></span>
-    </div>
   </aside>
 </div>
 
-<script src="modelo.js"></script>
-<script src="secuencia.js"></script>
-<script src="secuencia_ui.js"></script>
-<script src="ayuda.js"></script>
-<script src="interfaz_comun.js"></script>
-<script src="interfaz_auto.js"></script>
+<script src="js/utilidades/modulos.js"></script>
+<script src="js/utilidades/matematicas.js"></script>
+<script src="js/configuracion/constantes_fisicas.js"></script>
+<script src="js/configuracion/constantes_control.js"></script>
+<script src="js/modelo/estado_planta.js"></script>
+<script src="js/modelo/termica.js"></script>
+<script src="js/modelo/hidraulica.js"></script>
+<script src="js/modelo/planta.js"></script>
+<script src="js/control/alarmas.js"></script>
+<script src="js/control/regulacion.js"></script>
+<script src="js/control/alcanzabilidad.js"></script>
+<script src="js/control/fases.js"></script>
+<script src="js/control/secuencia.js"></script>
+<script src="js/interfaz/dom.js"></script>
+<script src="js/interfaz/registro_eventos.js"></script>
+<script src="js/interfaz/escala_grafica.js"></script>
+<script src="js/interfaz/grafica.js"></script>
+<script src="js/interfaz/grafica_activaciones.js"></script>
+<script src="js/interfaz/scada/canvas.js"></script>
+<script src="js/interfaz/scada/objeto_scada.js"></script>
+<script src="js/interfaz/scada/scada_widget.js"></script>
+<script src="js/interfaz/scada/bomba.js"></script>
+<script src="js/interfaz/scada/valvula.js"></script>
+<script src="js/interfaz/scada/sensor.js"></script>
+<script src="js/interfaz/scada/deposito.js"></script>
+<script src="js/interfaz/scada/resistencia.js"></script>
+<script src="js/interfaz/scada/tuberia.js"></script>
+<script src="js/interfaz/scada/etiqueta.js"></script>
+<script src="js/interfaz/scada/esquema_pct23.js"></script>
+<script src="js/interfaz/barra_operacion.js"></script>
+<script src="js/interfaz/bucle.js"></script>
+<script src="js/interfaz/ayuda_textos.js"></script>
+<script src="js/interfaz/pulsacion_larga.js"></script>
+<script src="js/interfaz/ayuda.js"></script>
+<script src="js/interfaz/panel_automatico.js"></script>
+<script src="js/interfaz/pagina_automatico.js"></script>
 <footer class="copy">© 2026 Álvar Legaz Aparicio · Todos los derechos reservados. Prohibida la copia y la distribución sin autorización.</footer>
 </body>
 </html>

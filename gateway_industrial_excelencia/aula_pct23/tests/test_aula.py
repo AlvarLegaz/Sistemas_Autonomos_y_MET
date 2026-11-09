@@ -13,7 +13,7 @@ RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ))
 import app as aula  # noqa: E402
 
-SIMULADOR = RAIZ.parent / "simulador_didactico"
+SIMULADOR = RAIZ.parent / "simulador_pct23"
 PIN = "482913"
 ALUMNO = {"nombre": "Lucía", "apellidos": "Pérez Gómez", "modulo": "Sistemas autónomos", "correo": "Lucia@Ejemplo.es",
           "clave": "contraseña-larga-1", "clave2": "contraseña-larga-1"}
@@ -60,6 +60,14 @@ class Base(unittest.TestCase):
 
     def accion(self, prof, accion, **datos):
         return self.post(prof, "/aula/accion", {"accion": accion, **datos}, "/aula")
+
+    def autorizado(self):
+        self.registrar()
+        prof = self.profesor()
+        self.accion(prof, "autorizar", id=str(self.id_de()), estado="pendiente")
+        alumno = self.app.test_client()
+        self.entrar(alumno)
+        return alumno, prof
 
     def consulta(self, sql, params=()):
         """Lee la base de datos y cierra la conexión (en Windows un archivo abierto no se puede borrar)."""
@@ -154,14 +162,6 @@ class Acceso(Base):
 
 
 class Simulador(Base):
-    def autorizado(self):
-        self.registrar()
-        prof = self.profesor()
-        self.accion(prof, "autorizar", id=str(self.id_de()), estado="pendiente")
-        alumno = self.app.test_client()
-        self.entrar(alumno)
-        return alumno, prof
-
     def test_alumno_autorizado_ve_el_simulador_con_la_barra_de_sesion(self):
         alumno, _ = self.autorizado()
         self.assertEqual(alumno.get("/").headers["Location"], "/simulador/")
@@ -243,6 +243,106 @@ class AulaDelProfesor(Base):
     def test_con_un_pin_propio_no_sale_el_aviso(self):
         prof = self.profesor()
         self.assertNotIn("PIN por defecto", prof.get("/aula").get_data(as_text=True))
+
+    # ----- registro de actividad para el profesor -----
+    def enviar_uso(self, cliente, pagina="manual", segundos=30, eventos=()):
+        import json
+        return self.post(cliente, "/api/uso", {"pagina": pagina, "segundos": str(segundos), "eventos": json.dumps(list(eventos))}, "/cuenta")
+
+    def test_se_registran_el_inicio_de_sesion_y_las_pantallas_abiertas(self):
+        alumno, _ = self.autorizado()
+        alumno.get("/simulador/manual.html")
+        alumno.get("/simulador/automatico.html")
+        tipos = [(f["tipo"], f["detalle"]) for f in self.consulta("SELECT tipo, detalle FROM actividad ORDER BY id")]
+        self.assertIn(("entrada", "Inició sesión"), tipos)
+        self.assertIn(("pagina", "Abrió manual"), tipos)
+        self.assertIn(("pagina", "Abrió automatico"), tipos)
+
+    def test_el_simulador_manda_tiempo_y_acciones(self):
+        alumno, _ = self.autorizado()
+        self.assertEqual(self.enviar_uso(alumno, segundos=45, eventos=[{"d": "Iniciar la simulación"}, {"d": "Pulsó g-SOL1"}]).status_code, 204)
+        self.enviar_uso(alumno, segundos=30)
+        self.assertEqual(self.consulta("SELECT SUM(segundos) s FROM tiempo_uso")[0]["s"], 75)
+        acciones = [f["detalle"] for f in self.consulta("SELECT detalle FROM actividad WHERE tipo='accion' ORDER BY id")]
+        self.assertEqual(acciones, ["manual: Iniciar la simulación", "manual: Pulsó g-SOL1"])
+
+    def test_el_tiempo_enviado_tiene_tope_y_la_pagina_debe_ser_valida(self):
+        alumno, _ = self.autorizado()
+        self.enviar_uso(alumno, segundos=99999)
+        self.assertEqual(self.consulta("SELECT SUM(segundos) s FROM tiempo_uso")[0]["s"], 120)
+        self.assertEqual(self.enviar_uso(alumno, pagina="../../etc").status_code, 400)
+
+    def test_un_alumno_pendiente_no_registra_actividad_de_uso(self):
+        self.registrar()
+        self.entrar(self.c)
+        self.assertEqual(self.enviar_uso(self.c, segundos=30).status_code, 204)
+        self.assertEqual(self.consulta("SELECT COUNT(*) n FROM tiempo_uso")[0]["n"], 0)
+
+    def test_el_profesor_ve_la_actividad_del_alumno(self):
+        alumno, prof = self.autorizado()
+        alumno.get("/simulador/manual.html")
+        for _ in range(31):
+            self.enviar_uso(alumno, segundos=120, eventos=[{"d": "Parar todo"}] if _ == 0 else [])
+        uid = self.id_de()
+        html = prof.get(f"/aula/alumno/{uid}").get_data(as_text=True)
+        self.assertIn("1 h 02 min", html)
+        self.assertIn("manual: Parar todo", html)
+        self.assertIn("Abrió manual", html)
+        panel = prof.get("/aula?estado=todos").get_data(as_text=True)
+        self.assertIn("1 h 02 min", panel)
+        csv_alumno = prof.get(f"/aula/alumno/{uid}.csv")
+        self.assertEqual(csv_alumno.status_code, 200)
+        self.assertIn("manual: Parar todo", csv_alumno.get_data(as_text=True))
+        resumen = prof.get("/aula/resumen.csv").get_data(as_text=True)
+        self.assertIn("62.0", resumen)
+
+    def test_la_actividad_solo_la_ve_el_profesor(self):
+        alumno, _ = self.autorizado()
+        uid = self.id_de()
+        for ruta in (f"/aula/alumno/{uid}", f"/aula/alumno/{uid}.csv", "/aula/resumen.csv"):
+            self.assertEqual(alumno.get(ruta).status_code, 302, ruta)
+            self.assertEqual(self.app.test_client().get(ruta).status_code, 302, ruta)
+
+    def test_al_eliminar_la_cuenta_se_borra_su_actividad(self):
+        alumno, prof = self.autorizado()
+        self.enviar_uso(alumno, segundos=30, eventos=[{"d": "Reiniciar la planta"}])
+        self.accion(prof, "eliminar", id=str(self.id_de()), estado="autorizado")
+        self.assertEqual(self.consulta("SELECT COUNT(*) n FROM actividad")[0]["n"], 0)
+        self.assertEqual(self.consulta("SELECT COUNT(*) n FROM tiempo_uso")[0]["n"], 0)
+
+    # ----- el alumno cambia su contraseña -----
+    def cambiar_clave(self, cliente, actual=ALUMNO["clave"], nueva="Nueva-clave-9", repetida=None):
+        return self.post(cliente, "/cuenta", {"clave_actual": actual, "clave_nueva": nueva,
+                                              "clave_repetida": nueva if repetida is None else repetida}, "/cuenta")
+
+    def test_el_alumno_cambia_su_contrasena(self):
+        alumno, _ = self.autorizado()
+        self.assertEqual(self.cambiar_clave(alumno).status_code, 302)
+        self.assertEqual(self.entrar(self.app.test_client(), clave=ALUMNO["clave"]).status_code, 401)
+        self.assertEqual(self.entrar(self.app.test_client(), clave="Nueva-clave-9").status_code, 302)
+
+    def test_cambiar_la_contrasena_exige_la_actual_y_una_valida(self):
+        alumno, _ = self.autorizado()
+        antes = self.consulta("SELECT clave_hash FROM usuarios")[0]["clave_hash"]
+        for caso in (dict(actual="incorrecta1"), dict(nueva="corta"), dict(nueva="Nueva-clave-9", repetida="otra-distinta"),
+                     dict(nueva=ALUMNO["clave"])):
+            self.cambiar_clave(alumno, **caso)
+            self.assertEqual(self.consulta("SELECT clave_hash FROM usuarios")[0]["clave_hash"], antes, caso)
+
+    def test_la_cuenta_requiere_sesion_y_tambien_la_ve_un_alumno_pendiente(self):
+        self.assertEqual(self.c.get("/cuenta").headers["Location"], "/entrar")
+        self.registrar()
+        self.entrar(self.c)
+        self.assertEqual(self.c.get("/cuenta").status_code, 200)
+
+    def test_el_profesor_resetea_y_el_alumno_pone_la_suya(self):
+        alumno, prof = self.autorizado()
+        r = self.accion(prof, "clave", id=str(self.id_de()), estado="autorizado")
+        temporal = re.search(r'class="clave">([^<]+)<', r.get_data(as_text=True)).group(1)
+        otro = self.app.test_client()
+        self.assertEqual(self.entrar(otro, clave=temporal).status_code, 302)
+        self.assertEqual(self.cambiar_clave(otro, actual=temporal, nueva="Mi-clave-propia").status_code, 302)
+        self.assertEqual(self.entrar(self.app.test_client(), clave="Mi-clave-propia").status_code, 302)
 
     # ----- cambiar el PIN desde el aula -----
     def cambiar_pin(self, prof, actual=PIN, nuevo="Clase-2026", repetido=None):

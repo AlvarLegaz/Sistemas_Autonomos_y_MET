@@ -54,12 +54,6 @@
     refrescarPantalla();
   }
 
-  function cerrarElectrovalvulas() {
-    for (const clave of ['SOL1', 'SOL2', 'SOL3', 'SOL4', 'SOL5']) estado.salidas[clave] = false;
-    registrar('Electroválvulas cerradas');
-    refrescarPantalla();
-  }
-
   function pararTodoEnPlanta() {
     for (const clave of PCT.constantesFisicas.SALIDAS) estado.salidas[clave] = false;
     estado.giro.N1 = false;
@@ -84,10 +78,6 @@
     vaciarRegistro();
     registrar('Simulador reiniciado');
     refrescarPantalla();
-  }
-
-  function configurarValvulas() {
-    $('cerrar-valvulas').addEventListener('click', cerrarElectrovalvulas);
   }
 
   function configurarDepositos() {
@@ -270,7 +260,6 @@
   function iniciarPanelManual(estadoInicial) {
     estado = estadoInicial;
     montarEsquema();
-    configurarValvulas();
     configurarDepositos();
     configurarMando();
     grafica.ajustarLienzo();

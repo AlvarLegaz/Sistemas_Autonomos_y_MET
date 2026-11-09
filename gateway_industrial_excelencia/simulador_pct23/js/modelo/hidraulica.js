@@ -3,7 +3,7 @@
   const matematicas = typeof require !== 'undefined' ? require('../utilidades/matematicas.js') : PCT.matematicas;
   const constantes = constantesFisicas.CONSTANTES_FISICAS;
 
-  // SOL4 repone A; SOL5 repone B (hipótesis didáctica). V3 abierta vacía B.
+  // SOL4 repone A; SOL5 repone B (hipótesis del modelo). V3 abierta vacía B.
   function reponerYVaciarDepositos(estado, segundosPaso) {
     const cap = constantes.capacidadDepositoMl;
     if (estado.salidas.SOL4) estado.depositoAMl = matematicas.limitar(estado.depositoAMl + constantes.llenadoMlMin * segundosPaso / 60, 0, cap);

@@ -170,5 +170,5 @@ El PWM por software en Python tiene jitter: depende de la carga de la CPU y de l
 
 ## Simulador y aula de clase
 
-- `simulador_pct23/`: simulador didáctico de la planta (modos manual, automático y demostración), sin conexión a la planta real. Ver su README.
+- `simulador_pct23/`: simulador de la planta (modos manual, automático y demostración), sin conexión a la planta real. Ver su README.
 - `aula_pct23/`: servidor con registro de alumnos, acceso con correo y contraseña, y aula del profesor con PIN para autorizarlos. Se despliega con Docker. Ver su README.

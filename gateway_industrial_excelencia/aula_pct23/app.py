@@ -3,14 +3,17 @@
     - Los alumnos se registran (nombre, apellidos, módulo, correo y contraseña) y entran con correo y contraseña.
     - Una cuenta nueva queda *pendiente*: solo puede ver su estado hasta que el profesor la autorice.
     - El profesor entra al aula con un PIN (variable AULA_PIN), autoriza o rechaza alumnos y puede darles una clave nueva.
-    - El simulador (carpeta simulador_didactico) solo se sirve a alumnos autorizados o al profesor con el PIN puesto.
+    - El simulador (carpeta simulador_pct23) solo se sirve a alumnos autorizados o al profesor con el PIN puesto.
 
 Arranque local:   AULA_PIN=482913 python app.py        (http://localhost:8000)
 Con Docker:       ver README.md
 """
 import contextlib
 import hmac
+import csv
 import html
+import io
+import json
 import os
 import re
 import secrets
@@ -34,6 +37,10 @@ EXTENSIONES_SIMULADOR = {".html", ".css", ".js", ".png", ".svg", ".ico", ".json"
 CORREO = re.compile(r"^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$")
 LARGO_MAX = {"nombre": 80, "apellidos": 120, "modulo": 80, "correo": 254}
 CLAVE_MINIMA = 8
+PAGINAS_SIMULADOR = ("index", "manual", "automatico", "demostracion")
+SEGUNDOS_MAX_POR_ENVIO = 120
+EVENTOS_MAX_POR_ENVIO = 30
+EVENTOS_MAX_POR_ALUMNO = 3000
 HASH_FALSO = generate_password_hash("clave-inexistente-para-igualar-tiempos")
 
 
@@ -46,7 +53,7 @@ def config_desde_entorno():
         "pin": env.get("AULA_PIN") or PIN_POR_DEFECTO,
         "secret_key": env.get("AULA_SECRET_KEY") or None,
         "datos": Path(env.get("AULA_DATOS", "./datos")),
-        "simulador": Path(env.get("AULA_SIMULADOR", Path(__file__).resolve().parent.parent / "simulador_didactico")),
+        "simulador": Path(env.get("AULA_SIMULADOR", Path(__file__).resolve().parent.parent / "simulador_pct23")),
         "modulos": [m.strip() for m in env.get("AULA_MODULOS", "").split(",") if m.strip()],
         "cookie_segura": env.get("AULA_COOKIE_SEGURA", "0") == "1",
         # 1 = al arrancar se borra el PIN cambiado desde el aula y vuelve a valer AULA_PIN (por si se olvida)
@@ -121,6 +128,21 @@ CREATE TABLE IF NOT EXISTS usuarios (
     resuelto      TEXT
 );
 CREATE INDEX IF NOT EXISTS usuarios_estado ON usuarios(estado);
+CREATE TABLE IF NOT EXISTS actividad (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id  INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    momento     TEXT NOT NULL,
+    tipo        TEXT NOT NULL,
+    detalle     TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS actividad_usuario ON actividad(usuario_id, id);
+CREATE TABLE IF NOT EXISTS tiempo_uso (
+    usuario_id  INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    dia         TEXT NOT NULL,
+    pagina      TEXT NOT NULL,
+    segundos    INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (usuario_id, dia, pagina)
+);
 CREATE TABLE IF NOT EXISTS ajustes (
     clave TEXT PRIMARY KEY,
     valor TEXT NOT NULL
@@ -216,6 +238,22 @@ def crear_app(config=None):
         if "bd" not in g:
             g.bd = conectar(ruta_bd)
         return g.bd
+
+    def registrar_actividad(uid, tipo, detalle=""):
+        con = bd()
+        con.execute("INSERT INTO actividad (usuario_id, momento, tipo, detalle) VALUES (?,?,?,?)", (uid, ahora_iso(), tipo, detalle))
+        con.execute("DELETE FROM actividad WHERE usuario_id=? AND id <= "
+                    "(SELECT id FROM actividad WHERE usuario_id=? ORDER BY id DESC LIMIT 1 OFFSET ?)",
+                    (uid, uid, EVENTOS_MAX_POR_ALUMNO))
+
+    @app.template_filter("duracion")
+    def duracion(segundos):
+        segundos = int(segundos or 0)
+        horas, resto = divmod(segundos, 3600)
+        minutos = resto // 60
+        if horas:
+            return f"{horas} h {minutos:02d} min"
+        return f"{minutos} min" if minutos else (f"{segundos} s" if segundos else "—")
 
     def pin_guardado():
         """PIN cambiado desde el aula (hash en la base de datos). Si existe, manda sobre AULA_PIN."""
@@ -352,8 +390,42 @@ def crear_app(config=None):
             session.permanent = True
             session["uid"] = fila["id"]
             token_csrf()
+            registrar_actividad(fila["id"], "entrada", "Inició sesión")
+            bd().commit()
             return redirect(url_for("inicio"))
         return render_template("entrar.html", correo="")
+
+    @app.route("/cuenta", methods=["GET", "POST"])
+    def cuenta():
+        a = alumno()
+        if a is None:
+            return redirect(url_for("entrar"))
+        if request.method == "POST":
+            clave_limite = f"clave-uid:{a['id']}"
+            espera = limitador.restante(clave_limite)
+            if espera:
+                flash(f"Demasiados intentos. Espera {max(1, espera // 60)} min y vuelve a probar.", "error")
+                return render_template("cuenta.html", a=a), 429
+            actual = request.form.get("clave_actual", "")[:200]
+            nueva = request.form.get("clave_nueva", "")[:200]
+            repetida = request.form.get("clave_repetida", "")[:200]
+            if not check_password_hash(a["clave_hash"], actual):
+                limitador.fallo(clave_limite)
+                flash("La contraseña actual no es correcta.", "error")
+            elif nueva != repetida:
+                flash("La contraseña nueva y su repetición no coinciden.", "error")
+            elif len(nueva) < CLAVE_MINIMA:
+                flash(f"La contraseña nueva debe tener al menos {CLAVE_MINIMA} caracteres.", "error")
+            elif nueva == actual:
+                flash("La contraseña nueva tiene que ser distinta de la actual.", "error")
+            else:
+                limitador.exito(clave_limite)
+                bd().execute("UPDATE usuarios SET clave_hash=? WHERE id=?", (generate_password_hash(nueva), a["id"]))
+                registrar_actividad(a["id"], "cuenta", "Cambió su contraseña")
+                bd().commit()
+                flash("Contraseña cambiada.", "ok")
+            return redirect(url_for("cuenta"))
+        return render_template("cuenta.html", a=a)
 
     @app.post("/salir")
     def salir():
@@ -396,7 +468,12 @@ def crear_app(config=None):
             abort(404)
         texto = Path(destino).read_text(encoding="utf-8")
         nombre = f"{a['nombre']} {a['apellidos']}" if a else "Profesor"
-        barra = render_template("barra_simulador.html", nombre=nombre, es_profesor=profesor())
+        pagina = Path(ruta).stem
+        if a is not None and a["estado"] == "autorizado" and pagina in PAGINAS_SIMULADOR:
+            registrar_actividad(a["id"], "pagina", f"Abrió {pagina}")
+            bd().commit()
+        barra = render_template("barra_simulador.html", nombre=nombre, es_profesor=profesor(), con_cuenta=a is not None,
+                                pagina=pagina if pagina in PAGINAS_SIMULADOR else "index")
         fin = texto.lower().rfind("</body>")
         texto = texto[:fin] + barra + texto[fin:] if fin != -1 else texto + barra
         resp = Response(texto, mimetype="text/html")
@@ -428,7 +505,9 @@ def crear_app(config=None):
             params += [f"%{busca}%"] * 3
         where = f"WHERE {' AND '.join(condiciones)}" if condiciones else ""
         filas = bd().execute(
-            f"SELECT * FROM usuarios {where} ORDER BY apellidos COLLATE NOCASE, nombre COLLATE NOCASE LIMIT 500",
+            f"SELECT u.*, COALESCE((SELECT SUM(segundos) FROM tiempo_uso t WHERE t.usuario_id=u.id), 0) AS seg_total, "
+            f"(SELECT MAX(momento) FROM actividad a WHERE a.usuario_id=u.id) AS ultimo "
+            f"FROM usuarios u {where} ORDER BY apellidos COLLATE NOCASE, nombre COLLATE NOCASE LIMIT 500",
             params).fetchall()
         cuentas = {e: 0 for e in ESTADOS}
         for e, n in bd().execute("SELECT estado, COUNT(*) FROM usuarios GROUP BY estado"):
@@ -436,6 +515,95 @@ def crear_app(config=None):
         modulos_bd = [r[0] for r in bd().execute("SELECT DISTINCT modulo FROM usuarios ORDER BY modulo COLLATE NOCASE")]
         return {"filas": filas, "estado": estado, "modulo": modulo, "q": busca, "cuentas": cuentas,
                 "modulos_bd": modulos_bd, "clave_nueva": clave_nueva, "hasta": session.get("prof_hasta", 0)}
+
+    # ----- registro de actividad -----
+    @app.post("/api/uso")
+    def api_uso():
+        a = alumno()
+        if a is None or a["estado"] != "autorizado":
+            return "", 204
+        pagina = request.form.get("pagina", "")
+        if pagina not in PAGINAS_SIMULADOR:
+            abort(400, "Página no válida.")
+        try:
+            segundos = max(0, min(int(float(request.form.get("segundos", "0"))), SEGUNDOS_MAX_POR_ENVIO))
+        except ValueError:
+            segundos = 0
+        try:
+            lista = json.loads(request.form.get("eventos", "[]"))
+        except ValueError:
+            lista = []
+        eventos = []
+        if isinstance(lista, list):
+            for e in lista[:EVENTOS_MAX_POR_ENVIO]:
+                texto = limpiar(str(e.get("d", "")), 120) if isinstance(e, dict) else ""
+                if texto:
+                    eventos.append(texto)
+        con = bd()
+        if segundos:
+            con.execute("INSERT INTO tiempo_uso (usuario_id, dia, pagina, segundos) VALUES (?,?,?,?) "
+                        "ON CONFLICT(usuario_id, dia, pagina) DO UPDATE SET segundos = segundos + excluded.segundos",
+                        (a["id"], ahora_iso()[:10], pagina, segundos))
+        for texto in eventos:
+            registrar_actividad(a["id"], "accion", f"{pagina}: {texto}")
+        con.commit()
+        return "", 204
+
+    def resumen_alumno(uid):
+        con = bd()
+        por_pagina = con.execute("SELECT pagina, SUM(segundos) AS s FROM tiempo_uso WHERE usuario_id=? GROUP BY pagina ORDER BY s DESC", (uid,)).fetchall()
+        por_dia = con.execute("SELECT dia, SUM(segundos) AS s FROM tiempo_uso WHERE usuario_id=? GROUP BY dia ORDER BY dia DESC LIMIT 30", (uid,)).fetchall()
+        total = sum(r["s"] for r in por_pagina)
+        entradas = con.execute("SELECT COUNT(*) FROM actividad WHERE usuario_id=? AND tipo='entrada'", (uid,)).fetchone()[0]
+        acciones = con.execute("SELECT COUNT(*) FROM actividad WHERE usuario_id=? AND tipo='accion'", (uid,)).fetchone()[0]
+        extremos = con.execute("SELECT MIN(momento), MAX(momento) FROM actividad WHERE usuario_id=?", (uid,)).fetchone()
+        return {"por_pagina": por_pagina, "por_dia": por_dia, "total": total, "entradas": entradas, "acciones": acciones,
+                "primero": extremos[0], "ultimo": extremos[1]}
+
+    def descarga_csv(nombre, cabecera, filas):
+        salida = io.StringIO()
+        escritor = csv.writer(salida, delimiter=";")
+        escritor.writerow(cabecera)
+        escritor.writerows(filas)
+        resp = Response("\ufeff" + salida.getvalue(), mimetype="text/csv; charset=utf-8")
+        resp.headers["Content-Disposition"] = f'attachment; filename="{nombre}"'
+        return resp
+
+    @app.get("/aula/alumno/<int:uid>")
+    def aula_alumno(uid):
+        if not profesor():
+            return redirect(url_for("aula"))
+        fila = bd().execute("SELECT * FROM usuarios WHERE id=?", (uid,)).fetchone()
+        if fila is None:
+            abort(404)
+        eventos = bd().execute("SELECT momento, tipo, detalle FROM actividad WHERE usuario_id=? ORDER BY id DESC LIMIT 300", (uid,)).fetchall()
+        return render_template("aula_alumno.html", f=fila, r=resumen_alumno(uid), eventos=eventos, hasta=session.get("prof_hasta", 0))
+
+    @app.get("/aula/alumno/<int:uid>.csv")
+    def aula_alumno_csv(uid):
+        if not profesor():
+            return redirect(url_for("aula"))
+        fila = bd().execute("SELECT * FROM usuarios WHERE id=?", (uid,)).fetchone()
+        if fila is None:
+            abort(404)
+        eventos = bd().execute("SELECT momento, tipo, detalle FROM actividad WHERE usuario_id=? ORDER BY id", (uid,)).fetchall()
+        return descarga_csv(f"actividad_{uid}.csv", ["momento_utc", "tipo", "detalle"], [(e["momento"], e["tipo"], e["detalle"]) for e in eventos])
+
+    @app.get("/aula/resumen.csv")
+    def aula_resumen_csv():
+        if not profesor():
+            return redirect(url_for("aula"))
+        filas = bd().execute(
+            "SELECT u.nombre, u.apellidos, u.modulo, u.correo, u.estado, "
+            "COALESCE((SELECT SUM(segundos) FROM tiempo_uso t WHERE t.usuario_id=u.id), 0) AS seg, "
+            "(SELECT COUNT(*) FROM actividad a WHERE a.usuario_id=u.id AND a.tipo='entrada') AS entradas, "
+            "(SELECT COUNT(*) FROM actividad a WHERE a.usuario_id=u.id AND a.tipo='accion') AS acciones, "
+            "(SELECT MAX(momento) FROM actividad a WHERE a.usuario_id=u.id) AS ultimo "
+            "FROM usuarios u ORDER BY u.apellidos COLLATE NOCASE, u.nombre COLLATE NOCASE").fetchall()
+        return descarga_csv("resumen_aula.csv",
+                            ["apellidos", "nombre", "modulo", "correo", "estado", "minutos_de_uso", "entradas", "acciones", "ultimo_acceso_utc"],
+                            [(f["apellidos"], f["nombre"], f["modulo"], f["correo"], f["estado"], round(f["seg"] / 60, 1),
+                              f["entradas"], f["acciones"], f["ultimo"] or "") for f in filas])
 
     @app.post("/aula/entrar")
     def aula_entrar():

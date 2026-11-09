@@ -13,7 +13,7 @@
 <section class="clave-nueva" role="alert">
   <h2>Clave nueva para {{ clave_nueva.nombre }}</h2>
   <p class="clave">{{ clave_nueva.clave }}</p>
-  <p>Cópiala y dásela al alumno ({{ clave_nueva.correo }}). No se volverá a mostrar. Podrá cambiarla pidiéndote otra.</p>
+  <p>Cópiala y dásela al alumno ({{ clave_nueva.correo }}). No se volverá a mostrar. Podrá cambiarla él mismo en «Mi cuenta».</p>
 </section>
 {% endif %}
 
@@ -50,7 +50,7 @@
 
 {% if filas %}
 <table class="tabla">
-  <thead><tr><th>Alumno</th><th>Módulo</th><th>Correo</th><th>Estado</th><th>Registro</th><th>Acciones</th></tr></thead>
+  <thead><tr><th>Alumno</th><th>Módulo</th><th>Correo</th><th>Estado</th><th>Tiempo de uso</th><th>Último acceso</th><th>Acciones</th></tr></thead>
   <tbody>
   {% for f in filas %}
     <tr>
@@ -58,7 +58,8 @@
       <td data-etiqueta="Módulo">{{ f['modulo'] }}</td>
       <td data-etiqueta="Correo">{{ f['correo'] }}</td>
       <td data-etiqueta="Estado"><span class="etiqueta etiqueta-{{ f['estado'] }}">{{ f['estado'] }}</span></td>
-      <td data-etiqueta="Registro">{{ f['creado'][:16].replace('T', ' ') }}</td>
+      <td data-etiqueta="Tiempo de uso">{{ f['seg_total']|duracion }}</td>
+      <td data-etiqueta="Último acceso">{% if f['ultimo'] %}<time class="local" datetime="{{ f['ultimo'] }}">{{ f['ultimo'][:16].replace('T', ' ') }}</time>{% else %}—{% endif %}</td>
       <td data-etiqueta="Acciones" class="acciones">
         {% macro boton(accion, texto, clase='', confirmar='') %}
         <form method="post" action="{{ url_for('aula_accion') }}" {% if confirmar %}onsubmit="return confirm('{{ confirmar|e }}')"{% endif %}>
@@ -67,6 +68,7 @@
           <button type="submit" class="{{ clase }}">{{ texto }}</button>
         </form>
         {% endmacro %}
+        <a class="boton-enlace" href="{{ url_for('aula_alumno', uid=f['id']) }}">Actividad</a>
         {% if f['estado'] != 'autorizado' %}{{ boton('autorizar', 'Autorizar', 'primario') }}{% endif %}
         {% if f['estado'] == 'pendiente' %}{{ boton('rechazar', 'Rechazar') }}{% endif %}
         {% if f['estado'] == 'autorizado' %}{{ boton('rechazar', 'Quitar acceso', '', '¿Quitar el acceso a ' ~ f['nombre'] ~ '?') }}{% endif %}
@@ -86,6 +88,7 @@
   {% if estado == 'pendiente' %}No hay alumnos pendientes. Cuando alguien se registre aparecerá aquí.{% else %}No hay cuentas con este filtro.{% endif %}
 </p>
 {% endif %}
+<p class="pie"><a href="{{ url_for('aula_resumen_csv') }}">Descargar resumen de actividad (CSV)</a></p>
 <section id="cambiar-pin" class="cambiar-pin">
   <h2>Cambiar el PIN del aula</h2>
   <form method="post" action="{{ url_for('aula_cambiar_pin') }}" autocomplete="off">
@@ -102,6 +105,7 @@
   (function () {
     var el = document.getElementById('hasta');
     el.textContent = new Date(Number(el.dataset.hasta) * 1000).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    document.querySelectorAll('time.local').forEach(function (t) { t.textContent = new Date(t.dateTime).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }); });
   })();
 </script>
 {% endblock %}

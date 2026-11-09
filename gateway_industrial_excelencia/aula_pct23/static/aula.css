@@ -98,3 +98,13 @@ form input:focus, form select:focus { border-color: var(--acento); }
 .cambiar-pin h2 { margin: 0 0 10px; font-size: 17px; }
 .cambiar-pin label { display: block; margin: 8px 0; font-weight: 600; }
 .cambiar-pin input { display: block; width: 100%; max-width: 320px; margin-top: 4px; }
+
+.boton-enlace { display: inline-block; padding: 6px 12px; border: 1px solid var(--borde); border-radius: 6px; color: inherit; text-decoration: none; font-weight: 600; }
+.boton-enlace:hover { border-color: var(--acento); }
+.actividad { max-width: 900px; margin: 0 auto; }
+.actividad h2 { margin: 26px 0 8px; font-size: 18px; }
+.actividad h2 small { font-weight: 400; color: var(--tenue); }
+.resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 14px; }
+.resumen div { padding: 12px 14px; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); }
+.resumen b { display: block; font-size: 20px; }
+.resumen span { color: var(--tenue); font-size: 13px; }

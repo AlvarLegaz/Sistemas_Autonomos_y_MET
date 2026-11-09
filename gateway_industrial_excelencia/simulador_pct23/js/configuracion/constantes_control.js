@@ -17,7 +17,7 @@
 
   const ORDEN_FASES = Object.freeze(['arranque', 'precalentamiento', 'produccion', 'lavado', 'parada']);
 
-  // Los valores por defecto son supuestos didácticos: el manual no da consignas.
+  // Los valores por defecto son valores supuestos: el manual no da consignas.
   const CONFIG_BASE = Object.freeze({
     modoRegulacion: 'T1',      // ver MODOS_REGULACION
     consignaT1C: 45,           // °C a la salida del tubo de residencia (en todos los modos: mínima para no desviar)

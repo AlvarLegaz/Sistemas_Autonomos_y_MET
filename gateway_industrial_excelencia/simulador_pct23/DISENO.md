@@ -1,4 +1,6 @@
-# Diseño: simulador didáctico PCT23 (reescritura)
+# Diseño: simulador PCT23 (reescritura)
+
+> Nota: esta reescritura sustituyó al simulador original, que se retiró del repositorio. El original sigue en el historial de git (último commit con él: `082baf0`).
 
 Origen (solo lectura): `Sistemas_Autonomos_y_MET/gateway_industrial_excelencia/simulador_pct23/`.
 Reglas: todo en castellano (archivos, funciones, variables, constantes); identificadores sin tildes ni ñ, en camelCase
@@ -7,7 +9,7 @@ Comentario solo si el nombre no basta. Sin clases, sin proxies, sin `this`. Mism
 
 ## 1. Árbol de archivos
 ```
-simulador_didactico/
+simulador_pct23/
   index.html  manual.html  automatico.html  demostracion.html
   DISENO.md  README.md
   css/interfaz.css

@@ -1,5 +1,5 @@
 # Aula PCT23: simulador + registro de alumnos + aula del profesor.
-# Se construye desde la carpeta gateway_industrial_excelencia (el contexto debe incluir simulador_didactico):
+# Se construye desde la carpeta gateway_industrial_excelencia (el contexto debe incluir simulador_pct23):
 #   docker compose -f aula_pct23/docker-compose.yml up -d --build
 FROM python:3.12-slim
 
@@ -16,7 +16,7 @@ RUN pip install -r /app/requirements.txt
 COPY aula_pct23/app.py /app/app.py
 COPY aula_pct23/templates /app/templates
 COPY aula_pct23/static /app/static
-COPY simulador_didactico /app/simulador
+COPY simulador_pct23 /app/simulador
 RUN rm -rf /app/simulador/tests /app/simulador/*.md
 
 # Usuario sin privilegios; los datos (SQLite y clave de sesiones) viven en el volumen /data
