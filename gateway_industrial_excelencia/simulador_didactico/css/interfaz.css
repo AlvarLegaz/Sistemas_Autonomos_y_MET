@@ -171,8 +171,8 @@ legend { padding: 0; margin-bottom: 6px; font-weight: 700; font-size: 14px; }
 select { width: 100%; min-height: 38px; padding: 6px 8px; background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; }
 .sec-aviso { margin: 8px 0 0; font-size: 13px; color: var(--tenue); }
 .sec-aviso.mal { color: var(--error); font-weight: 600; }
-details.avanzado { margin-top: 16px; border-top: 1px solid var(--borde); padding-top: 10px; }
-details.avanzado summary { cursor: pointer; font-weight: 700; }
+.avanzado { margin-top: 16px; border-top: 1px solid var(--borde); padding-top: 10px; }
+.titulo-avanzado { margin: 0 0 8px; font-size: 15px; font-weight: 700; }
 
 .grafica { display: block; width: 100%; height: 230px; background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; }
 .grafica-activaciones { height: 256px; }

@@ -132,8 +132,8 @@
             <select id="cfg-reg"><option value="cascada" selected>Cascada (automática)</option><option value="onoff">Todo o nada sobre T2</option></select></label>
           <p class="sec-aviso" id="cfg-aviso"></p>
         </fieldset>
-        <details class="avanzado" id="avanzado">
-          <summary>Ajustes avanzados</summary>
+        <div class="avanzado" id="avanzado">
+          <h3 class="titulo-avanzado">Ajustes avanzados</h3>
           <label class="campo" data-solo="auto"><span>Modo de regulación del calefactor</span><select id="cfg-modo"></select></label>
           <p class="sec-aviso" id="cfg-modo-desc"></p>
           <label class="campo" data-modos="onoff T2"><span>Temperatura del agua caliente (T2)</span>
@@ -146,7 +146,7 @@
             <span class="fila"><input type="range" id="cfg-caudal" min="20" max="100" step="5" value="50"><output id="o-caudal" data-u=" %">50</output></span></label>
           <label class="campo" data-modos="multiple"><span>Caudal F1</span>
             <span class="fila"><input type="range" id="cfg-f1" min="100" max="500" step="25" value="275"><output id="o-f1" data-u=" ml/min">275</output></span></label>
-        </details>
+        </div>
       </div>
 
 <div class="panel-pestana" id="p-graficas" role="tabpanel" aria-labelledby="tab-graficas" hidden>

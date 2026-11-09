@@ -19,7 +19,7 @@
 
   let estado = null, secuencia = null, esquemaScada = null;
   let ejecutando = false, velocidad = 1, demo = false;
-  let refTodo = true, origenPrevio = null, modoPrevio = null;
+  let refTodo = true, origenPrevio = null;
 
   const todos = selector => Array.from(document.querySelectorAll(selector));
   const otroTanque = deposito => (deposito === 'A' ? 'B' : 'A');
@@ -147,8 +147,6 @@
     $('cfg-modo-desc').textContent = `${modo.detalle} (manual, ${modo.manual}; consignas y ganancias supuestas)`;
     todos('[data-modos]').forEach(campo => { campo.hidden = !campo.dataset.modos.split(' ').includes(ajustes.modoRegulacion); });
     $('avanzado').hidden = demo && ajustes.modoRegulacion !== 'onoff';
-    if (ajustes.modoRegulacion === 'onoff' && modoPrevio !== 'onoff') $('avanzado').open = true;
-    modoPrevio = ajustes.modoRegulacion;
   }
 
   function leerConfiguracionDelPanel() {
