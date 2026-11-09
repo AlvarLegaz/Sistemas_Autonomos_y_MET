@@ -23,10 +23,10 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --fondo: #0F1418; --panel: #182027; --texto: #E8EDF1; --tenue: #9AA7B2; --borde: #34414B;
+    --fondo: #161314; --panel: #221E1F; --texto: #F0ECED; --tenue: #A9A3A5; --borde: #403B3C;
     --acento: #F68B11; --acento-texto: #FFA640; --sobre-acento: #16202A; --marca-gris: #C9C5C6;
-    --ok: #4CC28A; --error: #F0605F; --aviso: #E0A33A; --apagado: #5B6874;
-    --tubo: #8FA0AE; --agua: #4AA3DF; --caliente: #FF8A3D; --frio: #29C1BA;
+    --ok: #4CC28A; --error: #F0605F; --aviso: #E0A33A; --apagado: #6B6567;
+    --tubo: #A39E9F; --agua: #4AA3DF; --caliente: #FF8A3D; --frio: #29C1BA;
   }
 }
 
@@ -84,7 +84,7 @@ body[data-estado="fin"] #fases li.actual { background: var(--ok); color: #fff; }
 .velocidad { display: inline-flex; border: 1px solid var(--borde); border-radius: 6px; overflow: hidden; }
 .velocidad button { border: 0; border-radius: 0; min-height: 38px; padding: 0 12px; background: var(--panel); }
 .velocidad button + button { border-left: 1px solid var(--borde); }
-.velocidad button[aria-pressed="true"] { background: var(--texto); color: var(--panel); }
+.velocidad button[aria-pressed="true"] { background: var(--acento); color: var(--sobre-acento); }
 .velocidad-select { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .mas { position: relative; }
 .mas summary { list-style: none; display: inline-flex; align-items: center; }
@@ -371,8 +371,8 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
 
     <!-- Misma geometría del colector; se divide en tres paths para iluminar
          las ramas de SOL4 y SOL5 independientemente y el tramo común. -->
-    <path class="tubo frio" data-solenoide="SOL5" d="M815 35 V18 H915"/>
-    <path class="tubo frio" data-solenoide="SOL4" d="M915 35 V18"/>
+    <path class="tubo frio" data-solenoide="SOL5" d="M815 23 V18 H915"/>
+    <path class="tubo frio" data-solenoide="SOL4" d="M915 23 V18"/>
     <path class="tubo frio" data-circuito="colector-frio" d="M915 18 H985 V420 H610 V440"/>
     <path class="tubo frio" data-circuito="frio" d="M562 440 H652 M680 440 H706 M742 440 H960"/>
 
@@ -463,9 +463,9 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
     <text x="815" y="125" class="etiqueta">B</text><text x="915" y="125" class="etiqueta">A</text>
     <text x="815" y="68" class="lectura" id="v-VB" style="font-weight:700;font-size:10.5px">—</text><text x="915" y="68" class="lectura" id="v-VA" style="font-weight:700;font-size:10.5px">—</text>
     <g class="accion" id="g-SOL5" data-salida="SOL5">
-       <path class="valvula" d="M803 36 L815 48 L827 36 Z M803 60 L815 48 L827 60 Z"/><text x="845" y="52" class="etiqueta">SOL5</text></g>
+       <path class="valvula" d="M803 24 L815 36 L827 24 Z M803 48 L815 36 L827 48 Z"/><text x="845" y="40" class="etiqueta">SOL5</text></g>
     <g class="accion" id="g-SOL4" data-salida="SOL4">
-       <path class="valvula" d="M903 36 L915 48 L927 36 Z M903 60 L915 48 L927 60 Z"/><text x="945" y="52" class="etiqueta">SOL4</text></g>
+       <path class="valvula" d="M903 24 L915 36 L927 24 Z M903 48 L915 36 L927 48 Z"/><text x="945" y="40" class="etiqueta">SOL4</text></g>
     <g class="accion" id="g-SOL2" data-salida="SOL2">
        <path class="valvula" d="M848 238 L865 250 L848 262 Z M882 238 L865 250 L882 262 Z M853 276 L865 250 L877 276 Z"/>
        <text x="905" y="270" class="etiqueta">SOL2</text></g>
