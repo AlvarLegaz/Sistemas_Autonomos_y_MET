@@ -319,11 +319,14 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
 .copy { margin: 24px 16px 16px; font-size: 12px; color: var(--tenue, #56636F); text-align: center; }
 
 /* Flujo animado en las tuberías activas: puntos que avanzan en el sentido del flujo */
-.flujo { display: none; fill: none; stroke: #fff; stroke-opacity: .9; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 0.1 22; pointer-events: none; animation: flujo 1s linear infinite; }
+.flujo { display: none; fill: none; stroke: #fff; stroke-opacity: .85; stroke-width: 3.8; stroke-linecap: round; stroke-dasharray: 48 36; pointer-events: none; animation: flujo 1s linear infinite; }
 .flujo.activo { display: inline; }
 .flujo.inverso { animation-direction: reverse; }
+/* Bomba con el sentido de giro invertido: el flujo de sus tuberías va al revés (y si ya iba invertido, vuelve a normal) */
+.flujo.invertido { animation-direction: reverse; }
+.flujo.inverso.invertido { animation-direction: normal; }
 .en-pausa .flujo { animation-play-state: paused; }
-@keyframes flujo { to { stroke-dashoffset: -22.1; } }
+@keyframes flujo { to { stroke-dashoffset: -84; } }
 @media (prefers-reduced-motion: reduce) { .flujo { animation: none; } }
 
 /* Grabación de datos: botón en la barra superior, junto a «Parar todo» (hereda el estilo de .acciones button) */
@@ -799,7 +802,7 @@ function pintar(s) {
   document.querySelectorAll('[data-circuito="colector-frio"]').forEach(t => {
     t.classList.toggle('activo', ['SOL4', 'SOL5'].some(id => !!d[MAPA.salidas[id]]));
   });
-  velocidadDelFlujo();
+  velocidadDelFlujo(d);
   // El gateway devuelve PWMOut1/2 y AnalogOut1: se sincronizan los deslizadores (salvo el que se esta moviendo).
   for (const [id, c] of Object.entries(MAPA.consignas)) {
     if (c.canal in d && document.activeElement !== $(`r-${id}`)) {
@@ -1001,11 +1004,15 @@ const registro = (() => {
   });
 })();
 // Más velocidad de bomba, puntos más rápidos (de 2 s por ciclo al 10 % a 0,5 s al 100 %).
-function velocidadDelFlujo() {
+function velocidadDelFlujo(d) {
   const segundos = pct => `${(2.2 - 0.017 * Math.min(100, Math.max(10, pct))).toFixed(2)}s`;
   const ajustar = (selector, pct) => document.querySelectorAll(selector).forEach(t => { if (t._flujo) t._flujo.style.animationDuration = segundos(pct); });
   ajustar('.tubo[data-bomba="N1"], .tubo[data-ruta], .tubo[data-sol2]', consigna.N1V);
   ajustar('.tubo[data-bomba="N2"]', consigna.N2V);
+  // Sentido de giro invertido en una bomba: el flujo de sus tuberías va al revés.
+  const girar = (selector, alReves) => document.querySelectorAll(selector).forEach(t => { if (t._flujo) t._flujo.classList.toggle('invertido', alReves); });
+  girar('.tubo[data-bomba="N1"], .tubo[data-ruta], .tubo[data-sol2]', !!d[MAPA.sentido.N1]);
+  girar('.tubo[data-bomba="N2"]', !!d[MAPA.sentido.N2]);
 }
 
 const es = new EventSource('/api/eventos');

@@ -194,15 +194,16 @@
   }
 
   const velocidadN1 = e => e.consignas.velocidadN1Pct;
+  const giroN1 = e => e.giro.N1;
 
   function crearTuberias(canvas) {
     return [
-      new Tuberia(canvas, '[data-bomba="N1"]', e => e.salidas.N1, velocidadN1),
-      new Tuberia(canvas, '[data-bomba="N2"]', e => e.salidas.N2, e => e.consignas.velocidadN2Pct),
-      new Tuberia(canvas, '[data-ruta="normal"]', e => e.salidas.N1 && !e.salidas.SOL1, velocidadN1),
-      new Tuberia(canvas, '[data-ruta="desvio"]', e => e.salidas.N1 && e.salidas.SOL1, velocidadN1),
-      new Tuberia(canvas, '[data-tanque="A"]', e => !e.salidas.SOL2, velocidadN1),
-      new Tuberia(canvas, '[data-tanque="B"]', e => e.salidas.SOL2, velocidadN1),
+      new Tuberia(canvas, '[data-bomba="N1"]', e => e.salidas.N1, velocidadN1, giroN1),
+      new Tuberia(canvas, '[data-bomba="N2"]', e => e.salidas.N2, e => e.consignas.velocidadN2Pct, e => e.giro.N2),
+      new Tuberia(canvas, '[data-ruta="normal"]', e => e.salidas.N1 && !e.salidas.SOL1, velocidadN1, giroN1),
+      new Tuberia(canvas, '[data-ruta="desvio"]', e => e.salidas.N1 && e.salidas.SOL1, velocidadN1, giroN1),
+      new Tuberia(canvas, '[data-tanque="A"]', e => !e.salidas.SOL2, velocidadN1, giroN1),
+      new Tuberia(canvas, '[data-tanque="B"]', e => e.salidas.SOL2, velocidadN1, giroN1),
       new Tuberia(canvas, '[data-solenoide="SOL4"]', e => e.salidas.SOL4),
       new Tuberia(canvas, '[data-solenoide="SOL5"]', e => e.salidas.SOL5),
       new Tuberia(canvas, '[data-circuito="frio"]', e => e.salidas.SOL3),

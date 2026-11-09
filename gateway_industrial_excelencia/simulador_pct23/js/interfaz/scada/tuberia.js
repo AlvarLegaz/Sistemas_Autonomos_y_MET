@@ -19,10 +19,12 @@
 
   // Tramos de tubería (por selector) que se iluminan y muestran flujo cuando su condición es cierta.
   class Tuberia {
-    constructor(canvas, selector, activa, velocidadPct = null) {
+    // invertir(estado): true si la bomba gira al revés y el flujo de este tramo debe ir en sentido contrario.
+    constructor(canvas, selector, activa, velocidadPct = null, invertir = null) {
       this.elementos = canvas.buscarTodos(selector);
       this.activa = activa;
       this.velocidadPct = velocidadPct;
+      this.invertir = invertir;
       this.flujos = this.elementos.map(crearFlujo).filter(Boolean);
     }
 
@@ -30,6 +32,8 @@
       const on = !!this.activa(estado);
       this.elementos.forEach(e => e.classList.toggle('activo', on));
       this.flujos.forEach(f => f.classList.toggle('activo', on));
+      const alReves = !!this.invertir && !!this.invertir(estado);
+      this.flujos.forEach(f => f.classList.toggle('invertido', alReves));
       if (on && this.velocidadPct) {
         const duracion = `${segundosPorCiclo(this.velocidadPct(estado)).toFixed(2)}s`;
         this.flujos.forEach(f => { f.style.animationDuration = duracion; });
