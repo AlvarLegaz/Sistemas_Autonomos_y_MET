@@ -7,7 +7,7 @@
 {% endblock %}
 {% block contenido %}
 {% if pin_por_defecto %}
-<p class="aviso" role="status">PIN por defecto en uso ({{ pin_defecto_valor }}): vale para pruebas. Antes de usarlo con una clase <a href="#cambiar-pin">cámbialo aquí abajo</a>, porque cualquiera que conozca el PIN puede autorizar alumnos.</p>
+<p class="aviso" role="status">PIN por defecto en uso ({{ pin_defecto_valor }}): vale para pruebas. Antes de usarlo con una clase <a href="{{ url_for('aula', vista='pin') }}">cámbialo en la pestaña «Cambiar PIN»</a>, porque cualquiera que conozca el PIN puede autorizar alumnos.</p>
 {% endif %}
 {% if clave_nueva %}
 <section class="clave-nueva" role="alert">
@@ -19,10 +19,12 @@
 
 <nav class="pestanas" aria-label="Estado de las cuentas">
   {% for e, nombre in (('pendiente', 'Pendientes'), ('autorizado', 'Autorizados'), ('rechazado', 'Rechazados')) %}
-    <a href="{{ url_for('aula', estado=e, modulo=modulo or None, q=q or None) }}" {% if estado == e %}aria-current="page"{% endif %}>{{ nombre }} <span class="n">{{ cuentas[e] }}</span></a>
+    <a href="{{ url_for('aula', estado=e, modulo=modulo or None, q=q or None) }}" {% if estado == e and not vista_pin %}aria-current="page"{% endif %}>{{ nombre }} <span class="n">{{ cuentas[e] }}</span></a>
   {% endfor %}
-  <a href="{{ url_for('aula', estado='todos', modulo=modulo or None, q=q or None) }}" {% if estado == 'todos' %}aria-current="page"{% endif %}>Todos <span class="n">{{ cuentas.values() | sum }}</span></a>
+  <a href="{{ url_for('aula', estado='todos', modulo=modulo or None, q=q or None) }}" {% if estado == 'todos' and not vista_pin %}aria-current="page"{% endif %}>Todos <span class="n">{{ cuentas.values() | sum }}</span></a>
+  <a class="pestana-pin" href="{{ url_for('aula', vista='pin') }}" {% if vista_pin %}aria-current="page"{% endif %}>Cambiar PIN</a>
 </nav>
+{% if not vista_pin %}
 
 <form class="filtros" method="get" action="{{ url_for('aula') }}">
   <input type="hidden" name="estado" value="{{ estado }}">
@@ -89,6 +91,7 @@
 </p>
 {% endif %}
 <p class="pie"><a href="{{ url_for('aula_resumen_csv') }}">Descargar resumen de actividad (CSV)</a></p>
+{% else %}
 <section id="cambiar-pin" class="cambiar-pin">
   <h2>Cambiar el PIN del aula</h2>
   <form method="post" action="{{ url_for('aula_cambiar_pin') }}" autocomplete="off">
@@ -100,6 +103,7 @@
   </form>
   <p class="sec-aviso">El PIN nuevo se guarda cifrado en los datos del aula y sustituye al del archivo <code>.env</code>. Si lo olvidas, arranca el servidor con <code>AULA_PIN_RESTABLECER=1</code> y volverá a valer el del <code>.env</code>.</p>
 </section>
+{% endif %}
 <p class="pie">Sesión de profesor activa hasta las <span id="hasta" data-hasta="{{ hasta|int }}"></span>.</p>
 <script>
   (function () {

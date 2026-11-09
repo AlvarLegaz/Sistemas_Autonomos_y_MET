@@ -490,7 +490,9 @@ def crear_app(config=None):
             estado = "pendiente"
         modulo = limpiar(request.args.get("modulo"), LARGO_MAX["modulo"])
         busca = limpiar(request.args.get("q"), 80)
-        return render_template("aula_panel.html", **datos_panel(estado, modulo, busca))
+        datos = datos_panel(estado, modulo, busca)
+        datos["vista_pin"] = request.args.get("vista") == "pin"
+        return render_template("aula_panel.html", **datos)
 
     def datos_panel(estado, modulo, busca, clave_nueva=None):
         condiciones, params = [], []
@@ -630,7 +632,7 @@ def crear_app(config=None):
         espera = limitador.restante(clave)
         if espera:
             flash(f"Demasiados intentos con el PIN. Espera {max(1, espera // 60)} min.", "error")
-            return redirect(url_for("aula") + "#cambiar-pin")
+            return redirect(url_for("aula", vista="pin"))
         actual = request.form.get("pin_actual", "")[:100]
         nuevo = request.form.get("pin_nuevo", "")[:100]
         repetido = request.form.get("pin_repetido", "")[:100]
@@ -648,7 +650,7 @@ def crear_app(config=None):
                         "ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor", (generate_password_hash(nuevo),))
             con.commit()
             flash("PIN del aula cambiado. Úsalo la próxima vez que entres.", "ok")
-        return redirect(url_for("aula") + "#cambiar-pin")
+        return redirect(url_for("aula", vista="pin"))
 
     @app.post("/aula/salir")
     def aula_salir():

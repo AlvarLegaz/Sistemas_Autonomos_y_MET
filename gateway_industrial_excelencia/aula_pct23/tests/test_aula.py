@@ -310,6 +310,15 @@ class AulaDelProfesor(Base):
         self.assertEqual(self.consulta("SELECT COUNT(*) n FROM actividad")[0]["n"], 0)
         self.assertEqual(self.consulta("SELECT COUNT(*) n FROM tiempo_uso")[0]["n"], 0)
 
+    def test_el_cambio_de_pin_esta_en_su_propia_pestana(self):
+        prof = self.profesor()
+        normal = prof.get("/aula").get_data(as_text=True)
+        pestana = prof.get("/aula?vista=pin").get_data(as_text=True)
+        self.assertIn("Cambiar PIN", normal)
+        self.assertNotIn('name="pin_actual"', normal)
+        self.assertIn('name="pin_actual"', pestana)
+        self.assertNotIn('class="filtros"', pestana)
+
     # ----- el alumno cambia su contraseña -----
     def cambiar_clave(self, cliente, actual=ALUMNO["clave"], nueva="Nueva-clave-9", repetida=None):
         return self.post(cliente, "/cuenta", {"clave_actual": actual, "clave_nueva": nueva,

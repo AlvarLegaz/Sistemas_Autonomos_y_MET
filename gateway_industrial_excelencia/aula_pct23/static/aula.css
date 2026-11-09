@@ -108,3 +108,5 @@ form input:focus, form select:focus { border-color: var(--acento); }
 .resumen div { padding: 12px 14px; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); }
 .resumen b { display: block; font-size: 20px; }
 .resumen span { color: var(--tenue); font-size: 13px; }
+
+.pestanas .pestana-pin { margin-left: auto; }
