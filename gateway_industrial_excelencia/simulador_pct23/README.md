@@ -12,7 +12,7 @@ Las tres pantallas comparten el mismo armazón:
 
 - **Cabecera** con el selector de modo (Manual, Automático, Demostración) y el botón *? Ayuda*.
 - **Barra de operación fija**: iniciar, pausar, paradas, velocidad (1×, 5×, 20×) y un menú *Más*. En automático y demostración incluye la **pista de fases**, que se llena en la fase actual, se pone en rojo con una alarma y dice el motivo del último cambio.
-- **Esquema** de la planta (el SCADA) con todas las lecturas, y la **gráfica** de temperaturas debajo.
+- **Esquema** de la planta (el sinóptico) con todas las lecturas, y la **gráfica** de temperaturas debajo.
 - **Columna lateral con pestañas**: *Ajustes* (por defecto) o *Controles* en el manual, *Lecturas* y *Registro*.
 - En móvil todo pasa a una columna con el esquema primero y la barra de acciones abajo.
 - Tema claro u oscuro según el sistema.

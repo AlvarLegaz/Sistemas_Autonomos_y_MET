@@ -6,7 +6,7 @@
 <link rel="icon" type="image/png" href="/img/favicon.png">
 <meta name="author" content="Álvar Legaz Aparicio">
 <meta name="copyright" content="© 2026 Álvar Legaz Aparicio. Todos los derechos reservados.">
-<title>PCT23 · SCADA</title>
+<title>PCT23 · Sinóptico</title>
 <style>
 /* PCT23 · interfaz.
    Lenguaje de sala de control: fondo neutro y el color solo para decir el estado (producto, calor, frío, alarma).
@@ -287,7 +287,7 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
 .opcion .entrar { margin-top: auto; padding-top: 10px; font-weight: 700; color: var(--acento-texto); }
 @media (max-width: 720px) { .opcion { border-left: 0; border-top: 1px solid var(--borde); } .opcion:first-child { border-top: 0; } }
 
-/* ---------- SCADA real ---------- */
+/* ---------- Sinóptico real ---------- */
 .cab .enlace-canales { margin-left: auto; }
 .estado-planta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; min-width: 0; }
 .estado-planta .chip { font-size: 14px; color: var(--texto); }
@@ -325,8 +325,8 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
 </head>
 <body>
 <header class="cab">
-  <h1><img class="logo" src="/img/logo-politecnico.png" alt="CIFP Politécnico Cartagena" width="166" height="60"><span class="sim">SCADA PCT23</span></h1>
-  <span class="seccion">SCADA de la planta</span>
+  <h1><img class="logo" src="/img/logo-politecnico.png" alt="CIFP Politécnico Cartagena" width="166" height="60"><span class="sim">SINÓPTICO PCT23</span></h1>
+  <span class="seccion">Sinóptico de la planta</span>
   <a class="enlace-canales" href="/">Vista de canales</a>
 </header>
 
@@ -861,7 +861,7 @@ function avisoPlanta(s, d) {
   const caja = $('alarma-caja');
   let causa = '', accion = '';
   if (servidorCaido) {
-    causa = 'Sin conexión con el servidor del SCADA';
+    causa = 'Sin conexión con el servidor del sinóptico';
     accion = 'Los controles y las lecturas no se actualizan. Comprueba que el equipo del gateway está encendido y en la red.';
   } else if (!s.broker) {
     causa = 'Sin conexión con la planta';
@@ -945,7 +945,7 @@ const registro = (() => {
     const csv = '\ufeff' + [cabecera, ...filas.map(f => f.join(';'))].join('\r\n');
     const enlace = document.createElement('a');
     enlace.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv;charset=utf-8'}));
-    enlace.download = `scada_pct23_${new Date(inicio - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`;
+    enlace.download = `sinoptico_pct23_${new Date(inicio - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`;
     document.body.appendChild(enlace); enlace.click(); enlace.remove();
     setTimeout(() => URL.revokeObjectURL(enlace.href), 5000);
   }
