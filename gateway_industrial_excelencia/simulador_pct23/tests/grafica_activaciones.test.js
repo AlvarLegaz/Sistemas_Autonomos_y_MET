@@ -12,12 +12,22 @@ test('la potencia muestreada es la consigna solo con la resistencia encendida', 
   assert.equal(activaciones.tomarMuestra(s).RES, 60);
 });
 
-test('la muestra incluye bombas y electroválvulas como booleanos', () => {
+test('las bombas valen 0 % apagadas y su velocidad cuando están encendidas', () => {
   const s = crearEstado();
-  s.tiempo = 12; s.salidas.N1 = true; s.salidas.SOL3 = true;
+  s.consignas.velocidadN1Pct = 60; s.consignas.velocidadN2Pct = 35;
+  assert.deepEqual([activaciones.tomarMuestra(s).N1, activaciones.tomarMuestra(s).N2], [0, 0]);
+  s.salidas.N1 = true;
+  assert.deepEqual([activaciones.tomarMuestra(s).N1, activaciones.tomarMuestra(s).N2], [60, 0]);
+  s.salidas.N2 = true;
+  assert.deepEqual([activaciones.tomarMuestra(s).N1, activaciones.tomarMuestra(s).N2], [60, 35]);
+});
+
+test('la muestra incluye el tiempo y las electroválvulas como booleanos', () => {
+  const s = crearEstado();
+  s.tiempo = 12; s.salidas.SOL3 = true;
   const m = activaciones.tomarMuestra(s);
   assert.equal(m.tiempo, 12);
-  assert.deepEqual([m.N1, m.N2, m.SOL3, m.SOL5], [true, false, true, false]);
+  assert.deepEqual([m.SOL1, m.SOL3, m.SOL5], [false, true, false]);
 });
 
 test('registrar acumula y reiniciar vacía el historial', () => {

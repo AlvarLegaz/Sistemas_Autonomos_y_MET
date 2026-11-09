@@ -1,20 +1,30 @@
 (function () {
+  // Series en porcentaje: potencia de la resistencia y velocidad de las bombas (0 % si están apagadas).
+  const SERIES_PORCENTAJE = [
+    { id: 'RES', texto: 'RES · potencia', color: '#d66d2b' },
+    { id: 'N1', texto: 'N1 · velocidad', color: '#2d80c7' },
+    { id: 'N2', texto: 'N2 · velocidad', color: '#c04f9a' },
+  ];
   const PISTAS_DIGITALES = [
-    ['N1', '#2d80c7'], ['N2', '#2d80c7'],
     ['SOL1', '#22a2a0'], ['SOL2', '#22a2a0'], ['SOL3', '#22a2a0'], ['SOL4', '#22a2a0'], ['SOL5', '#22a2a0'],
   ];
-  const COLOR_RESISTENCIA = '#d66d2b';
-  const RANGO_POTENCIA = { minimo: 0, maximo: 100, marcas: [0, 50, 100] };
-  const ALTO_POTENCIA = 74, ALTO_PISTA = 20, SEPARACION = 8;
+  const RANGO_PORCENTAJE = { minimo: 0, maximo: 100, marcas: [0, 50, 100] };
+  const ALTO_PORCENTAJE = 74, ALTO_PISTA = 20, SEPARACION = 8;
   const LIMITE_MUESTRAS = 140;
   const ALTO_SOLO = 208;
   const historial = [];
   let seleccion = null;
 
-  // La potencia efectiva es la consigna solo si la resistencia está conectada.
+  // Cada serie vale su porcentaje solo si el actuador está conectado; apagado vale 0.
   function tomarMuestra(estado) {
-    const muestra = { tiempo: estado.tiempo, RES: estado.salidas.RES ? estado.consignas.potenciaPct : 0 };
-    for (const [id] of PISTAS_DIGITALES) muestra[id] = Boolean(estado.salidas[id]);
+    const s = estado.salidas, c = estado.consignas;
+    const muestra = {
+      tiempo: estado.tiempo,
+      RES: s.RES ? c.potenciaPct : 0,
+      N1: s.N1 ? c.velocidadN1Pct : 0,
+      N2: s.N2 ? c.velocidadN2Pct : 0,
+    };
+    for (const [id] of PISTAS_DIGITALES) muestra[id] = Boolean(s[id]);
     return muestra;
   }
 
@@ -40,7 +50,26 @@
     contexto.fillText(texto, x, y);
   }
 
-  function pintarPotencia(contexto, g, x, tenue, borde, alto = ALTO_POTENCIA, rango = RANGO_POTENCIA) {
+  function trazarEscalon(contexto, campo, x, y) {
+    historial.forEach((m, i) => {
+      if (i === 0) contexto.moveTo(x(m.tiempo), y(m[campo]));
+      else { contexto.lineTo(x(m.tiempo), y(historial[i - 1][campo])); contexto.lineTo(x(m.tiempo), y(m[campo])); }
+    });
+  }
+
+  function dibujarSerie(contexto, serie, x, y, base, rellenar) {
+    contexto.beginPath();
+    trazarEscalon(contexto, serie.id, x, y);
+    contexto.strokeStyle = serie.color; contexto.lineWidth = 2; contexto.stroke();
+    if (!rellenar) return;
+    contexto.beginPath(); contexto.moveTo(x(historial[0].tiempo), base);
+    trazarEscalon(contexto, serie.id, x, y);
+    contexto.lineTo(x(historial[historial.length - 1].tiempo), base); contexto.closePath();
+    contexto.globalAlpha = 0.28; contexto.fillStyle = serie.color; contexto.fill(); contexto.globalAlpha = 1;
+  }
+
+  // Panel de porcentajes: una serie sola (con relleno) o las tres a la vez.
+  function pintarPorcentajes(contexto, g, x, tenue, borde, series, alto = ALTO_PORCENTAJE, rango = RANGO_PORCENTAJE) {
     const base = g.arriba + alto;
     const y = v => base - (v - rango.minimo) / (rango.maximo - rango.minimo) * alto;
     for (const v of rango.marcas) {
@@ -48,15 +77,11 @@
       contexto.strokeStyle = borde; contexto.lineWidth = 1; contexto.stroke();
       contexto.fillStyle = tenue; contexto.textBaseline = 'middle'; contexto.textAlign = 'right'; contexto.fillText(v, g.izquierda - 6, y(v)); contexto.textAlign = 'left';
     }
-    contexto.fillStyle = COLOR_RESISTENCIA; contexto.fillText('RES', 2, base - alto / 2);
-    contexto.beginPath(); contexto.moveTo(x(historial[0].tiempo), base);
-    historial.forEach((m, i) => {
-      contexto.lineTo(x(m.tiempo), y(i ? historial[i - 1].RES : m.RES));
-      contexto.lineTo(x(m.tiempo), y(m.RES));
+    series.forEach((serie, i) => {
+      contexto.fillStyle = serie.color;
+      contexto.fillText(serie.id, 2, base - alto * (series.length === 1 ? 0.5 : 0.8 - i * 0.3));
     });
-    contexto.lineTo(x(historial[historial.length - 1].tiempo), base); contexto.closePath();
-    contexto.globalAlpha = 0.28; contexto.fillStyle = COLOR_RESISTENCIA; contexto.fill(); contexto.globalAlpha = 1;
-    contexto.strokeStyle = COLOR_RESISTENCIA; contexto.lineWidth = 2; contexto.stroke();
+    series.forEach(serie => dibujarSerie(contexto, serie, x, y, base, series.length === 1 || serie.id === 'RES'));
   }
 
   function pintarPista(contexto, g, x, id, color, arriba, borde, altoPista = ALTO_PISTA) {
@@ -87,9 +112,10 @@
   }
 
   function pintarSola(contexto, g, x, tenue, borde) {
-    if (seleccion === 'RES') {
-      const rango = PCT.escalaGrafica.rangoLimpio(historial.map(m => m.RES), 5, { minimo: 0, maximo: 100 });
-      pintarPotencia(contexto, g, x, tenue, borde, ALTO_SOLO, rango);
+    const serie = SERIES_PORCENTAJE.find(s => s.id === seleccion);
+    if (serie) {
+      const rango = PCT.escalaGrafica.rangoLimpio(historial.map(m => m[serie.id]), 5, { minimo: 0, maximo: 100 });
+      pintarPorcentajes(contexto, g, x, tenue, borde, [serie], ALTO_SOLO, rango);
     } else {
       const color = PISTAS_DIGITALES.find(p => p[0] === seleccion)[1];
       rotular(contexto, seleccion, g.arriba + ALTO_SOLO / 2, tenue, 4);
@@ -103,8 +129,8 @@
   }
 
   function pintarTodas(contexto, g, x, tenue, borde) {
-    pintarPotencia(contexto, g, x, tenue, borde);
-    let arriba = g.arriba + ALTO_POTENCIA + SEPARACION;
+    pintarPorcentajes(contexto, g, x, tenue, borde, SERIES_PORCENTAJE);
+    let arriba = g.arriba + ALTO_PORCENTAJE + SEPARACION;
     for (const [id, color] of PISTAS_DIGITALES) {
       rotular(contexto, id, arriba + ALTO_PISTA / 2 - 2, tenue);
       pintarPista(contexto, g, x, id, color, arriba, borde);
@@ -120,8 +146,7 @@
   function iniciarLeyenda() {
     const contenedor = document.getElementById('leyenda-act');
     if (!contenedor) return;
-    const items = [{ id: 'RES', texto: 'RES · potencia', color: COLOR_RESISTENCIA },
-      ...PISTAS_DIGITALES.map(([id, color]) => ({ id, texto: id, color }))];
+    const items = [...SERIES_PORCENTAJE, ...PISTAS_DIGITALES.map(([id, color]) => ({ id, texto: id, color }))];
     PCT.grafica.crearLeyenda(contenedor, items, id => { seleccion = id; pintar(); });
   }
 
