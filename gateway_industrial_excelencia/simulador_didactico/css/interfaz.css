@@ -13,10 +13,10 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --fondo: #0F1418; --panel: #182027; --texto: #E8EDF1; --tenue: #9AA7B2; --borde: #34414B;
+    --fondo: #161314; --panel: #221E1F; --texto: #F0ECED; --tenue: #A9A3A5; --borde: #403B3C;
     --acento: #F68B11; --acento-texto: #FFA640; --sobre-acento: #16202A; --marca-gris: #C9C5C6;
-    --ok: #4CC28A; --error: #F0605F; --aviso: #E0A33A; --apagado: #5B6874;
-    --tubo: #8FA0AE; --agua: #4AA3DF; --caliente: #FF8A3D; --frio: #29C1BA;
+    --ok: #4CC28A; --error: #F0605F; --aviso: #E0A33A; --apagado: #6B6567;
+    --tubo: #A39E9F; --agua: #4AA3DF; --caliente: #FF8A3D; --frio: #29C1BA;
   }
 }
 
@@ -74,7 +74,7 @@ body[data-estado="fin"] #fases li.actual { background: var(--ok); color: #fff; }
 .velocidad { display: inline-flex; border: 1px solid var(--borde); border-radius: 6px; overflow: hidden; }
 .velocidad button { border: 0; border-radius: 0; min-height: 38px; padding: 0 12px; background: var(--panel); }
 .velocidad button + button { border-left: 1px solid var(--borde); }
-.velocidad button[aria-pressed="true"] { background: var(--texto); color: var(--panel); }
+.velocidad button[aria-pressed="true"] { background: var(--acento); color: var(--sobre-acento); }
 .velocidad-select { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .mas { position: relative; }
 .mas summary { list-style: none; display: inline-flex; align-items: center; }
@@ -185,6 +185,14 @@ details.avanzado summary { cursor: pointer; font-weight: 700; }
 .registros li { padding: 7px 0; border-top: 1px solid var(--borde); }
 .registros li:first-child { border-top: 0; }
 .nota { margin: 18px 0 0; font-size: 12.5px; color: var(--tenue); max-width: 70ch; }
+
+/* ---------- pantalla grande (PC): el panel de pestañas va a la derecha del esquema ---------- */
+@media (min-width: 1280px) {
+  .cuerpo { display: grid; grid-template-columns: minmax(0, 1fr) 440px; align-items: start; }
+  .lateral { position: sticky; top: var(--alto-barra); max-height: calc(100vh - var(--alto-barra)); overflow-y: auto; border-top: 0; border-left: 1px solid var(--borde); }
+  .lateral .tarjetas { grid-template-columns: 1fr; }
+  .lateral .tarjeta { border-top: 1px solid var(--borde); }
+}
 
 /* ---------- tableta: una columna, barra arriba y esquema entero ---------- */
 @media (min-width: 700px) and (max-width: 1100px) {

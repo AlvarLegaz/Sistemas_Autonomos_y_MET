@@ -5,7 +5,7 @@
   const PARAMS = Object.freeze({
     ambiente: 22, capacidadMl: 5000, caudalN1MaxMlMin: 550,
     llenadoMlMin: 260, refrigeracionMlMin: 450, vaciadoMlMin: 600, // vaciadoMlMin: V3 abierta (didáctico)
-    tauCalentadorS: 1500, tauEnfriamientoS: 1500, limiteTermicoC: 70, margenDisparoC: 0.05, rearmeC: 60, tauCorteS: 1500, // tras el disparo: rearme por debajo de rearmeC y enfriamiento lento (tauCorteS). margenDisparoC: con la resistencia al 100 % T2 tiende por encima del límite y salta al mostrar 70,0
+    tauCalentadorS: 1500, tauEnfriamientoS: 1500, limiteTermicoC: 70, margenDisparoC: 0.05, rearmeC: 60, tauCorteS: 1500, tauInerciaS: 280, // tras el disparo: rearme por debajo de rearmeC y enfriamiento lento (tauCorteS). margenDisparoC: con la resistencia al 100 % T2 tiende por encima del límite y salta al mostrar 70,0
     deltaCalentadorC: 150,       // subida del agua caliente con el calefactor al 100 %
     eficienciaIntercambio: 0.79, // fraccion del salto agua-producto que se transfiere
     reduccionPorCaudal: 0.25,    // perdida de eficiencia al subir N1 al 100 %
@@ -62,7 +62,10 @@
     // Las dos resistencias de 120 V van en serie (una sola a 230 V), por ráfagas de 50 ciclos: R % = R/100 de los ciclos.
     const r=s.salidas.RES?clamp(s.consignas.R/100,0,1):0;
     const objetivoAgua=p.ambiente+p.deltaCalentadorC*r;
-    const temperaturaObjetivo=s.temperaturaCorte?p.ambiente:objetivoAgua;
+    // Inercia: tras el disparo la resistencia sigue cediendo calor y T2 sube un poco más (calorResidual decae con tauInerciaS).
+    const calorResidual=s.temperaturaCorte?(s.calorResidual||0):0;
+    s.calorResidual=calorResidual*Math.exp(-dt/p.tauInerciaS);
+    const temperaturaObjetivo=s.temperaturaCorte?p.ambiente+p.deltaCalentadorC*calorResidual:objetivoAgua;
     const tau=s.temperaturaCorte?p.tauCorteS:(r? p.tauCalentadorS:p.tauEnfriamientoS);
     // El producto que circula por el intercambiador le quita calor al agua caliente: con caudal el equilibrio de T2 baja
     // y T2 se mueve algo mas deprisa. k es la fraccion de ese efecto (paso anterior: caudal ya calculado).
@@ -71,7 +74,7 @@
     s.aguaCalienteC+=(objetivoEfectivo-s.aguaCalienteC)*(1-Math.exp(-dt*(1+k)/tau));
     s.aguaCalienteC=clamp(s.aguaCalienteC,p.ambiente,97);
     // Termostato con histéresis; simulado, no sistema certificado de protección.
-    if(!s.temperaturaCorte && s.aguaCalienteC>=p.limiteTermicoC-p.margenDisparoC){s.temperaturaCorte=true;s.salidas.RES=false;} // el termostato desconecta la resistencia
+    if(!s.temperaturaCorte && s.aguaCalienteC>=p.limiteTermicoC-p.margenDisparoC){s.temperaturaCorte=true;s.calorResidual=s.salidas.RES?clamp(s.consignas.R/100,0,1):0;s.salidas.RES=false;} // el termostato desconecta la resistencia
     if(s.temperaturaCorte && s.aguaCalienteC<=p.rearmeC) s.temperaturaCorte=false; // rearmado: la resistencia sigue desconectada hasta que se vuelva a conectar
 
     // SOL4 repone A; SOL5 repone B (hipótesis didáctica).

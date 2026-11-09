@@ -98,11 +98,31 @@ test('Al circular el producto T2 baja: se lleva calor del agua caliente (acoplam
 });
 
 test('Al empezar a circular el producto T2 cae respecto a su valor sin caudal', () => {
+  // Dos plantas iguales; en una circula el producto. Potencia baja para no llegar al corte térmico.
+  const planta = conProducto => {
+    const s = crearEstado();
+    s.salidas.N2 = true; s.salidas.RES = true; s.consignas.potenciaPct = 30; s.consignas.velocidadN1Pct = 60;
+    avanzar(s, 600);
+    if (conProducto) { s.salidas.N1 = true; s.salidas.SOL1 = true; }
+    avanzar(s, 600);
+    return s.aguaCalienteC;
+  };
+  const sinProducto = planta(false), conProducto = planta(true);
+  assert.ok(conProducto < sinProducto - 0.3, `sin producto ${sinProducto.toFixed(1)}, con producto ${conProducto.toFixed(1)}`);
+});
+
+test('Tras el disparo del termostato T2 sigue subiendo por inercia (≈ 77 °C) y luego baja', () => {
   const s = crearEstado();
-  s.salidas.N2 = true; s.salidas.RES = true; s.consignas.potenciaPct = 90; s.consignas.velocidadN1Pct = 60;
-  avanzar(s, 600); const antes = s.aguaCalienteC;
-  s.salidas.N1 = true; s.salidas.SOL1 = true; avanzar(s, 600);
-  assert.ok(s.aguaCalienteC < antes - 1, `antes ${antes.toFixed(1)} despues ${s.aguaCalienteC.toFixed(1)}`);
+  s.aguaCalienteC = 25; s.salidas.RES = true; s.consignas.potenciaPct = 100;
+  let disparo = null, maximo = 0;
+  for (let t = 1; t <= 3000; t++) {
+    avanzar(s, 1);
+    if (s.temperaturaCorte && disparo === null) disparo = s.aguaCalienteC;
+    maximo = Math.max(maximo, s.aguaCalienteC);
+  }
+  assert.ok(disparo > 69.9 && disparo < 70.1, `disparo a ${disparo}`);
+  assert.ok(maximo > 76.5 && maximo < 79, `pico ${maximo.toFixed(1)}`);
+  assert.ok(s.aguaCalienteC < maximo - 5, 'después del pico T2 baja');
 });
 
 test('Los contadores miden siempre que circula producto: desvío con SOL1 activa y acabado con SOL1 sin activar', () => {

@@ -50,7 +50,10 @@
     // Las dos resistencias de 120 V van en serie (una sola a 230 V), por ráfagas de 50 ciclos: R % = R/100 de los ciclos.
     const fraccionPotencia = estado.salidas.RES ? matematicas.limitar(estado.consignas.potenciaPct / 100, 0, 1) : 0;
     const objetivoAgua = ambiente + constantes.subidaCalentadorC * fraccionPotencia;
-    const temperaturaObjetivo = estado.temperaturaCorte ? ambiente : objetivoAgua;
+    // Inercia: tras el disparo la resistencia sigue cediendo calor y T2 sube un poco más (calorResidual decae con inerciaCorteS).
+    const calorResidual = estado.temperaturaCorte ? (estado.calorResidual || 0) : 0;
+    estado.calorResidual = calorResidual * Math.exp(-segundosPaso / constantes.inerciaCorteS);
+    const temperaturaObjetivo = estado.temperaturaCorte ? ambiente + constantes.subidaCalentadorC * calorResidual : objetivoAgua;
     const tau = estado.temperaturaCorte ? constantes.constanteCorteS : (fraccionPotencia ? constantes.constanteCalentadorS : constantes.constanteEnfriamientoS);
     // El producto en circulación le quita calor al agua caliente: con caudal, T2 baja y se mueve algo más deprisa.
     const acoplamiento = factorAcoplamiento(estado.salidas.N2, estado.consignas.velocidadN1Pct, estado.caudalProductoMlMin / constantes.caudalMaxN1MlMin);
@@ -63,6 +66,7 @@
   function revisarTermostato(estado) {
     if (!estado.temperaturaCorte && estado.aguaCalienteC >= constantes.limiteTermicoC - constantes.margenDisparoC) {
       estado.temperaturaCorte = true;
+      estado.calorResidual = estado.salidas.RES ? matematicas.limitar(estado.consignas.potenciaPct / 100, 0, 1) : 0;
       estado.salidas.RES = false;
     }
     if (estado.temperaturaCorte && estado.aguaCalienteC <= constantes.temperaturaRearmeC) estado.temperaturaCorte = false;
