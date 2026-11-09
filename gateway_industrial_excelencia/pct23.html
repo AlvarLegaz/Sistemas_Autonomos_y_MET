@@ -319,11 +319,11 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
 .copy { margin: 24px 16px 16px; font-size: 12px; color: var(--tenue, #56636F); text-align: center; }
 
 /* Flujo animado en las tuberías activas: puntos que avanzan en el sentido del flujo */
-.flujo { display: none; fill: none; stroke: #fff; stroke-opacity: .9; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 0.1 17; pointer-events: none; animation: flujo 1s linear infinite; }
+.flujo { display: none; fill: none; stroke: #fff; stroke-opacity: .9; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 0.1 22; pointer-events: none; animation: flujo 1s linear infinite; }
 .flujo.activo { display: inline; }
 .flujo.inverso { animation-direction: reverse; }
 .en-pausa .flujo { animation-play-state: paused; }
-@keyframes flujo { to { stroke-dashoffset: -17.1; } }
+@keyframes flujo { to { stroke-dashoffset: -22.1; } }
 @media (prefers-reduced-motion: reduce) { .flujo { animation: none; } }
 
 /* Grabación de datos: botón en la barra superior, junto a «Parar todo» (hereda el estilo de .acciones button) */
