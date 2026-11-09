@@ -344,12 +344,12 @@ svg path.invertida { transform-box: fill-box; transform-origin: center; transfor
 .base-tiempos .ley-boton { min-height: 32px; padding: 0 12px; }
 
 /* Flujo animado en las tuberías activas */
-.flujo { display: none; fill: none; stroke: #fff; stroke-opacity: .85; stroke-width: 3.8; stroke-linecap: round; stroke-dasharray: 48 36; pointer-events: none; animation: flujo 1s linear infinite; }
+.flujo { display: none; fill: none; stroke: #fff; stroke-opacity: .85; stroke-width: 3.8; stroke-linecap: round; stroke-dasharray: 34 30; pointer-events: none; animation: flujo 1s linear infinite; }
 .flujo.activo { display: inline; }
 .flujo.inverso { animation-direction: reverse; }
 /* Bomba con el sentido de giro invertido: el flujo de sus tuberías va al revés (y si ya iba invertido, vuelve a normal) */
 .flujo.invertido { animation-direction: reverse; }
 .flujo.inverso.invertido { animation-direction: normal; }
 .en-pausa .flujo { animation-play-state: paused; }
-@keyframes flujo { to { stroke-dashoffset: -84; } }
+@keyframes flujo { to { stroke-dashoffset: -64; } }
 @media (prefers-reduced-motion: reduce) { .flujo { animation: none; } }
