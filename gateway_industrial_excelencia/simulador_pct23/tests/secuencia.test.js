@@ -375,13 +375,13 @@ test('La producción de referencia se respeta: la producción termina al alcanza
 });
 
 test('La producción de referencia no puede superar el contenido del tanque de origen',()=>{
- const s=m.crearEstado();m.ponerLlenado(s,'A',20);          // 480 ml
- assert.equal(q.referenciaMaxima(s,'A'),480);
+ const s=m.crearEstado();m.ponerLlenado(s,'A',20);          // 1000 ml
+ assert.equal(q.referenciaMaxima(s,'A'),1000);
  assert.equal(q.referenciaMaxima(s,'B'),Math.floor(s.bMl));
  const sec=q.crearSecuencia({volumenObjetivoMl:2000});
  q.iniciar(sec,s);
- assert.equal(sec.cfg.volumenObjetivoMl,480);
- assert.ok(sec.eventos.some(e=>/limitada a 480/.test(e.mensaje)));
+ assert.equal(sec.cfg.volumenObjetivoMl,1000);
+ assert.ok(sec.eventos.some(e=>/limitada a 1000/.test(e.mensaje)));
  m.ponerLlenado(s,'A',100);
  assert.equal(q.referenciaMaxima(s,'A'),m.PARAMS.capacidadMl);
 });

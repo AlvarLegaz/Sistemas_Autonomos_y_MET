@@ -49,7 +49,7 @@ test('Un depósito agotado detiene el caudal para ese origen',()=>{
 
 test('El llenado de un depósito se fija en porcentaje de la capacidad',()=>{
  const s=m.crearEstado();
- m.ponerLlenado(s,'A',50);assert.equal(s.aMl,1200);assert.equal(m.porcentajeLlenado(s,'A'),50);
+ m.ponerLlenado(s,'A',50);assert.equal(s.aMl,2500);assert.equal(m.porcentajeLlenado(s,'A'),50);
  m.ponerLlenado(s,'B',100);assert.equal(s.bMl,m.PARAMS.capacidadMl);
  m.ponerLlenado(s,'B',-5);assert.equal(s.bMl,0);
  m.ponerLlenado(s,'A',250);assert.equal(s.aMl,m.PARAMS.capacidadMl);

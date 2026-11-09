@@ -3,7 +3,7 @@
 (function (root) {
   'use strict';
   const PARAMS = Object.freeze({
-    ambiente: 22, capacidadMl: 2400, caudalN1MaxMlMin: 550,
+    ambiente: 22, capacidadMl: 5000, caudalN1MaxMlMin: 550,
     llenadoMlMin: 260, refrigeracionMlMin: 450, vaciadoMlMin: 600, // vaciadoMlMin: V3 abierta (didáctico)
     tauCalentadorS: 200, tauEnfriamientoS: 360, limiteTermicoC: 91, margenDisparoC: 0.05, rearmeC: 70, tauCorteS: 900, // tras el disparo: rearme por debajo de rearmeC y enfriamiento lento (tauCorteS). margenDisparoC: con la resistencia al 100 % T2 tiende a 91,0 sin llegar, y así salta al mostrar 91,0
     deltaCalentadorC: 69,        // subida del agua caliente con el calefactor al 100 %

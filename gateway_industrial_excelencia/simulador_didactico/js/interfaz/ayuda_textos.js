@@ -200,7 +200,7 @@
       'Se accionan pulsando su símbolo en el esquema; en la pestaña Controles, <b>Cerrar electroválvulas</b> cierra SOL1-SOL5 de una vez.',
     ])],
     ['Depósitos de alimentación', lista([
-      'Cada tanque (A y B) tiene un deslizador de <b>porcentaje de llenado</b> sobre su capacidad (2400 ml en el modelo). Con la simulación ' +
+      'Cada tanque (A y B) tiene un deslizador de <b>porcentaje de llenado</b> sobre su capacidad (5000 ml (5 litros) en el modelo). Con la simulación ' +
           'parada o en pausa lo ajustas y el nivel cambia al instante.',
       '<b>Con la simulación en marcha el deslizador se bloquea</b>: el nivel ya no se ajusta a mano, solo se vacía con N1 y se rellena con SOL4 / ' +
           'SOL5. Verás L1 (nivel del tanque A en mm) y los flotadores HL y LL (tanque B) reaccionar.',
