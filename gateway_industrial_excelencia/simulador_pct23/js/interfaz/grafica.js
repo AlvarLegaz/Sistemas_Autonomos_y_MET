@@ -1,7 +1,7 @@
 (function () {
   const { $, formatearTiempo } = PCT.dom;
   const planta = PCT.planta;
-  const LIMITE_MUESTRAS = 140;
+  const LIMITE_MUESTRAS = 3600;   // unas 2 h a una muestra cada 2 s
   const INTERVALO_S = 2;
   const CURVAS = [['T2', '#d66d2b'], ['T1', '#2d80c7'], ['T3', '#22a2a0']];
   // Series con otra unidad: solo se ven al elegirlas en la leyenda, con su propia escala.
@@ -11,6 +11,10 @@
   };
   const historial = [];
   let ultimoTiempo = -1;
+  // Base de tiempos: cuántos segundos de simulación se ven (null = todo el historial).
+  const BASES_DE_TIEMPO = [['1 min', 60], ['2 min', 120], ['5 min', 300], ['10 min', 600], ['30 min', 1800], ['1 h', 3600], ['Todo', null]];
+  let ventanaS = 300;
+  let visibles = [];
   const COMPLETO = { minimo: 15, maximo: 100, marcas: [20, 40, 60, 80, 100] };
   let marcasConsigna = null;
   let serieActiva = null;
@@ -68,7 +72,7 @@
 
   function dibujarCurva(contexto, campo, color, x, y) {
     contexto.beginPath();
-    historial.forEach((v, i) => {
+    visibles.forEach((v, i) => {
       if (i === 0) contexto.moveTo(x(v.tiempo), y(v[campo]));
       else contexto.lineTo(x(v.tiempo), y(v[campo]));
     });
@@ -87,7 +91,7 @@
 
   function dibujarCurvas(contexto, w, h) {
     const e = escala(w, h);
-    const inicio = historial[0].tiempo, final = historial[historial.length - 1].tiempo;
+    const inicio = visibles[0].tiempo, final = visibles[visibles.length - 1].tiempo;
     const x = t => e.izquierda + (t - inicio) / Math.max(1, final - inicio) * (e.derecha - e.izquierda);
     for (const [campo, color] of CURVAS) if (!serieActiva || serieActiva === campo) dibujarCurva(contexto, campo, color, x, e.y);
     const aparte = SERIES_APARTE[serieActiva];
@@ -102,7 +106,7 @@
 
   function calcularRango() {
     if (!serieActiva) return COMPLETO;
-    const valores = historial.map(v => v[serieActiva]);
+    const valores = visibles.map(v => v[serieActiva]);
     const consigna = consignaDe(serieActiva);
     if (consigna != null) valores.push(consigna);
     const aparte = SERIES_APARTE[serieActiva];
@@ -111,6 +115,7 @@
   }
 
   function pintarGrafica() {
+    visibles = PCT.escalaGrafica.recortarVentana(historial, ventanaS);
     rango = calcularRango();
     const canvas = $('sim-trend');
     const contexto = canvas.getContext('2d');
@@ -118,7 +123,7 @@
     contexto.clearRect(0, 0, canvas.width, canvas.height);
     dibujarRejilla(contexto, canvas.width, canvas.height);
     dibujarConsignas(contexto, canvas.width, canvas.height);
-    if (historial.length >= 1) dibujarCurvas(contexto, canvas.width, canvas.height);
+    if (visibles.length >= 1) dibujarCurvas(contexto, canvas.width, canvas.height);
     if (PCT.graficaActivaciones) PCT.graficaActivaciones.pintar();
   }
 
@@ -186,7 +191,28 @@
     crearLeyenda(contenedor, items, id => { serieActiva = id; pintarGrafica(); });
   }
 
+  // Botones de base de tiempos: valen para las dos gráficas.
+  function iniciarBaseDeTiempos() {
+    const contenedor = $('base-tiempos');
+    if (!contenedor) return;
+    const rotulo = document.createElement('span');
+    rotulo.textContent = 'Base de tiempos';
+    contenedor.appendChild(rotulo);
+    const botones = BASES_DE_TIEMPO.map(([texto, segundos]) => {
+      const boton = document.createElement('button');
+      boton.type = 'button';
+      boton.className = 'ley-boton';
+      boton.textContent = texto;
+      boton.addEventListener('click', () => { ventanaS = segundos; marcar(); pintarGrafica(); });
+      contenedor.appendChild(boton);
+      return [segundos, boton];
+    });
+    function marcar() { botones.forEach(([segundos, boton]) => boton.setAttribute('aria-pressed', String(segundos === ventanaS))); }
+    marcar();
+  }
+
   iniciarLeyenda();
+  iniciarBaseDeTiempos();
   window.addEventListener('resize', ajustarLienzo);
-  PCT.grafica = { muestrear, pintarGrafica, ajustarLienzo, reiniciarGrafica, colorCss, rotularTiempos, crearLeyenda, ventana: () => historial };
+  PCT.grafica = { muestrear, pintarGrafica, ajustarLienzo, reiniciarGrafica, colorCss, rotularTiempos, crearLeyenda, ventana: () => historial, visibles: () => visibles, baseDeTiempo: () => ventanaS };
 })();

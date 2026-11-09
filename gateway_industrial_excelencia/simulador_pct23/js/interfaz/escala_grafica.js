@@ -21,6 +21,14 @@
     return { minimo, maximo, marcas: marcasEntre(minimo, maximo, paso) };
   }
 
-  const api = { rangoLimpio };
+  // Muestras de los últimos `ventanaS` segundos (null = todas). Las muestras llevan `tiempo` en segundos de simulación.
+  function recortarVentana(muestras, ventanaS) {
+    if (ventanaS == null || !muestras.length) return muestras;
+    const desde = muestras[muestras.length - 1].tiempo - ventanaS;
+    const primera = muestras.findIndex(m => m.tiempo >= desde);
+    return primera < 0 ? muestras : muestras.slice(primera);
+  }
+
+  const api = { rangoLimpio, recortarVentana };
   if (typeof module !== 'undefined') module.exports = api; else PCT.escalaGrafica = api;
 })();

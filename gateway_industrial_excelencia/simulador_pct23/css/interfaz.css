@@ -338,3 +338,7 @@ svg path.invertida { transform-box: fill-box; transform-origin: center; transfor
 
 /* pulsación larga en táctil: sin menú de copiar ni selección de texto sobre el esquema y las tarjetas */
 .lienzo, .tarjeta { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+
+.base-tiempos { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 13px; color: var(--tenue); }
+.base-tiempos > span { margin-right: 6px; font-weight: 700; }
+.base-tiempos .ley-boton { min-height: 32px; padding: 0 12px; }

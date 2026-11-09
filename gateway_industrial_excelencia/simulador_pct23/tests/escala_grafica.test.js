@@ -1,7 +1,7 @@
 'use strict';
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
-const { rangoLimpio } = require('../js/interfaz/escala_grafica.js');
+const { rangoLimpio, recortarVentana } = require('../js/interfaz/escala_grafica.js');
 
 test('el rango abarca los valores con margen y se redondea a divisiones limpias', () => {
   const r = rangoLimpio([61.3, 63.8, 62.5]);
@@ -24,4 +24,12 @@ test('el tope limita el rango (potencia 0-100 %)', () => {
 
 test('sin valores no hay rango', () => {
   assert.equal(rangoLimpio([]), null);
+});
+
+test('la base de tiempos deja solo los últimos segundos', () => {
+  const muestras = Array.from({ length: 11 }, (_, i) => ({ tiempo: i * 10 }));   // 0..100 s
+  assert.deepEqual(recortarVentana(muestras, 30).map(m => m.tiempo), [70, 80, 90, 100]);
+  assert.equal(recortarVentana(muestras, null).length, 11);
+  assert.equal(recortarVentana(muestras, 1000).length, 11);
+  assert.deepEqual(recortarVentana([], 60), []);
 });

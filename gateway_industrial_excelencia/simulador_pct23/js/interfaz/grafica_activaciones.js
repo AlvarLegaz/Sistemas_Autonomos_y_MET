@@ -10,9 +10,10 @@
   ];
   const RANGO_PORCENTAJE = { minimo: 0, maximo: 100, marcas: [0, 50, 100] };
   const ALTO_PORCENTAJE = 74, ALTO_PISTA = 20, SEPARACION = 8;
-  const LIMITE_MUESTRAS = 140;
+  const LIMITE_MUESTRAS = 3600;
   const ALTO_SOLO = 208;
   const historial = [];
+  let visibles = [];   // la parte del historial que cae dentro de la base de tiempos elegida
   let seleccion = null;
 
   // Cada serie vale su porcentaje solo si el actuador está conectado; apagado vale 0.
@@ -50,10 +51,11 @@
     contexto.fillText(texto, x, y);
   }
 
-  function trazarEscalon(contexto, campo, x, y) {
-    historial.forEach((m, i) => {
-      if (i === 0) contexto.moveTo(x(m.tiempo), y(m[campo]));
-      else { contexto.lineTo(x(m.tiempo), y(historial[i - 1][campo])); contexto.lineTo(x(m.tiempo), y(m[campo])); }
+  // unir = true continúa el trazo actual (para cerrar un relleno); false empieza uno nuevo.
+  function trazarEscalon(contexto, campo, x, y, unir = false) {
+    visibles.forEach((m, i) => {
+      if (i === 0) contexto[unir ? 'lineTo' : 'moveTo'](x(m.tiempo), y(m[campo]));
+      else { contexto.lineTo(x(m.tiempo), y(visibles[i - 1][campo])); contexto.lineTo(x(m.tiempo), y(m[campo])); }
     });
   }
 
@@ -62,9 +64,9 @@
     trazarEscalon(contexto, serie.id, x, y);
     contexto.strokeStyle = serie.color; contexto.lineWidth = 2; contexto.stroke();
     if (!rellenar) return;
-    contexto.beginPath(); contexto.moveTo(x(historial[0].tiempo), base);
-    trazarEscalon(contexto, serie.id, x, y);
-    contexto.lineTo(x(historial[historial.length - 1].tiempo), base); contexto.closePath();
+    contexto.beginPath(); contexto.moveTo(x(visibles[0].tiempo), base);
+    trazarEscalon(contexto, serie.id, x, y, true);
+    contexto.lineTo(x(visibles[visibles.length - 1].tiempo), base); contexto.closePath();
     contexto.globalAlpha = 0.28; contexto.fillStyle = serie.color; contexto.fill(); contexto.globalAlpha = 1;
   }
 
@@ -89,10 +91,10 @@
     contexto.beginPath(); contexto.moveTo(g.izquierda, base + 2); contexto.lineTo(g.derecha, base + 2);
     contexto.strokeStyle = borde; contexto.lineWidth = 1; contexto.stroke();
     contexto.beginPath();
-    historial.forEach((m, i) => {
+    visibles.forEach((m, i) => {
       const nivel = m[id] ? alto : base;
       if (i === 0) contexto.moveTo(x(m.tiempo), nivel);
-      else { contexto.lineTo(x(m.tiempo), historial[i - 1][id] ? alto : base); contexto.lineTo(x(m.tiempo), nivel); }
+      else { contexto.lineTo(x(m.tiempo), visibles[i - 1][id] ? alto : base); contexto.lineTo(x(m.tiempo), nivel); }
     });
     contexto.strokeStyle = color; contexto.lineWidth = 2; contexto.stroke();
   }
@@ -104,8 +106,9 @@
     const utiles = PCT.grafica;
     contexto.clearRect(0, 0, canvas.width, canvas.height);
     if (!historial.length) return;
+    visibles = PCT.escalaGrafica.recortarVentana(historial, utiles.baseDeTiempo());
     const tenue = utiles.colorCss('--tenue', '#6b7380'), borde = utiles.colorCss('--borde', '#dde1e6');
-    const g = geometria(canvas.width), x = crearEjeX(g, historial);
+    const g = geometria(canvas.width), x = crearEjeX(g, visibles);
     contexto.font = '12px system-ui,sans-serif';
     if (seleccion) pintarSola(contexto, g, x, tenue, borde);
     else pintarTodas(contexto, g, x, tenue, borde);
@@ -114,7 +117,7 @@
   function pintarSola(contexto, g, x, tenue, borde) {
     const serie = SERIES_PORCENTAJE.find(s => s.id === seleccion);
     if (serie) {
-      const rango = PCT.escalaGrafica.rangoLimpio(historial.map(m => m[serie.id]), 5, { minimo: 0, maximo: 100 });
+      const rango = PCT.escalaGrafica.rangoLimpio(visibles.map(m => m[serie.id]), 5, { minimo: 0, maximo: 100 });
       pintarPorcentajes(contexto, g, x, tenue, borde, [serie], ALTO_SOLO, rango);
     } else {
       const color = PISTAS_DIGITALES.find(p => p[0] === seleccion)[1];
@@ -140,7 +143,7 @@
   }
 
   function rotularEje(contexto, g, abajo) {
-    PCT.grafica.rotularTiempos(contexto, { izquierda: g.izquierda, derecha: g.derecha, abajo }, historial[0].tiempo, historial[historial.length - 1].tiempo);
+    PCT.grafica.rotularTiempos(contexto, { izquierda: g.izquierda, derecha: g.derecha, abajo }, visibles[0].tiempo, visibles[visibles.length - 1].tiempo);
   }
 
   function iniciarLeyenda() {
