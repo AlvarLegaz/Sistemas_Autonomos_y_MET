@@ -43,7 +43,8 @@ El contexto de construcción es la carpeta `gateway_industrial_excelencia` (la i
 
 | Variable | Por defecto | Qué hace |
 | --- | --- | --- |
-| `AULA_PIN` | `12345678` | PIN del aula del profesor (mínimo 6 caracteres). **El valor por defecto es público:** mientras se use, el aula muestra una nota. Sirve para pruebas; cámbialo antes de dar acceso a una clase real, porque cualquiera que lo conozca puede autorizar alumnos. |
+| `AULA_PIN_RESTABLECER` | `0` | Con `1`, al arrancar se borra el PIN cambiado desde el aula y vuelve a valer `AULA_PIN` (para cuando se olvida). |
+| `AULA_PIN` | `12345678` | PIN del aula del profesor (mínimo 6 caracteres). Se puede cambiar desde el propio aula (sección «Cambiar el PIN del aula»); el PIN nuevo se guarda cifrado y manda sobre este valor. **El valor por defecto es público:** mientras se use, el aula muestra una nota. Sirve para pruebas; cámbialo antes de dar acceso a una clase real, porque cualquiera que lo conozca puede autorizar alumnos. |
 | `AULA_PUERTO_HTTP` / `AULA_PUERTO_HTTPS` | `80` / `447` | Puertos que publica nginx; los dos van por HTTPS. |
 | `AULA_MODULOS` | vacío | Módulos sugeridos al registrarse, separados por comas. El alumno puede escribir otro. |
 | `AULA_COOKIE_SEGURA` | `1` | La cookie de sesión solo viaja por HTTPS (con nginx delante déjalo en 1). |

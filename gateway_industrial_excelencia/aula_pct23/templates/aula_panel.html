@@ -7,7 +7,7 @@
 {% endblock %}
 {% block contenido %}
 {% if pin_por_defecto %}
-<p class="aviso" role="status">PIN por defecto en uso ({{ pin_defecto_valor }}): vale para pruebas. Antes de usarlo con una clase, cámbialo con <code>AULA_PIN</code> en el archivo <code>.env</code>, porque cualquiera que conozca el PIN puede autorizar alumnos.</p>
+<p class="aviso" role="status">PIN por defecto en uso ({{ pin_defecto_valor }}): vale para pruebas. Antes de usarlo con una clase <a href="#cambiar-pin">cámbialo aquí abajo</a>, porque cualquiera que conozca el PIN puede autorizar alumnos.</p>
 {% endif %}
 {% if clave_nueva %}
 <section class="clave-nueva" role="alert">
@@ -86,6 +86,17 @@
   {% if estado == 'pendiente' %}No hay alumnos pendientes. Cuando alguien se registre aparecerá aquí.{% else %}No hay cuentas con este filtro.{% endif %}
 </p>
 {% endif %}
+<section id="cambiar-pin" class="cambiar-pin">
+  <h2>Cambiar el PIN del aula</h2>
+  <form method="post" action="{{ url_for('aula_cambiar_pin') }}" autocomplete="off">
+    <input type="hidden" name="csrf" value="{{ csrf() }}">
+    <label>PIN actual <input type="password" name="pin_actual" required maxlength="100" autocomplete="off"></label>
+    <label>PIN nuevo (mínimo 6 caracteres) <input type="password" name="pin_nuevo" required minlength="6" maxlength="100" autocomplete="new-password"></label>
+    <label>Repite el PIN nuevo <input type="password" name="pin_repetido" required minlength="6" maxlength="100" autocomplete="new-password"></label>
+    <button class="primario" type="submit">Cambiar PIN</button>
+  </form>
+  <p class="sec-aviso">El PIN nuevo se guarda cifrado en los datos del aula y sustituye al del archivo <code>.env</code>. Si lo olvidas, arranca el servidor con <code>AULA_PIN_RESTABLECER=1</code> y volverá a valer el del <code>.env</code>.</p>
+</section>
 <p class="pie">Sesión de profesor activa hasta las <span id="hasta" data-hasta="{{ hasta|int }}"></span>.</p>
 <script>
   (function () {

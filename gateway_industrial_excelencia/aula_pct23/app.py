@@ -49,6 +49,8 @@ def config_desde_entorno():
         "simulador": Path(env.get("AULA_SIMULADOR", Path(__file__).resolve().parent.parent / "simulador_didactico")),
         "modulos": [m.strip() for m in env.get("AULA_MODULOS", "").split(",") if m.strip()],
         "cookie_segura": env.get("AULA_COOKIE_SEGURA", "0") == "1",
+        # 1 = al arrancar se borra el PIN cambiado desde el aula y vuelve a valer AULA_PIN (por si se olvida)
+        "pin_restablecer": env.get("AULA_PIN_RESTABLECER", "0") == "1",
         # 1 solo si hay un proxy inverso (nginx) delante y es lo único que alcanza a la app: se fía de X-Forwarded-*
         "proxy": env.get("AULA_PROXY", "0") == "1",
         "sesion_profesor_min": int(env.get("AULA_SESION_PROFESOR_MIN", "120")),
@@ -119,6 +121,10 @@ CREATE TABLE IF NOT EXISTS usuarios (
     resuelto      TEXT
 );
 CREATE INDEX IF NOT EXISTS usuarios_estado ON usuarios(estado);
+CREATE TABLE IF NOT EXISTS ajustes (
+    clave TEXT PRIMARY KEY,
+    valor TEXT NOT NULL
+);
 """
 
 
@@ -199,6 +205,8 @@ def crear_app(config=None):
     ruta_bd = cfg["datos"] / "aula.sqlite3"
     with contextlib.closing(conectar(ruta_bd)) as con:
         con.executescript(ESQUEMA)
+        if cfg.get("pin_restablecer"):
+            con.execute("DELETE FROM ajustes WHERE clave='pin_hash'")
         con.commit()
     limitador = Limitador(cfg["max_intentos"], cfg["bloqueo_s"], cfg.get("reloj", time.monotonic))
     app.limitador = limitador
@@ -208,6 +216,17 @@ def crear_app(config=None):
         if "bd" not in g:
             g.bd = conectar(ruta_bd)
         return g.bd
+
+    def pin_guardado():
+        """PIN cambiado desde el aula (hash en la base de datos). Si existe, manda sobre AULA_PIN."""
+        fila = bd().execute("SELECT valor FROM ajustes WHERE clave='pin_hash'").fetchone()
+        return fila["valor"] if fila else None
+
+    def pin_correcto(pin):
+        guardado = pin_guardado()
+        if guardado:
+            return check_password_hash(guardado, pin)
+        return hmac.compare_digest(pin.encode(), cfg["pin"].encode())
 
     @app.teardown_appcontext
     def cerrar_bd(_):
@@ -236,7 +255,7 @@ def crear_app(config=None):
     @app.context_processor
     def contexto():
         return {"csrf": token_csrf, "modulos": cfg["modulos"], "alumno_sesion": alumno(), "profesor": profesor(),
-                "pin_por_defecto": cfg["pin"] == PIN_POR_DEFECTO, "pin_defecto_valor": PIN_POR_DEFECTO}
+                "pin_por_defecto": cfg["pin"] == PIN_POR_DEFECTO and pin_guardado() is None, "pin_defecto_valor": PIN_POR_DEFECTO}
 
     @app.before_request
     def comprobar_csrf():
@@ -426,7 +445,7 @@ def crear_app(config=None):
             flash(f"Demasiados intentos con el PIN. Espera {max(1, espera // 60)} min.", "error")
             return render_template("aula_pin.html"), 429
         pin = request.form.get("pin", "")[:100]
-        if not hmac.compare_digest(pin.encode(), cfg["pin"].encode()):
+        if not pin_correcto(pin):
             limitador.fallo(clave)
             flash("PIN incorrecto.", "error")
             return render_template("aula_pin.html"), 401
@@ -434,6 +453,34 @@ def crear_app(config=None):
         session["prof_hasta"] = time.time() + cfg["sesion_profesor_min"] * 60
         token_csrf()
         return redirect(url_for("aula"))
+
+    @app.post("/aula/pin")
+    def aula_cambiar_pin():
+        if not profesor():
+            return redirect(url_for("aula"))
+        clave = f"pin-ip:{ip()}"
+        espera = limitador.restante(clave)
+        if espera:
+            flash(f"Demasiados intentos con el PIN. Espera {max(1, espera // 60)} min.", "error")
+            return redirect(url_for("aula") + "#cambiar-pin")
+        actual = request.form.get("pin_actual", "")[:100]
+        nuevo = request.form.get("pin_nuevo", "")[:100]
+        repetido = request.form.get("pin_repetido", "")[:100]
+        if not pin_correcto(actual):
+            limitador.fallo(clave)
+            flash("El PIN actual no es correcto.", "error")
+        elif nuevo != repetido:
+            flash("El PIN nuevo y su repetición no coinciden.", "error")
+        elif len(nuevo) < PIN_MINIMO or nuevo.strip().lower() in PIN_PROHIBIDOS or nuevo == PIN_POR_DEFECTO:
+            flash(f"El PIN nuevo debe tener al menos {PIN_MINIMO} caracteres y no puede ser el de fábrica.", "error")
+        else:
+            limitador.exito(clave)
+            con = bd()
+            con.execute("INSERT INTO ajustes (clave, valor) VALUES ('pin_hash', ?) "
+                        "ON CONFLICT(clave) DO UPDATE SET valor=excluded.valor", (generate_password_hash(nuevo),))
+            con.commit()
+            flash("PIN del aula cambiado. Úsalo la próxima vez que entres.", "ok")
+        return redirect(url_for("aula") + "#cambiar-pin")
 
     @app.post("/aula/salir")
     def aula_salir():

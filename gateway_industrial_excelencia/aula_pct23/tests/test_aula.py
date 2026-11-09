@@ -244,6 +244,51 @@ class AulaDelProfesor(Base):
         prof = self.profesor()
         self.assertNotIn("PIN por defecto", prof.get("/aula").get_data(as_text=True))
 
+    # ----- cambiar el PIN desde el aula -----
+    def cambiar_pin(self, prof, actual=PIN, nuevo="Clase-2026", repetido=None):
+        return self.post(prof, "/aula/pin", {"pin_actual": actual, "pin_nuevo": nuevo,
+                                             "pin_repetido": nuevo if repetido is None else repetido}, "/aula")
+
+    def test_cambiar_el_pin_desde_el_aula(self):
+        prof = self.profesor()
+        self.assertEqual(self.cambiar_pin(prof).status_code, 302)
+        otro = self.app.test_client()                     # el PIN viejo ya no vale; el nuevo sí
+        self.assertEqual(self.post(otro, "/aula/entrar", {"pin": PIN}, "/aula").status_code, 401)
+        self.assertEqual(self.post(otro, "/aula/entrar", {"pin": "Clase-2026"}, "/aula").status_code, 302)
+        guardado = self.consulta("SELECT valor FROM ajustes WHERE clave='pin_hash'")[0]["valor"]
+        self.assertNotIn("Clase-2026", guardado)          # solo se guarda el hash
+
+    def test_cambiar_el_pin_exige_el_actual_y_un_pin_valido(self):
+        prof = self.profesor()
+        casos = [dict(actual="000000"), dict(nuevo="corto"), dict(nuevo="12345678"), dict(nuevo="Clase-2026", repetido="otra-cosa")]
+        for caso in casos:
+            self.cambiar_pin(prof, **caso)
+            self.assertEqual(self.consulta("SELECT COUNT(*) n FROM ajustes")[0]["n"], 0, caso)
+        self.assertEqual(self.post(self.app.test_client(), "/aula/entrar", {"pin": PIN}, "/aula").status_code, 302)
+
+    def test_cambiar_el_pin_requiere_ser_profesor(self):
+        r = self.post(self.c, "/aula/pin", {"pin_actual": PIN, "pin_nuevo": "Clase-2026", "pin_repetido": "Clase-2026"}, "/entrar")
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(self.consulta("SELECT COUNT(*) n FROM ajustes")[0]["n"], 0)
+
+    def test_el_pin_cambiado_sobrevive_al_reinicio_y_se_puede_restablecer(self):
+        self.cambiar_pin(self.profesor())
+        for restablecer, pin_valido in ((False, "Clase-2026"), (True, PIN)):
+            app = aula.crear_app({"pin": PIN, "datos": self.tmp.name, "simulador": SIMULADOR, "secret_key": "clave-de-pruebas",
+                                  "pin_restablecer": restablecer})
+            c = app.test_client()
+            tok = re.search(r'name="csrf" value="([^"]+)"', c.get("/aula").get_data(as_text=True)).group(1)
+            self.assertEqual(c.post("/aula/entrar", data={"pin": pin_valido, "csrf": tok}).status_code, 302, restablecer)
+
+    def test_con_el_pin_de_fabrica_cambiado_ya_no_sale_el_aviso(self):
+        app = aula.crear_app({"datos": self.tmp.name, "simulador": SIMULADOR, "secret_key": "x", "pin": "12345678"})
+        p = app.test_client()
+        tok = lambda u: re.search(r'name="csrf" value="([^"]+)"', p.get(u).get_data(as_text=True)).group(1)
+        p.post("/aula/entrar", data={"pin": "12345678", "csrf": tok("/aula")})
+        self.assertIn("PIN por defecto en uso", p.get("/aula").get_data(as_text=True))
+        p.post("/aula/pin", data={"pin_actual": "12345678", "pin_nuevo": "Clase-2026", "pin_repetido": "Clase-2026", "csrf": tok("/aula")})
+        self.assertNotIn("PIN por defecto en uso", p.get("/aula").get_data(as_text=True))
+
     def test_autorizar_rechazar_y_listados(self):
         self.registrar()
         self.registrar(correo="otro@ejemplo.es", nombre="Marcos", modulo="Control")
