@@ -258,10 +258,10 @@
       'La configuración se bloquea mientras la secuencia está en curso.',
     ])],
     ['Botones', lista([
-      '<b>Iniciar secuencia</b>, <b>Pausar / Reanudar</b> (congela el tiempo), <b>Parada ordenada</b> y <b>Emergencia</b> están siempre en la ' +
-          'barra. En <b>Más</b>: <b>Terminar producción</b> (pasa al lavado cuando tú decidas), <b>Saltar fase</b> y <b>Reiniciar planta</b>.',
-      '<b>Parada ordenada</b>: va a la fase de parada y apaga con orden. <b>Emergencia</b>: apaga todo al instante.',
-      '<b>Reconocer alarma</b>: tras una alarma pasa a parada ordenada (tras emergencia vuelve a reposo). <b>Reiniciar planta</b>: devuelve todo ' +
+      '<b>Iniciar</b>, <b>Pausar / Reanudar</b> (congela el tiempo), <b>Reiniciar</b> y <b>Parar todo</b> están siempre en la ' +
+          'barra. En <b>Más</b>: <b>Parada ordenada</b>, <b>Terminar producción</b> (pasa al lavado cuando tú decidas) y <b>Saltar fase</b>.',
+      '<b>Parada ordenada</b>: va a la fase de parada y apaga con orden. <b>Parar todo</b>: apaga todo al instante.',
+      '<b>Reconocer alarma</b>: tras una alarma pasa a parada ordenada (tras parar todo vuelve a reposo). <b>Reiniciar</b>: devuelve todo ' +
           'al estado inicial.',
     ])],
     ['Alarmas con acción correctiva', lista([
@@ -293,8 +293,8 @@
           'lavado y parada.',
     ])],
     ['Botones', lista([
-      '<b>Iniciar secuencia</b>, <b>Pausar / Reanudar</b>, <b>Parada ordenada</b> y <b>Emergencia</b> (apaga todo al instante). Tras una alarma, ' +
-          '<b>Reconocer alarma</b>. En <b>Más</b>: <b>Terminar producción</b> y <b>Reiniciar planta</b>.',
+      '<b>Iniciar</b>, <b>Pausar / Reanudar</b>, <b>Reiniciar</b> y <b>Parar todo</b> (apaga todo al instante). Tras una alarma, ' +
+          '<b>Reconocer alarma</b>. En <b>Más</b>: <b>Parada ordenada</b> y <b>Terminar producción</b>.',
       '<b>Velocidad</b>: empieza en 1× (tiempo real). Súbela a 5× o 20× para ver la secuencia completa en pocos minutos.',
     ])],
     ['Límites', '<p>El rango de temperatura llega hasta donde el modelo es capaz (unos 65 °C). La temperatura y los tiempos son los de una ' +

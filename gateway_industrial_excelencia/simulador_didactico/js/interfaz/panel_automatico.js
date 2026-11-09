@@ -228,7 +228,7 @@
   }
 
   function textoMotivo(visual) {
-    if (visual === 'reposo') return 'Revisa los ajustes y pulsa Iniciar secuencia.';
+    if (visual === 'reposo') return 'Revisa los ajustes y pulsa Iniciar.';
     if (visual === 'fin') return 'Secuencia terminada. Cambia los ajustes y repite si quieres.';
     return secuencia.motivo ? `Motivo del cambio de fase: ${secuencia.motivo}` : '';
   }

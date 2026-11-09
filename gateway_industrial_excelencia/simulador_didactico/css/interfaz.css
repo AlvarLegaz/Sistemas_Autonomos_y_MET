@@ -44,7 +44,8 @@ a { color: var(--acento-texto); }
 .acciones button:hover:not(:disabled) { border-color: var(--acento); }
 .acciones button:disabled { display: none; }
 #b-iniciar { background: var(--acento); border-color: var(--acento); color: var(--sobre-acento); min-width: 150px; }
-#b-emergencia { background: var(--error); border-color: var(--error); color: #fff; margin-left: 10px; }
+#b-emergencia { border-color: var(--error); color: var(--error); }
+#b-emergencia:hover:not(:disabled) { background: color-mix(in srgb, var(--error) 10%, var(--panel)); border-color: var(--error); }
 
 /* pista de fases: la pieza que se recuerda */
 .pista { min-width: 0; }

@@ -21,10 +21,10 @@
 
 <div class="barra" role="region" aria-label="Operación de la planta">
   <div class="acciones">
-    <button id="b-iniciar" type="button">Iniciar secuencia</button>
+    <button id="b-iniciar" type="button">Iniciar</button>
     <button id="b-pausa" type="button" disabled>Pausar</button>
-    <button id="b-parar" type="button" disabled>Parada ordenada</button>
-    <button id="b-emergencia" type="button" disabled>Emergencia</button>
+    <button id="b-reset" type="button">Reiniciar</button>
+    <button id="b-emergencia" type="button" disabled>Parar todo</button>
   </div>
   <div class="pista">
     <ol id="fases" aria-label="Fases de la secuencia">
@@ -40,7 +40,7 @@
     </div>
     <select id="sim-velocidad" class="velocidad-select" aria-label="Velocidad de simulación"><option value="1" selected>1×</option><option value="5">5×</option><option value="20">20×</option></select>
     <details class="mas"><summary>Más</summary>
-      <div class="mas-menu"><button id="b-terminar" type="button" disabled>Terminar producción</button><button id="b-saltar" type="button" disabled>Saltar fase</button><button id="b-reset" type="button">Reiniciar planta</button></div>
+      <div class="mas-menu"><button id="b-parar" type="button" disabled>Parada ordenada</button><button id="b-terminar" type="button" disabled>Terminar producción</button><button id="b-saltar" type="button" disabled>Saltar fase</button></div>
     </details>
   </div>
 </div>
