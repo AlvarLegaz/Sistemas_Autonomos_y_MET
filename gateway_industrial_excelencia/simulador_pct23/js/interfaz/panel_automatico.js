@@ -391,7 +391,7 @@
 
   function pintarPanel() {
     const observaciones = planta.observaciones(estado);
-    esquemaScada.actualizar(estado);
+    esquemaScada.actualizar(estado, ejecutando);
     const visual = estadoVisual();
     document.body.dataset.estado = visual;
     pintarPistaFases(visual);

@@ -14,18 +14,18 @@
     ['path', { class: 'tubo', 'data-bomba': 'N1', d: 'M850 250 H736 M704 250 H546 V322 H527 V330 L505 344 H481 L459 330 V322 H444 H420 H401 V330 L379 344 H355 L333 330 V322 H318 H260 V110 H330' }],
     ['path', { class: 'tubo', 'data-bomba': 'N1', d: 'M330 110 C310 110 310 80 330 80 H400 C420 80 420 110 400 110 H440 V80 H452' }],
     ['path', { class: 'tubo', 'data-ruta': 'normal', d: 'M468 80 H480 V296 H432 V346 H444 H459 V351 L481 365 H505 L527 351 V346 H546 H554 V322 H570 H585 V330 L607 344 H631 L653 330 V322 H672 V400 H970' }],
-    ['path', { class: 'tubo frio', 'data-solenoide': 'SOL5', d: 'M815 23 V18 H915' }],
-    ['path', { class: 'tubo frio', 'data-solenoide': 'SOL4', d: 'M915 23 V18' }],
-    ['path', { class: 'tubo frio', 'data-circuito': 'colector-frio', d: 'M915 18 H985 V420 H610 V440' }],
-    ['path', { class: 'tubo frio', 'data-circuito': 'colector-frio', d: 'M610 440 H652 M680 440 H706 M742 440 H960' }],
-    ['path', { class: 'tubo frio', 'data-circuito': 'frio', d: 'M562 440 H610' }],
+    ['path', { class: 'tubo frio', 'data-sentido': 'inverso', 'data-solenoide': 'SOL5', d: 'M815 23 V18 H915' }],
+    ['path', { class: 'tubo frio', 'data-sentido': 'inverso', 'data-solenoide': 'SOL4', d: 'M915 23 V18' }],
+    ['path', { class: 'tubo frio', 'data-sentido': 'inverso', 'data-circuito': 'colector-superior', d: 'M915 18 H985 V420 H610 V440' }],
+    ['path', { class: 'tubo frio', 'data-sentido': 'inverso', 'data-circuito': 'colector-frio', d: 'M610 440 H652 M680 440 H706 M742 440 H960' }],
+    ['path', { class: 'tubo frio', 'data-sentido': 'inverso', 'data-circuito': 'frio', d: 'M562 440 H610' }],
     ['path', { class: 'tubo frio', 'data-circuito': 'frio', d: 'M535 440 V389 H560 V346 H570 H585 V351 L607 365 H631 L653 351 V346 H672 H684 V285 H556 V242' }],
     ['g', { 'aria-label': 'Cruces de tuberías independientes' },
       ['rect', { x: 428, y: 316, width: 8, height: 12, fill: 'var(--panel)' }],
       ['path', { class: 'tubo', 'data-ruta': 'normal', d: 'M432 314 V330' }],
       ['rect', { x: 668, y: 340, width: 8, height: 12, fill: 'var(--panel)' }],
       ['path', { class: 'tubo frio', 'data-circuito': 'frio', d: 'M662 346 H684' }]],
-    ['path', { class: 'tubo', 'data-bomba': 'N1', d: 'M865 262 V215 M800 210 V240' }],
+    ['path', { class: 'tubo', 'data-bomba': 'N1', 'data-sin-flujo': '1', d: 'M865 262 V215 M800 210 V240' }],
     ['path', { class: 'tubo', 'data-tanque': 'B', d: 'M815 210 V250 H850' }],
     ['path', { class: 'tubo', 'data-tanque': 'A', d: 'M915 210 V250 H880' }],
     ['path', { class: 'tubo', 'data-ruta': 'desvio', d: 'M460 64 V30' }],
@@ -193,18 +193,21 @@
     ];
   }
 
+  const velocidadN1 = e => e.consignas.velocidadN1Pct;
+
   function crearTuberias(canvas) {
     return [
-      new Tuberia(canvas, '[data-bomba="N1"]', e => e.salidas.N1),
-      new Tuberia(canvas, '[data-bomba="N2"]', e => e.salidas.N2),
-      new Tuberia(canvas, '[data-ruta="normal"]', e => e.salidas.N1 && !e.salidas.SOL1),
-      new Tuberia(canvas, '[data-ruta="desvio"]', e => e.salidas.N1 && e.salidas.SOL1),
-      new Tuberia(canvas, '[data-tanque="A"]', e => !e.salidas.SOL2),
-      new Tuberia(canvas, '[data-tanque="B"]', e => e.salidas.SOL2),
+      new Tuberia(canvas, '[data-bomba="N1"]', e => e.salidas.N1, velocidadN1),
+      new Tuberia(canvas, '[data-bomba="N2"]', e => e.salidas.N2, e => e.consignas.velocidadN2Pct),
+      new Tuberia(canvas, '[data-ruta="normal"]', e => e.salidas.N1 && !e.salidas.SOL1, velocidadN1),
+      new Tuberia(canvas, '[data-ruta="desvio"]', e => e.salidas.N1 && e.salidas.SOL1, velocidadN1),
+      new Tuberia(canvas, '[data-tanque="A"]', e => !e.salidas.SOL2, velocidadN1),
+      new Tuberia(canvas, '[data-tanque="B"]', e => e.salidas.SOL2, velocidadN1),
       new Tuberia(canvas, '[data-solenoide="SOL4"]', e => e.salidas.SOL4),
       new Tuberia(canvas, '[data-solenoide="SOL5"]', e => e.salidas.SOL5),
       new Tuberia(canvas, '[data-circuito="frio"]', e => e.salidas.SOL3),
       new Tuberia(canvas, '[data-circuito="colector-frio"]', e => e.salidas.SOL3 || e.salidas.SOL4 || e.salidas.SOL5),
+      new Tuberia(canvas, '[data-circuito="colector-superior"]', e => e.salidas.SOL4 || e.salidas.SOL5),
     ];
   }
 

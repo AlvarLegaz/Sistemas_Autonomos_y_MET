@@ -16,7 +16,9 @@
       this.objetos.push(...lista);
     }
 
-    actualizar(estado) {
+    // enMarcha: si la simulación avanza; en pausa, el flujo animado de las tuberías se congela.
+    actualizar(estado, enMarcha = estado.ejecutando) {
+      this.canvas.svg.classList.toggle('en-pausa', !enMarcha);
       const lecturas = lecturasDeEstado(estado);
       this.objetos.forEach(objeto => objeto.actualizar(estado, lecturas));
     }

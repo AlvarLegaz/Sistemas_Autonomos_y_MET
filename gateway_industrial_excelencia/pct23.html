@@ -318,6 +318,14 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
 .cab .sim { font-size: 24px; padding-left: 14px; border-left: 2px solid var(--borde); color: var(--marca-gris); }
 .copy { margin: 24px 16px 16px; font-size: 12px; color: var(--tenue, #56636F); text-align: center; }
 
+/* Flujo animado en las tuberías activas: puntos que avanzan en el sentido del flujo */
+.flujo { display: none; fill: none; stroke: #fff; stroke-opacity: .9; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 0.1 17; pointer-events: none; animation: flujo 1s linear infinite; }
+.flujo.activo { display: inline; }
+.flujo.inverso { animation-direction: reverse; }
+.en-pausa .flujo { animation-play-state: paused; }
+@keyframes flujo { to { stroke-dashoffset: -17.1; } }
+@media (prefers-reduced-motion: reduce) { .flujo { animation: none; } }
+
 /* Grabación de datos: botón en la barra superior, junto a «Parar todo» (hereda el estilo de .acciones button) */
 .btn-grabar { color: var(--texto); font-weight: 600; cursor: pointer; }
 .btn-grabar.grabando { border-color: #d33 !important; color: #d33; }
@@ -371,10 +379,10 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
 
     <!-- Misma geometría del colector; se divide en tres paths para iluminar
          las ramas de SOL4 y SOL5 independientemente y el tramo común. -->
-    <path class="tubo frio" data-solenoide="SOL5" d="M815 23 V18 H915"/>
-    <path class="tubo frio" data-solenoide="SOL4" d="M915 23 V18"/>
-    <path class="tubo frio" data-circuito="colector-frio" d="M915 18 H985 V420 H610 V440"/>
-    <path class="tubo frio" data-circuito="frio" d="M562 440 H652 M680 440 H706 M742 440 H960"/>
+    <path class="tubo frio" data-sentido="inverso" data-solenoide="SOL5" d="M815 23 V18 H915"/>
+    <path class="tubo frio" data-sentido="inverso" data-solenoide="SOL4" d="M915 23 V18"/>
+    <path class="tubo frio" data-sentido="inverso" data-circuito="colector-frio" d="M915 18 H985 V420 H610 V440"/>
+    <path class="tubo frio" data-sentido="inverso" data-circuito="suministro-frio" d="M562 440 H652 M680 440 H706 M742 440 H960"/>
 
     <!-- Agua de enfriamiento: tramo izquierdo de SOL3, paso inferior del
          intercambiador de enfriamiento y ascenso independiente a TO DRAIN. -->
@@ -389,7 +397,7 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
       <rect x="668" y="340" width="8" height="12" fill="var(--panel)"/>
       <path class="tubo frio" data-circuito="frio" d="M662 346 H684"/>
     </g>
-    <path class="tubo" data-bomba="N1" d="M865 262 V215 M800 210 V240"/>
+    <path class="tubo" data-bomba="N1" data-sin-flujo="1" d="M865 262 V215 M800 210 V240"/>
     <!-- SOL2 reparte entre los dos depósitos: en reposo (sin activar) -> tubería del depósito A; activa -> la del depósito B -->
     <path class="tubo" data-sol2="B" d="M815 210 V250 H850"/>
     <path class="tubo" data-sol2="A" d="M915 210 V250 H880"/>
@@ -755,6 +763,7 @@ function pintar(s) {
   chip('chip-io', !d ? '' : d.io_ok ? 'ok' : 'error', !d ? 'E/S: —' : d.io_ok ? 'E/S: correcta' : 'E/S: error de bus');
   document.querySelectorAll('.accion').forEach(g => g.classList.toggle('bloqueado', !s.broker));
   avisoPlanta(s, d);
+  document.querySelector('.lienzo svg').classList.toggle('en-pausa', !s.gateway || !d || !d.running);   // sin datos o gateway parado: el flujo se congela
   if (!d) return;
   if (s.gateway) registro.muestrear(d);
 
@@ -784,9 +793,13 @@ function pintar(s) {
   document.querySelectorAll('[data-sol2]').forEach(t => {
     t.classList.toggle('activo', (t.dataset.sol2 === 'A') === !sol2);
   });
-  document.querySelectorAll('[data-circuito="colector-frio"]').forEach(t => {
+  document.querySelectorAll('[data-circuito="suministro-frio"]').forEach(t => {
     t.classList.toggle('activo', ['SOL3', 'SOL4', 'SOL5'].some(id => !!d[MAPA.salidas[id]]));
   });
+  document.querySelectorAll('[data-circuito="colector-frio"]').forEach(t => {
+    t.classList.toggle('activo', ['SOL4', 'SOL5'].some(id => !!d[MAPA.salidas[id]]));
+  });
+  velocidadDelFlujo();
   // El gateway devuelve PWMOut1/2 y AnalogOut1: se sincronizan los deslizadores (salvo el que se esta moviendo).
   for (const [id, c] of Object.entries(MAPA.consignas)) {
     if (c.canal in d && document.activeElement !== $(`r-${id}`)) {
@@ -967,6 +980,33 @@ const registro = (() => {
   pintarBoton();
   return {muestrear};
 })();
+
+// ---------------------------------------------------------------------------
+// Flujo animado: una capa de puntos sobre cada tubería, que sigue a su clase "activo".
+// Los puntos avanzan en el sentido en que se dibujó el tubo (al revés si lleva data-sentido="inverso").
+(() => {
+  const ESPACIO_SVG = 'http://www.w3.org/2000/svg';
+  const observador = new MutationObserver(cambios => cambios.forEach(c => {
+    c.target._flujo.classList.toggle('activo', c.target.classList.contains('activo'));
+  }));
+  document.querySelectorAll('path.tubo[d]').forEach(tubo => {
+    if (tubo.hasAttribute('data-sin-flujo')) return;
+    const flujo = document.createElementNS(ESPACIO_SVG, 'path');
+    flujo.setAttribute('d', tubo.getAttribute('d'));
+    flujo.setAttribute('class', tubo.dataset.sentido === 'inverso' ? 'flujo inverso' : 'flujo');
+    tubo.after(flujo);
+    tubo._flujo = flujo;
+    flujo.classList.toggle('activo', tubo.classList.contains('activo'));
+    observador.observe(tubo, {attributes: true, attributeFilter: ['class']});
+  });
+})();
+// Más velocidad de bomba, puntos más rápidos (de 2 s por ciclo al 10 % a 0,5 s al 100 %).
+function velocidadDelFlujo() {
+  const segundos = pct => `${(2.2 - 0.017 * Math.min(100, Math.max(10, pct))).toFixed(2)}s`;
+  const ajustar = (selector, pct) => document.querySelectorAll(selector).forEach(t => { if (t._flujo) t._flujo.style.animationDuration = segundos(pct); });
+  ajustar('.tubo[data-bomba="N1"], .tubo[data-ruta], .tubo[data-sol2]', consigna.N1V);
+  ajustar('.tubo[data-bomba="N2"]', consigna.N2V);
+}
 
 const es = new EventSource('/api/eventos');
 es.onmessage = e => { servidorCaido = false; pintar(JSON.parse(e.data)); };
