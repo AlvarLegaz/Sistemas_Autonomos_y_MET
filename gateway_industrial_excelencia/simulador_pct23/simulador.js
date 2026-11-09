@@ -75,6 +75,7 @@ todos('[data-tanque]').forEach(x=>x.classList.toggle('activo',(x.dataset.tanque=
       const alto=maxAltura*volumen/modelo.PARAMS.capacidadMl;
       $(`nivel-${id}`).setAttribute('y',String(208-alto));
       $(`nivel-${id}`).setAttribute('height',String(alto));
+      $(`v-V${id}`).textContent=`${nf.format(volumen)} ml`;   // cantidad sobre el depósito
     }
     $('c-TERM').classList.toggle('alarma',o.TERM);
     $('c-HL').classList.toggle('alarma',o.HL);

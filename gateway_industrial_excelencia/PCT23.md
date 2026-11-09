@@ -89,3 +89,9 @@ La asignación de canales del sinóptico está en la tabla `MAPA`, al principio 
 3. Probar en la placa real el PWM de las bombas (200 ms) y las ráfagas de la resistencia; `test_pi_emulada.py` solo los comprueba con un bus I2C emulado.
 4. Decidir dónde dibujar T5 (no aparece en el esquema de la placa de la PCT23).
 5. Confirmar D5 como nivel del tanque calefactor.
+
+## Notas
+
+- **Depósito (cilíndrico):** diámetro 155 mm y altura 285 mm. Datos del usuario; no se ha anotado a cuál de los depósitos (A, B o heat unit) se refieren. Derivado: sección 18 869 mm², es decir unos 18,9 ml por cada mm de altura; volumen total de unos 5 378 ml (5,4 l), y unos 4 717 ml a 250 mm, que es el fondo de escala del sensor de nivel L1.
+- **Calibración de F1 (prueba del 9-11-2026):** N1 al 100 % vaciando el depósito desde 101 mm (≈ 1 906 ml). F1 midió caudal de t = 33 s a t = 174 s (141 s; los 30 s previos eran de cebado sin caudal). La integral de F1 con la escala actual (0-1 500 ml/min = 0-3,3 V) da 1 894 ml: factor 1,006, así que **la escala se da por correcta y no se cambia**. Caudal en meseta con la bomba al 100 %: unos 820 ml/min. Precisión limitada por la lectura visual de los 101 mm (1 mm ≈ 19 ml ≈ 1 %).
+- **Nivel L1 sin resolver:** en esa misma prueba `AnalogIn5` marcó 0 mm con el depósito a 101 mm y solo osciló entre 0 y 11 mm, sin relación con el vaciado; por tanto esa entrada no mide el nivel. Falta identificar la entrada analógica correcta.

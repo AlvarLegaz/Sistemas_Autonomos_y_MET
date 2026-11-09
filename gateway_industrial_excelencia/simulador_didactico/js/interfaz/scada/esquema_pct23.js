@@ -117,6 +117,8 @@
     ['rect', { class: 'liquido', id: 'nivel-A', x: 882, y: 150, width: 66, height: 58 }],
     ['text', { x: 815, y: 125, class: 'etiqueta' }, 'B'],
     ['text', { x: 915, y: 125, class: 'etiqueta' }, 'A'],
+    ['text', { x: 815, y: 68, class: 'lectura', id: 'v-VB', style: 'font-weight:700;font-size:10.5px' }, '—'],
+    ['text', { x: 915, y: 68, class: 'lectura', id: 'v-VA', style: 'font-weight:700;font-size:10.5px' }, '—'],
     ['g', { class: 'accion', id: 'g-SOL5', 'data-salida': 'SOL5' },
       ['path', { class: 'valvula', d: 'M803 36 L815 48 L827 36 Z M803 60 L815 48 L827 60 Z' }],
       ['text', { x: 845, y: 52, class: 'etiqueta' }, 'SOL5']],
@@ -186,6 +188,8 @@
       new Etiqueta(canvas, 'v-L1', (e, l) => `${formatearEntero(l.L1)} mm`),
       new Etiqueta(canvas, 'v-QD', e => `${formatearEntero(e.desviadoMl)} ml`),
       new Etiqueta(canvas, 'v-QF', e => `${formatearEntero(e.finalMl)} ml`),
+      new Etiqueta(canvas, 'v-VA', e => `${formatearEntero(e.depositoAMl)} ml`),
+      new Etiqueta(canvas, 'v-VB', e => `${formatearEntero(e.depositoBMl)} ml`),
     ];
   }
 
