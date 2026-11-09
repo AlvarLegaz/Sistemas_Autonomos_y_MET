@@ -203,16 +203,36 @@
     }
   }
 
+  function fraccionTermometro(temperatura) {
+    return PCT.matematicas.limitar((temperatura - 20) / 80, 0, 1) * 100;   // de 20 a 100 °C
+  }
+
+  function pintarTermometro(id, valor, pie) {
+    $(`k-${id}`).innerHTML = `${formatearDecimal(valor)}<small>°C</small>`;
+    $(`r-${id}`).style.width = `${fraccionTermometro(valor)}%`;
+    if (pie != null) $(`p-${id}`).textContent = pie;
+  }
+
+  function refrescarLecturas(lecturas) {
+    pintarTermometro('t1', lecturas.T1);
+    pintarTermometro('t2', lecturas.T2, `Calefactor ${estado.salidas.RES ? `encendido al ${formatearDecimal(estado.consignas.potenciaPct)} %` : 'apagado'}.`);
+    pintarTermometro('t3', lecturas.T3);
+    $('k-final').innerHTML = `${formatearEntero(estado.finalMl)} <small>ml</small>`;
+    ponerTexto('k-f1', `${formatearEntero(lecturas.F1)} ml/min`);
+    ponerTexto('k-desv', `${formatearEntero(estado.desviadoMl)} ml`);
+    ponerTexto('k-sol1', estado.salidas.SOL1 ? 'Desvío activo' : 'Salida normal');
+    ponerTexto('k-desague', `${formatearDecimal(estado.desagueMl / 1000)} L`);
+    for (const [sufijo, ml] of [['a', estado.depositoAMl], ['b', estado.depositoBMl]]) {
+      const porcentaje = ml / CAPACIDAD_ML * 100;
+      ponerTexto(`k-t${sufijo}`, `${formatearEntero(ml)} ml (${Math.round(porcentaje)} %)`);
+      $(`r-t${sufijo}`).style.width = `${porcentaje}%`;
+    }
+  }
+
   function refrescarDatos() {
     const lecturas = lecturasDeEstado(estado);
     ponerTexto('sim-time', formatearTiempo(estado.tiempo));
-    ponerTexto('sim-flow', `${formatearEntero(lecturas.F1)} ml/min`);
-    ponerTexto('sim-heat', `${formatearDecimal(lecturas.T2)} °C`);
-    ponerTexto('sim-A', `${formatearEntero(estado.depositoAMl)} ml`);
-    ponerTexto('sim-B', `${formatearEntero(estado.depositoBMl)} ml`);
-    ponerTexto('sim-finished', `${formatearEntero(estado.finalMl)} ml`);
-    ponerTexto('sim-diverted', `${formatearEntero(estado.desviadoMl)} ml`);
-    ponerTexto('sim-drain', `${formatearDecimal(estado.desagueMl / 1000)} L`);
+    refrescarLecturas(lecturas);
     $('sim-play').disabled = estado.ejecutando;
     $('sim-pause').disabled = !estado.ejecutando;
     $('sim-velocidad').value = String(estado.velocidad);

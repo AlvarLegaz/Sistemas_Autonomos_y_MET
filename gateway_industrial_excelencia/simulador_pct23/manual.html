@@ -69,17 +69,43 @@
         <span class="chip" id="chip-gateway"><i class="punto"></i><span>—</span></span>
         <span class="chip" id="chip-io"><i class="punto"></i><span>—</span></span>
       </section>
+      <section class="term" id="term-t1" style="--color:var(--agua)">
+        <div class="term-cab"><span class="term-nombre">T1 · salida del tubo de residencia</span><output class="term-valor" id="k-t1">—</output></div>
+        <div class="term-barra"><span class="term-relleno" id="r-t1"></span></div>
+        <p class="term-pie" id="p-t1">Producto a la salida del tubo de residencia.</p>
+      </section>
+      <section class="term" id="term-t2" style="--color:var(--caliente)">
+        <div class="term-cab"><span class="term-nombre">T2 · agua caliente</span><output class="term-valor" id="k-t2">—</output></div>
+        <div class="term-barra"><span class="term-relleno" id="r-t2"></span></div>
+        <p class="term-pie" id="p-t2"></p>
+      </section>
+      <section class="term" id="term-t3" style="--color:var(--frio)">
+        <div class="term-cab"><span class="term-nombre">T3 · producto final</span><output class="term-valor" id="k-t3">—</output></div>
+        <div class="term-barra"><span class="term-relleno" id="r-t3"></span></div>
+        <p class="term-pie" id="p-t3">Después de la refrigeración.</p>
+      </section>
+
       <section class="bloque">
-        <h2>Datos de la planta</h2>
+        <h2>Producto acabado</h2>
+        <div class="cifra" id="k-final">0 <small>ml</small></div>
         <dl class="pares">
-          <dt>Caudal del producto (F1)</dt><dd id="sim-flow">0 ml/min</dd>
-          <dt>Agua caliente (T2)</dt><dd id="sim-heat">22,0 °C</dd>
-          <dt>Tanque A</dt><dd id="sim-A">—</dd>
-          <dt>Tanque B</dt><dd id="sim-B">—</dd>
-          <dt>Producto acabado</dt><dd id="sim-finished">0 ml</dd>
-          <dt>Producto desviado</dt><dd id="sim-diverted">0 ml</dd>
-          <dt>Agua enviada a desagüe</dt><dd id="sim-drain">0 L</dd>
+          <dt>Caudal del producto (F1)</dt><dd id="k-f1">0 ml/min</dd>
+          <dt>Desviado al tanque</dt><dd id="k-desv">0 ml</dd>
+          <dt>SOL1</dt><dd id="k-sol1">Salida normal</dd>
+          <dt>Agua enviada a desagüe</dt><dd id="k-desague">0,0 L</dd>
         </dl>
+      </section>
+
+      <section class="bloque">
+        <h2>Tanques</h2>
+        <dl class="pares">
+          <dt>Tanque A</dt><dd id="k-ta">—</dd>
+        </dl>
+        <div class="barra-llenado" aria-hidden="true"><i id="r-ta" style="width:0"></i></div>
+        <dl class="pares">
+          <dt>Tanque B</dt><dd id="k-tb">—</dd>
+        </dl>
+        <div class="barra-llenado" aria-hidden="true"><i id="r-tb" style="width:0"></i></div>
       </section>
     </div>
 
