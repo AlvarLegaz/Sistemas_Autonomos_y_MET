@@ -73,7 +73,7 @@
           'nivel bajo.', enSimulador: 'En el simulador no está modelado: permanece apagado.', paginas: 'p. 8 y 15' },
     TERM: { titulo: 'STAT · Termostato del depósito caliente', etiqueta: 'Protección',
       queEs: 'Termostato del tanque de agua caliente. Si hay sobretemperatura corta el calefactor y la consola lo indica con el piloto OVER TEMP.',
-      enSimulador: 'Salta (corte térmico simulado) cuando T2 llega a 91 °C: desconecta la resistencia y el agua se enfría despacio. Se rearma por ' +
+      enSimulador: 'Salta (corte térmico simulado) cuando T2 llega a 70 °C: desconecta la resistencia y el agua se enfría despacio. Se rearma por ' +
           'debajo de 70 °C y hay que volver a conectar la resistencia a mano.', paginas: 'p. 8 y 15' },
     RES: { titulo: 'Resistencia de calefacción (PWR)', etiqueta: 'Calefactor',
       queEs: 'Elemento calefactor del depósito de agua caliente. La consola tiene un ajuste de potencia y un indicador en kW. En la maqueta son ' +
@@ -190,7 +190,7 @@
     ['Calefacción', lista([
       'Se enciende y apaga pulsando el círculo RES del esquema (OUT03), y la <b>potencia</b> se ajusta en el panel de controles. Las dos resistencias de 120 V van en serie (una de 230 V) y se ' +
           'regulan por <b>ráfagas de 50 ciclos de red</b>: 100 % son 50 ciclos de 50, 50 % son 25.',
-      'Solo calienta si está en ON <b>y</b> la potencia es mayor que 0. T2 sube despacio (el agua tarda minutos). Si T2 pasa de 91 °C salta el ' +
+      'Solo calienta si está en ON <b>y</b> la potencia es mayor que 0. T2 sube despacio (el agua tarda minutos). Si T2 pasa de 70 °C salta el ' +
           'termostato y corta el calefactor.',
     ])],
     ['Electroválvulas', lista([
@@ -266,7 +266,7 @@
     ])],
     ['Alarmas con acción correctiva', lista([
       '<b>Tanque vacío o casi vacío</b>: rellenar con SOL4 (A) o SOL5 (B), o cambiar de origen.',
-      '<b>Corte térmico</b> (T2 por encima de 91 °C): esperar a que baje y repetir el arranque.',
+      '<b>Corte térmico</b> (T2 por encima de 70 °C): esperar a que baje y repetir el arranque.',
       '<b>T1 no alcanza la consigna</b> en 20 min: bajar la consigna o el caudal; el modelo no llega a esa temperatura.',
       'Cada alarma corta el calefactor y recircula el producto antes de esperar a que la reconozcas.',
     ])],

@@ -5,8 +5,8 @@
   const PARAMS = Object.freeze({
     ambiente: 22, capacidadMl: 5000, caudalN1MaxMlMin: 550,
     llenadoMlMin: 260, refrigeracionMlMin: 450, vaciadoMlMin: 600, // vaciadoMlMin: V3 abierta (didáctico)
-    tauCalentadorS: 200, tauEnfriamientoS: 360, limiteTermicoC: 91, margenDisparoC: 0.05, rearmeC: 70, tauCorteS: 900, // tras el disparo: rearme por debajo de rearmeC y enfriamiento lento (tauCorteS). margenDisparoC: con la resistencia al 100 % T2 tiende a 91,0 sin llegar, y así salta al mostrar 91,0
-    deltaCalentadorC: 69,        // subida del agua caliente con el calefactor al 100 %
+    tauCalentadorS: 1500, tauEnfriamientoS: 1500, limiteTermicoC: 70, margenDisparoC: 0.05, rearmeC: 60, tauCorteS: 1500, // tras el disparo: rearme por debajo de rearmeC y enfriamiento lento (tauCorteS). margenDisparoC: con la resistencia al 100 % T2 tiende por encima del límite y salta al mostrar 70,0
+    deltaCalentadorC: 150,       // subida del agua caliente con el calefactor al 100 %
     eficienciaIntercambio: 0.79, // fraccion del salto agua-producto que se transfiere
     reduccionPorCaudal: 0.25,    // perdida de eficiencia al subir N1 al 100 %
     acoplamientoCaudal: 0.15,    // calor que el producto en circulacion le quita al agua caliente (T2 baja al aumentar el caudal)

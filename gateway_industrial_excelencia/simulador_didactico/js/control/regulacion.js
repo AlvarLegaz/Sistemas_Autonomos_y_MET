@@ -79,6 +79,10 @@
     estado.consignas.velocidadN1Pct = ajustes.modoRegulacion === 'multiple' ? lazoCaudal(secuencia, estado, segundosPaso) : ajustes.caudalPct;
     estado.salidas.RES = true;
     aplicarModo(secuencia, estado, segundosPaso, fase);
+    // Protección: el termostato real salta a 70 °C; el control corta la resistencia al llegar al tope y la reconecta 3 °C por debajo.
+    const tope = ajustes.consignaT2MaxC;
+    if (estado.aguaCalienteC >= tope) secuencia.t2Limitada = true; else if (estado.aguaCalienteC <= tope - 3) secuencia.t2Limitada = false;
+    if (secuencia.t2Limitada) estado.salidas.RES = false;
   }
 
   const api = { regular, lazoT2, lazoT1, lazoCascada, lazoCaudal, lazoTodoNada };

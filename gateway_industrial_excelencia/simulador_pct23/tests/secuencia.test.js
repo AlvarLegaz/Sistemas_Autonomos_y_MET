@@ -111,10 +111,10 @@ test('La parada de emergencia apaga todo al instante',()=>{
 });
 
 test('Una consigna que el modelo no alcanza acaba en alarma por tiempo de precalentamiento',()=>{
- const s=m.crearEstado(),sec=q.crearSecuencia({consignaT1:80});
- assert.ok(q.t1Alcanzable(50,90)<80);
+ const s=m.crearEstado(),sec=q.crearSecuencia({consignaT1:60});
+ assert.ok(q.t1Alcanzable(50,90)<60);
  q.iniciar(sec,s);
- correr(sec,s,x=>x.fase==='alarma',3000);
+ correr(sec,s,x=>x.fase==='alarma',5000);
  assert.equal(sec.fase,'alarma');
  assert.match(sec.alarma.causa,/no alcanza/);
 });
@@ -147,32 +147,32 @@ test('Modo manual: el calefactor queda a la potencia elegida y la secuencia term
 });
 
 test('Modo manual con poca potencia no llega a temperatura y avisa',()=>{
- const s=m.crearEstado(),sec=q.crearSecuencia({modoControl:'manual',potenciaManualPct:40});
+ const s=m.crearEstado(),sec=q.crearSecuencia({modoControl:'manual',potenciaManualPct:20});
  assert.ok(q.t1Estacionaria(sec.cfg)<sec.cfg.consignaT1);
  q.iniciar(sec,s);
- correr(sec,s,x=>x.fase==='alarma',3000);
+ correr(sec,s,x=>x.fase==='alarma',5000);
  assert.equal(sec.fase,'alarma');
 });
 
 test('Modo T2: el agua caliente se mantiene en su consigna',()=>{
- const {t2,sec}=produccion({modoControl:'T2',consignaT2:80});
+ const {t2,sec}=produccion({modoControl:'T2',consignaT2:55});
  const [mn,mx]=rango(t2);
- assert.ok(mn>77&&mx<83,`T2 entre ${mn.toFixed(1)} y ${mx.toFixed(1)}`);
+ assert.ok(mn>52&&mx<58,`T2 entre ${mn.toFixed(1)} y ${mx.toFixed(1)}`);
  assert.equal(sec.alarma,null);
 });
 
 test('Modo T2: una consigna de agua insuficiente para T1 acaba en alarma',()=>{
- const s=m.crearEstado(),sec=q.crearSecuencia({modoControl:'T2',consignaT2:65});
+ const s=m.crearEstado(),sec=q.crearSecuencia({modoControl:'T2',consignaT2:40});
  assert.ok(q.t1Estacionaria(sec.cfg)<sec.cfg.consignaT1);
  q.iniciar(sec,s);
- correr(sec,s,x=>x.fase==='alarma',3000);
+ correr(sec,s,x=>x.fase==='alarma',5000);
  assert.equal(sec.fase,'alarma');
 });
 
 test('Modo cascada: T1 se mantiene en su consigna y T2 no pasa del tope',()=>{
  const {t1,t2,sec}=produccion({modoControl:'cascada'});
  const [a,b]=rango(t1),[,mx2]=rango(t2);
- assert.ok(a>58.5&&b<61.5,`T1 entre ${a.toFixed(2)} y ${b.toFixed(2)}`);
+ assert.ok(a>43.5&&b<46.5,`T1 entre ${a.toFixed(2)} y ${b.toFixed(2)}`);
  assert.ok(mx2<=sec.cfg.t2Max+0.5);
 });
 
@@ -187,9 +187,9 @@ test('Todos los modos terminan la secuencia completa sin alarma',()=>{
 });
 
 test('Modo todo/nada: T2 oscila dentro de la banda de histéresis alrededor de la consigna',()=>{
- const {t2,sec}=produccion({modoControl:'onoff',consignaT2:80},400);
+ const {t2,sec}=produccion({modoControl:'onoff',consignaT2:55},400);
  const [a,b]=rango(t2);
- assert.ok(a>=80-sec.cfg.histeresisT2C-2&&b<=80+sec.cfg.histeresisT2C+2,`T2 entre ${a.toFixed(1)} y ${b.toFixed(1)}`);
+ assert.ok(a>=55-sec.cfg.histeresisT2C-2&&b<=55+sec.cfg.histeresisT2C+2,`T2 entre ${a.toFixed(1)} y ${b.toFixed(1)}`);
  assert.equal(sec.alarma,null);
 });
 
@@ -197,7 +197,7 @@ test('Modo lazos múltiples: F1 sigue su consigna y T1 la suya',()=>{
  const {s,sec,t1}=produccion({modoControl:'multiple',consignaF1:300},300);
  assert.ok(Math.abs(s.caudalProductoMlMin-300)<15,`F1 = ${s.caudalProductoMlMin.toFixed(0)}`);
  const [a,b]=rango(t1);
- assert.ok(a>58&&b<62,`T1 entre ${a.toFixed(2)} y ${b.toFixed(2)}`);
+ assert.ok(a>43&&b<47,`T1 entre ${a.toFixed(2)} y ${b.toFixed(2)}`);
 });
 
 test('El catálogo de modos incluye los del manual',()=>{
@@ -228,8 +228,8 @@ test('Terminar la producción a mano (saltar fase) pasa al lavado con el tanque 
 
 test('Demostración: solo con la temperatura la secuencia completa funciona en todo el rango',()=>{
  const max=q.t1MaximaDemostracion();
- assert.ok(max>=60,`máximo ${max}`);
- for(const T of [40,50,60,max]){
+ assert.ok(max>=50,`máximo ${max}`);
+ for(const T of [35,40,45,max]){
   const cfg=q.configDemostracion(T);
   assert.equal(cfg.consignaT1,T);
   const s=m.crearEstado(),sec=q.crearSecuencia(cfg);
@@ -253,9 +253,9 @@ test('Demostración: una temperatura fuera de rango se recorta al máximo del mo
 });
 
 test('Demostración con el tanque B de origen: B lleno, A vacío, y la secuencia termina sin alarma',()=>{
- const cfg=q.configDemostracion(55,'B');
+ const cfg=q.configDemostracion(45,'B');
  assert.equal(cfg.origen,'B');
- assert.equal(q.configDemostracion(55).origen,'A');
+ assert.equal(q.configDemostracion(45).origen,'A');
  const s=m.crearEstado();m.ponerLlenado(s,'B',80);m.ponerLlenado(s,'A',0);
  const sec=q.crearSecuencia(cfg);
  assert.equal(q.iniciar(sec,s),true);
@@ -315,10 +315,10 @@ test('El agua fría (SOL3) ya está abierta durante el precalentamiento y sigue 
 test('Al abrir SOL1 en producción el producto acabado ya sale refrigerado (T3 cerca de la temperatura ambiente)',()=>{
  const s=m.crearEstado(),sec=q.crearSecuencia();
  q.iniciar(sec,s);
- correr(sec,s,x=>x.fase==='produccion'&&!s.salidas.SOL1,1500);
+ correr(sec,s,x=>x.fase==='produccion'&&!s.salidas.SOL1,5000);
  for(let i=0;i<200&&s.salidas.SOL1;i++)q.paso(sec,s,1);
  assert.equal(s.salidas.SOL1,false);
- assert.ok(s.t3<s.t1-25,`T3=${s.t3.toFixed(1)} T1=${s.t1.toFixed(1)}`);
+ assert.ok(s.t3<s.t1-18,`T3=${s.t3.toFixed(1)} T1=${s.t1.toFixed(1)}`);
 });
 
 test('Cada cambio de fase deja anotado su motivo',()=>{

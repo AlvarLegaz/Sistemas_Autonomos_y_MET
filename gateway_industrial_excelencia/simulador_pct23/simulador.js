@@ -142,7 +142,7 @@ todos('[data-tanque]').forEach(x=>x.classList.toggle('activo',(x.dataset.tanque=
     $('sim-pause').disabled=!estado.ejecutando;
     $('sim-velocidad').value=String(estado.velocidad);
     let aviso='';
-    if(estado.temperaturaCorte) aviso='Corte térmico simulado: resistencia desconectada. Se rearma por debajo de 70 °C; después vuelve a conectarla.';
+    if(estado.temperaturaCorte) aviso='Corte térmico simulado: resistencia desconectada. Se rearma por debajo de 60 °C; después vuelve a conectarla.';
     else if(estado.vacio) aviso='Depósito seleccionado vacío: la bomba N1 no suministra producto.';
     else if(estado.salidas.N1 && estado.giro.N1) aviso='N1 encendida con el sentido de giro invertido (OUT06 = 1). El flujo inverso no se simula.';
     else if(estado.salidas.N1 && estado.consignas.N1V===0) aviso='N1 encendida, pero la consigna de velocidad es 0 %.';

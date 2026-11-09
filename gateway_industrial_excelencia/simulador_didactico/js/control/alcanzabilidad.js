@@ -9,7 +9,7 @@
   /** T2 de régimen según el modo: en modo T2/todo-nada es la consigna (si cabe); en los demás, el tope de potencia. */
   function t2Estacionaria(ajustes, t2Maximo, acoplamiento) {
     if (ajustes.modoRegulacion === 'manual') {
-      return termica.aguaConPotencia(matematicas.limitar(ajustes.potenciaManualPct, 0, ajustes.potenciaMaxPct), acoplamiento);
+      return Math.min(ajustes.consignaT2MaxC, termica.aguaConPotencia(matematicas.limitar(ajustes.potenciaManualPct, 0, ajustes.potenciaMaxPct), acoplamiento));
     }
     if (ajustes.modoRegulacion === 'T2' || ajustes.modoRegulacion === 'onoff') return Math.min(ajustes.consignaT2C, t2Maximo);
     return t2Maximo;
@@ -22,7 +22,7 @@
       : ajustes.caudalPct;
     const eficiencia = termica.eficienciaPorCaudal(caudalPct);
     const acoplamiento = termica.acoplamientoConCaudal(caudalPct);
-    const t2Maximo = termica.aguaConPotencia(ajustes.potenciaMaxPct, acoplamiento);
+    const t2Maximo = Math.min(ajustes.consignaT2MaxC, termica.aguaConPotencia(ajustes.potenciaMaxPct, acoplamiento));
     const t1 = termica.productoConAgua(t2Estacionaria(ajustes, t2Maximo, acoplamiento), eficiencia);
     const conLazoT1 = ['T1', 'cascada', 'multiple'].includes(ajustes.modoRegulacion);
     return conLazoT1 ? Math.min(t1, ajustes.consignaT1C) : t1;
@@ -30,7 +30,7 @@
 
   /** T1 máxima que el modelo puede dar con ese caudal y potencia (para avisar de consignas imposibles). */
   function t1Alcanzable(caudalPct, potenciaPct) {
-    const agua = termica.aguaConPotencia(matematicas.limitar(potenciaPct, 0, 100), termica.acoplamientoConCaudal(caudalPct));
+    const agua = Math.min(CONFIG_BASE.consignaT2MaxC, termica.aguaConPotencia(matematicas.limitar(potenciaPct, 0, 100), termica.acoplamientoConCaudal(caudalPct)));
     return termica.productoConAgua(agua, termica.eficienciaPorCaudal(matematicas.limitar(caudalPct, 0, 100)));
   }
 

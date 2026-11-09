@@ -52,7 +52,7 @@
       q: 'Interruptor de nivel del depósito de agua caliente. Protege al calefactor: si el nivel es bajo la consola enciende la alarma de nivel bajo.', s: 'En el simulador no está modelado: permanece apagado.', m: 'p. 8 y 15' },
     TERM: { t: 'STAT · Termostato del depósito caliente', tag: 'Protección',
       q: 'Termostato del tanque de agua caliente. Si hay sobretemperatura corta el calefactor y la consola lo indica con el piloto OVER TEMP.',
-      s: 'Salta (corte térmico simulado) cuando T2 llega a 91 °C: desconecta la resistencia y el agua se enfría despacio. Se rearma por debajo de 70 °C y hay que volver a conectar la resistencia a mano.', m: 'p. 8 y 15' },
+      s: 'Salta (corte térmico simulado) cuando T2 llega a 70 °C: desconecta la resistencia y el agua se enfría despacio. Se rearma por debajo de 60 °C y hay que volver a conectar la resistencia a mano.', m: 'p. 8 y 15' },
     RES: { t: 'Resistencia de calefacción (PWR)', tag: 'Calefactor',
       q: 'Elemento calefactor del depósito de agua caliente. La consola tiene un ajuste de potencia y un indicador en kW. En la maqueta son dos resistencias de 120 V en serie, alimentadas a 230 V.',
       s: 'OUT03 la conecta; su potencia se reparte por ráfagas de 50 ciclos de red (50 % = 25 ciclos de cada 50).', m: 'p. 8 y 15' },
@@ -247,7 +247,7 @@
     ])],
     ['Calefacción', li([
       'Interruptor de la resistencia (OUT03) y deslizador de <b>potencia</b>. Las dos resistencias de 120 V van en serie (una de 230 V) y se regulan por <b>ráfagas de 50 ciclos de red</b>: 100 % son 50 ciclos de 50, 50 % son 25.',
-      'Solo calienta si está en ON <b>y</b> la potencia es mayor que 0. T2 sube despacio (el agua tarda minutos). Si T2 pasa de 91 °C salta el termostato y corta el calefactor.',
+      'Solo calienta si está en ON <b>y</b> la potencia es mayor que 0. T2 sube despacio (el agua tarda minutos). Si T2 pasa de 70 °C salta el termostato y corta el calefactor.',
     ])],
     ['Electroválvulas', li([
       '<b>SOL1</b>: desvío del producto (activa = rechazo, el producto vuelve al tanque). <b>SOL2</b>: elige el tanque de origen (reposo = A, activa = B).',
@@ -306,7 +306,7 @@
       ])],
       ['Alarmas con acción correctiva', li([
         '<b>Tanque vacío o casi vacío</b>: rellenar con SOL4 (A) o SOL5 (B), o cambiar de origen.',
-        '<b>Corte térmico</b> (T2 por encima de 91 °C): esperar a que baje y repetir el arranque.',
+        '<b>Corte térmico</b> (T2 por encima de 70 °C): esperar a que baje y repetir el arranque.',
         '<b>T1 no alcanza la consigna</b> en 20 min: bajar la consigna o el caudal; el modelo no llega a esa temperatura.',
         'Cada alarma corta el calefactor y recircula el producto antes de esperar a que la reconozcas.',
       ])],

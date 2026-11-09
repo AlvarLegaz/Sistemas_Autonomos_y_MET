@@ -61,11 +61,11 @@ test('Automático en cascada hasta finalizar: secuencia idéntica al original', 
   assert.equal(fase, 'finalizada');
 });
 
-test('Demostración a 70 °C hasta finalizar: secuencia idéntica al original', () => {
-  const cfgViejo = secuenciaVieja.configDemostracion(70, 'A');
-  const cfgNuevo = alcanzabilidad.configDemostracion(70, 'A');
+test('Demostración a 45 °C hasta finalizar: secuencia idéntica al original', () => {
+  const cfgViejo = secuenciaVieja.configDemostracion(45, 'A');
+  const cfgNuevo = alcanzabilidad.configDemostracion(45, 'A');
   assert.strictEqual(cfgNuevo.caudalPct, cfgViejo.caudalPct);
   assert.strictEqual(cfgNuevo.consignaT1C, cfgViejo.consignaT1);
-  const fase = compararSecuencia(cfgViejo, cfgNuevo, 'demo 70', 8000);
+  const fase = compararSecuencia(cfgViejo, cfgNuevo, 'demo 45', 8000);
   assert.equal(fase, 'finalizada');
 });

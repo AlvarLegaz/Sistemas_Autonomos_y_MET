@@ -30,8 +30,8 @@
     // Modo de regulación del calefactor (todos son supuestos didácticos; el manual solo da un ajuste de potencia):
     //   'manual', 'onoff', 'T2', 'T1', 'cascada', 'multiple': ver MODOS.
     modoControl: 'T1',
-    consignaT1: 60,            // °C a la salida del tubo de residencia (en todos los modos: mínima para no desviar)
-    consignaT2: 80,            // °C del agua caliente (modo 'T2')
+    consignaT1: 45,            // °C a la salida del tubo de residencia (en todos los modos: mínima para no desviar)
+    consignaT2: 55,            // °C del agua caliente (modo 'T2')
     potenciaManualPct: 90,     // % del calefactor (modo 'manual')
     histeresisT2C: 2,          // banda del modo todo/nada
     consignaF1: 275,           // ml/min (modo 'multiple')
@@ -47,11 +47,11 @@
     potenciaPrecalentamientoPct: 90,
     potenciaMaxPct: 90,        // no se llega al 100 % para no rozar el corte térmico
     enfriarHastaC: 45,         // N2 sigue en la parada hasta que T2 baje de aquí
-    tiempoMaxPrecalentamientoS: 1200,
+    tiempoMaxPrecalentamientoS: 3600,
     volumenMinimoMl: 200,      // mínimo en el tanque de origen para arrancar
     kp: 2, ki: 0.01,           // corrección PI sobre la potencia (además de la acción directa)
     kpExterno: 1, kiExterno: 0.002,   // lazo externo de la cascada (T1 -> consigna de T2)
-    t2Max: 88,                 // tope de la consigna de T2 (el corte térmico está en 91 °C)
+    t2Max: 65,                 // tope de la consigna de T2 (el termostato real salta a 70 °C)
   });
 
   /** T1 que el modelo da en régimen con esa configuración (para avisar de consignas imposibles). */
@@ -60,9 +60,9 @@
     const caudalPct = cfg.modoControl === 'multiple' ? clamp(cfg.consignaF1 / p.caudalN1MaxMlMin * 100, 0, 100) : cfg.caudalPct;
     const eficiencia = p.eficienciaIntercambio * (1 - p.reduccionPorCaudal * caudalPct / 100);
     const k = modelo.factorAcoplamiento(true, caudalPct, caudalPct / 100);
-    const t2Maximo = p.ambiente + p.deltaCalentadorC * cfg.potenciaMaxPct / 100 / (1 + k);
+    const t2Maximo = Math.min(cfg.t2Max, p.ambiente + p.deltaCalentadorC * cfg.potenciaMaxPct / 100 / (1 + k));
     let t2;
-    if (cfg.modoControl === 'manual') t2 = p.ambiente + p.deltaCalentadorC * clamp(cfg.potenciaManualPct, 0, cfg.potenciaMaxPct) / 100 / (1 + k);
+    if (cfg.modoControl === 'manual') t2 = Math.min(cfg.t2Max, p.ambiente + p.deltaCalentadorC * clamp(cfg.potenciaManualPct, 0, cfg.potenciaMaxPct) / 100 / (1 + k));
     else if (cfg.modoControl === 'T2' || cfg.modoControl === 'onoff') t2 = Math.min(cfg.consignaT2, t2Maximo);
     else t2 = t2Maximo;                                     // 'T1', 'cascada' y 'multiple': hasta el tope de potencia
     const t1 = p.ambiente + (t2 - p.ambiente) * eficiencia;
@@ -73,7 +73,7 @@
   function t1Alcanzable(caudalPct, potenciaPct) {
     const p = modelo.PARAMS;
     const k = modelo.factorAcoplamiento(true, caudalPct, caudalPct / 100);
-    const agua = p.ambiente + p.deltaCalentadorC * clamp(potenciaPct, 0, 100) / 100 / (1 + k);
+    const agua = Math.min(CONFIG_BASE.t2Max, p.ambiente + p.deltaCalentadorC * clamp(potenciaPct, 0, 100) / 100 / (1 + k));
     const eficiencia = p.eficienciaIntercambio * (1 - p.reduccionPorCaudal * clamp(caudalPct, 0, 100) / 100);
     return p.ambiente + (agua - p.ambiente) * eficiencia;
   }
@@ -238,6 +238,9 @@
       default: // 'T1' y 'multiple'
         estado.consignas.R = fase === 'precalentamiento' ? c.potenciaPrecalentamientoPct : lazoT1(sec, estado, dt);
     }
+    // Protección: el termostato real salta a 70 °C; el control corta la resistencia al llegar a t2Max y la reconecta 3 °C por debajo.
+    if (estado.aguaCalienteC >= c.t2Max) sec.t2Limitada = true; else if (estado.aguaCalienteC <= c.t2Max - 3) sec.t2Limitada = false;
+    if (sec.t2Limitada) estado.salidas.RES = false;
   }
 
   function fijarSalidasComunes(sec, estado) {

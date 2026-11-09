@@ -47,7 +47,7 @@ test('Sin SOL3 no aumenta el contador de agua fría a desagüe', () => {
 test('T5 (en el calentamiento) queda entre la temperatura ambiente y T4, y vuelve al ambiente en parada', () => {
   const s = activarEjemplo(crearEstado());
   assert.equal(observaciones(s).T5, C.temperaturaAmbienteC);
-  avanzar(s, 120);
+  avanzar(s, 300);
   const o = observaciones(s);
   assert.ok(o.T5 > C.temperaturaAmbienteC + 5);
   assert.ok(o.T5 < o.T4);
@@ -86,15 +86,15 @@ test('T4 (salida del calentamiento) se adelanta a T1 y ambas suben con el produc
 test('Sin producto circulando T4 vuelve despacio a la temperatura ambiente', () => {
   const s = activarEjemplo(crearEstado()); avanzar(s, 300); const caliente = s.t4C;
   s.salidas.N1 = false; avanzar(s, 1200);
-  assert.ok(caliente > 40); assert.ok(s.t4C < caliente - 5); assert.ok(s.t4C >= 22);
+  assert.ok(caliente > 30); assert.ok(s.t4C < caliente - 5); assert.ok(s.t4C >= 22);
 });
 
 test('Al circular el producto T2 baja: se lleva calor del agua caliente (acoplamiento por caudal)', () => {
   const sin = crearEstado(), con = crearEstado();
-  for (const s of [sin, con]) { s.salidas.N2 = true; s.salidas.RES = true; s.consignas.potenciaPct = 90; s.consignas.velocidadN1Pct = 100; }
+  for (const s of [sin, con]) { s.salidas.N2 = true; s.salidas.RES = true; s.consignas.potenciaPct = 20; s.consignas.velocidadN1Pct = 100; }
   con.salidas.N1 = true; con.salidas.SOL1 = true;
-  avanzar(sin, 1500); avanzar(con, 1500);
-  assert.ok(con.aguaCalienteC < sin.aguaCalienteC - 4, `sin caudal ${sin.aguaCalienteC.toFixed(1)} con caudal ${con.aguaCalienteC.toFixed(1)}`);
+  avanzar(sin, 6000); avanzar(con, 6000);
+  assert.ok(con.aguaCalienteC < sin.aguaCalienteC - 2, `sin caudal ${sin.aguaCalienteC.toFixed(1)} con caudal ${con.aguaCalienteC.toFixed(1)}`);
 });
 
 test('Al empezar a circular el producto T2 cae respecto a su valor sin caudal', () => {

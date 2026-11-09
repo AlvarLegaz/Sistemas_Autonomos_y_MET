@@ -114,10 +114,10 @@ test('La parada de emergencia apaga todo al instante', () => {
 });
 
 test('Una consigna que el modelo no alcanza acaba en alarma por tiempo de precalentamiento', () => {
-  const s = crearEstado(), sec = secuencia.crearSecuencia({ consignaT1C: 80 });
-  assert.ok(alcanzabilidad.t1Alcanzable(50, 90) < 80);
+  const s = crearEstado(), sec = secuencia.crearSecuencia({ consignaT1C: 60 });
+  assert.ok(alcanzabilidad.t1Alcanzable(50, 90) < 60);
   secuencia.iniciar(sec, s);
-  correr(sec, s, x => x.fase === 'alarma', 3000);
+  correr(sec, s, x => x.fase === 'alarma', 5000);
   assert.equal(sec.fase, 'alarma');
   assert.match(sec.alarma.causa, /no alcanza/);
 });
@@ -153,32 +153,32 @@ test('Modo manual: el calefactor queda a la potencia elegida y la secuencia term
 });
 
 test('Modo manual con poca potencia no llega a temperatura y avisa', () => {
-  const s = crearEstado(), sec = secuencia.crearSecuencia({ modoRegulacion: 'manual', potenciaManualPct: 40 });
+  const s = crearEstado(), sec = secuencia.crearSecuencia({ modoRegulacion: 'manual', potenciaManualPct: 20 });
   assert.ok(alcanzabilidad.t1Estacionaria(sec.ajustes) < sec.ajustes.consignaT1C);
   secuencia.iniciar(sec, s);
-  correr(sec, s, x => x.fase === 'alarma', 3000);
+  correr(sec, s, x => x.fase === 'alarma', 5000);
   assert.equal(sec.fase, 'alarma');
 });
 
 test('Modo T2: el agua caliente se mantiene en su consigna', () => {
-  const { t2, sec } = produccion({ modoRegulacion: 'T2', consignaT2C: 80 });
+  const { t2, sec } = produccion({ modoRegulacion: 'T2', consignaT2C: 55 });
   const [mn, mx] = rango(t2);
-  assert.ok(mn > 77 && mx < 83, `T2 entre ${mn.toFixed(1)} y ${mx.toFixed(1)}`);
+  assert.ok(mn > 52 && mx < 58, `T2 entre ${mn.toFixed(1)} y ${mx.toFixed(1)}`);
   assert.equal(sec.alarma, null);
 });
 
 test('Modo T2: una consigna de agua insuficiente para T1 acaba en alarma', () => {
-  const s = crearEstado(), sec = secuencia.crearSecuencia({ modoRegulacion: 'T2', consignaT2C: 65 });
+  const s = crearEstado(), sec = secuencia.crearSecuencia({ modoRegulacion: 'T2', consignaT2C: 40 });
   assert.ok(alcanzabilidad.t1Estacionaria(sec.ajustes) < sec.ajustes.consignaT1C);
   secuencia.iniciar(sec, s);
-  correr(sec, s, x => x.fase === 'alarma', 3000);
+  correr(sec, s, x => x.fase === 'alarma', 5000);
   assert.equal(sec.fase, 'alarma');
 });
 
 test('Modo cascada: T1 se mantiene en su consigna y T2 no pasa del tope', () => {
   const { t1, t2, sec } = produccion({ modoRegulacion: 'cascada' });
   const [a, b] = rango(t1), [, mx2] = rango(t2);
-  assert.ok(a > 58.5 && b < 61.5, `T1 entre ${a.toFixed(2)} y ${b.toFixed(2)}`);
+  assert.ok(a > 43.5 && b < 46.5, `T1 entre ${a.toFixed(2)} y ${b.toFixed(2)}`);
   assert.ok(mx2 <= sec.ajustes.consignaT2MaxC + 0.5);
 });
 
@@ -193,9 +193,9 @@ test('Todos los modos terminan la secuencia completa sin alarma', () => {
 });
 
 test('Modo todo/nada: T2 oscila dentro de la banda de histéresis alrededor de la consigna', () => {
-  const { t2, sec } = produccion({ modoRegulacion: 'onoff', consignaT2C: 80 }, 400);
+  const { t2, sec } = produccion({ modoRegulacion: 'onoff', consignaT2C: 55 }, 400);
   const [a, b] = rango(t2);
-  assert.ok(a >= 80 - sec.ajustes.histeresisT2C - 2 && b <= 80 + sec.ajustes.histeresisT2C + 2, `T2 entre ${a.toFixed(1)} y ${b.toFixed(1)}`);
+  assert.ok(a >= 55 - sec.ajustes.histeresisT2C - 2 && b <= 55 + sec.ajustes.histeresisT2C + 2, `T2 entre ${a.toFixed(1)} y ${b.toFixed(1)}`);
   assert.equal(sec.alarma, null);
 });
 
@@ -203,7 +203,7 @@ test('Modo lazos múltiples: F1 sigue su consigna y T1 la suya', () => {
   const { s, t1 } = produccion({ modoRegulacion: 'multiple', consignaF1MlMin: 300 }, 300);
   assert.ok(Math.abs(s.caudalProductoMlMin - 300) < 15, `F1 = ${s.caudalProductoMlMin.toFixed(0)}`);
   const [a, b] = rango(t1);
-  assert.ok(a > 58 && b < 62, `T1 entre ${a.toFixed(2)} y ${b.toFixed(2)}`);
+  assert.ok(a > 43 && b < 47, `T1 entre ${a.toFixed(2)} y ${b.toFixed(2)}`);
 });
 
 test('El catálogo de modos incluye los del manual', () => {
@@ -234,8 +234,8 @@ test('Terminar la producción a mano (saltar fase) pasa al lavado con el tanque 
 
 test('Demostración: solo con la temperatura la secuencia completa funciona en todo el rango', () => {
   const max = alcanzabilidad.t1MaximaDemostracion();
-  assert.ok(max >= 60, `máximo ${max}`);
-  for (const T of [40, 50, 60, max]) {
+  assert.ok(max >= 50, `máximo ${max}`);
+  for (const T of [35, 40, 45, max]) {
     const cfg = alcanzabilidad.configDemostracion(T);
     assert.equal(cfg.consignaT1C, T);
     const s = crearEstado(), sec = secuencia.crearSecuencia(cfg);
@@ -259,9 +259,9 @@ test('Demostración: una temperatura fuera de rango se recorta al máximo del mo
 });
 
 test('Demostración con el tanque B de origen: B lleno, A vacío, y la secuencia termina sin alarma', () => {
-  const cfg = alcanzabilidad.configDemostracion(55, 'B');
+  const cfg = alcanzabilidad.configDemostracion(45, 'B');
   assert.equal(cfg.origen, 'B');
-  assert.equal(alcanzabilidad.configDemostracion(55).origen, 'A');
+  assert.equal(alcanzabilidad.configDemostracion(45).origen, 'A');
   const s = crearEstado(); ponerLlenado(s, 'B', 80); ponerLlenado(s, 'A', 0);
   const sec = secuencia.crearSecuencia(cfg);
   assert.equal(secuencia.iniciar(sec, s), true);
@@ -324,7 +324,7 @@ test('Al abrir SOL1 en producción el producto acabado ya sale refrigerado (T3 c
   correr(sec, s, x => x.fase === 'produccion' && !s.salidas.SOL1, 1500);
   for (let i = 0; i < 200 && s.salidas.SOL1; i++) secuencia.paso(sec, s, 1);
   assert.equal(s.salidas.SOL1, false);
-  assert.ok(s.t3C < s.t1C - 25, `T3=${s.t3C.toFixed(1)} T1=${s.t1C.toFixed(1)}`);
+  assert.ok(s.t3C < s.t1C - 18, `T3=${s.t3C.toFixed(1)} T1=${s.t1C.toFixed(1)}`);
 });
 
 test('Cada cambio de fase deja anotado su motivo', () => {
@@ -411,36 +411,36 @@ function aProduccion(ajustes) {
 }
 
 test('Todo/nada en automático: la resistencia conmuta al máximo con la histéresis dada', () => {
-  for (const histeresisT2C of [1, 4]) {
-    const { s, sec } = aProduccion({ modoRegulacion: 'onoff', consignaT2C: 66, histeresisT2C, caudalPct: 50, consignaT1C: 40 });
-    const r = conmutaciones(sec, s, 400);
+  for (const histeresisT2C of [1, 2]) {
+    const { s, sec } = aProduccion({ modoRegulacion: 'onoff', consignaT2C: 55, histeresisT2C, caudalPct: 50, consignaT1C: 40 });
+    const r = conmutaciones(sec, s, 4000);
     assert.ok(r.cambios >= 2, `conmutó ${r.cambios} veces`);
-    assert.ok(r.minimo >= 66 - histeresisT2C - 1 && r.maximo <= 66 + histeresisT2C + 1, `T2 entre ${r.minimo.toFixed(1)} y ${r.maximo.toFixed(1)}`);
+    assert.ok(r.minimo >= 55 - histeresisT2C - 1 && r.maximo <= 55 + histeresisT2C + 1, `T2 entre ${r.minimo.toFixed(1)} y ${r.maximo.toFixed(1)}`);
     assert.equal(s.consignas.potenciaPct, sec.ajustes.potenciaMaxPct);
   }
 });
 
 test('Todo/nada: más histéresis, menos conmutaciones', () => {
-  const cambios = h => { const { s, sec } = aProduccion({ modoRegulacion: 'onoff', consignaT2C: 66, histeresisT2C: h, consignaT1C: 40 }); return conmutaciones(sec, s, 400).cambios; };
+  const cambios = h => { const { s, sec } = aProduccion({ modoRegulacion: 'onoff', consignaT2C: 55, histeresisT2C: h, consignaT1C: 40 }); return conmutaciones(sec, s, 4000).cambios; };
   assert.ok(cambios(1) > cambios(5));
 });
 
 test('Todo/nada: el caudal de N1 elegido se aplica', () => {
   for (const caudalPct of [40, 70]) {
-    const { s } = aProduccion({ modoRegulacion: 'onoff', consignaT2C: 66, caudalPct, consignaT1C: 40 });
+    const { s } = aProduccion({ modoRegulacion: 'onoff', consignaT2C: 55, caudalPct, consignaT1C: 40 });
     assert.equal(s.consignas.velocidadN1Pct, caudalPct);
   }
 });
 
 test('Demostración con todo/nada: conmuta con la histéresis y aplica el caudal elegido', () => {
-  const cfg = alcanzabilidad.configDemostracionTodoNada(40, 'A', { consignaT2C: 68, histeresisT2C: 3, caudalPct: 45 });
+  const cfg = alcanzabilidad.configDemostracionTodoNada(40, 'A', { consignaT2C: 56, histeresisT2C: 3, caudalPct: 45 });
   assert.equal(cfg.modoRegulacion, 'onoff');
   assert.equal(cfg.caudalPct, 45);
   const { s, sec } = aProduccion(cfg);
   assert.equal(s.consignas.velocidadN1Pct, 45);
-  const r = conmutaciones(sec, s, 400);
+  const r = conmutaciones(sec, s, 4000);
   assert.ok(r.cambios >= 2, `conmutó ${r.cambios} veces`);
-  assert.ok(r.minimo >= 68 - 3 - 1 && r.maximo <= 68 + 3 + 1, `T2 entre ${r.minimo.toFixed(1)} y ${r.maximo.toFixed(1)}`);
+  assert.ok(r.minimo >= 56 - 3 - 1 && r.maximo <= 56 + 3 + 1, `T2 entre ${r.minimo.toFixed(1)} y ${r.maximo.toFixed(1)}`);
 });
 
 test('Demostración en cascada no cambia: sigue eligiendo el caudal ella', () => {

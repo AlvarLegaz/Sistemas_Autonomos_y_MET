@@ -229,7 +229,7 @@
   }
 
   function textoAviso(e) {
-    if (e.temperaturaCorte) return 'Corte térmico simulado: resistencia desconectada. Se rearma por debajo de 70 °C; después vuelve a conectarla.';
+    if (e.temperaturaCorte) return 'Corte térmico simulado: resistencia desconectada. Se rearma por debajo de 60 °C; después vuelve a conectarla.';
     if (e.vacio) return 'Depósito seleccionado vacío: la bomba N1 no suministra producto.';
     if (e.salidas.N1 && e.giro.N1) return 'N1 encendida con el sentido de giro invertido (OUT06 = 1). El flujo inverso no se simula.';
     if (e.salidas.N1 && e.consignas.velocidadN1Pct === 0) return 'N1 encendida, pero la consigna de velocidad es 0 %.';

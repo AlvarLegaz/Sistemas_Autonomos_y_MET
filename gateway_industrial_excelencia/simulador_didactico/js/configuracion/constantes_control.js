@@ -20,8 +20,8 @@
   // Los valores por defecto son supuestos didácticos: el manual no da consignas.
   const CONFIG_BASE = Object.freeze({
     modoRegulacion: 'T1',      // ver MODOS_REGULACION
-    consignaT1C: 60,           // °C a la salida del tubo de residencia (en todos los modos: mínima para no desviar)
-    consignaT2C: 80,           // °C del agua caliente (modo 'T2')
+    consignaT1C: 45,           // °C a la salida del tubo de residencia (en todos los modos: mínima para no desviar)
+    consignaT2C: 55,           // °C del agua caliente (modo 'T2')
     potenciaManualPct: 90,     // % del calefactor (modo 'manual')
     histeresisT2C: 2,          // banda del modo todo/nada
     consignaF1MlMin: 275,      // ml/min (modo 'multiple')
@@ -41,7 +41,7 @@
     volumenMinimoMl: 200,      // mínimo en el tanque de origen para arrancar
     gananciaP: 2, gananciaI: 0.01,                 // corrección PI sobre la potencia (además de la acción directa)
     gananciaPExterna: 1, gananciaIExterna: 0.002,  // lazo externo de la cascada (T1 -> consigna de T2)
-    consignaT2MaxC: 88,        // tope de la consigna de T2 (el corte térmico está en 91 °C)
+    consignaT2MaxC: 65,        // tope de la consigna de T2 (el termostato real salta a 70 °C)
   });
 
   // Modo demostración: caudales que prueba la secuencia de mayor a menor y margen sobre la consigna.
