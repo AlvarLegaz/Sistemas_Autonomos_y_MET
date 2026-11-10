@@ -1,6 +1,6 @@
 (function () {
   const CONSTANTES_FISICAS = Object.freeze({
-    temperaturaAmbienteC: 22, capacidadDepositoMl: 5000, caudalMaxN1MlMin: 550,
+    temperaturaAmbienteC: 22, capacidadDepositoMl: 5000, llenadoUnidadCalentamientoPct: 70, caudalMaxN1MlMin: 550,
     llenadoMlMin: 260, refrigeracionMlMin: 450, vaciadoMlMin: 600, // vaciadoMlMin: V3 abierta
     constanteCalentadorS: 1500, constanteEnfriamientoS: 1500, limiteTermicoC: 70, margenDisparoC: 0.05,
     temperaturaRearmeC: 60, constanteCorteS: 1500, inerciaCorteS: 280, subidaCalentadorC: 150, // subida del agua con el calefactor al 100 %

@@ -1,5 +1,6 @@
 (function () {
   const { Canvas } = typeof require !== 'undefined' ? require('./canvas.js') : PCT.canvas;
+  const { CONSTANTES_FISICAS } = typeof require !== 'undefined' ? require('../../configuracion/constantes_fisicas.js') : PCT.constantesFisicas;
   const { Bomba } = typeof require !== 'undefined' ? require('./bomba.js') : PCT.bomba;
   const { Valvula } = typeof require !== 'undefined' ? require('./valvula.js') : PCT.valvula;
   const { Sensor } = typeof require !== 'undefined' ? require('./sensor.js') : PCT.sensor;
@@ -32,7 +33,7 @@
     ['text', { x: 521, y: 24, class: 'lectura' }, 'DIVERTED PRODUCT ', ['tspan', { 'font-size': 17, 'font-weight': 700 }, '↑']],
     ['text', { x: 657, y: 24, class: 'lectura', id: 'v-QD', style: 'text-anchor:start;font-weight:700' }, '0 ml'],
     ['rect', { class: 'caja', x: 30, y: 40, width: 110, height: 130, rx: 4 }],
-    ['rect', { class: 'liquido', x: 32, y: 75, width: 106, height: 93 }],
+    ['rect', { class: 'liquido', x: 32, y: 77, width: 106, height: 91 }],   // 70 % de la altura del depósito
     ['polyline', { class: 'tubo', id: 'resistencia', points: '60,70 60,100 76,85 76,115 92,100 92,130 108,115' }],
     ['text', { x: 85, y: 32, class: 'etiqueta' }, 'HEAT UNIT'],
     ['text', { x: 85, y: 58, class: 'lectura', id: 'v-VH', style: 'font-weight:700;font-size:10.5px' }, '—'],
@@ -191,7 +192,8 @@
       new Etiqueta(canvas, 'v-QF', e => `${formatearEntero(e.finalMl)} ml`),
       new Etiqueta(canvas, 'v-VA', e => `${formatearEntero(e.depositoAMl)} ml`),
       new Etiqueta(canvas, 'v-VB', e => `${formatearEntero(e.depositoBMl)} ml`),
-      new Etiqueta(canvas, 'v-VH', () => 'lleno'),   // el modelo supone la unidad de calentamiento siempre llena
+      // La unidad de calentamiento se simula al 70 % y es del mismo tamaño que los demás depósitos.
+      new Etiqueta(canvas, 'v-VH', () => `${formatearEntero(CONSTANTES_FISICAS.capacidadDepositoMl * CONSTANTES_FISICAS.llenadoUnidadCalentamientoPct / 100)} ml · ${CONSTANTES_FISICAS.llenadoUnidadCalentamientoPct} %`),
     ];
   }
 
