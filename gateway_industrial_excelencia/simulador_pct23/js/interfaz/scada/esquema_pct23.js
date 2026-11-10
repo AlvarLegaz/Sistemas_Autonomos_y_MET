@@ -35,6 +35,7 @@
     ['rect', { class: 'liquido', x: 32, y: 75, width: 106, height: 93 }],
     ['polyline', { class: 'tubo', id: 'resistencia', points: '60,70 60,100 76,85 76,115 92,100 92,130 108,115' }],
     ['text', { x: 85, y: 32, class: 'etiqueta' }, 'HEAT UNIT'],
+    ['text', { x: 85, y: 58, class: 'lectura', id: 'v-VH', style: 'font-weight:700;font-size:10.5px' }, '—'],
     ['g', {},
       ['line', { x1: 140, y1: 62, x2: 160, y2: 62, class: 'tubo' }],
       ['circle', { class: 'instr', cx: 175, cy: 62, r: 15 }],
@@ -190,6 +191,7 @@
       new Etiqueta(canvas, 'v-QF', e => `${formatearEntero(e.finalMl)} ml`),
       new Etiqueta(canvas, 'v-VA', e => `${formatearEntero(e.depositoAMl)} ml`),
       new Etiqueta(canvas, 'v-VB', e => `${formatearEntero(e.depositoBMl)} ml`),
+      new Etiqueta(canvas, 'v-VH', () => 'lleno'),   // el modelo supone la unidad de calentamiento siempre llena
     ];
   }
 

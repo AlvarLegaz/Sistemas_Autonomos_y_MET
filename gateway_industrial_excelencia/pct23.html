@@ -413,6 +413,7 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
     <rect class="liquido" x="32" y="75" width="106" height="93"/>
     <polyline class="tubo" id="resistencia" points="60,70 60,100 76,85 76,115 92,100 92,130 108,115"/>
     <text x="85" y="32" class="etiqueta">HEAT UNIT</text>
+    <text x="85" y="58" class="lectura" id="v-VH" style="font-weight:700;font-size:10.5px">—</text>
     <g><line x1="140" y1="62" x2="160" y2="62" class="tubo"/>
        <circle class="instr" cx="175" cy="62" r="15"/><text x="175" y="66" class="etiqueta">T2</text>
        <text x="175" y="90" class="lectura" id="v-T2">—</text></g>
@@ -861,6 +862,10 @@ function pintar(s) {
   $('nivel-B').setAttribute('y', 208 - altoB);
   $('nivel-B').setAttribute('height', altoB);
   $('v-VB').textContent = sinAguaB ? 'vacío' : llenoB ? 'lleno' : 'nivel medio';   // el tanque B solo tiene interruptores de nivel: no se mide el volumen
+  // Heat unit: tampoco se mide el volumen; solo el interruptor de nivel (LVLC) y el de nivel alto (HLC).
+  const altoH = !!d[MAPA.digitales.HLC.canal] === MAPA.digitales.HLC.alarmaSi;
+  const hayAguaH = !!d[MAPA.digitales.LVLC.canal] === MAPA.digitales.LVLC.alarmaSi;
+  $('v-VH').textContent = altoH ? 'lleno' : hayAguaH ? 'nivel medio' : 'sin agua';
   pintarLecturas(d);
 }
 
