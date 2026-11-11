@@ -51,6 +51,7 @@
       'TSH-101': eq['TSH-101'].abierto ? 0 : 1,
       'LSH-101': nivel >= T.nivelAltoPct ? 1 : 0,
       'LSL-101': nivel > T.nivelBajoPct ? 1 : 0,
+      'LSL-301': (estado.aguaCaliente ? estado.aguaCaliente.nivelPct : 100) > C.aguaCaliente.nivelBajoPct ? 1 : 0,
       'ZS-101': eq['FDV-101'].posicion === 'AVANCE' ? 1 : 0,
       'ZS-102': eq['FDV-101'].posicion === 'DESVIO' ? 1 : 0,
       'PSL-201': eq['PSL-201'].contactoCerrado ? 1 : 0,

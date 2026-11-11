@@ -36,13 +36,30 @@
     return kgPorS * C.leche.calorEspecificoKJkgK * Math.max(0, tSalidaC - tEntradaC);
   }
 
-  /** Un paso del depósito de agua caliente: calentadores - leche - pérdidas al ambiente. Devuelve la nueva temperatura. */
-  function pasoAguaCaliente(aguaC, { potenciaKW, perdidaLecheKW, dt }) {
+  /** Un paso del depósito de agua caliente: calentadores - leche - pérdidas al ambiente. Devuelve la nueva temperatura.
+   *  volumenL (opcional): el agua que hay de verdad; con menos agua la inercia es menor (se calienta y se enfría más deprisa). */
+  function pasoAguaCaliente(aguaC, { potenciaKW, perdidaLecheKW, dt, volumenL }) {
     const A = C.aguaCaliente;
-    const perdidaAmbienteKW = A.perdidasWK * (aguaC - A.ambienteC) / 1000;
-    const capacidadKJK = A.volumenL * A.calorEspecificoKJkgK;
+    const volumen = volumenL == null ? A.volumenL : Math.max(volumenL, A.volumenMinimoInerciaL);
+    const perdidaAmbienteKW = A.perdidasWK * (aguaC - A.ambienteC) / 1000 * (volumen / A.capacidadL);   // menos agua, menos superficie mojada
+    const capacidadKJK = volumen * A.calorEspecificoKJkgK;
     const nueva = aguaC + (potenciaKW - perdidaLecheKW - perdidaAmbienteKW) * dt / capacidadKJK;
     return limitar(nueva, A.ambienteC, A.maximoFisicoC);
+  }
+
+  /**
+   * Nivel del depósito de agua caliente tras un paso: llena XV-302 (agua de red fría, que se mezcla y baja la temperatura) y vacía XV-303.
+   * Tiene rebosadero: no pasa del 100 %. Devuelve { volumenL, temperaturaC }.
+   */
+  function pasoNivelAguaCaliente(volumenL, aguaC, { llenando, vaciando, dt }) {
+    const A = C.aguaCaliente;
+    let v = volumenL, temp = aguaC;
+    if (vaciando) v = Math.max(0, v - A.vaciadoXV303Lh * dt / 3600);
+    if (llenando) {
+      const entra = Math.min(A.llenadoXV302Lh * dt / 3600, A.capacidadL - v);        // lo que sobra rebosa y no se mezcla
+      if (entra > 0) { temp = (v * temp + entra * A.temperaturaRedC) / (v + entra); v += entra; }
+    }
+    return { volumenL: v, temperaturaC: limitar(temp, 0, A.maximoFisicoC) };
   }
 
   /** Termostato de seguridad TSH-101 (NC): dispara a 90 °C y solo se rearma, a mano, por debajo de 80 °C. Devuelve el nuevo estado `abierto`. */
@@ -59,6 +76,6 @@
     return acercar(tempC, objetivo, dt, V.tauS);
   }
 
-  const api = { acercar, efectividad, objetivosProducto, potenciaALeche, pasoAguaCaliente, pasoTermostato, pasoDisipadorVariador, limitar };
+  const api = { acercar, efectividad, objetivosProducto, potenciaALeche, pasoAguaCaliente, pasoNivelAguaCaliente, pasoTermostato, pasoDisipadorVariador, limitar };
   if (typeof module !== 'undefined') module.exports = api; else { window.PCT = window.PCT || {}; PCT.htstFisicaTermica = api; }
 })();

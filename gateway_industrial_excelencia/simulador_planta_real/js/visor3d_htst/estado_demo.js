@@ -5,10 +5,11 @@
 
   /**
    * opciones: modo ('PRODUCCION' | 'PARADA' | 'RECIRCULACION_AGUA' | 'CIP'), caudalLh, temperaturaC (TT-103), desvio (bool: la FDV está en desvío),
-   * averias: [{ id, tags }], nivelPct.
+   * averias: [{ id, tags }], nivelPct (tanque de balance), nivelAguaPct (depósito de agua caliente), llenandoTK / vaciandoTK / llenandoHW / vaciandoHW (abre
+   * XV-101 / XV-102 / XV-302 / XV-303), desbordando (rebosa el tanque de balance) y bajoNivelAgua (LSL-301 abierto: nivel bajo en el agua caliente).
    */
   function estadoDemo(opciones = {}) {
-    const modo = opciones.modo || 'PRODUCCION';
+    const modo = opciones.modo || 'PRODUCCION';          // también 'MANUAL': los actuadores reflejan lo que mandes (ver las opciones de llenado)
     const produce = modo === 'PRODUCCION';
     const caudal = opciones.caudalLh !== undefined ? opciones.caudalLh : (produce ? 2000 : 0);
     const t103 = opciones.temperaturaC !== undefined ? opciones.temperaturaC : (produce ? 73.5 : 25);
@@ -25,6 +26,15 @@
     Object.assign(equipos['HW-101'], { banco1: marcha, banco2: produce, potenciaKW: produce ? 18 : 9, temperaturaC: aguaC });
     Object.assign(equipos['XV-301'], { abierta: produce }, {});
     Object.assign(equipos['XV-401'], { abierta: modo === 'CIP' });
+    // Llenado y vaciado (modo manual o reposición automática): todas cerradas salvo que se pida lo contrario.
+    Object.assign(equipos['XV-101'], { abierta: !!opciones.llenandoTK });
+    Object.assign(equipos['XV-102'], { abierta: !!opciones.vaciandoTK });
+    Object.assign(equipos['XV-302'], { abierta: !!opciones.llenandoHW });
+    Object.assign(equipos['XV-303'], { abierta: !!opciones.vaciandoHW });
+    const nivelAgua = opciones.bajoNivelAgua ? 8 : (opciones.nivelAguaPct !== undefined ? opciones.nivelAguaPct : 80);
+    Object.assign(equipos['LSL-301'], { contactoCerrado: !opciones.bajoNivelAgua });
+    Object.assign(equipos['TK-101'], { desbordando: !!opciones.desbordando });
+    Object.assign(equipos['HW-101'], { nivelPct: nivelAgua, volumenL: 150 * nivelAgua / 100 });
     for (const km of ['KM-102', 'KM-103', 'KM-201', 'KM-202']) equipos[km] = { cerrado: marcha, pegado: false };
     Object.assign(equipos['HX-101'], { fugaPlaca01: 0 });
     Object.assign(equipos['FLT-101'], { obstruccion01: 0 });
@@ -38,7 +48,8 @@
     for (const s of layout.SENALES) if (s.tipo === 'AI' || s.tipo === 'DI') instrumentos[s.tag] = { valorProceso: 0, mA: 12, valorPLC: 0, calidad: 'OK', nivel: 1 };
     return {
       version: 1, tiempoS: 0, modo,
-      tanque: { nivelPct: opciones.nivelPct !== undefined ? opciones.nivelPct : 65, volumenL: 650, temperaturaC: 4 },
+      tanque: { nivelPct: opciones.nivelPct !== undefined ? opciones.nivelPct : 65, volumenL: 650, temperaturaC: 4, desbordando: !!opciones.desbordando },
+      aguaCaliente: { nivelPct: nivelAgua, volumenL: 150 * nivelAgua / 100, temperaturaC: aguaC },
       proceso: {
         caudalLh: caudal,
         temperaturas: { entrada: 4, trasRegeneracion: produce ? 66 : 20, trasCalentamiento: t103, salidaTubo: t103, salidaFinal: produce ? 5 : 20, aguaCaliente: aguaC },

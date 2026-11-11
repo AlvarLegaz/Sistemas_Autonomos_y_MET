@@ -71,7 +71,7 @@
   function crearMultimetro(contenedor, contexto) {
     const lista = puntosMedida.puntosDisponibles(contexto.sim());
     contenedor.innerHTML = `<h3>Multímetro</h3>
-      <div class="mm-pantalla" aria-live="polite"><span class="mm-valor">—</span><span class="mm-modo"></span></div>
+      <div class="mm-pantalla" aria-live="off"><span class="mm-valor">—</span><span class="mm-modo"></span></div>
       <label>Función <select class="mm-modo-sel">${MODOS.map(m => `<option value="${m.id}">${m.nombre}</option>`).join('')}</select></label>
       <label>Punto de prueba (la otra punta, en masa) <select class="mm-punto">${lista.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('')}</select></label>
       <p class="mm-avisos" role="note"></p>

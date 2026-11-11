@@ -11,6 +11,7 @@
 
   const p = (tag, nombre) => P.puerto(tag, nombre);
   const SALIDA = P.puerto('SALIDA_PRODUCTO', 'ent'), SUMINISTRO = P.puerto('SUMINISTRO_FRIO', 'sal'), DESAGUE = P.puerto('DESAGUE', 'ent');
+  const SUMINISTRO_LECHE = P.puerto('SUMINISTRO_LECHE', 'sal'), DESAGUE_LECHE = P.puerto('DESAGUE_LECHE', 'ent'), DESAGUE_AGUA = P.puerto('DESAGUE_AGUA', 'ent');
 
   /**
    * Recorrido ortogonal de A a B: sube o baja hasta el carril (altura) `carril`, avanza en x, luego en z y vuelve a bajar a B. Así quedan
@@ -78,6 +79,15 @@
     { id: 'AGUA_FRIA_2', ayuda: 'XV-301', fluido: 'agua_fria', de: p('XV-301', 'sal'), a: p('HX-101', 'cold_in'), carril: 82 },
     { id: 'AGUA_FRIA_DESAGUE', ayuda: 'HX-101', fluido: 'agua_fria', de: p('HX-101', 'cold_out'), a: DESAGUE, carril: 86 },
     { id: 'CIP', ayuda: 'XV-401', fluido: 'cip', de: p('XV-401', 'sal'), a: p('HX-101', 'raw_in'), carril: 88 },
+    // Llenado y vaciado (modo manual y reposición automática): cada pareja de tubos lleva fluido cuando su válvula está abierta.
+    { id: 'LECHE_LLENADO_1', ayuda: 'XV-101', fluido: 'leche', de: SUMINISTRO_LECHE, a: p('XV-101', 'ent'), carril: 10 },
+    { id: 'LECHE_LLENADO_2', ayuda: 'XV-101', fluido: 'leche', de: p('XV-101', 'sal'), a: p('TK-101', 'llen'), carril: 62 },
+    { id: 'LECHE_VACIADO_1', ayuda: 'XV-102', fluido: 'leche', de: p('TK-101', 'vac'), a: p('XV-102', 'ent'), carril: 26 },
+    { id: 'LECHE_VACIADO_2', ayuda: 'XV-102', fluido: 'leche', de: p('XV-102', 'sal'), a: DESAGUE_LECHE, carril: 10 },
+    { id: 'AGUA_LLENADO_1', ayuda: 'XV-302', fluido: 'agua_fria', de: SUMINISTRO, a: p('XV-302', 'ent'), carril: 10 },
+    { id: 'AGUA_LLENADO_2', ayuda: 'XV-302', fluido: 'agua_fria', de: p('XV-302', 'sal'), a: p('HW-101', 'llen'), carril: 30 },
+    { id: 'AGUA_VACIADO_1', ayuda: 'XV-303', fluido: 'agua_caliente', de: p('HW-101', 'vac'), a: p('XV-303', 'ent'), carril: 14 },
+    { id: 'AGUA_VACIADO_2', ayuda: 'XV-303', fluido: 'agua_caliente', de: p('XV-303', 'sal'), a: DESAGUE_AGUA, carril: 10 },
     { id: 'AIRE_1', ayuda: 'FRL-101', fluido: 'aire', de: p('FRL-101', 'sal'), a: p('SV-101', 'ent'), carril: 24, radio: 0.55 },
     { id: 'AIRE_2', ayuda: 'SV-101', fluido: 'aire', de: p('SV-101', 'sal'), a: p('FDV-101', 'aire'), carril: 42, radio: 0.55 },
   ];
@@ -99,6 +109,7 @@
   // Velocidad visual de las partículas (cm/s): la misma en todos los tubos con el mismo fluido y caudal, sea cual sea su longitud.
   const velocidadLeche = caudalLh => 14 + 46 * Math.min(1, Math.max(0, caudalLh) / 2500);
   const VELOCIDAD_AGUA_CM_S = 34;
+  const VELOCIDAD_LLENADO_CM_S = 40;                    // leche que entra o sale del tanque de balance por XV-101 / XV-102
 
   /** Qué tubos llevan fluido y a qué velocidad: { [id]: { activo, velocidadCmS } }. Reglas de ARQUITECTURA.md §2.1 y §2.3. */
   function estadoRutas(estado) {
@@ -113,11 +124,17 @@
     for (const id of ['AGUA_CALIENTE_1', 'AGUA_CALIENTE_2', 'AGUA_CALIENTE_RETORNO']) r[id] = { activo: bomba102, velocidadCmS: VELOCIDAD_AGUA_CM_S };
     for (const id of ['AGUA_FRIA_1', 'AGUA_FRIA_2', 'AGUA_FRIA_DESAGUE']) r[id] = { activo: frio, velocidadCmS: VELOCIDAD_AGUA_CM_S };
     r.CIP = { activo: cip, velocidadCmS: VELOCIDAD_AGUA_CM_S };
+    const llenaTK = K.valvulaAbierta(estado, 'XV-101'), vaciaTK = K.valvulaAbierta(estado, 'XV-102');
+    const llenaHW = K.valvulaAbierta(estado, 'XV-302'), vaciaHW = K.valvulaAbierta(estado, 'XV-303');
+    for (const id of ['LECHE_LLENADO_1', 'LECHE_LLENADO_2']) r[id] = { activo: llenaTK, velocidadCmS: VELOCIDAD_LLENADO_CM_S };
+    for (const id of ['LECHE_VACIADO_1', 'LECHE_VACIADO_2']) r[id] = { activo: vaciaTK, velocidadCmS: VELOCIDAD_LLENADO_CM_S };
+    for (const id of ['AGUA_LLENADO_1', 'AGUA_LLENADO_2']) r[id] = { activo: llenaHW, velocidadCmS: VELOCIDAD_AGUA_CM_S };
+    for (const id of ['AGUA_VACIADO_1', 'AGUA_VACIADO_2']) r[id] = { activo: vaciaHW, velocidadCmS: VELOCIDAD_AGUA_CM_S };
     return r;
   }
 
-  const COLOR_TUBO = { leche: 0xd3dae1, agua_caliente: 0xd9a58a, agua_fria: 0x8fb9d9, cip: 0xb7c98a, aire: 0x6f8ea6 };
-  const COLOR_PARTICULA = { leche: 0xffffff, agua_caliente: 0xff9a4d, agua_fria: 0x5ab0ff, cip: 0xd6f06a, aire: 0xffffff };
+  const COLOR_TUBO = { leche: 0x8fd1a0, agua_caliente: 0xd9a58a, agua_fria: 0x8fb9d9, cip: 0xb7c98a, aire: 0x6f8ea6 };
+  const COLOR_PARTICULA = { leche: 0xf2fff4, agua_caliente: 0xff9a4d, agua_fria: 0x5ab0ff, cip: 0xd6f06a, aire: 0xffffff };
 
   /** Posición (índice de la tabla de puntos espaciados 1 cm) de la partícula i de un tubo de `n` puntos. Función pura. */
   const indiceParticula = (i, separacionCm, avanceCm, n) => (((Math.floor(i * separacionCm + avanceCm)) % n) + n) % n;
@@ -189,6 +206,6 @@
     return { grupo, elementos, actualizar, liberar: kit.liberar, TAGS: Object.keys(elementos) };
   }
 
-  const api = { crear, autoruta, esquinas, longitudRuta, RUTAS, rutaPorId, puntoSobreRuta, estadoRutas, velocidadLeche, VELOCIDAD_AGUA_CM_S, indiceParticula, RADIO_TUBO_CM };
+  const api = { crear, autoruta, esquinas, longitudRuta, RUTAS, rutaPorId, puntoSobreRuta, estadoRutas, velocidadLeche, VELOCIDAD_AGUA_CM_S, VELOCIDAD_LLENADO_CM_S, indiceParticula, RADIO_TUBO_CM };
   if (typeof module !== 'undefined') module.exports = api; else { window.PCT = window.PCT || {}; PCT.htstTuberias = api; }
 })();

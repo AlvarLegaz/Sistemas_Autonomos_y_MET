@@ -9,7 +9,7 @@
     const equipos = {};
     for (const e of layout.EQUIPOS) equipos[e.tag] = {};
     Object.assign(equipos, {
-      'TK-101': { nivelPct: T.nivelInicialPct, volumenL: T.capacidadL * T.nivelInicialPct / 100, reponiendo: false },
+      'TK-101': { nivelPct: T.nivelInicialPct, volumenL: T.capacidadL * T.nivelInicialPct / 100, reponiendo: false, desbordando: false },
       'FLT-101': { obstruccion01: 0 },
       'P-101': { marcha: false, velocidadPct: 0, caudalLh: 0, corrienteA: 0, temperaturaDisipadorC: C.variador.ambienteC, fallo: false, ventiladorOK: true },
       'P-102': { marcha: false, corrienteA: 0 },
@@ -20,8 +20,10 @@
       'SV-101': { energizada: false, bobinaOhm: C.electrico.resistenciaBobinaSV101Ohm },
       'FRL-101': { presionBar: C.aire.presionNominalBar },
       'PSL-201': { contactoCerrado: true },
-      'HW-101': { banco1: false, banco2: false, potenciaKW: 0, temperaturaC: amb },
+      'HW-101': { banco1: false, banco2: false, potenciaKW: 0, temperaturaC: amb, nivelPct: C.aguaCaliente.nivelInicialPct, volumenL: C.aguaCaliente.capacidadL * C.aguaCaliente.nivelInicialPct / 100 },
       'XV-301': { abierta: false }, 'XV-401': { abierta: false },
+      'XV-101': { abierta: false }, 'XV-102': { abierta: false }, 'XV-302': { abierta: false }, 'XV-303': { abierta: false },
+      'LSL-301': { contactoCerrado: true },
       'TSH-101': { abierto: false, disparado: false, falsoContacto: false },
       'ES-001': { rearmado: true }, 'QF-102': { armado: true },
       'PS-001': { tensionV: C.electrico.tension24V, ok: true }, 'F-201': { fundido: false },
@@ -33,6 +35,7 @@
     return {
       version: 1, tiempoS: 0, modo: 'PARADA',
       tanque: { nivelPct: T.nivelInicialPct, volumenL: equipos['TK-101'].volumenL, temperaturaC: ent },
+      aguaCaliente: { nivelPct: equipos['HW-101'].nivelPct, volumenL: equipos['HW-101'].volumenL, temperaturaC: amb },
       proceso: {
         caudalLh: 0,
         temperaturas: { entrada: ent, trasRegeneracion: ent, trasCalentamiento: ent, salidaTubo: ent, salidaFinal: ent, aguaCaliente: amb },

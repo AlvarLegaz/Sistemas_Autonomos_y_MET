@@ -17,7 +17,7 @@
   function crearSimulacion({ semilla = 1 } = {}) {
     const motor = crearMotorAverias(CATALOGO, { semilla });
     let estado = crearEstado(), mem = plc.crearMemoria(), salidas = plc.salidasApagadas();
-    let ord, pbRestoS = 0, pulsoTSH = false, restoDt = 0, registroAI = {};
+    let ord, pbRestoS = 0, pulsoTSH = false, restoDt = 0, registroAI = {}, modoAnterior = 'PARADA';
     const ordenesVacias = () => ({ arrancar: false, parar: false, modo: null, pulsadores: [], manual: {}, consignaTT103C: null, consignaCaudalLh: null });
     ord = ordenesVacias();
 
@@ -38,6 +38,7 @@
       eq['SV-101'].energizada = cierra('SV-101', DO['SV-101']);
       eq['SV-101'].bobinaOhm = motor.hay('AV-BOBINA-ABIERTA') ? Infinity : C.electrico.resistenciaBobinaSV101Ohm;
       eq['XV-301'].abierta = es && DO['XV-301'] === 1; eq['XV-401'].abierta = es && DO['XV-401'] === 1;
+      for (const v of ['XV-101', 'XV-102', 'XV-302', 'XV-303']) eq[v].abierta = es && DO[v] === 1;
       eq['P-102'].marcha = eq['KM-102'].cerrado && armado;
       eq['P-103'].marcha = eq['KM-103'].cerrado;
       const hw = eq['HW-101'];
@@ -72,8 +73,13 @@
       const tRes = hidraulica.tiempoResidenciaS(caudal);
       T.salidaTubo = termica.acercar(T.salidaTubo, T.trasCalentamiento, dt, Number.isFinite(tRes) ? limitar(tRes, 2, 60) : 120);   // el tubo retrasa la temperatura
       T.salidaFinal = termica.acercar(T.salidaFinal, obj.t104, dt, tau);
-      const perdidaLecheKW = eq['P-102'].marcha && caudal > 1 ? termica.potenciaALeche(caudal, T.trasRegeneracion, T.trasCalentamiento) : 0;
-      T.aguaCaliente = termica.pasoAguaCaliente(T.aguaCaliente, { potenciaKW: hw.potenciaKW, perdidaLecheKW, dt });
+      // Sin agua en el depósito P-102 no tiene qué mover y no hay intercambio con la leche
+      const perdidaLecheKW = eq['P-102'].marcha && caudal > 1 && hw.nivelPct > C.aguaCaliente.nivelBajoPct ? termica.potenciaALeche(caudal, T.trasRegeneracion, T.trasCalentamiento) : 0;
+      const mezcla = termica.pasoNivelAguaCaliente(hw.volumenL, T.aguaCaliente, { llenando: eq['XV-302'].abierta, vaciando: eq['XV-303'].abierta, dt });
+      hw.volumenL = mezcla.volumenL; hw.nivelPct = hw.volumenL / C.aguaCaliente.capacidadL * 100;
+      T.aguaCaliente = termica.pasoAguaCaliente(mezcla.temperaturaC, { potenciaKW: hw.potenciaKW, perdidaLecheKW, dt, volumenL: hw.volumenL });
+      estado.aguaCaliente.volumenL = hw.volumenL; estado.aguaCaliente.nivelPct = hw.nivelPct; estado.aguaCaliente.temperaturaC = T.aguaCaliente;
+      eq['LSL-301'].contactoCerrado = hw.nivelPct > C.aguaCaliente.nivelBajoPct;
       hw.temperaturaC = T.aguaCaliente;
       const tsh = eq['TSH-101'];
       tsh.disparado = termica.pasoTermostato(tsh.disparado, T.aguaCaliente, pulsoTSH); pulsoTSH = false;
@@ -84,16 +90,23 @@
       eq['HX-101'].regeneracion.tempC = T.trasRegeneracion; eq['HX-101'].calentamiento.tempC = T.trasCalentamiento; eq['HX-101'].enfriamiento.tempC = T.salidaFinal;
 
       // Tanque de balance: sale lo que bombea P-101, entra la reposición y el desvío (la leche desviada vuelve al tanque)
-      const tk = eq['TK-101'], pct = tk.volumenL / C.tanque.capacidadL * 100;
-      if (pct < C.tanque.reponerDesdePct) tk.reponiendo = true; else if (pct >= C.tanque.reponerHastaPct) tk.reponiendo = false;
+      // XV-101 llena (la manda el PLC en automático y el operador en manual), XV-102 vacía; el tanque tiene rebosadero
+      const tk = eq['TK-101'];
+      tk.reponiendo = eq['XV-101'].abierta;
       const retorno = fdv.apertura01 < 0.5 ? caudal : 0;
-      tk.volumenL = hidraulica.pasoTanque(tk.volumenL, { entradaLh: (tk.reponiendo ? C.tanque.reposicionLh : 0) + retorno, salidaLh: caudal, dt });
+      const entradaLh = (eq['XV-101'].abierta ? C.tanque.llenadoXV101Lh : 0) + retorno;
+      tk.desbordando = tk.volumenL >= C.tanque.capacidadL - 1e-6 && entradaLh > caudal + (eq['XV-102'].abierta ? C.tanque.vaciadoXV102Lh : 0);
+      tk.volumenL = hidraulica.pasoTanque(tk.volumenL, { entradaLh, salidaLh: caudal + (eq['XV-102'].abierta ? C.tanque.vaciadoXV102Lh : 0), dt });
       tk.nivelPct = tk.volumenL / C.tanque.capacidadL * 100;
       estado.tanque.volumenL = tk.volumenL; estado.tanque.nivelPct = tk.nivelPct;
 
       // Contadores
       const k = estado.contadores, litros = caudal * dt / 3600;
-      if (fdv.posicion === 'AVANCE' && estado.modo === 'PRODUCCION') { k.producidoL += litros; if (!estado.proceso.pasteurizadoReal) k.noConformeL += litros; }
+      if (fdv.posicion === 'AVANCE' && (estado.modo === 'PRODUCCION' || estado.modo === 'MANUAL')) {
+        k.producidoL += litros;
+        // En manual la leche también se cuenta, y es NO CONFORME si pasa por la FDV sin cumplir las condiciones (72 °C, 15 s, diferencial, aire, lazos sanos)
+        if (!estado.proceso.pasteurizadoReal || (estado.modo === 'MANUAL' && !(estado.plc && estado.plc.cumpleCondiciones))) k.noConformeL += litros;
+      }
       if (fdv.apertura01 < 0.5) k.desviadoL += litros;
       k.energiaKWh += hw.potenciaKW * dt / 3600;
 
@@ -113,6 +126,8 @@
       const res = plc.ejecutarPLC({ AI: entradas.AI, DI: entradas.DI }, mem, ordenes, dt);
       salidas = { DO: res.DO, AO: res.AO };
       estado.salidasPLC = { DO: Object.assign({}, res.DO), AO: Object.assign({}, res.AO) };
+      if (modoAnterior === 'MANUAL' && res.modo !== 'MANUAL') ord.manual = {};            // al volver a automático el PLC recupera el mando
+      modoAnterior = res.modo;
       estado.modo = res.modo; estado.alarmas = res.alarmas; estado.averiasActivas = motor.activas();
       eq['HL-001'].encendida = res.DO['HL-001'] === 1;
       estado.plc = { paro: res.paro, motivosParo: res.motivosParo, consignaAguaC: res.consignaAguaC, cip: res.cip, cumpleCondiciones: res.cumpleCondiciones };
@@ -147,7 +162,7 @@
 
     /** Vuelve la planta a su estado inicial (las averías inyectadas se conservan salvo que se pida quitarlas). */
     function reiniciar({ quitarAverias = false } = {}) {
-      estado = crearEstado(); mem = plc.crearMemoria(); salidas = plc.salidasApagadas(); ord = ordenesVacias(); restoDt = 0; pbRestoS = 0; pulsoTSH = false; registroAI = {};
+      estado = crearEstado(); mem = plc.crearMemoria(); salidas = plc.salidasApagadas(); ord = ordenesVacias(); restoDt = 0; pbRestoS = 0; pulsoTSH = false; registroAI = {}; modoAnterior = 'PARADA';
       if (quitarAverias) for (const a of motor.activas()) motor.quitar(a.instancia);
       motor.reloj(0);
     }

@@ -7,7 +7,7 @@
   const P = typeof require !== 'undefined' ? require('./puertos.js') : PCT.htstPuertos;
   const layout = typeof require !== 'undefined' ? require('../layout.js') : PCT.htstLayout;
   const PI = Math.PI;
-  const TAGS = ['TK-101', 'FLT-101', 'P-101', 'P-102', 'P-103', 'HX-101', 'HT-101', 'FDV-101', 'SV-101', 'FRL-101', 'HW-101', 'XV-301', 'XV-401'];
+  const TAGS = ['TK-101', 'FLT-101', 'P-101', 'P-102', 'P-103', 'HX-101', 'HT-101', 'FDV-101', 'SV-101', 'FRL-101', 'HW-101', 'XV-301', 'XV-401', 'XV-101', 'XV-102', 'XV-302', 'XV-303'];
 
   // Distribución de las placas del intercambiador: tres paquetes (regeneración, calentamiento, enfriamiento) separados por placas de bastidor.
   const PLACAS = { regeneracion: 22, calentamiento: 16, enfriamiento: 14, paso: 1.5, inicio: -45, separador: 3 };
@@ -43,17 +43,31 @@
       e.add(kit.cil(1.9, 7, 10), 'inox', [r[0], r[1] - 2, r[2]]); e.add(kit.toro(2.6, 0.5), 'inoxMate', [r[0], r[1] + 1.5, r[2]], [PI / 2, 0, 0]);
       e.add(kit.cil(0.5, 54, 6), 'inoxMate', [-37, 50, 0]);                    // soportes del visor de nivel
       e.add(kit.cil(2, 2, 8), 'inoxMate', [-35, 24, 0], [0, 0, PI / 2]); e.add(kit.cil(2, 2, 8), 'inoxMate', [-35, 76, 0], [0, 0, PI / 2]);
-      const matVisor = kit.matDinamico(0xf6f3ea);
+      const matVisor = kit.matDinamico(K.VERDE_PRODUCTO);                      // el producto es verde
       const columna = kit.malla(kit.cil(1.1, 52, 8), matVisor, g, 'TK-101', [-37, 50, 0]);
       kit.malla(kit.cil(1.8, 52, 8), kit.matDinamico(0x9fc4d9, { transparent: true, opacity: 0.35, depthWrite: false }), g, 'TK-101', [-37, 50, 0]);
+      // Rebosadero: boquilla en la parte alta del frente del tanque, con un chorro y un charco que aparecen solo si el tanque desborda.
+      e.add(kit.cil(1.3, 7, 8), 'inox', [-14, 74.5, 31.2], [PI / 2, 0, 0]); e.add(kit.cil(1.3, 6, 8), 'inox', [-14, 72, 34.5]);
       e.construir(g, 'TK-101');
+      const matChorro = kit.matDinamico(K.VERDE_PRODUCTO, { transparent: true, opacity: 0.8, depthWrite: false });
+      const chorro = kit.malla(kit.cil(1.0, 70, 8), matChorro, g, 'TK-101', [-14, 37, 34.5]);
+      const charco = kit.malla(kit.cil(7, 0.5, 20), matChorro, g, 'TK-101', [-14, 2.3, 34.5]);
+      chorro.visible = false; charco.visible = false; chorro.raycast = () => {}; charco.raycast = () => {};       // no se seleccionan
       base.registrar('TK-101', g, [70, 96, 70]);
+      let reloj = 0;
       let ultimoColor = -1;
-      base.alActualizar(estado => {
+      base.alActualizar((estado, dt) => {
         const n = K.nivelTanquePct(estado) / 100;
         columna.scale.y = Math.max(0.02, n); columna.position.y = 24 + 26 * Math.max(0.02, n);
-        const hex = K.colorLeche(K.num(estado && estado.tanque && estado.tanque.temperaturaC, 4));
+        const hex = K.colorProducto(K.num(estado && estado.tanque && estado.tanque.temperaturaC, 4));
         if (hex !== ultimoColor) { matVisor.color.setHex(hex); ultimoColor = hex; }
+        const rebosa = K.tanqueDesbordando(estado);
+        chorro.visible = rebosa; charco.visible = rebosa;
+        if (rebosa) {                                                       // el chorro tiembla y el charco respira
+          reloj += dt || 0;
+          const k = 1 + 0.14 * Math.sin(reloj * 14), c = 1 + 0.06 * Math.sin(reloj * 5);
+          chorro.scale.set(k, 1, k); charco.scale.set(c, 1, c);
+        }
       });
     })();
 
@@ -248,42 +262,72 @@
       e.add(kit.cil(17.6, 2, 22), 'inoxMate', [0, 10.5, 0]); e.add(kit.cil(17.6, 2, 22), 'inoxMate', [0, 66.5, 0]);
       e.add(kit.cono(17, 6, 8, 22), 'gris', [0, 70, 0]);
       e.add(kit.cil(1.9, 8, 10), 'inox', [-21, 20, 0], [0, 0, PI / 2]); e.add(kit.cil(1.9, 8, 10), 'inox', [-21, 62, 0], [0, 0, PI / 2]);
-      e.add(kit.caja(10, 8, 6), 'negro', [-8, 16, 18]); e.add(kit.caja(10, 8, 6), 'negro', [8, 16, 18]);       // cajas de bornas de los dos bancos
-      e.construir(g, 'HW-101');
+      e.add(kit.caja(10, 8, 6), 'negro', [-8, 16, -18]); e.add(kit.caja(10, 8, 6), 'negro', [8, 16, -18]);       // cajas de bornas de los dos bancos (detrás: delante tapaban el visor)
+      // Visor frontal: marco oscuro, columna de agua con su nivel y los dos bancos de resistencias, de tres varillas cada uno, que brillan en naranja
+      // cuando su contactor está cerrado. La marca roja es el nivel bajo (15 %) donde actúa LSL-301.
+      const VX = -3, VZ = 17.6, VY0 = 11.8, VALTO = 52.4, MARCA_LSL = VY0 + VALTO * 0.15;
+      e.add(kit.caja(11, 54, 1.4), 'negro', [VX, 38, VZ]);
+      e.add(kit.caja(11.4, 0.7, 0.4), 'rojo', [VX, MARCA_LSL, VZ + 1.3]);
+      const resB1 = kit.matLed(0x6a6f75), resB2 = kit.matLed(0x6a6f75), eb1 = kit.ensamble(), eb2 = kit.ensamble();
+      for (const dx of [-3.4, -2.0, -0.6]) eb1.add(kit.cil(0.5, 7, 6), resB1, [VX + dx, 15.5, VZ + 2.0]);
+      for (const dx of [0.6, 2.0, 3.4]) eb2.add(kit.cil(0.5, 7, 6), resB2, [VX + dx, 15.5, VZ + 2.0]);
+      e.construir(g, 'HW-101'); eb1.construir(g, 'HW-101'); eb2.construir(g, 'HW-101');
+      const matAgua = kit.matDinamico(0x3a8fd0);
+      const aguaVisor = kit.malla(kit.caja(9.6, 1, 0.9), matAgua, g, 'HW-101', [VX, VY0 + 1, VZ + 0.9]);
+      const lamparaNivel = kit.malla(kit.esfera(1.4, 8), kit.matLed(0xff3b30), g, 'HW-101', [VX, 66.6, VZ + 0.2]);
+      lamparaNivel.visible = false;
       const matBanco1 = kit.matLed(0x555555), matBanco2 = kit.matLed(0x555555);
-      kit.malla(kit.esfera(1.1, 8), matBanco1, g, 'HW-101', [-8, 21, 18]); kit.malla(kit.esfera(1.1, 8), matBanco2, g, 'HW-101', [8, 21, 18]);
+      kit.malla(kit.esfera(1.1, 8), matBanco1, g, 'HW-101', [VX - 3.8, 67.4, VZ + 0.6]); kit.malla(kit.esfera(1.1, 8), matBanco2, g, 'HW-101', [VX + 3.8, 67.4, VZ + 0.6]);   // pilotos B1 y B2 sobre el visor
       const matJacket = kit.matDinamico(0xd9dcde); const camisa = kit.malla(kit.cil(17.2, 8, 22), matJacket, g, 'HW-101', [0, 56, 0]);
       base.registrar('HW-101', g, [40, 78, 40], 84);
-      let u1 = -1, u2 = -1, u3 = -1;
+      let u1 = -1, u2 = -1, u3 = -1, u4 = -1, u5 = -1, u6 = null;
       base.alActualizar(estado => {
-        const h = K.equipoDe(estado, 'HW-101'), b1 = !!h.banco1, b2 = !!h.banco2;
+        const b1 = K.bancoEncendido(estado, 1), b2 = K.bancoEncendido(estado, 2), tAgua = K.temperaturaAguaCaliente(estado);
         const c1 = b1 ? 0xff7a1a : 0x555555, c2 = b2 ? 0xff7a1a : 0x555555;
-        if (c1 !== u1) { matBanco1.color.setHex(c1); u1 = c1; }
-        if (c2 !== u2) { matBanco2.color.setHex(c2); u2 = c2; }
-        const hex = K.mezclarHex(0xd9dcde, 0xe9a27c, (K.num(h.temperaturaC, 20) - 20) / 70);
+        if (c1 !== u1) { matBanco1.color.setHex(c1); resB1.color.setHex(b1 ? 0xff7a1a : 0x6a6f75); u1 = c1; }
+        if (c2 !== u2) { matBanco2.color.setHex(c2); resB2.color.setHex(b2 ? 0xff7a1a : 0x6a6f75); u2 = c2; }
+        const hex = K.mezclarHex(0xd9dcde, 0xe9a27c, (tAgua - 20) / 70);
         if (hex !== u3) { matJacket.color.setHex(hex); u3 = hex; }
+        const n = K.nivelAguaCalientePct(estado) / 100;                                  // columna de agua del visor
+        if (n !== u4) { aguaVisor.scale.y = Math.max(0.01, VALTO * n); aguaVisor.position.y = VY0 + Math.max(0.01, VALTO * n) / 2; u4 = n; }
+        const ca = K.colorAguaCaliente(tAgua);
+        if (ca !== u5) { matAgua.color.setHex(ca); u5 = ca; }
+        const bajo = K.contactoLSL(estado) === 'abierto';                                // LSL-301 abierto: nivel bajo, resistencias en peligro
+        if (bajo !== u6) { lamparaNivel.visible = bajo; u6 = bajo; }
       });
       camisa.visible = true;
     })();
 
-    /* ---------- XV-301 y XV-401 válvulas todo/nada ---------- */
-    function valvulaTodoNada(tag) {
+    /* ---------- válvulas todo/nada: XV-301 y XV-401 (servicios) y XV-101, XV-102, XV-302, XV-303 (llenado y vaciado) ---------- */
+    // `fluido`: color de las bandas que rodean las bocas (producto verde, agua fría azul, agua caliente naranja, CIP verde amarillento).
+    // Abierta: el actuador sube, asoma el vástago y el capuchón se pone verde; cerrada: capuchón gris y vástago recogido.
+    function valvulaTodoNada(tag, fluido, giro = 0) {
       const g = base.nuevoGrupo(tag), e = kit.ensamble();
+      g.rotation.y = giro;
+      const matBanda = kit.matDinamico(fluido);
       e.add(kit.esfera(3.4, 10), 'inox', [0, 10, 0]);
       e.add(kit.cil(1.9, 6, 10), 'inox', [0, 10, 6.6], [PI / 2, 0, 0]); e.add(kit.cil(1.9, 6, 10), 'inox', [0, 10, -6.6], [PI / 2, 0, 0]);   // bocas (z = ±8: puertos)
       e.add(kit.toro(2.7, 0.5), 'inoxMate', [0, 10, 9.6]); e.add(kit.toro(2.7, 0.5), 'inoxMate', [0, 10, -9.6]);
+      e.add(kit.toro(2.3, 0.55, Math.PI * 2, 10), matBanda, [0, 10, 5.2]); e.add(kit.toro(2.3, 0.55, Math.PI * 2, 10), matBanda, [0, 10, -5.2]);
       e.add(kit.cil(1.2, 4, 8), 'inoxMate', [0, 14.5, 0]); e.add(kit.cil(3, 5, 12), 'azul', [0, 18.5, 0]);                               // actuador
       e.construir(g, tag);
       const matCapuchon = kit.matLed(0x777777);
-      kit.malla(kit.cil(2.2, 1.6, 12), matCapuchon, g, tag, [0, 21.8, 0]);
+      const capuchon = kit.malla(kit.cil(2.2, 1.6, 12), matCapuchon, g, tag, [0, 21.8, 0]);
+      const vastago = kit.malla(kit.cil(0.55, 2.2, 6), kit.mat('inoxMate'), g, tag, [0, 22.7, 0]);
+      vastago.visible = false;
       base.registrar(tag, g, [14, 24, 22], 28);
-      let ultimo = -1;
+      let ultimo = null;
       base.alActualizar(estado => {
-        const hex = K.equipoDe(estado, tag).abierta ? 0x35e06b : 0x777777;
-        if (hex !== ultimo) { matCapuchon.color.setHex(hex); ultimo = hex; }
+        const abierta = K.valvulaAbierta(estado, tag);
+        if (abierta === ultimo) return;
+        ultimo = abierta;
+        matCapuchon.color.setHex(abierta ? 0x35e06b : 0x777777);
+        capuchon.position.y = abierta ? 23.6 : 21.8; vastago.visible = abierta;
       });
     }
-    valvulaTodoNada('XV-301'); valvulaTodoNada('XV-401');
+    valvulaTodoNada('XV-301', K.AZUL_AGUA); valvulaTodoNada('XV-401', 0xb7c98a);
+    valvulaTodoNada('XV-101', K.VERDE_PRODUCTO); valvulaTodoNada('XV-102', K.VERDE_PRODUCTO);
+    valvulaTodoNada('XV-302', K.AZUL_AGUA); valvulaTodoNada('XV-303', K.NARANJA_AGUA_CALIENTE, PI / 2);      // XV-303 va girada para no salirse del patín
 
     return { grupo: base.grupo, elementos: base.elementos, actualizar: base.actualizar, liberar: kit.liberar, TAGS };
   }

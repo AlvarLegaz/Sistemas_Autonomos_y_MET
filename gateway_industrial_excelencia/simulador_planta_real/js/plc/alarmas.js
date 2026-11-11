@@ -16,9 +16,12 @@
     A190: 'Fallo de comunicación SCADA - PLC',
     A200: 'Nivel bajo en el tanque de balance',
     A210: 'Sin condiciones de pasteurización: producción devuelta a recirculación',
+    A220: 'MANUAL: FDV en avance sin condiciones de pasteurización (el producto se cuenta como no conforme)',
+    A230: 'Nivel bajo en el depósito de agua caliente: el calentador queda sin energía',
+    M100: 'MODO MANUAL activo: el PLC no automatiza nada, solo mantiene las protecciones cableadas',
   };
   const NIVELES = { A101: 'alarma', A102: 'alarma', A110: 'critica', A120: 'critica', A130: 'alarma', A140: 'critica', A150: 'critica', A160: 'alarma',
-    A170: 'critica', A180: 'critica', A190: 'aviso', A200: 'aviso', A210: 'aviso' };
+    A170: 'critica', A180: 'critica', A190: 'aviso', A200: 'aviso', A210: 'aviso', A220: 'aviso', A230: 'alarma', M100: 'estado' };   // 'estado': informa, no enciende la baliza
 
   const alarma = (codigo, tag) => ({ codigo, tag, nivel: NIVELES[codigo], texto: TEXTOS[codigo] });
 
@@ -42,6 +45,9 @@
     if (ctx.DI['ES-001'] === 0) lista.push(alarma('A180', 'ES-001'));
     if (ctx.DI['LSL-101'] === 0) lista.push(alarma('A200', 'LSL-101'));
     if (ctx.vueltaARecirculacion) lista.push(alarma('A210', 'FDV-101'));
+    if (ctx.DI['LSL-301'] === 0) lista.push(alarma('A230', 'LSL-301'));
+    if (ctx.modoManual) lista.push(alarma('M100', 'PLC-001'));
+    if (ctx.manualFdvSinCondiciones) lista.push(alarma('A220', 'FDV-101'));
     return lista;
   }
 

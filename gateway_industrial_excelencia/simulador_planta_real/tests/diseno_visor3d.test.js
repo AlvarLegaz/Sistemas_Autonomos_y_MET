@@ -191,3 +191,115 @@ test('el estado de demostración cubre todos los tags y las averías que se le p
   assert.equal(e.averiasActivas.length, 1);
   assert.equal(e.version, 1);
 });
+
+// ---------- Llenados, calentador con nivel y LSL-301 (modo manual) ----------
+test('las funciones de lectura del agua caliente son tolerantes y respetan el orden de preferencia', () => {
+  assert.equal(K.nivelAguaCalientePct(undefined), 70);                                           // sin dato: nivel por defecto
+  assert.equal(K.nivelAguaCalientePct({ aguaCaliente: { nivelPct: 150 } }), 100);
+  assert.equal(K.nivelAguaCalientePct({ aguaCaliente: { nivelPct: -5 } }), 0);
+  assert.equal(K.nivelAguaCalientePct({ equipos: { 'HW-101': { nivelPct: 42 } } }), 42);          // sin aguaCaliente, usa el equipo
+  assert.equal(K.nivelAguaCalientePct({ aguaCaliente: { nivelPct: 30 }, equipos: { 'HW-101': { nivelPct: 42 } } }), 30);
+  assert.equal(K.temperaturaAguaCaliente({ aguaCaliente: { temperaturaC: 61 } }), 61);
+  assert.equal(K.temperaturaAguaCaliente({ equipos: { 'HW-101': { temperaturaC: 55 } } }), 55);
+  assert.equal(K.temperaturaAguaCaliente({ proceso: { temperaturas: { aguaCaliente: 48 } } }), 48);
+  assert.equal(K.temperaturaAguaCaliente(null), 20);
+});
+
+test('bancoEncendido: manda el contactor KM-201/KM-202 y, sin dato, banco1/banco2 del calentador', () => {
+  assert.equal(K.bancoEncendido({ equipos: { 'KM-201': { cerrado: true } } }, 1), true);
+  assert.equal(K.bancoEncendido({ equipos: { 'KM-201': { cerrado: false }, 'HW-101': { banco1: true } } }, 1), false);   // el contactor abierto manda
+  assert.equal(K.bancoEncendido({ equipos: { 'HW-101': { banco2: true } } }, 2), true);
+  assert.equal(K.bancoEncendido({ equipos: { 'KM-202': { cerrado: true }, 'KM-201': { cerrado: false } } }, 2), true);
+  assert.equal(K.bancoEncendido(undefined, 1), false);
+});
+
+test('contactoLSL: cerrado con agua, abierto con nivel bajo o hilo roto, desconocido sin dato', () => {
+  assert.equal(K.contactoLSL({ equipos: { 'LSL-301': { contactoCerrado: true } } }), 'cerrado');
+  assert.equal(K.contactoLSL({ equipos: { 'LSL-301': { contactoCerrado: false } } }), 'abierto');
+  assert.equal(K.contactoLSL({ instrumentos: { 'LSL-301': { nivel: 0 } } }), 'abierto');
+  assert.equal(K.contactoLSL({ instrumentos: { 'LSL-301': { nivel: 1 } } }), 'cerrado');
+  assert.equal(K.contactoLSL({}), 'desconocido');
+  assert.equal(K.contactoLSL(undefined), 'desconocido');
+});
+
+test('valvulaAbierta y tanqueDesbordando leen los campos nuevos del estado', () => {
+  assert.equal(K.valvulaAbierta({ equipos: { 'XV-101': { abierta: true } } }, 'XV-101'), true);
+  assert.equal(K.valvulaAbierta({ equipos: { 'XV-101': { abierta: true } } }, 'XV-102'), false);
+  assert.equal(K.valvulaAbierta(undefined, 'XV-101'), false);
+  assert.equal(K.tanqueDesbordando({ tanque: { desbordando: true } }), true);
+  assert.equal(K.tanqueDesbordando({ equipos: { 'TK-101': { desbordando: true } } }), true);
+  assert.equal(K.tanqueDesbordando({ tanque: { nivelPct: 100 } }), false);
+  assert.equal(K.tanqueDesbordando(null), false);
+});
+
+test('colores del producto: verde de la convención, algo más claro con el calor', () => {
+  assert.equal(K.VERDE_PRODUCTO, 0x2f9e44);
+  assert.equal(K.colorProducto(4), 0x2f9e44);
+  assert.notEqual(K.colorProducto(74), K.colorProducto(4));
+  const verdeDominante = hex => ((hex >> 8) & 255) >= ((hex >> 16) & 255) && ((hex >> 8) & 255) >= (hex & 255);
+  for (const t of [4, 40, 74, 90]) assert.ok(verdeDominante(K.colorProducto(t)), `a ${t} °C el producto sigue siendo verde`);
+  assert.ok(verdeDominante(K.colorTuboCaliente(20)) && verdeDominante(0x8fd1a0));
+});
+
+test('las válvulas de llenado y vaciado tienen modelo, puertos y tubos con su regla de flujo', () => {
+  for (const tag of ['XV-101', 'XV-102', 'XV-302', 'XV-303']) {
+    assert.ok(EQ.TAGS.includes(tag), tag + ' sin modelo 3D');
+    assert.ok(P.puerto(tag, 'ent') && P.puerto(tag, 'sal'));
+  }
+  assert.ok(INS.TAGS.includes('LSL-301') && INS.montaje('LSL-301').every(Number.isFinite));
+  const cerradas = T.estadoRutas(estadoDemo({ modo: 'PARADA' }));
+  const abiertas = T.estadoRutas(estadoDemo({ modo: 'PARADA', llenandoTK: true, vaciandoTK: true, llenandoHW: true, vaciandoHW: true }));
+  const familias = { 'XV-101': ['LECHE_LLENADO_1', 'LECHE_LLENADO_2'], 'XV-102': ['LECHE_VACIADO_1', 'LECHE_VACIADO_2'],
+    'XV-302': ['AGUA_LLENADO_1', 'AGUA_LLENADO_2'], 'XV-303': ['AGUA_VACIADO_1', 'AGUA_VACIADO_2'] };
+  for (const [tag, ids] of Object.entries(familias)) for (const id of ids) {
+    assert.ok(T.rutaPorId(id), id + ' no existe');
+    assert.equal(T.rutaPorId(id).ayuda, tag);
+    assert.equal(cerradas[id].activo, false, id + ' lleva fluido con la válvula cerrada');
+    assert.equal(abiertas[id].activo, true, id + ' sin fluido con la válvula abierta');
+    assert.ok(abiertas[id].velocidadCmS > 0);
+  }
+  // cada válvula abre solo lo suyo
+  const solo = T.estadoRutas(estadoDemo({ modo: 'PARADA', llenandoTK: true }));
+  assert.deepEqual(Object.entries(solo).filter(([, r]) => r.activo).map(([id]) => id).sort(), ['LECHE_LLENADO_1', 'LECHE_LLENADO_2']);
+});
+
+test('los tubos de llenado y vaciado empalman con los puertos y los fluidos siguen la convención de colores', () => {
+  const colores = { leche: 'LECHE', agua_fria: 'AGUA_LLENADO', agua_caliente: 'AGUA_VACIADO' };
+  for (const r of T.RUTAS.filter(t => /LLENADO|VACIADO/.test(t.id))) {
+    assert.deepEqual(r.puntos[0], r.de, r.id); assert.deepEqual(r.puntos.at(-1), r.a, r.id);
+    assert.ok(r.id.startsWith(colores[r.fluido]) || r.fluido === 'leche', r.id + ' con fluido ' + r.fluido);
+  }
+  assert.equal(T.rutaPorId('LECHE_LLENADO_2').fluido, 'leche');                                   // producto = verde
+  assert.equal(T.rutaPorId('AGUA_LLENADO_2').fluido, 'agua_fria');                                // agua de red = azul
+  assert.equal(T.rutaPorId('AGUA_VACIADO_1').fluido, 'agua_caliente');                            // agua caliente = naranja
+});
+
+test('estado de demostración: llenados, nivel de agua caliente, LSL-301 y rebosadero', () => {
+  const base = estadoDemo({ modo: 'MANUAL' });
+  assert.equal(base.modo, 'MANUAL');
+  for (const tag of ['XV-101', 'XV-102', 'XV-302', 'XV-303']) assert.equal(base.equipos[tag].abierta, false);
+  assert.equal(base.equipos['LSL-301'].contactoCerrado, true);
+  assert.equal(base.aguaCaliente.nivelPct, 80);
+  const e = estadoDemo({ modo: 'MANUAL', llenandoTK: true, vaciandoHW: true, bajoNivelAgua: true, desbordando: true });
+  assert.equal(e.equipos['XV-101'].abierta, true); assert.equal(e.equipos['XV-303'].abierta, true); assert.equal(e.equipos['XV-102'].abierta, false);
+  assert.equal(K.contactoLSL(e), 'abierto'); assert.ok(K.nivelAguaCalientePct(e) < 15);
+  assert.equal(K.tanqueDesbordando(e), true);
+  assert.equal(K.nivelAguaCalientePct(estadoDemo({ nivelAguaPct: 33 })), 33);
+});
+
+test('los puertos nuevos caben en el patín y las válvulas de llenado no se solapan con otros equipos', () => {
+  const { SKID } = layout;
+  for (const tag of ['XV-101', 'XV-102', 'XV-302', 'XV-303']) for (const n of ['ent', 'sal']) {
+    const [x, , z] = P.puerto(tag, n);
+    assert.ok(Math.abs(x) <= SKID.ancho / 2 && Math.abs(z) <= SKID.fondo / 2, `${tag}.${n} fuera del patín: ${x},${z}`);
+  }
+  for (const [tag, n] of [['TK-101', 'llen'], ['TK-101', 'vac'], ['HW-101', 'llen'], ['HW-101', 'vac'], ['SUMINISTRO_LECHE', 'sal'], ['DESAGUE_LECHE', 'ent'], ['DESAGUE_AGUA', 'ent']]) assert.ok(P.puerto(tag, n), `${tag}.${n}`);
+  // la distancia entre los centros de las válvulas de llenado y vaciado y el resto de equipos del patín supera su tamaño (12 cm)
+  const nuevas = ['XV-101', 'XV-102', 'XV-302', 'XV-303'];
+  for (const a of nuevas) for (const q of layout.EQUIPOS) {
+    if (a === q.tag || ['control', 'servicios'].includes(q.zona) || ['TK-101', 'HW-101'].includes(q.tag)) continue;
+    const pa = layout.posicion(a), pq = layout.posicion(q.tag);
+    if (!pa || !pq) continue;
+    assert.ok(Math.hypot(pa.x - pq.x, pa.z - pq.z) > 7, `${a} pisa a ${q.tag}`);
+  }
+});

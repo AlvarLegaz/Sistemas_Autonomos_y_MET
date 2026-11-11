@@ -8,7 +8,8 @@
     proceso: layout.PROCESO,
 
     // Tanque de balance (se repone solo para que la producción no se agote en una clase)
-    tanque: { capacidadL: 200, nivelInicialPct: 60, temperaturaC: 4, reposicionLh: 2600, reponerDesdePct: 85, reponerHastaPct: 95, nivelAltoPct: 90, nivelBajoPct: 10 },
+    tanque: { capacidadL: 200, nivelInicialPct: 60, temperaturaC: 4, reposicionLh: 2600, reponerDesdePct: 85, reponerHastaPct: 95, nivelAltoPct: 90, nivelBajoPct: 10,
+      llenadoXV101Lh: 2600, vaciadoXV102Lh: 2400 },                                      // caudales de las válvulas de llenado (XV-101) y de vaciado (XV-102)
 
     leche: { calorEspecificoKJkgK: 3.85, densidadKgL: 1.03 },
 
@@ -22,6 +23,8 @@
     aguaCaliente: {
       volumenL: 150, ambienteC: 20, perdidasWK: 60, bancoKW: 30, calorEspecificoKJkgK: 4.186,
       tshDisparoC: 90, tshRearmeC: 80, maximoFisicoC: 99,
+      // Nivel del depósito: el llenado (XV-302) entra agua de red fría y el vaciado (XV-303) la saca; el depósito tiene rebosadero (no pasa del 100 %).
+      capacidadL: 150, nivelInicialPct: 100, nivelBajoPct: 15, llenadoXV302Lh: 1500, vaciadoXV303Lh: 1800, temperaturaRedC: 15, volumenMinimoInerciaL: 5,
     },
 
     // Bombas
@@ -47,6 +50,7 @@
       margenAvanceC: 0.5, margenMantenerC: 0.2,                                           // sobre 72 °C: para entrar en avance hay que superar 72,5 y para seguir en él 72,2 (la FDV tarda en moverse)
       xv301: { abrirPorEncimaC: 5.5, cerrarPorDebajoC: 4.5 },
       toleranciaDiscrepanciaS: 3, retornoRecirculacionS: 10, estabilidadProduccionS: 20,
+      llenadoAguaExtraS: 330,                                                              // tras recuperar el nivel bajo, el PLC sigue llenando el depósito de agua este tiempo (con rebosadero)
     },
 
     // CIP básico por tiempos: cada paso tiene su duración y la temperatura del agua que se pide
@@ -56,7 +60,7 @@
     ] },
 
     // Armario eléctrico
-    electrico: { tension24V: 24, tensionFuenteDegradadaV: 18, tensionPotenciaV: 400, resistenciaBobinaSV101Ohm: 220, resistenciaBobinaContactorOhm: 650 },
+    electrico: { tension24V: 24, tensionFuenteDegradadaV: 18, tensionPotenciaV: 400, resistenciaBobinaSV101Ohm: 220, resistenciaBobinaContactorOhm: 650, resistenciaBobinaXVOhm: 240 },
   };
 
   const api = { CONSTANTES };

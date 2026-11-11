@@ -30,10 +30,10 @@ function correr(mem, ent, ord, n, dt = 0.1, siempre = false) {
 /** Memoria ya en PRODUCCION con las entradas sanas y la FDV en avance (los auxiliares siguen a las órdenes). */
 function enProduccion() { const mem = crearMemoria(); const r = correr(mem, sanas(), { modo: 'PRODUCCION' }, 5); return { mem, r }; }
 
-test('en PARADA todas las salidas están a 0', () => {
+test('en PARADA todas las salidas están a 0 salvo la reposición automática de niveles (XV-101 con el tanque por debajo del 85 %)', () => {
   const r = correr(crearMemoria(), sanas(), {}, 5);
   assert.equal(r.modo, 'PARADA');
-  for (const [tag, v] of Object.entries(r.DO)) assert.equal(v, 0, tag);
+  for (const [tag, v] of Object.entries(r.DO)) assert.equal(v, tag === 'XV-101' ? 1 : 0, tag);
   assert.equal(r.AO['VFD-101'], 0);
 });
 

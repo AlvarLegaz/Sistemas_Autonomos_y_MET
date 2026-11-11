@@ -41,7 +41,8 @@ Los 42 equipos con su tag ISA, nombre, tipo y zona están en `EQUIPOS` de `layou
 |---|---|
 | Proceso | TK-101 tanque de balance · FLT-101 filtro de aspiración · P-101 bomba centrífuga de alimentación (con variador) · P-103 bomba booster del lado crudo · HX-101 intercambiador de placas (regeneración, calentamiento, enfriamiento) · HT-101 tubo de residencia · FDV-101 válvula de desvío neumática de 3 vías |
 | Neumática | SV-101 electroválvula piloto (24 V CC, muelle a desvío) · FRL-101 unidad de aire |
-| Agua caliente y fría | HW-101 calentador de agua con dos bancos · P-102 bomba del agua caliente · XV-301 agua fría · XV-401 CIP |
+| Agua caliente y fría | HW-101 calentador de agua con dos bancos (con nivel de agua) · P-102 bomba del agua caliente · XV-301 agua fría · XV-401 CIP |
+| Llenados y vaciados | XV-101 llenado y XV-102 vaciado del tanque de balance · XV-302 llenado y XV-303 vaciado del depósito de agua caliente · LSL-301 flotador de nivel bajo del agua caliente (protege las resistencias) |
 | Temperatura | TT-101 entrada · TT-102 tras la regeneración (lado crudo) · TT-103 salida del tubo (**termómetro legal**) · TT-104 salida · TT-105 agua caliente · TSH-101 termostato de seguridad (NC) |
 | Caudal, presión, nivel | FT-101 caudalímetro electromagnético · PT-101 y PT-102 presiones (crudo y pasteurizado) · LT-101 nivel · LSH-101 y LSL-101 flotadores |
 | Posición y aire | ZS-101 y ZS-102 finales de carrera de la FDV · PSL-201 presostato de aire |
@@ -49,11 +50,13 @@ Los 42 equipos con su tag ISA, nombre, tipo y zona están en `EQUIPOS` de `layou
 
 ### 2.3 Control y enclavamientos (lo que hace el PLC)
 
-- **Modos** (`MODOS`): `PARADA`, `RECIRCULACION_AGUA` (se calienta con agua hasta estabilizar), `PRODUCCION` y `CIP`.
+- **Modos** (`MODOS`, con su texto en `MODOS_INFO`): `PARADA`, `MANUAL`, `RECIRCULACION_AGUA` (se calienta con agua hasta estabilizar), `PRODUCCION` y `CIP`.
+- **Modo MANUAL:** el operador manda cada actuador con `ordenes.manual(tag, valor)`: P-101, P-102, P-103, KM-201, KM-202 (los dos bancos del calentador, 30 kW cada uno), SV-101 (FDV: 1 = avance, 0 = desvío), XV-301, XV-401, XV-101, XV-102, XV-302, XV-303 (todo: 0/1 o true/false) y `VFD-101` (velocidad 0–100 %). El PLC no automatiza nada: ni consigna de temperatura, ni caudal, ni FDV, ni reposición de niveles. Solo mantiene las **protecciones cableadas**: paro de emergencia ES-001 y pérdida de 24 V (paran toda la planta); termostato TSH-101 abierto, calentador sin nivel (LSL-301), sin P-102 en marcha o con TT-105 ≥ 88 °C (cortan el calentador); aire bajo PSL-201 (FDV a desvío); tanque de balance vacío (LSL-101) o fallo del variador (paran P-101). Al pasar a MANUAL cada actuador conserva lo que hacía (transferencia sin saltos); al volver a un modo automático (o a PARADA) se sueltan las órdenes manuales. Si se fuerza la FDV en avance sin cumplir las condiciones, el producto cuenta como **no conforme** y sale la alarma A220; la alarma de estado M100 («modo manual activo») no enciende la baliza.
+- **Llenados y vaciados:** XV-101 llena el tanque de balance (2600 L/h) y XV-102 lo vacía (2400 L/h); XV-302 llena el depósito de agua caliente con agua de red a 15 °C (1500 L/h, enfría el agua) y XV-303 lo vacía (1800 L/h). Ambos depósitos tienen rebosadero (no pasan del 100 %). La masa de agua condiciona la inercia térmica del agua caliente. En los modos automáticos el PLC repone el tanque de balance con XV-101 (histéresis 85–95 % con LT-101) y el depósito de agua con XV-302 (al perderse LSL-301 llena hasta recuperarlo y 330 s más).
 - **Calentamiento:** los bancos de HW-101 se conectan por todo/nada con histéresis sobre TT-105 y el banco 2 se ajusta en cascada con TT-103. Solo con P-102 en marcha y TSH-101 normal.
 - **FDV (seguridad positiva):** SV-101 energizada = avance; sin tensión o sin aire el muelle la deja en **desvío**. Solo se pasa a avance si TT-103 ≥ 72 °C **y** el tiempo de residencia (volumen del tubo / caudal de FT-101) ≥ 15 s **y** ΔP de regeneración ≥ 0,07 bar **y** el aire está bien **y** TT-103 y FT-101 tienen lazo sano. Cualquier fallo de TT-103 o de FT-101 pasa a desvío.
 - **Regeneración:** el lado pasteurizado debe estar a más presión que el crudo (PT-102 − PT-101 ≥ 0,07 bar). P-103 (booster) solo marcha con P-101 en marcha, FDV en avance y ΔP correcto.
-- **Paro de seguridad:** ES-001 abierto, TSH-101 abierto, fuente 24 V caída o fallo del variador → desvío, bancos fuera, bombas paradas, baliza.
+- **Paro de seguridad:** ES-001 abierto, TSH-101 abierto, fuente 24 V caída o fallo del variador → desvío, bancos fuera, bombas paradas, baliza (en MANUAL solo ES-001 y los 24 V paran toda la planta; el resto son cortes locales, ver arriba).
 - **Lazos 4–20 mA:** < 3,6 mA = hilo roto; > 21 mA = sobreescala/cortocircuito (`LIMITES_LAZO_MA`, criterio NAMUR NE43). El PLC marca la **calidad** de cada AI y no se fía de un valor con lazo en fallo.
 - **Discrepancias:** orden del PLC ≠ realimentación (DO de un contactor frente a su auxiliar, SV-101 frente a ZS-101/102) durante más de 3 s → alarma.
 - **CIP básico:** secuencia por tiempos (enjuague → sosa caliente → enjuague → ácido → enjuague) con XV-401, agua caliente y FDV en avance, sin modelar la dosificación ni la conductividad.
@@ -67,8 +70,9 @@ El mapa completo está en `SENALES` de `layout.js` (35 señales: 9 AI, 16 DI, 9 
 |---|---|---|
 | AI-1 | AI1.01–AI1.08: TT-101…TT-105, FT-101, PT-101, PT-102 | 4–20 mA (lazos de 2 hilos a 24 V) |
 | AI-2 | AI2.01: LT-101 | 4–20 mA |
+| DI-2 | DI2.01: LSL-301 nivel bajo del agua caliente (NC) | 24 V CC |
 | DI-1 | DI1.01–DI1.16: ES-001, TSH-101, LSH-101, LSL-101, ZS-101, ZS-102, PSL-201, P-101 marcha, KM-102, KM-103, KM-201, KM-202, VFD-101 fallo, QF-102, PS-001, PB-001 | 24 V CC; los de seguridad son NC: **0 = fallo o hilo roto** |
-| DO-1 | DO1.01–DO1.09: P-101, P-102, P-103, KM-201, KM-202, SV-101, XV-301, XV-401, HL-001 | relé, 24 V |
+| DO-1 | DO1.01–DO1.13: P-101, P-102, P-103, KM-201, KM-202, SV-101, XV-301, XV-401, HL-001, XV-101, XV-102, XV-302, XV-303 | relé, 24 V |
 | AO-1 | AO1.01: referencia del variador | 0–10 V |
 
 **Diferencia con la maqueta PCT23:** allí las señales son 0–3,3 V y 10 mV/°C; aquí son industriales. Hay que dejarlo claro a los alumnos.
@@ -105,7 +109,9 @@ estado = {
   },
   salidasPLC: { DO: {…}, AO: {…} },
   alarmas: [{ codigo, tag, nivel, desdeS, texto }],
-  contadores: { producidoL, desviadoL, energiaKWh },
+  contadores: { producidoL, desviadoL, energiaKWh, noConformeL },
+  aguaCaliente: { nivelPct, volumenL, temperaturaC },     // depósito de HW-101; también equipos['HW-101'].nivelPct/volumenL
+  // equipos['TK-101'].desbordando = true si se llena con rebosadero; equipos['XV-101'|'XV-102'|'XV-302'|'XV-303'].abierta; equipos['LSL-301'].contactoCerrado
   averiasActivas: [{ instancia, id, tags }],
 }
 ```

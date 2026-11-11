@@ -19,7 +19,8 @@
   ];
   const INTERFAZ = [    // PROGRAMADOR-INTERFAZ
     'js/interfaz/textos_ayuda.js', 'js/interfaz/puntos_medida.js', 'js/interfaz/multimetro.js', 'js/interfaz/osciloscopio.js', 'js/interfaz/hoja_registro.js',
-    'js/interfaz/panel_profesor.js', 'js/interfaz/grafica_htst.js', 'js/scada2d/esquema_htst.js', 'js/scada2d/leyenda.js', 'js/interfaz/visor_htst.js', 'js/interfaz/ayuda_htst.js',
+    'js/interfaz/panel_profesor.js', 'js/interfaz/grafica_htst.js', 'js/scada2d/leyenda.js', 'js/scada2d/esquema_htst.js', 'js/interfaz/visor_htst.js', 'js/interfaz/ayuda_htst.js',
+    'js/interfaz/franja_alarmas.js', 'js/interfaz/panel_manual.js',
   ];
 
   function cargarScript(ruta) {

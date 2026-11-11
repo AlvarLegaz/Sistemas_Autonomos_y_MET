@@ -6,7 +6,7 @@
   const B = typeof require !== 'undefined' ? require('./base_equipo.js') : PCT.htstBase;
   const T = typeof require !== 'undefined' ? require('./tuberias.js') : PCT.htstTuberias;
   const PI = Math.PI;
-  const TAGS = ['TT-101', 'TT-102', 'TT-103', 'TT-104', 'TT-105', 'TSH-101', 'FT-101', 'PT-101', 'PT-102', 'LT-101', 'LSH-101', 'LSL-101', 'ZS-101', 'ZS-102', 'PSL-201'];
+  const TAGS = ['TT-101', 'TT-102', 'TT-103', 'TT-104', 'TT-105', 'TSH-101', 'FT-101', 'PT-101', 'PT-102', 'LT-101', 'LSH-101', 'LSL-101', 'LSL-301', 'ZS-101', 'ZS-102', 'PSL-201'];
 
   // Sitio de montaje de cada instrumento (cm, coordenadas del patín): sobre su tubo (punto medio del tramo horizontal más largo), o sobre un equipo.
   // Los de nivel van en la pared del tanque TK-101 (centro (-135, -35), radio 33): z = -35 + √(33² − dx²).
@@ -17,6 +17,7 @@
     'FT-101': [-68, 25, 35],                       // en línea entre la bomba P-101 y la P-103
     'TSH-101': [28, 42, 62.5],                     // en la pared frontal del calentador
     'LT-101': pared(10, 26), 'LSH-101': pared(-15, 70), 'LSL-101': pared(-15, 32),
+    'LSL-301': [6, 18, 54.6],                      // flotador de nivel bajo en la pared del calentador HW-101 (centro (20, 45), radio 17), por debajo del visor frontal
     'ZS-101': [127, 26, -5], 'ZS-102': [111, 26, -5], 'PSL-201': [135, 18, 10],       // los finales de carrera, en el yugo de la FDV
   };
   /** Posición de montaje de un instrumento (función pura, sin THREE). */
@@ -139,6 +140,25 @@
       base.registrar(tag, g, [8, 8, 12], g.position.y + 9);
     }
     flotador('LSH-101'); flotador('LSL-101');
+
+    /* ---------- LSL-301 flotador de nivel bajo del agua caliente (NC): contacto cerrado = hay agua; abierto = nivel bajo o hilo roto ---------- */
+    (function () {
+      const tag = 'LSL-301', g = grupoEn(tag), e = kit.ensamble();
+      e.add(kit.cil(2.4, 3, 12), 'inox', [0, 0, 1.5], [PI / 2, 0, 0]); e.add(kit.caja(6, 6, 7), 'oscuro', [0, 0, 6]); e.add(kit.cil(0.4, 9, 6), 'inoxMate', [0, 0, -3.5], [PI / 2, 0, 0]);
+      e.construir(g, tag);
+      const led = kit.matLed(0x35e06b); kit.malla(kit.esfera(0.7, 6), led, g, tag, [0, 3.6, 6]);
+      const brazo = kit.malla(kit.cil(0.35, 5, 6), kit.mat('inoxMate'), g, tag, [0, -3, 8.5], [PI / 2, 0, 0]);     // brazo del flotador: horizontal con agua, caído sin ella
+      enlazarLed(tag, led);
+      let ultimo = null;
+      base.alActualizar(estado => {
+        const contacto = K.contactoLSL(estado, tag);
+        if (contacto === ultimo) return;
+        ultimo = contacto;
+        brazo.rotation.x = contacto === 'abierto' ? PI / 2 + 0.9 : PI / 2;
+        led.color.setHex(contacto === 'abierto' ? 0xff3b30 : K.colorLedCalidad(K.instrumentoDe(estado, tag).calidad));
+      });
+      base.registrar(tag, g, [8, 12, 14], g.position.y + 9);
+    })();
 
     /* ---------- ZS-101 y ZS-102 finales de carrera de la FDV, PSL-201 presostato ---------- */
     function interruptor(tag, ancho, sentidoBrazo) {

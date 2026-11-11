@@ -18,7 +18,10 @@
   // La leche fría es blanca y la caliente se vuelve algo cremosa/ámbar; el agua caliente va del azul al naranja rojizo.
   const colorLeche = tC => mezclarHex(0xf6f3ea, 0xf0be8c, (tC - 4) / 70);
   const colorAguaCaliente = tC => mezclarHex(0x3a8fd0, 0xe2572a, (tC - 20) / 70);
-  const colorTuboCaliente = tC => mezclarHex(0xc3cbd3, 0xf2b690, (tC - 20) / 60);
+  // Convención de colores del usuario: PRODUCTO verde, agua fría azul, agua caliente naranja. La leche en tubos y niveles es verde; con el calor vira a un verde claro cálido.
+  const VERDE_PRODUCTO = 0x2f9e44, AZUL_AGUA = 0x2f7fc7, NARANJA_AGUA_CALIENTE = 0xd9631e;
+  const colorProducto = tC => mezclarHex(VERDE_PRODUCTO, 0xa6e3a1, (tC - 4) / 70);
+  const colorTuboCaliente = tC => mezclarHex(0x8fd1a0, 0xe8c39a, (tC - 20) / 60);
 
   // Lectura tolerante del estado v1 (ARQUITECTURA.md §4): si falta un campo se usa un valor por defecto y nunca se lanza una excepción.
   const VACIO = Object.freeze({});
@@ -28,6 +31,34 @@
   const temperaturaDe = (estado, clave, defecto = 20) => num(estado && estado.proceso && estado.proceso.temperaturas && estado.proceso.temperaturas[clave], defecto);
   const caudalLh = estado => num(estado && estado.proceso && estado.proceso.caudalLh, 0);
   const nivelTanquePct = estado => limitar(num(estado && estado.tanque && estado.tanque.nivelPct, 60), 0, 100);
+
+  /** Nivel (%) del depósito de agua caliente: `aguaCaliente.nivelPct` y, si falta, el del equipo HW-101; por defecto 70 %. */
+  function nivelAguaCalientePct(estado) {
+    const a = estado && estado.aguaCaliente, h = equipoDe(estado, 'HW-101');
+    return limitar(num(a && a.nivelPct, num(h.nivelPct, 70)), 0, 100);
+  }
+  /** Temperatura (°C) del agua caliente: aguaCaliente.temperaturaC, luego HW-101 y por último proceso.temperaturas.aguaCaliente. */
+  function temperaturaAguaCaliente(estado) {
+    const a = estado && estado.aguaCaliente, h = equipoDe(estado, 'HW-101');
+    return num(a && a.temperaturaC, num(h.temperaturaC, temperaturaDe(estado, 'aguaCaliente', 20)));
+  }
+  /** ¿Está encendido el banco n (1 o 2) del calentador? Manda el contactor KM-201/KM-202 (`cerrado`); si no hay dato, `banco1`/`banco2` de HW-101. */
+  function bancoEncendido(estado, n) {
+    const km = equipoDe(estado, n === 1 ? 'KM-201' : 'KM-202');
+    if (typeof km.cerrado === 'boolean') return km.cerrado;
+    return !!equipoDe(estado, 'HW-101')[n === 1 ? 'banco1' : 'banco2'];
+  }
+  /** Contacto del flotador de nivel bajo LSL-301 (NC): 'cerrado' = hay agua, 'abierto' = nivel bajo o hilo roto, 'desconocido' = sin dato. */
+  function contactoLSL(estado, tag = 'LSL-301') {
+    const c = equipoDe(estado, tag).contactoCerrado;
+    if (typeof c === 'boolean') return c ? 'cerrado' : 'abierto';
+    const n = instrumentoDe(estado, tag).nivel;
+    return n === 1 || n === true ? 'cerrado' : n === 0 || n === false ? 'abierto' : 'desconocido';
+  }
+  /** ¿Está abierta una válvula todo/nada (`abierta`)? */
+  const valvulaAbierta = (estado, tag) => !!equipoDe(estado, tag).abierta;
+  /** ¿Rebosa el tanque de balance? (`tanque.desbordando` o `equipos['TK-101'].desbordando`). */
+  const tanqueDesbordando = estado => !!((estado && estado.tanque && estado.tanque.desbordando) || equipoDe(estado, 'TK-101').desbordando);
 
   /** Apertura 0..1 de la FDV (1 = avance, 0 = desvío): usa `apertura01` y, si no está, `posicion`. */
   function aperturaFDV(estado) {
@@ -115,7 +146,8 @@
       ensamble: () => new Ensamble(), liberar() { for (const r of recursos) if (r && r.dispose) r.dispose(); recursos.length = 0; materiales.clear(); } };
   }
 
-  const api = { PALETA, limitar, mezclarHex, colorLeche, colorAguaCaliente, colorTuboCaliente, equipoDe, instrumentoDe, num, temperaturaDe, caudalLh,
+  const api = { PALETA, VERDE_PRODUCTO, AZUL_AGUA, NARANJA_AGUA_CALIENTE, limitar, mezclarHex, colorLeche, colorProducto, colorAguaCaliente, colorTuboCaliente,
+    nivelAguaCalientePct, temperaturaAguaCaliente, bancoEncendido, contactoLSL, valvulaAbierta, tanqueDesbordando, equipoDe, instrumentoDe, num, temperaturaDe, caudalLh,
     nivelTanquePct, aperturaFDV, velocidadAngularVisual, colorLedCalidad, crearKit };
   if (typeof module !== 'undefined') module.exports = api; else { window.PCT = window.PCT || {}; PCT.htstKit = api; }
 })();

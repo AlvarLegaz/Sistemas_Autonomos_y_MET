@@ -138,7 +138,7 @@
     const lista = puntosConOnda(contexto.sim(), puntosMedida.puntosDisponibles(contexto.sim()));
     contenedor.innerHTML = `<h3>Osciloscopio</h3>
       <canvas class="osc-pantalla" width="480" height="320" aria-label="Pantalla del osciloscopio"></canvas>
-      <p class="osc-datos" aria-live="polite"></p>
+      <p class="osc-datos" aria-live="off"></p>
       <label>Sonda en <select class="osc-punto">${lista.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('')}</select></label>
       <label>Base de tiempo <select class="osc-base">${BASES_DE_TIEMPO_S.map(t => `<option value="${t}"${t === 0.005 ? ' selected' : ''}>${formatoTiempo(t)}/div</option>`).join('')}</select></label>
       <label>Acoplamiento <select class="osc-acople"><option value="CC">CC (tensión completa)</option><option value="CA">CA (solo la variación: rizado y ruido)</option></select></label>

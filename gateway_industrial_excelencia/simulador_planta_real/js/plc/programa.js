@@ -1,4 +1,4 @@
-// Programa del PLC de la planta HTST: modos (parada, recirculación de agua, producción, CIP), control del calentamiento en cascada, FDV de seguridad
+// Programa del PLC de la planta HTST: modos (parada, manual, recirculación de agua, producción, CIP), control del calentamiento en cascada, FDV de seguridad
 // positiva, regeneración, paro de seguridad con enclavamiento y alarmas. Es una función pura: recibe lo que el PLC ve y devuelve lo que ordena.
 // El PLC NO se fía de un valor con el lazo en fallo (ABIERTO/CORTO): por eso un fallo de TT-103 o de FT-101 siempre manda la FDV a desvío.
 // Simplificación del modelo: no distingue agua de leche en la línea; "recirculación" es el modo previo a producir, con la FDV en avance.
@@ -11,7 +11,9 @@
   const { lazoSano } = calidad;
   const limitar = (v, min, max) => Math.max(min, Math.min(max, v));
 
-  const DO_TAGS = ['P-101', 'P-102', 'P-103', 'KM-201', 'KM-202', 'SV-101', 'XV-301', 'XV-401', 'HL-001'];
+  const DO_TAGS = ['P-101', 'P-102', 'P-103', 'KM-201', 'KM-202', 'SV-101', 'XV-301', 'XV-401', 'HL-001', 'XV-101', 'XV-102', 'XV-302', 'XV-303'];
+  // Salidas que el operador puede mandar en modo MANUAL (todas menos la baliza, que es del PLC) y la analógica del variador
+  const DO_MANUALES = DO_TAGS.filter(t => t !== 'HL-001');
   const CONTACTORES = { 'P-102': 'KM-102', 'P-103': 'KM-103', 'KM-201': 'KM-201', 'KM-202': 'KM-202' };   // salida DO → entrada DI del contacto auxiliar
 
   const salidasApagadas = () => ({ DO: Object.fromEntries(DO_TAGS.map(t => [t, 0])), AO: { 'VFD-101': 0 } });
@@ -22,6 +24,8 @@
       modo: 'PARADA', produccionSolicitada: false, paro: false, motivosParo: [],
       trimAguaC: 0, avanceLegal: false, tDesvioProduccionS: 0, tEstableS: 0,
       banco1: false, banco2: false, xv301: false,
+      xv101: false, xv302: false, tLlenaAguaS: 0,                  // reposición automática de niveles (con histéresis y temporizador)
+      manualCmd: salidasApagadas(),                                // órdenes del operador en modo MANUAL (se parte de las salidas que había: transferencia sin saltos)
       discrepancia: {}, fdvFallo: false, cip: { paso: 0, tPasoS: 0 }, alarmas: [], vueltaARecirculacionS: 0,
       ultimas: salidasApagadas(), tS: 0,
     };
@@ -34,9 +38,20 @@
     if (ord.parar) { mem.modo = 'PARADA'; mem.produccionSolicitada = false; mem.cip = { paso: 0, tPasoS: 0 }; }
     if (ord.arrancar && !mem.paro) { mem.modo = 'RECIRCULACION_AGUA'; mem.produccionSolicitada = true; mem.tEstableS = 0; }
     if (ord.modo && !mem.paro && layout.MODOS.includes(ord.modo)) {
+      const venia = mem.modo;
       mem.modo = ord.modo; mem.tEstableS = 0; mem.tDesvioProduccionS = 0;
       mem.produccionSolicitada = ord.modo === 'PRODUCCION';
       if (ord.modo === 'CIP') mem.cip = { paso: 0, tPasoS: 0 };
+      // Transferencia sin saltos: al pasar a MANUAL cada actuador conserva lo que estaba haciendo
+      if (ord.modo === 'MANUAL' && venia !== 'MANUAL') mem.manualCmd = { DO: Object.assign({}, mem.ultimas.DO), AO: Object.assign({}, mem.ultimas.AO) };
+    }
+  }
+
+  /** Anota en la memoria las órdenes manuales del operador: tag de salida digital (0/1, true/false) o 'VFD-101' (0-100 %). */
+  function anotarManual(mem, manual) {
+    for (const [tag, valor] of Object.entries(manual || {})) {
+      if (tag === 'VFD-101') mem.manualCmd.AO['VFD-101'] = limitar(Number(valor) || 0, 0, 100);
+      else if (DO_MANUALES.includes(tag)) mem.manualCmd.DO[tag] = valor ? 1 : 0;
     }
   }
 
@@ -68,6 +83,8 @@
     if (DI['VFD-101'] === 1) motivos.push('VFD-101');
     if (DI['QF-102'] === 0) motivos.push('QF-102');
     if (mem.fdvFallo) motivos.push('FDV-101');
+    // En MANUAL solo el paro de emergencia y la pérdida de los 24 V paran toda la planta: el resto (termostato, variador, nivel…) son cortes locales de cada equipo
+    if ((ord.modo || mem.modo) === 'MANUAL') for (let i = motivos.length - 1; i >= 0; i--) if (motivos[i] !== 'ES-001' && motivos[i] !== 'PS-001') motivos.splice(i, 1);
     mem.motivosParo = motivos;
     if (motivos.length) mem.paro = true;
     else if (mem.paro && rearme) { mem.paro = false; mem.modo = 'PARADA'; mem.produccionSolicitada = false; mem.trimAguaC = 0; }
@@ -122,8 +139,9 @@
 
     // 7. Salidas
     const sal = salidasApagadas();
-    if (activoFinal) {
-      const conAgua = !mem.paro && lazoSano(tt105.calidad) && DI['TSH-101'] === 1 && DI['QF-102'] === 1 && DI['KM-102'] === 1 && tt105.valor < K.limiteAguaC;
+    const enManual = mem.modo === 'MANUAL' && !mem.paro;
+    if (activoFinal && !enManual) {
+      const conAgua = !mem.paro && lazoSano(tt105.calidad) && DI['TSH-101'] === 1 && DI['QF-102'] === 1 && DI['KM-102'] === 1 && DI['LSL-301'] !== 0 && tt105.valor < K.limiteAguaC;
       sal.DO['P-102'] = 1;
       sal.DO['P-101'] = (enCIP || DI['LSL-101'] === 1) ? 1 : 0;
       const caudalOrden = ord.consignaCaudalLh != null ? ord.consignaCaudalLh : P.caudalNominalLh;
@@ -144,15 +162,35 @@
     } else {
       mem.banco1 = mem.banco2 = false; mem.xv301 = false;
     }
+    // Reposición automática de niveles (todos los modos menos MANUAL, y mientras no haya paro de emergencia)
+    if (!mem.paro && mem.modo !== 'MANUAL') {
+      const lt = AI['LT-101'];
+      if (lt && lazoSano(lt.calidad)) mem.xv101 = lt.valor < C.tanque.reponerDesdePct ? true : (lt.valor >= C.tanque.reponerHastaPct ? false : mem.xv101);
+      else mem.xv101 = DI['LSH-101'] !== 1;                         // sin transmisor de nivel se llena hasta el flotador de nivel alto
+      if (DI['LSL-301'] === 0) { mem.xv302 = true; mem.tLlenaAguaS = 0; }
+      else if (mem.xv302) { mem.tLlenaAguaS += dt; if (mem.tLlenaAguaS >= K.llenadoAguaExtraS) { mem.xv302 = false; mem.tLlenaAguaS = 0; } }
+      sal.DO['XV-101'] = mem.xv101 ? 1 : 0;
+      sal.DO['XV-302'] = mem.xv302 ? 1 : 0;
+    } else if (mem.modo !== 'MANUAL') { mem.xv101 = false; mem.xv302 = false; }
 
-    // 8. Mando manual (forzado desde el SCADA): nunca salta los enclavamientos de seguridad
+    // 8. Mando manual
     const manual = ord.manual || {};
-    if (!mem.paro) {
+    if (enManual) {
+      // MODO MANUAL: lo que manda el operador es lo que sale; el PLC no automatiza nada y solo mantiene las protecciones cableadas
+      anotarManual(mem, manual);
+      for (const tag of DO_MANUALES) sal.DO[tag] = mem.manualCmd.DO[tag] ? 1 : 0;
+      sal.AO['VFD-101'] = mem.manualCmd.AO['VFD-101'];
+      const calentarSeguro = DI['TSH-101'] === 1 && DI['QF-102'] === 1 && DI['KM-102'] === 1 && sal.DO['P-102'] === 1 && DI['LSL-301'] !== 0 && lazoSano(tt105.calidad) && tt105.valor < K.limiteAguaC;
+      if (!calentarSeguro) { sal.DO['KM-201'] = 0; sal.DO['KM-202'] = 0; }        // termostato abierto, sin nivel, sin P-102 o agua demasiado caliente: el calentador se corta
+      if (!aire) sal.DO['SV-101'] = 0;                                            // sin aire la FDV va a desvío (además del muelle)
+      if (DI['LSL-101'] !== 1 || DI['VFD-101'] === 1) sal.DO['P-101'] = 0;        // marcha en seco (tanque vacío) o variador en fallo
+    } else if (!mem.paro) {
+      // Modos automáticos: un forzado desde el SCADA nunca salta los enclavamientos de seguridad
       for (const [tag, valor] of Object.entries(manual)) {
         if (tag === 'VFD-101') sal.AO['VFD-101'] = limitar(Number(valor) || 0, 0, 100);
         else if (tag in sal.DO && tag !== 'HL-001') sal.DO[tag] = valor ? 1 : 0;
       }
-      const calentarSeguro = DI['TSH-101'] === 1 && DI['QF-102'] === 1 && DI['KM-102'] === 1 && sal.DO['P-102'] === 1 && lazoSano(tt105.calidad) && tt105.valor < K.limiteAguaC;
+      const calentarSeguro = DI['TSH-101'] === 1 && DI['QF-102'] === 1 && DI['KM-102'] === 1 && sal.DO['P-102'] === 1 && DI['LSL-301'] !== 0 && lazoSano(tt105.calidad) && tt105.valor < K.limiteAguaC;
       if (!calentarSeguro) { sal.DO['KM-201'] = 0; sal.DO['KM-202'] = 0; }
       if (!aire) sal.DO['SV-101'] = 0;
       if (DI['VFD-101'] === 1) sal.DO['P-101'] = 0;
@@ -161,17 +199,19 @@
     // 9. Alarmas y baliza
     const alarmas = alarmasMod.fusionarAlarmas(mem.alarmas, alarmasMod.evaluarAlarmas({
       AI, DI, discrepancia: { fdv: mem.fdvFallo, contactores },
+      modoManual: mem.modo === 'MANUAL',
+      manualFdvSinCondiciones: enManual && sal.DO['SV-101'] === 1 && !cumple,
       dpBajo: DI['P-101'] === 1 && lazoSano(pt101.calidad) && lazoSano(pt102.calidad) && dp < P.diferencialMinimoRegeneracionBar,
       vueltaARecirculacion,
     }), mem.tS);
     mem.alarmas = alarmas;
-    sal.DO['HL-001'] = (alarmas.length > 0 || mem.paro) ? 1 : 0;
+    sal.DO['HL-001'] = (alarmas.some(a => a.nivel !== 'estado') || mem.paro) ? 1 : 0;       // el aviso de «modo manual» no enciende la baliza
 
     mem.ultimas = { DO: Object.assign({}, sal.DO), AO: Object.assign({}, sal.AO) };
     return { DO: sal.DO, AO: sal.AO, alarmas, modo: mem.modo, paro: mem.paro, motivosParo: motivos.slice(), consignaAguaC,
       cip: { paso: mem.cip.paso, nombre: (C.cip.pasos[mem.cip.paso] || {}).nombre || null, tPasoS: mem.cip.tPasoS }, tiempoResidenciaS: tRes, diferencialBar: dp, cumpleCondiciones: cumple };
   }
 
-  const api = { DO_TAGS, CONTACTORES, crearMemoria, ejecutarPLC, salidasApagadas };
+  const api = { DO_TAGS, DO_MANUALES, CONTACTORES, crearMemoria, ejecutarPLC, salidasApagadas };
   if (typeof module !== 'undefined') module.exports = api; else { window.PCT = window.PCT || {}; PCT.htstPrograma = api; }
 })();

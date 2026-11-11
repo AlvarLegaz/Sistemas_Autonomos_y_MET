@@ -28,6 +28,10 @@
   punto('FRL-101:MANOMETRO', 'Manómetro de la unidad de aire', 'presion'); punto('PSL-201:CONTACTO', 'Contacto del presostato de aire', 'continuidad');
   punto('VFD-101:DISIPADOR', 'Temperatura del disipador del variador', 'temperatura'); punto('VFD-101:VENTILADOR', 'Alimentación del ventilador del variador', 'V');
   punto('TSH-101:CONTACTO', 'Contacto NC del termostato de seguridad', 'continuidad');
+  // Válvulas todo/nada (agua fría, CIP, llenados y vaciados): tensión en bornas y resistencia de la bobina
+  const VALVULAS_XV = ['XV-301', 'XV-401', 'XV-101', 'XV-102', 'XV-302', 'XV-303'];
+  for (const v of VALVULAS_XV) { punto(`${v}:BORNAS`, `Tensión en las bornas de ${v}`, 'V'); punto(`${v}:BOBINA`, `Resistencia de la bobina de ${v}`, 'ohm'); }
+  punto('LSL-301:CONTACTO', 'Contacto NC del flotador de nivel bajo del agua caliente', 'continuidad');
   punto('FLT-101:PRESION-ANTES', 'Presión antes del colador', 'presion'); punto('FLT-101:PRESION-DESPUES', 'Presión después del colador', 'presion');
 
   const hay = (estado, id, tag) => estado.averiasActivas.some(a => a.id === id && (tag == null || a.tags.includes(tag)));
@@ -88,6 +92,15 @@
     if (parte === 'SV-101') {
       if (resto === 'BORNAS') return modo === 'V' ? numero(es && DO['SV-101'] === 1 ? 24 : 0, 'V') : incorrecto(modo, 'V');
       if (resto === 'BOBINA') return modo === 'ohm' ? numero(eq['SV-101'].bobinaOhm, 'Ω') : incorrecto(modo, 'ohm (con la bobina desconectada)');
+    }
+    if (VALVULAS_XV.includes(parte)) {
+      if (resto === 'BORNAS') return modo === 'V' ? numero(es && DO[parte] === 1 ? 24 : 0, 'V') : incorrecto(modo, 'V');
+      if (resto === 'BOBINA') return modo === 'ohm' ? numero(C.electrico.resistenciaBobinaXVOhm, 'Ω') : incorrecto(modo, 'ohm (con la bobina desconectada)');
+    }
+    if (p === 'LSL-301:CONTACTO') {
+      if (modo !== 'continuidad') return incorrecto(modo, 'continuidad');
+      const cerrado = eq['LSL-301'].contactoCerrado;
+      return numero(cerrado ? ES_CERO : Infinity, 'Ω', { continuidad: cerrado });
     }
     if (parte === 'FDV-101' && (resto === 'ZS-101' || resto === 'ZS-102')) {
       if (modo !== 'continuidad') return incorrecto(modo, 'continuidad');

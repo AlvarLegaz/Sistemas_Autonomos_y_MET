@@ -33,6 +33,11 @@
     { tag: 'P-102', nombre: 'Bomba del agua caliente', tipo: 'bomba', zona: 'agua_caliente' },
     { tag: 'XV-301', nombre: 'Válvula de agua fría (todo/nada)', tipo: 'valvula_todo_nada', zona: 'agua_fria' },
     { tag: 'XV-401', nombre: 'Válvula de CIP (todo/nada)', tipo: 'valvula_todo_nada', zona: 'cip' },
+    // Llenado y vaciado (mando manual y reposición automática de niveles)
+    { tag: 'XV-101', nombre: 'Válvula de llenado del tanque de balance (todo/nada)', tipo: 'valvula_todo_nada', zona: 'entrada' },
+    { tag: 'XV-102', nombre: 'Válvula de vaciado del tanque de balance (todo/nada)', tipo: 'valvula_todo_nada', zona: 'entrada' },
+    { tag: 'XV-302', nombre: 'Válvula de llenado del depósito de agua caliente (todo/nada)', tipo: 'valvula_todo_nada', zona: 'agua_caliente' },
+    { tag: 'XV-303', nombre: 'Válvula de vaciado del depósito de agua caliente (todo/nada)', tipo: 'valvula_todo_nada', zona: 'agua_caliente' },
     // Instrumentación
     { tag: 'TT-101', nombre: 'Pt100 + transmisor: leche cruda a la entrada', tipo: 'sonda_temperatura', zona: 'entrada' },
     { tag: 'TT-102', nombre: 'Pt100 + transmisor: leche cruda tras la regeneración', tipo: 'sonda_temperatura', zona: 'regeneracion' },
@@ -40,6 +45,7 @@
     { tag: 'TT-104', nombre: 'Pt100 + transmisor: producto a la salida', tipo: 'sonda_temperatura', zona: 'salida' },
     { tag: 'TT-105', nombre: 'Pt100 + transmisor: agua caliente', tipo: 'sonda_temperatura', zona: 'agua_caliente' },
     { tag: 'TSH-101', nombre: 'Termostato de seguridad del agua caliente (contacto NC)', tipo: 'termostato', zona: 'agua_caliente' },
+    { tag: 'LSL-301', nombre: 'Interruptor de nivel bajo del depósito de agua caliente (flotador, NC): protege las resistencias', tipo: 'flotador', zona: 'agua_caliente' },
     { tag: 'FT-101', nombre: 'Caudalímetro electromagnético', tipo: 'caudalimetro', zona: 'entrada' },
     { tag: 'PT-101', nombre: 'Transmisor de presión: lado crudo', tipo: 'presion', zona: 'regeneracion' },
     { tag: 'PT-102', nombre: 'Transmisor de presión: lado pasteurizado', tipo: 'presion', zona: 'regeneracion' },
@@ -61,7 +67,7 @@
     { tag: 'QF-102', nombre: 'Magnetotérmico de P-102 y del calentador', tipo: 'magnetotermico', zona: 'control' },
     { tag: 'PB-001', nombre: 'Pulsador de marcha / reset local', tipo: 'pulsador', zona: 'control' },
     { tag: 'ES-001', nombre: 'Paro de emergencia (seta, contacto NC) con relé de seguridad', tipo: 'paro_emergencia', zona: 'control' },
-    { tag: 'PLC-001', nombre: 'PLC con tarjetas AI-1, AI-2, DI-1, DO-1 y AO-1', tipo: 'plc', zona: 'control' },
+    { tag: 'PLC-001', nombre: 'PLC con tarjetas AI-1, AI-2, DI-1, DI-2, DO-1 y AO-1', tipo: 'plc', zona: 'control' },
     { tag: 'HMI-001', nombre: 'Pantalla SCADA / HMI', tipo: 'hmi', zona: 'control' },
     { tag: 'HL-001', nombre: 'Baliza de alarma', tipo: 'baliza', zona: 'control' },
   ];
@@ -82,6 +88,9 @@
     'P-102': { x: -5, z: 55, ancho: 30, fondo: 22, alto: 25 },
     'XV-301': { x: 75, z: 40, ancho: 12, fondo: 12, alto: 20 },
     'XV-401': { x: 100, z: 40, ancho: 12, fondo: 12, alto: 20 },
+    'XV-101': { x: -90, z: -62, ancho: 12, fondo: 12, alto: 20 }, 'XV-102': { x: -140, z: 12, ancho: 12, fondo: 12, alto: 20 },
+    'XV-302': { x: 52, z: 62, ancho: 12, fondo: 12, alto: 20 }, 'XV-303': { x: 20, z: 72, ancho: 12, fondo: 12, alto: 20 },
+    'LSL-301': { x: 6, z: 48 },
     'TT-101': { x: -120, z: 0 }, 'TT-102': { x: -28, z: -5 }, 'TT-103': { x: 104, z: -35 }, 'TT-104': { x: 150, z: 30 }, 'TT-105': { x: 5, z: 40 },
     'TSH-101': { x: 28, z: 45 },
     'PT-101': { x: -22, z: 5 }, 'PT-102': { x: 4, z: 5 },
@@ -125,6 +134,8 @@
     s('DI', 'QF-102', 'Magnetotérmico de P-102 y calentador OK', '24V', 'DI1.14', { logica: '1 = armado' }),
     s('DI', 'PS-001', 'Fuente de 24 V OK', '24V', 'DI1.15', { logica: '1 = OK' }),
     s('DI', 'PB-001', 'Pulsador de marcha / reset local', '24V', 'DI1.16', { logica: '1 = pulsado' }),
+    // Tarjeta DI-2
+    s('DI', 'LSL-301', 'Nivel bajo del depósito de agua caliente', '24V', 'DI2.01', { logica: '1 = hay agua sobre el nivel bajo (NC); 0 = nivel bajo o hilo roto' }),
     // Salidas digitales, tarjeta DO-1 (16 canales, relé)
     s('DO', 'P-101', 'Orden de marcha de P-101 (al variador)', '24V', 'DO1.01', { logica: '1 = marcha' }),
     s('DO', 'P-102', 'Orden de marcha de P-102 (KM-102)', '24V', 'DO1.02', { logica: '1 = marcha' }),
@@ -135,11 +146,33 @@
     s('DO', 'XV-301', 'Válvula de agua fría', '24V', 'DO1.07', { logica: '1 = abierta' }),
     s('DO', 'XV-401', 'Válvula de CIP', '24V', 'DO1.08', { logica: '1 = abierta' }),
     s('DO', 'HL-001', 'Baliza de alarma', '24V', 'DO1.09', { logica: '1 = encendida' }),
+    s('DO', 'XV-101', 'Válvula de llenado del tanque de balance', '24V', 'DO1.10', { logica: '1 = abierta' }),
+    s('DO', 'XV-102', 'Válvula de vaciado del tanque de balance', '24V', 'DO1.11', { logica: '1 = abierta' }),
+    s('DO', 'XV-302', 'Válvula de llenado del depósito de agua caliente', '24V', 'DO1.12', { logica: '1 = abierta' }),
+    s('DO', 'XV-303', 'Válvula de vaciado del depósito de agua caliente', '24V', 'DO1.13', { logica: '1 = abierta' }),
     // Salida analógica, tarjeta AO-1
     s('AO', 'VFD-101', 'Referencia de velocidad del variador', '0-10V', 'AO1.01', { rango: [0, 100], unidad: '%' }),
   ];
 
-  const MODOS = ['PARADA', 'RECIRCULACION_AGUA', 'PRODUCCION', 'CIP'];
+  const MODOS = ['PARADA', 'MANUAL', 'RECIRCULACION_AGUA', 'PRODUCCION', 'CIP'];
+  /** Modos de funcionamiento: nombre para la pantalla, qué es y qué hace (o no hace) el PLC en cada uno. */
+  const MODOS_INFO = {
+    PARADA: { nombre: 'Parada', tipo: 'automatico',
+      descripcion: 'Planta parada: bombas, calentador y válvulas de proceso apagados.',
+      automatiza: 'Solo mantiene los niveles (repone el tanque de balance y el depósito de agua caliente).' },
+    MANUAL: { nombre: 'Manual', tipo: 'manual',
+      descripcion: 'El operador manda cada actuador: bombas, variador, bancos del calentador, FDV, válvulas de agua fría y de CIP y los llenados y vaciados.',
+      automatiza: 'Nada: ni niveles, ni consigna de temperatura, ni la FDV. Siguen activas las protecciones cableadas: paro de emergencia, termostato TSH-101, 24 V, aire de la FDV, nivel bajo de calentador, calentador sin P-102 y marcha en seco de P-101.' },
+    RECIRCULACION_AGUA: { nombre: 'Recirculación de agua', tipo: 'automatico',
+      descripcion: 'Modo previo a producir: el agua circula y la planta se calienta hasta cumplir las condiciones de pasteurización.',
+      automatiza: 'Caudal, calentamiento en cascada, FDV (en avance solo con lazos sanos, aire y diferencial), agua fría y niveles.' },
+    PRODUCCION: { nombre: 'Producción', tipo: 'automatico',
+      descripcion: 'Producción de leche pasteurizada: la FDV solo avanza con 72 °C, 15 s de residencia, diferencial de regeneración y aire.',
+      automatiza: 'Todo; si se pierden las condiciones durante 10 s vuelve a recirculación.' },
+    CIP: { nombre: 'Limpieza CIP', tipo: 'automatico',
+      descripcion: 'Limpieza en el sitio por pasos (enjuague, sosa caliente, enjuague, ácido, enjuague).',
+      automatiza: 'Caudal fijo, temperatura de cada paso, válvula de CIP y paso de un paso al siguiente por tiempos.' },
+  };
   const POSICIONES_FDV = ['AVANCE', 'DESVIO', 'MOVIENDO'];
   const CALIDAD_SENAL = ['OK', 'ABIERTO', 'CORTO', 'RUIDO', 'DERIVA', 'CONGELADO'];   // estado de un lazo de instrumento (ver averías)
   const LIMITES_LAZO_MA = { hiloRoto: 3.6, nominalMin: 4, nominalMax: 20, sobreescala: 21 };
@@ -169,7 +202,7 @@
    * Cada módulo es un IIFE con doble exportación (module.exports / PCT.htst<Nombre>) y deja las funciones puras (cálculos, trayectorias, textos) exportadas
    * aparte para probarlas con node:test.
    */
-  const api = { SKID, ALTURA_TUBO_CM, DIAMETRO_TUBO_CM, PROCESO, EQUIPOS, POSICIONES_CM, SENALES, MODOS, POSICIONES_FDV, CALIDAD_SENAL,
+  const api = { SKID, ALTURA_TUBO_CM, DIAMETRO_TUBO_CM, PROCESO, EQUIPOS, POSICIONES_CM, SENALES, MODOS, MODOS_INFO, POSICIONES_FDV, CALIDAD_SENAL,
     LIMITES_LAZO_MA, aMilisamperios, deMilisamperios, equipo, senal, posicion };
   if (typeof module !== 'undefined') module.exports = api; else { window.PCT = window.PCT || {}; PCT.htstLayout = api; }
 })();
