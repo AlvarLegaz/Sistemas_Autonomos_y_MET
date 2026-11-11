@@ -2,6 +2,7 @@
 // Three.js (js/vendor/three.js, 1,3 MB) se carga solo la primera vez que se abre el visor.
 (function () {
   const { MODELOS, GEOMETRIA } = PCT.visor3dEspecificaciones;
+  const ELEMENTOS_AYUDA = () => PCT.ayudaTextos.ELEMENTOS;
   const { lecturasModelo } = PCT.visor3dLecturas;
   const { ControlesOrbita } = PCT.controlesOrbita;
   const RUTA_THREE = 'js/vendor/three.js';
@@ -83,6 +84,7 @@
   function construirPanel(clave, seleccion) {
     const modelo = MODELOS[clave];
     const panel = modal.querySelector('.v3d-panel');
+    if (modelo.escena === 'planta') { construirPanelPlanta(panel, modelo, seleccion); return; }
     const deposito = !modelo.escena, conjunto = modelo.escena === 'bomba' ? 'la bomba' : 'el intercambiador';
     if (!seleccion) {
       panel.innerHTML = `<h4>${modelo.titulo}</h4><p>${modelo.resumen}</p>` +
@@ -100,6 +102,24 @@
       (esCaptador ? filaDato('Qué mide', e.queMide) + filaDato('Para qué sirve', e.uso) + filaDato('Señal', e.senal) +
         (e.alturaCm !== undefined ? filaDato('Posición', `a ${decimal(e.alturaCm * 10, 0)} mm del fondo (orientativa)`) : '') + '<div data-vivo="extra"></div>' + filaDato('Nota', e.nota)
         : filaDato('Qué es', e.detalle) + filaDato('Sentido', e.tipo === 'entrada' ? (deposito ? 'Entra fluido al depósito' : `Entra fluido a ${conjunto}`) : (deposito ? 'Sale fluido del depósito' : `Sale fluido de ${conjunto}`)));
+  }
+
+  // En la planta completa cada pieza se describe con el texto de ayuda del simulador (el mismo del clic derecho).
+  const PIEZAS_SIN_ETIQUETA = id => id.startsWith('TUBO_') || ['LVL', 'HLC', 'HL', 'LL', 'TERM', 'RES', 'L1', 'T2'].includes(id);
+  function construirPanelPlanta(panel, modelo, seleccion) {
+    const ayudas = ELEMENTOS_AYUDA();
+    if (!seleccion) {
+      const ids = Object.keys(sesion.escena.elementos).filter(id => !id.startsWith('TUBO_'));
+      panel.innerHTML = `<h4>${modelo.titulo}</h4><p>${modelo.resumen}</p><h4>Piezas</h4><ul class="v3d-lista">` +
+        ids.map(id => `<li><button type="button" data-id="${id}">${(ayudas[sesion.escena.elementos[id].ayuda] || {}).titulo || id}</button></li>`).join('') +
+        '</ul><p class="v3d-nota">Modelo ilustrativo: el manual no da las distancias entre equipos; la disposición sigue el diagrama.</p>';
+      return;
+    }
+    const el = sesion.escena.elementos[seleccion], a = ayudas[el.ayuda] || {};
+    panel.innerHTML = '<button type="button" class="v3d-volver" data-id="">← Toda la planta</button>' +
+      `<h4>${a.titulo || seleccion}</h4>` + filaDato('Qué es', a.queEs) + filaDato('En el simulador', a.enSimulador) +
+      (a.modelo3d ? `<button type="button" class="v3d-volver" data-abrir="${a.modelo3d}" data-foco="${a.foco3d || ''}">Ver su modelo 3D detallado ▸</button>` : '') +
+      (a.paginas ? `<p class="v3d-nota">Manual de la PCT23, ${a.paginas}.</p>` : '');
   }
 
   function actualizarPanel(lecturas, seleccion) {
@@ -126,12 +146,13 @@
   /* ---------- etiquetas sobre el modelo ---------- */
   function etiquetaCorta(e) { const [corta, resto] = e.nombre.split(' · '); return resto || e.nombre.length <= 14 ? corta : e.id; }
 
-  function crearEtiquetas(clave) {
+  function crearEtiquetas(clave, escena) {
     const contenedor = modal.querySelector('.v3d-etiquetas');
     contenedor.innerHTML = '';
     const etiquetas = {};
     const modelo = MODELOS[clave];
-    for (const e of [...modelo.captadores, ...modelo.conexiones]) {
+    const piezas = modelo.escena === 'planta' ? Object.keys(escena.elementos).filter(id => !PIEZAS_SIN_ETIQUETA(id)).map(id => ({ id, nombre: id })) : [...modelo.captadores, ...modelo.conexiones];
+    for (const e of piezas) {
       const boton = document.createElement('button');
       boton.type = 'button'; boton.className = 'v3d-etq'; boton.dataset.id = e.id;
       boton.innerHTML = `<b>${etiquetaCorta(e)}</b><span></span>`;
@@ -185,7 +206,8 @@
     sesion.raton.set(((evento.clientX - caja.left) / caja.width) * 2 - 1, -((evento.clientY - caja.top) / caja.height) * 2 + 1);
     sesion.rayo.setFromCamera(sesion.raton, sesion.camara);
     const golpes = sesion.rayo.intersectObjects(sesion.seleccionables, false);
-    seleccionar(golpes.length ? golpes[0].object.userData.id : null);
+    const golpe = golpes.find(g => !g.object.userData.fondo) || golpes[0];
+    seleccionar(golpe ? golpe.object.userData.id : null);
   }
 
   /* ---------- bucle de dibujo ---------- */
@@ -205,7 +227,7 @@
     const estado = sesion.obtenerEstado();
     if (estado) {
       const lecturas = lecturasModelo(sesion.clave, estado, PCT.planta.observaciones(estado));
-      sesion.escena.actualizar(lecturas);
+      sesion.escena.actualizar(lecturas, estado, PCT.planta.observaciones(estado));
       actualizarPanel(lecturas, sesion.seleccion);
       for (const [id, e] of Object.entries(sesion.etiquetas)) {
         const texto = textoCorto(lecturas.sensores[id]);
@@ -234,13 +256,13 @@
     threeEscena.add(new THREE.HemisphereLight(0xdde8f5, 0x1b2330, 1.15));
     const sol = new THREE.DirectionalLight(0xffffff, 1.6); sol.position.set(30, 55, 40); threeEscena.add(sol);
     const contra = new THREE.DirectionalLight(0x8fb4ff, 0.7); contra.position.set(-40, 20, -30); threeEscena.add(contra);
-    const modulo = { intercambiador: PCT.visor3dEscenaIntercambiador, bomba: PCT.visor3dEscenaBomba }[MODELOS[clave].escena] || PCT.visor3dEscena;
+    const modulo = { intercambiador: PCT.visor3dEscenaIntercambiador, bomba: PCT.visor3dEscenaBomba, planta: PCT.planta3d }[MODELOS[clave].escena] || PCT.visor3dEscena;
     const escena = modulo.crearEscena(THREE, clave);
     threeEscena.add(escena.raiz);
     const camara = new THREE.PerspectiveCamera(38, 1, 1, 500);
     const controles = new ControlesOrbita(lienzo, escena.vistaInicial, () => {});
     sesion = { THREE, renderer, camara, threeEscena, escena, controles, clave, obtenerEstado, seleccion: null, animacion: 0,
-      raton: new THREE.Vector2(), rayo: new THREE.Raycaster(), seleccionables: escena.mallasSeleccionables(), etiquetas: crearEtiquetas(clave),
+      raton: new THREE.Vector2(), rayo: new THREE.Raycaster(), seleccionables: escena.mallasSeleccionables(), etiquetas: crearEtiquetas(clave, escena),
       observador: null, alPulsar: alPulsarEscena };
     sesion.observador = new ResizeObserver(ajustarTamano); sesion.observador.observe(modal.querySelector('.v3d-escena'));
     lienzo.addEventListener('pointerup', sesion.alPulsar);
@@ -262,7 +284,7 @@
     sesion = null;
   }
 
-  /** clave: 'TANKA', 'TANKB', 'HEAT', 'EXCH', 'BOMBA_N1' o 'BOMBA_N2'; obtenerEstado() devuelve el estado de la planta; foco: id de un captador para seleccionarlo al abrir. */
+  /** clave: 'TANKA', 'TANKB', 'HEAT', 'EXCH', 'BOMBA_N1', 'BOMBA_N2' o 'PLANTA'; obtenerEstado() devuelve el estado de la planta; foco: id de un captador para seleccionarlo al abrir. */
   async function abrir(clave, obtenerEstado, foco) {
     if (!MODELOS[clave]) return;
     if (sesion) cerrar();
@@ -285,6 +307,8 @@
   }
 
   function alPulsarPanel(evento) {
+    const abrirOtro = evento.target.closest('button[data-abrir]');
+    if (abrirOtro) { const { obtenerEstado } = sesion; abrir(abrirOtro.dataset.abrir, obtenerEstado, abrirOtro.dataset.foco || undefined); return; }
     const boton = evento.target.closest('button[data-id]');
     if (boton) seleccionar(boton.dataset.id);
   }

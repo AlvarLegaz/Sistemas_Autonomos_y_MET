@@ -223,6 +223,10 @@
   function anadirBotonGuia() {
     const cabecera = document.querySelector('header.cab');
     if (!cabecera) return;
+    const planta = document.createElement('button');
+    planta.type = 'button'; planta.id = 'boton-planta3d'; planta.textContent = 'Planta 3D';
+    planta.addEventListener('click', () => PCT.visor3d.abrir('PLANTA', obtenerEstado));
+    cabecera.appendChild(planta);
     const boton = document.createElement('button');
     boton.type = 'button'; boton.id = 'boton-ayuda'; boton.textContent = '? Ayuda';
     boton.addEventListener('click', abrirGuia);

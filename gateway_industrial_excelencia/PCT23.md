@@ -114,3 +114,7 @@ Con clic derecho sobre un depósito (TANKA, TANKB, HEAT), un captador (L1, HL, L
 - Etiquetas con el valor de cada captador; al pulsar uno (en el modelo, la etiqueta o la lista) se ve qué mide, para qué sirve, su señal y su estado.
 - Código en `simulador_pct23/js/interfaz/visor3d/` (datos en `especificaciones.js`, lecturas sin DOM en `lecturas.js`, escenas `escena.js` y `escena_intercambiador.js`). Three.js r169 (MIT) está en `js/vendor/` y se carga solo al abrir el visor.
 - Las medidas del depósito (Ø 155 × 285 mm) son dato del usuario; la posición de los captadores y toda la geometría del intercambiador son **ilustrativas** (no están documentadas en la maqueta).
+
+### Planta 3D completa
+
+El botón **Planta 3D** de la cabecera abre toda la planta sobre una mesa, con la disposición del diagrama del manual (distancias ilustrativas). Muestra con el estado en vivo los niveles, las bombas girando, las bobinas de las electroválvulas, las temperaturas por sección y las partículas de flujo en las tuberías (con la misma lógica y sentido que el esquema 2D). Al pulsar una pieza se ve su texto de ayuda y, si tiene uno, un botón para pasar a su modelo detallado. Código en `js/interfaz/visor3d/planta3d/` (`layout.js` = coordenadas, `equipos.js`, `tuberias.js`, `valvulas_instrumentos.js`, `planta3d.js` = montaje).

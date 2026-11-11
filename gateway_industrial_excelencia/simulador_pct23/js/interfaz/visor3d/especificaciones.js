@@ -128,6 +128,12 @@
         { id: 'IMPULSION', ayuda: 'N2', nombre: 'Impulsión', tipo: 'salida', detalle: 'Por aquí sale el fluido hacia el intercambiador. Si el sentido de giro se invierte, el flujo va al revés.' },
       ],
     },
+    // Planta completa: los elementos salen de la propia escena (planta3d/), no de esta lista.
+    PLANTA: {
+      escena: 'planta', titulo: 'Planta PCT23 completa',
+      resumen: 'La planta entera sobre una mesa, con la disposición del diagrama del manual (las distancias son ilustrativas). Todo sigue el estado del simulador: niveles, bombas, válvulas, temperaturas y flujo en las tuberías. Pulsa cualquier pieza para ver qué es.',
+      captadores: [], conexiones: [],
+    },
   };
 
   const api = { GEOMETRIA, MODELOS };
