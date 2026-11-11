@@ -40,18 +40,19 @@
           '<button type="button" data-opcion="etiquetas" aria-pressed="true">Etiquetas</button>' +
           '<button type="button" data-opcion="tapa" aria-pressed="true">Tapa</button>' +
           '<button type="button" data-accion="reiniciar">Vista inicial</button>' +
+          '<button type="button" data-accion="ventana" title="Abrir el 3D en otra ventana para verlo junto al sinóptico">Ventana aparte ⧉</button>' +
         '</div><button type="button" class="v3d-cerrar" aria-label="Cerrar (Esc)" title="Cerrar (Esc)">×</button></header>' +
         '<div class="v3d-cuerpo"><div class="v3d-escena"><canvas></canvas><div class="v3d-etiquetas"></div>' +
           '<p class="v3d-aviso" hidden></p><p class="v3d-pista">Arrastra para girar · rueda o pellizco para acercar · doble clic: vista inicial · pulsa un captador para ver su estado</p></div>' +
         '<aside class="v3d-panel" aria-live="polite"></aside></div>' +
       '</div>';
     document.body.appendChild(modal);
-    modal.querySelector('.v3d-cerrar').addEventListener('click', cerrar);
-    modal.addEventListener('mousedown', e => { if (e.target === modal) cerrar(); });
+    modal.querySelector('.v3d-cerrar').addEventListener('click', cerrarPorUsuario);
+    modal.addEventListener('mousedown', e => { if (e.target === modal) cerrarPorUsuario(); });
     modal.querySelector('.v3d-botones').addEventListener('click', alPulsarBoton);
     modal.querySelector('.v3d-panel').addEventListener('click', alPulsarPanel);
     modal.querySelector('.v3d-etiquetas').addEventListener('click', alPulsarPanel);
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) { e.stopImmediatePropagation(); cerrar(); } }, true);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) { e.stopImmediatePropagation(); cerrarPorUsuario(); } }, true);
   }
 
   function alPulsarBoton(evento) {
@@ -68,6 +69,9 @@
       if (opcion === 'tapa') sesion.escena.ponerTapa(activo);
     } else if (accion === 'reiniciar') {
       sesion.controles.reiniciar();
+    } else if (accion === 'ventana') {
+      const { clave, obtenerEstado, seleccion } = sesion;
+      if (abrirEnVentana(clave, obtenerEstado, seleccion || undefined)) cerrar();
     }
   }
 
@@ -328,6 +332,12 @@
     return true;
   }
 
+  /** Cierre pedido por la persona (×, Esc o clic fuera): en la ventana aparte cierra la ventana. */
+  function cerrarPorUsuario() {
+    cerrar();
+    if (PCT.visor3d.alCerrar) PCT.visor3d.alCerrar();
+  }
+
   function cerrar() {
     if (!modal || modal.hidden) return;
     modal.hidden = true;
@@ -393,5 +403,16 @@
   // Para diagnosticar el rendimiento: llamadas de dibujo, triángulos, memoria y renderizador (consola: PCT.visor3d.info()).
   const info = () => sesion && { render: Object.assign({}, sesion.renderer.info.render), memoria: Object.assign({}, sesion.renderer.info.memory), programas: (sesion.renderer.info.programs || []).length,
     gpu: (() => { const gl = sesion.renderer.getContext(), x = gl.getExtension('WEBGL_debug_renderer_info'); return x ? gl.getParameter(x.UNMASKED_RENDERER_WEBGL) : 'desconocido'; })() };
-  PCT.visor3d = { abrir, cerrar, estaAbierto: () => !!modal && !modal.hidden, info };
+  /** Abre el visor en una ventana aparte (se ve junto al sinóptico y sigue su estado). Si el navegador la bloquea, devuelve false. */
+  function abrirEnVentana(clave, obtenerEstado, foco) {
+    if (!MODELOS[clave]) return false;
+    const url = `visor3d.html?modelo=${encodeURIComponent(clave)}` + (foco ? `&foco=${encodeURIComponent(foco)}` : '');
+    let ventana = null;
+    try { ventana = window.open(url, 'pct23_visor3d', 'popup=yes,width=1180,height=780'); } catch (error) { ventana = null; }
+    if (!ventana) { abrir(clave, obtenerEstado, foco); return false; }   // sin ventanas emergentes: se abre encima de la página
+    try { ventana.focus(); } catch (error) { /* sin permiso para enfocar: no importa */ }
+    return true;
+  }
+
+  PCT.visor3d = { abrir, abrirEnVentana, cerrar, estaAbierto: () => !!modal && !modal.hidden, info, alCerrar: null };
 })();

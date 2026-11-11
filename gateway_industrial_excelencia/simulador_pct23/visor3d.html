@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="author" content="Álvar Legaz Aparicio">
+<meta name="copyright" content="© 2026 Álvar Legaz Aparicio. Todos los derechos reservados.">
+<title>PCT23 · Modelo 3D</title>
+<link rel="icon" type="image/png" href="img/favicon.png">
+<link rel="stylesheet" href="css/interfaz.css">
+</head>
+<body class="v3d-ventana">
+<script src="js/utilidades/modulos.js"></script>
+<script src="js/utilidades/matematicas.js"></script>
+<script src="js/configuracion/constantes_fisicas.js"></script>
+<script src="js/modelo/estado_planta.js"></script>
+<script src="js/modelo/termica.js"></script>
+<script src="js/modelo/hidraulica.js"></script>
+<script src="js/modelo/planta.js"></script>
+<script src="js/interfaz/dom.js"></script>
+<script src="js/interfaz/scada/canvas.js"></script>
+<script src="js/interfaz/scada/objeto_scada.js"></script>
+<script src="js/interfaz/scada/scada_widget.js"></script>
+<script src="js/interfaz/scada/bomba.js"></script>
+<script src="js/interfaz/scada/valvula.js"></script>
+<script src="js/interfaz/scada/sensor.js"></script>
+<script src="js/interfaz/scada/deposito.js"></script>
+<script src="js/interfaz/scada/resistencia.js"></script>
+<script src="js/interfaz/scada/tuberia.js"></script>
+<script src="js/interfaz/scada/etiqueta.js"></script>
+<script src="js/interfaz/scada/controles_scada.js"></script>
+<script src="js/interfaz/scada/panel_controles.js"></script>
+<script src="js/interfaz/scada/esquema_pct23.js"></script>
+<script src="js/interfaz/ayuda_textos.js"></script>
+<script src="js/interfaz/visor3d/especificaciones.js"></script>
+<script src="js/interfaz/visor3d/lecturas.js"></script>
+<script src="js/interfaz/visor3d/controles_orbita.js"></script>
+<script src="js/interfaz/visor3d/escena.js"></script>
+<script src="js/interfaz/visor3d/escena_intercambiador.js"></script>
+<script src="js/interfaz/visor3d/escena_bomba.js"></script>
+<script src="js/interfaz/visor3d/planta3d/layout.js"></script>
+<script src="js/interfaz/visor3d/planta3d/equipos.js"></script>
+<script src="js/interfaz/visor3d/planta3d/tuberias.js"></script>
+<script src="js/interfaz/visor3d/planta3d/valvulas_instrumentos.js"></script>
+<script src="js/interfaz/visor3d/planta3d/planta3d.js"></script>
+<script src="js/interfaz/visor3d/visor3d.js"></script>
+<script>
+// Ventana aparte del visor 3D: lee el estado del simulador de la ventana que la abrió (mismo origen), así el 3D se mueve igual que el sinóptico.
+(function () {
+  const parametros = new URLSearchParams(location.search);
+  const clave = parametros.get('modelo') || 'PLANTA', foco = parametros.get('foco') || undefined;
+  let ultimo = PCT.estadoPlanta.crearEstado();          // si no hay simulador detrás, se muestra una planta parada
+  function estadoDelSimulador() {
+    try {
+      const origen = window.opener;
+      if (origen && !origen.closed && origen.PCT && origen.PCT.ayuda) { const e = origen.PCT.ayuda.estadoActual(); if (e) ultimo = e; }
+    } catch (error) { /* la ventana de origen se cerró: se sigue con el último estado */ }
+    return ultimo;
+  }
+  PCT.visor3d.alCerrar = () => window.close();
+  PCT.visor3d.abrir(clave, estadoDelSimulador, foco);
+})();
+</script>
+</body>
+</html>

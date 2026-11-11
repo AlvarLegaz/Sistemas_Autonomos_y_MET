@@ -161,7 +161,7 @@
     ventana.querySelector('.pie').textContent = `Fuente: manual de la PCT23, ${elemento.paginas}. Pulsa la × o Esc para cerrar.`;
     const boton3d = ventana.querySelector('.boton-3d');
     boton3d.hidden = !elemento.modelo3d;
-    boton3d.onclick = () => { cerrarAyuda(); PCT.visor3d.abrir(elemento.modelo3d, obtenerEstado, elemento.foco3d); };
+    boton3d.onclick = () => { cerrarAyuda(); PCT.visor3d.abrirEnVentana(elemento.modelo3d, obtenerEstado, elemento.foco3d); };
     velo.hidden = false; ventana.hidden = false;
     refrescarEstadoVivo();
     clearInterval(temporizador);
@@ -225,7 +225,7 @@
     if (!cabecera) return;
     const planta = document.createElement('button');
     planta.type = 'button'; planta.id = 'boton-planta3d'; planta.textContent = 'Planta 3D';
-    planta.addEventListener('click', () => PCT.visor3d.abrir('PLANTA', obtenerEstado));
+    planta.addEventListener('click', () => PCT.visor3d.abrirEnVentana('PLANTA', obtenerEstado));
     cabecera.appendChild(planta);
     const boton = document.createElement('button');
     boton.type = 'button'; boton.id = 'boton-ayuda'; boton.textContent = '? Ayuda';
@@ -301,5 +301,5 @@
     document.addEventListener('keydown', evento => { if (evento.key === 'Escape') cerrarAyuda(); });
   }
 
-  PCT.ayuda = { iniciarAyuda };
+  PCT.ayuda = { iniciarAyuda, estadoActual: () => obtenerEstado() };
 })();

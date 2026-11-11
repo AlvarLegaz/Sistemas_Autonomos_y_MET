@@ -472,10 +472,11 @@ def crear_app(config=None):
         if a is not None and a["estado"] == "autorizado" and pagina in PAGINAS_SIMULADOR:
             registrar_actividad(a["id"], "pagina", f"Abrió {pagina}")
             bd().commit()
-        barra = render_template("barra_simulador.html", nombre=nombre, es_profesor=profesor(), con_cuenta=a is not None,
-                                pagina=pagina if pagina in PAGINAS_SIMULADOR else "index")
-        fin = texto.lower().rfind("</body>")
-        texto = texto[:fin] + barra + texto[fin:] if fin != -1 else texto + barra
+        if pagina != "visor3d":                       # la ventana aparte del visor 3D no lleva la barra del aula
+            barra = render_template("barra_simulador.html", nombre=nombre, es_profesor=profesor(), con_cuenta=a is not None,
+                                    pagina=pagina if pagina in PAGINAS_SIMULADOR else "index")
+            fin = texto.lower().rfind("</body>")
+            texto = texto[:fin] + barra + texto[fin:] if fin != -1 else texto + barra
         resp = Response(texto, mimetype="text/html")
         resp.headers["Cache-Control"] = "no-store"
         return resp
