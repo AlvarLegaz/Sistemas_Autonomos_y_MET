@@ -20,7 +20,7 @@ test('cada modelo tiene ids únicos y captadores dentro del depósito', () => {
   for (const [clave, modelo] of Object.entries(MODELOS)) {
     const ids = [...modelo.captadores, ...modelo.conexiones].map(e => e.id);
     assert.equal(new Set(ids).size, ids.length, `${clave}: ids repetidos`);
-    if (modelo.escena === 'intercambiador') continue;   // el intercambiador no es un depósito: sin alturas ni radios
+    if (modelo.escena) continue;   // el intercambiador no es un depósito: sin alturas ni radios
     for (const c of modelo.captadores) {
       assert.ok(TIPOS.includes(c.tipo), `${c.id}: tipo desconocido ${c.tipo}`);
       assert.ok(c.alturaCm >= 0 && c.alturaCm <= GEOMETRIA.alturaCm, `${c.id}: altura fuera del depósito`);
@@ -101,6 +101,17 @@ test('intercambiador: cada sección y sonda lee su temperatura y SOL3 manda en e
   assert.equal(marcha.sensores.SEC_CALENT.tempC, 60);
   assert.equal(marcha.sensores.T3.texto, '30,0 °C');
   assert.equal(marcha.sensores.T5.valor, 45);
+});
+
+test('bombas: parada, en marcha y con el giro invertido', () => {
+  assert.equal(lecturas('BOMBA_N1').sensores.ROTOR.activo, false);
+  const marcha = lecturas('BOMBA_N2', e => { e.salidas.N2 = true; e.consignas.velocidadN2Pct = 40; });
+  assert.equal(marcha.sensores.ROTOR.velocidadPct, 40);
+  assert.equal(marcha.sensores.TUBO.activo, true);
+  const inversa = lecturas('BOMBA_N1', e => { e.salidas.N1 = true; e.giro.N1 = true; });
+  assert.equal(inversa.sensores.ROTOR.inversa, true);
+  assert.equal(inversa.sensores.TUBO.activo, false);
+  assert.match(inversa.sensores.ROTOR.texto, /INVERSO/);
 });
 
 test('el llenado se limita entre 0 y 100 %', () => {

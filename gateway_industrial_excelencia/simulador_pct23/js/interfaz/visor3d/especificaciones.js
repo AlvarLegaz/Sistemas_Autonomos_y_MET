@@ -95,6 +95,39 @@
         { id: 'AGUA_FRIA_SALIDA', ayuda: 'SOL3', nombre: 'Agua fría a desagüe', tipo: 'salida', detalle: 'El agua de refrigeración se envía a desagüe (el simulador la cuenta).' },
       ],
     },
+    // Bombas peristálticas N1 y N2: la geometría es ilustrativa (modelo genérico de bomba de rodillos).
+    BOMBA_N1: {
+      escena: 'bomba', bomba: 'N1',
+      titulo: 'Bomba N1 · alimentación (feed unit)',
+      resumen: 'Bomba peristáltica que mueve el producto del tanque al intercambiador. Los rodillos comprimen un tubo flexible y empujan el fluido.',
+      captadores: [
+        { id: 'ROTOR', ayuda: 'N1', nombre: 'Rotor con rodillos', tipo: 'rotor', senal: 'J7 OUT08 (marcha) · OUT06 (sentido) · PWMOut1 (velocidad)',
+          queMide: 'No mide: es el actuador. Los rodillos aplastan el tubo flexible y empujan el producto por delante de ellos.',
+          uso: 'Su velocidad fija el caudal. Parada, la bomba hace de cierre: los rodillos pellizcan el tubo y el fluido no pasa.', nota: 'Si N1 gira en sentido inverso, el modelo no mueve producto.' },
+        { id: 'TUBO', ayuda: 'N1', nombre: 'Tubo flexible', tipo: 'tubo', senal: 'Sin señal',
+          queMide: 'Es la única pieza que toca el fluido: el rotor lo comprime desde fuera, así que el fluido no se contamina con la bomba.', uso: 'Se desgasta con el uso y es lo primero que se cambia en una bomba peristáltica.', nota: 'Geometría ilustrativa: no hay medidas documentadas.' },
+      ],
+      conexiones: [
+        { id: 'ASPIRACION', ayuda: 'N1', nombre: 'Aspiración', tipo: 'entrada', detalle: 'Por aquí entra el fluido cuando la bomba gira en sentido normal.' },
+        { id: 'IMPULSION', ayuda: 'N1', nombre: 'Impulsión', tipo: 'salida', detalle: 'Por aquí sale el fluido hacia el intercambiador. Si el sentido de giro se invierte, el flujo va al revés.' },
+      ],
+    },
+    BOMBA_N2: {
+      escena: 'bomba', bomba: 'N2',
+      titulo: 'Bomba N2 · agua caliente (heat unit)',
+      resumen: 'Bomba peristáltica que hace circular el agua caliente de la heat unit por la sección de calentamiento del intercambiador.',
+      captadores: [
+        { id: 'ROTOR', ayuda: 'N2', nombre: 'Rotor con rodillos', tipo: 'rotor', senal: 'J7 OUT07 (marcha) · OUT05 (sentido) · PWMOut2 (velocidad)',
+          queMide: 'No mide: es el actuador. Los rodillos aplastan el tubo flexible y empujan el agua caliente por delante de ellos.',
+          uso: 'Su velocidad fija el caudal. Parada, la bomba hace de cierre: los rodillos pellizcan el tubo y el fluido no pasa.', nota: 'Sin N2 el producto casi no se calienta.' },
+        { id: 'TUBO', ayuda: 'N2', nombre: 'Tubo flexible', tipo: 'tubo', senal: 'Sin señal',
+          queMide: 'Es la única pieza que toca el fluido: el rotor lo comprime desde fuera, así que el fluido no se contamina con la bomba.', uso: 'Se desgasta con el uso y es lo primero que se cambia en una bomba peristáltica.', nota: 'Geometría ilustrativa: no hay medidas documentadas.' },
+      ],
+      conexiones: [
+        { id: 'ASPIRACION', ayuda: 'N2', nombre: 'Aspiración', tipo: 'entrada', detalle: 'Por aquí entra el fluido cuando la bomba gira en sentido normal.' },
+        { id: 'IMPULSION', ayuda: 'N2', nombre: 'Impulsión', tipo: 'salida', detalle: 'Por aquí sale el fluido hacia el intercambiador. Si el sentido de giro se invierte, el flujo va al revés.' },
+      ],
+    },
   };
 
   const api = { GEOMETRIA, MODELOS };

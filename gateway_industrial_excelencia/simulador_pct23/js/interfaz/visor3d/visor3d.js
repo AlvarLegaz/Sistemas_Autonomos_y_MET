@@ -83,23 +83,23 @@
   function construirPanel(clave, seleccion) {
     const modelo = MODELOS[clave];
     const panel = modal.querySelector('.v3d-panel');
-    const deposito = modelo.escena !== 'intercambiador';
+    const deposito = !modelo.escena, conjunto = modelo.escena === 'bomba' ? 'la bomba' : 'el intercambiador';
     if (!seleccion) {
       panel.innerHTML = `<h4>${modelo.titulo}</h4><p>${modelo.resumen}</p>` +
         (deposito ? `<p class="v3d-datos">Ø ${decimal(GEOMETRIA.diametroCm * 10, 0)} mm × ${decimal(GEOMETRIA.alturaCm * 10, 0)} mm · altura útil ${decimal(GEOMETRIA.alturaUtilCm * 10, 0)} mm</p>` +
           '<p class="v3d-datos" data-vivo="resumen"></p>' : '') + '<h4>Captadores y conexiones</h4><ul class="v3d-lista">' +
         [...modelo.captadores, ...modelo.conexiones].map(e => `<li><button type="button" data-id="${e.id}"><i data-vivo-punto="${e.id}"></i>${e.nombre}</button></li>`).join('') +
         '</ul><p class="v3d-nota">' + (deposito ? 'Las medidas del depósito (Ø 155 × 285 mm) son un dato tuyo; la posición de los captadores dentro es orientativa.' :
-          'Modelo ilustrativo: el manual no da las medidas del intercambiador ni la distribución de sus placas.') + '</p>';
+          (modelo.escena === 'bomba' ? 'Modelo ilustrativo de una bomba peristáltica de rodillos: el manual no da sus medidas.' : 'Modelo ilustrativo: el manual no da las medidas del intercambiador ni la distribución de sus placas.')) + '</p>';
       return;
     }
     const e = [...modelo.captadores, ...modelo.conexiones].find(x => x.id === seleccion);
     const esCaptador = !!e.queMide;
-    panel.innerHTML = `<button type="button" class="v3d-volver" data-id="">← ${deposito ? 'Todo el depósito' : 'Todo el intercambiador'}</button>` +
+    panel.innerHTML = `<button type="button" class="v3d-volver" data-id="">← ${deposito ? 'Todo el depósito' : modelo.escena === 'bomba' ? 'Toda la bomba' : 'Todo el intercambiador'}</button>` +
       `<h4>${e.nombre}</h4>` + (esCaptador ? '<p class="v3d-estado" data-vivo="estado"></p>' : '') +
       (esCaptador ? filaDato('Qué mide', e.queMide) + filaDato('Para qué sirve', e.uso) + filaDato('Señal', e.senal) +
         (e.alturaCm !== undefined ? filaDato('Posición', `a ${decimal(e.alturaCm * 10, 0)} mm del fondo (orientativa)`) : '') + '<div data-vivo="extra"></div>' + filaDato('Nota', e.nota)
-        : filaDato('Qué es', e.detalle) + filaDato('Sentido', e.tipo === 'entrada' ? (deposito ? 'Entra fluido al depósito' : 'Entra fluido al intercambiador') : (deposito ? 'Sale fluido del depósito' : 'Sale fluido del intercambiador')));
+        : filaDato('Qué es', e.detalle) + filaDato('Sentido', e.tipo === 'entrada' ? (deposito ? 'Entra fluido al depósito' : `Entra fluido a ${conjunto}`) : (deposito ? 'Sale fluido del depósito' : `Sale fluido de ${conjunto}`)));
   }
 
   function actualizarPanel(lecturas, seleccion) {
@@ -107,7 +107,7 @@
     const modelo = MODELOS[sesion.clave];
     const poner = (selector, texto) => { const el = panel.querySelector(selector); if (el && el.textContent !== texto) el.textContent = texto; };
     if (!seleccion) {
-      if (modelo.escena !== 'intercambiador') poner('[data-vivo="resumen"]', `Llenado: ${decimal(lecturas.fraccion * 100, 0)} % · ${Math.round(lecturas.volumenMl)} ml · líquido a ${decimal(lecturas.alturaLiquidoCm * 10, 0)} mm`);
+      if (!modelo.escena) poner('[data-vivo="resumen"]', `Llenado: ${decimal(lecturas.fraccion * 100, 0)} % · ${Math.round(lecturas.volumenMl)} ml · líquido a ${decimal(lecturas.alturaLiquidoCm * 10, 0)} mm`);
       for (const c of modelo.captadores) {
         const punto = panel.querySelector(`[data-vivo-punto="${c.id}"]`);
         if (punto) punto.className = 'v3d-punto ' + claseEstado(lecturas.sensores[c.id]);
@@ -234,7 +234,8 @@
     threeEscena.add(new THREE.HemisphereLight(0xdde8f5, 0x1b2330, 1.15));
     const sol = new THREE.DirectionalLight(0xffffff, 1.6); sol.position.set(30, 55, 40); threeEscena.add(sol);
     const contra = new THREE.DirectionalLight(0x8fb4ff, 0.7); contra.position.set(-40, 20, -30); threeEscena.add(contra);
-    const escena = MODELOS[clave].escena === 'intercambiador' ? PCT.visor3dEscenaIntercambiador.crearEscena(THREE, clave) : PCT.visor3dEscena.crearEscena(THREE, clave);
+    const modulo = { intercambiador: PCT.visor3dEscenaIntercambiador, bomba: PCT.visor3dEscenaBomba }[MODELOS[clave].escena] || PCT.visor3dEscena;
+    const escena = modulo.crearEscena(THREE, clave);
     threeEscena.add(escena.raiz);
     const camara = new THREE.PerspectiveCamera(38, 1, 1, 500);
     const controles = new ControlesOrbita(lienzo, escena.vistaInicial, () => {});
@@ -261,7 +262,7 @@
     sesion = null;
   }
 
-  /** clave: 'TANKA', 'TANKB', 'HEAT' o 'EXCH'; obtenerEstado() devuelve el estado de la planta; foco: id de un captador para seleccionarlo al abrir. */
+  /** clave: 'TANKA', 'TANKB', 'HEAT', 'EXCH', 'BOMBA_N1' o 'BOMBA_N2'; obtenerEstado() devuelve el estado de la planta; foco: id de un captador para seleccionarlo al abrir. */
   async function abrir(clave, obtenerEstado, foco) {
     if (!MODELOS[clave]) return;
     if (sesion) cerrar();

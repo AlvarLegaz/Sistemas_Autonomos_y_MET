@@ -41,6 +41,15 @@
   /** clave: 'TANKA', 'TANKB' o 'HEAT'; estado: estado de la planta; observaciones: PCT.planta.observaciones(estado). */
   function lecturasModelo(clave, estado, observaciones) {
     const modelo = MODELOS[clave];
+    if (modelo.escena === 'bomba') {
+      const b = modelo.bomba, activa = !!estado.salidas[b], pct = estado.consignas['velocidad' + b + 'Pct'], inversa = !!estado.giro[b];
+      const caudal = b === 'N1' ? ` · caudal ${Math.round(estado.caudalProductoMlMin)} ml/min` : '';
+      const texto = !activa ? 'Parada' : `ON · ${decimal(pct)} %${inversa ? ' · giro INVERSO (no mueve fluido)' : caudal}`;
+      return { fraccion: 0, alturaLiquidoCm: 0, volumenMl: 0, presionFondoPa: 0, temperaturaAguaC: null, sensores: {
+        ROTOR: { activo: activa, velocidadPct: activa ? pct : 0, inversa, texto },
+        TUBO: { activo: activa && !inversa, texto: !activa ? 'Sin flujo' : inversa ? 'Flujo invertido: el modelo no mueve producto' : 'Fluido en movimiento' },
+      } };
+    }
     if (modelo.escena === 'intercambiador') {
       const sensores = {};
       for (const captador of modelo.captadores) sensores[captador.id] = LECTORES[captador.id](observaciones, estado);

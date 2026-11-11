@@ -3,12 +3,12 @@
   const lista = arr => '<ul>' + arr.map(x => '<li>' + x + '</li>').join('') + '</ul>';
 
   const ELEMENTOS = {
-    N1: { titulo: 'N1 · Bomba de alimentación (feed unit)', etiqueta: 'Bomba peristáltica',
+    N1: { modelo3d: 'BOMBA_N1', titulo: 'N1 · Bomba de alimentación (feed unit)', etiqueta: 'Bomba peristáltica',
       queEs: 'Impulsa el producto desde el tanque elegido por SOL2 hacia el intercambiador de placas. Su velocidad se ajusta en la consola (en la ' +
           'maqueta, por PWM) y se enciende y apaga aparte.',
       enSimulador: 'Acción en J7 OUT08, sentido de giro en OUT06 y velocidad por PWM (PWMOut1). Si N1 gira en sentido inverso, el modelo no mueve ' +
           'producto.', paginas: 'p. 8 y 17' },
-    N2: { titulo: 'N2 · Bomba de agua caliente (heat unit)', etiqueta: 'Bomba peristáltica',
+    N2: { modelo3d: 'BOMBA_N2', titulo: 'N2 · Bomba de agua caliente (heat unit)', etiqueta: 'Bomba peristáltica',
       queEs: 'Hace circular el agua caliente del depósito con calefactor por la sección de calentamiento del intercambiador. El manual la ' +
           'describe con ajuste de velocidad manual o todo/nada.',
       enSimulador: 'Acción en J7 OUT07, sentido de giro en OUT05 y velocidad por PWM (PWMOut2). Sin N2 el producto casi no se calienta.', paginas:

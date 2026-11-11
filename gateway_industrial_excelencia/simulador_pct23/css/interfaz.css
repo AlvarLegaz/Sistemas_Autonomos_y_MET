@@ -397,3 +397,4 @@ body.v3d-abierto { overflow: hidden; }
 #ventana-ayuda .boton-3d { display: block; width: 100%; margin: 10px 0 2px; min-height: 40px; border-radius: 8px; border: 1px solid var(--acento, #f68b11); background: color-mix(in srgb, var(--acento, #f68b11) 18%, transparent); color: inherit; font: 700 14px system-ui, sans-serif; cursor: pointer; width: auto !important; padding: 0 16px; }
 #ventana-ayuda .boton-3d:hover { background: color-mix(in srgb, var(--acento, #f68b11) 32%, transparent); }
 #visor3d[data-modelo="intercambiador"] [data-vista], #visor3d[data-modelo="intercambiador"] [data-opcion="tapa"] { display: none; }
+#visor3d[data-modelo="bomba"] [data-vista] { display: none; }
