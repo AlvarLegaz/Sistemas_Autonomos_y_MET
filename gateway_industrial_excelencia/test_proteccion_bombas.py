@@ -5,6 +5,7 @@ Se prueba con el runtime simulado (sin Raspberry). Ejecutar:  python test_protec
 import time
 import unittest
 
+import runtime
 from runtime import (BOMBAS, ESPERA_CAMBIO_SENTIDO_S, OUT_BOMBA_FEED, OUT_BOMBA_HEAT, OUT_SENTIDO_FEED, OUT_SENTIDO_HEAT,
                      RAMPA_ARRANQUE_S, RAMPA_PARADA_S, Runtime)
 
@@ -21,6 +22,10 @@ def ciclos_activos(rt, ahora, salida):
 class Bombas(unittest.TestCase):
     def setUp(self):
         self.rt = Runtime(simular=True)     # sin start(): solo la logica de las ordenes
+        # estas pruebas comprueban la proteccion del cambio de sentido, asi que se permite el sentido inverso (por defecto no se permite)
+        self._antes = runtime.SENTIDO_INVERSO_PERMITIDO
+        runtime.SENTIDO_INVERSO_PERMITIDO = True
+        self.addCleanup(lambda: setattr(runtime, "SENTIDO_INVERSO_PERMITIDO", self._antes))
 
     def test_las_bombas_y_sus_sentidos(self):
         self.assertEqual(BOMBAS, {OUT_BOMBA_HEAT: OUT_SENTIDO_HEAT, OUT_BOMBA_FEED: OUT_SENTIDO_FEED})
@@ -152,6 +157,35 @@ class Bombas(unittest.TestCase):
 
     def test_apagada_no_conduce_nunca(self):
         self.assertEqual(ciclos_activos(self.rt, time.monotonic() + 10, OUT_BOMBA_FEED), 0)
+
+
+class SentidoFijo(unittest.TestCase):
+    """Por defecto las bombas solo giran hacia delante: ninguna orden de sentido inverso llega a las salidas."""
+
+    def setUp(self):
+        self.rt = Runtime(simular=True)
+
+    def test_por_defecto_el_sentido_inverso_no_esta_permitido(self):
+        self.assertFalse(runtime.SENTIDO_INVERSO_PERMITIDO)
+
+    def test_se_rechaza_el_sentido_inverso_de_las_dos_bombas(self):
+        for sentido in (OUT_SENTIDO_FEED, OUT_SENTIDO_HEAT):
+            self.rt.update_outputs({canal(sentido): True})
+            self.assertFalse(self.rt.outputs[canal(sentido)])
+
+    def test_el_resto_de_la_orden_si_se_aplica(self):
+        self.rt.update_outputs({canal(OUT_BOMBA_FEED): True, canal(OUT_SENTIDO_FEED): True})
+        self.assertTrue(self.rt.outputs[canal(OUT_BOMBA_FEED)])
+        self.assertFalse(self.rt.outputs[canal(OUT_SENTIDO_FEED)])
+
+    def test_ni_forzando_la_imagen_se_activa_el_pin_de_sentido(self):
+        self.rt.outputs[canal(OUT_SENTIDO_FEED)] = True          # como si algo hubiera escrito la imagen a mano
+        self.rt.outputs[canal(OUT_BOMBA_FEED)] = True
+        self.assertFalse(any(self.rt.transistores_efectivos(t, time.monotonic() + 10)[OUT_SENTIDO_FEED - 1] for t in range(20)))
+
+    def test_el_sentido_a_delante_se_acepta(self):
+        self.rt.update_outputs({canal(OUT_SENTIDO_HEAT): False})
+        self.assertFalse(self.rt.outputs[canal(OUT_SENTIDO_HEAT)])
 
 
 if __name__ == "__main__":

@@ -26,6 +26,7 @@ BOMBAS = {OUT_BOMBA_HEAT: OUT_SENTIDO_HEAT, OUT_BOMBA_FEED: OUT_SENTIDO_FEED}   
 RAMPA_ARRANQUE_S = 2.0       # el PWM de una bomba sube de 0 a su valor en este tiempo al encenderla
 RAMPA_PARADA_S = 1.0         # al apagar una bomba (parada normal) su PWM baja hasta 0 en este tiempo; el paro de emergencia no la usa
 ESPERA_CAMBIO_SENTIDO_S = 1.5  # tras apagar una bomba, hasta que se acepta cambiar su sentido
+SENTIDO_INVERSO_PERMITIDO = False   # las bombas N1 y N2 solo giran hacia delante: se rechaza cualquier orden de sentido inverso (protege el driver)
 PWM_DE_BOMBA = {OUT_BOMBA_HEAT: "PWMOut2_value", OUT_BOMBA_FEED: "PWMOut1_value"}   # canal PWM de cada bomba
 POTENCIA_POR_DEFECTO = 100.0  # PWMOut1, PWMOut2 y AnalogOut1 (potencia de la resistencia) arrancan al 100 %
 
@@ -319,6 +320,9 @@ class Runtime:
         ahora = time.monotonic()
         for salida_bomba, salida_sentido in BOMBAS.items():
             enc, sen = f"TransistorOut{salida_bomba}_value", f"TransistorOut{salida_sentido}_value"
+            if not SENTIDO_INVERSO_PERMITIDO and nuevos.get(sen):
+                del nuevos[sen]
+                print(f"Orden de sentido inverso de OUT{salida_bomba:02d} rechazada: las bombas solo giran hacia delante")
             estaba_on = self.outputs[enc]
             parada = self._bomba_parada.get(salida_bomba)
             if sen in nuevos and nuevos[sen] != self.outputs[sen]:
@@ -457,6 +461,9 @@ class Runtime:
                     feed = frenando[1] * (1.0 - transcurrido / RAMPA_PARADA_S)
         if paro:
             return [False] * NUM_CHANNELS
+        if not SENTIDO_INVERSO_PERMITIDO:
+            for salida_sentido in BOMBAS.values():
+                cmd[salida_sentido - 1] = False
         cmd[OUT_RESISTENCIA - 1] = cmd[OUT_RESISTENCIA - 1] and not bloqueada and burst_activo(tick // CICLO_RED_TICKS, potencia)
         cmd[OUT_BOMBA_HEAT - 1] = cmd[OUT_BOMBA_HEAT - 1] and pwm_activo(tick, heat)
         cmd[OUT_BOMBA_FEED - 1] = cmd[OUT_BOMBA_FEED - 1] and pwm_activo(tick, feed)
