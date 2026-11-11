@@ -139,10 +139,16 @@
   // Igual que scada/tuberia.js: más velocidad de bomba, partículas más rápidas (de 2 s por ciclo al 10 % a 0,5 s al 100 %).
   const segundosPorCiclo = velocidadPct => 2.2 - 0.017 * Math.min(100, Math.max(10, velocidadPct));
   const VELOCIDAD_SIN_BOMBA_PCT = 50;
+  // Velocidad real de las partículas en cm/s, igual en todos los tubos (antes cada tubo daba una vuelta en el mismo tiempo, y los largos iban más rápido).
+  const LONGITUD_REFERENCIA_CM = 30;
+  const velocidadCmS = velocidadPct => LONGITUD_REFERENCIA_CM / segundosPorCiclo(velocidadPct);
   const fraccion = x => ((x % 1) + 1) % 1;
 
   /** Posición relativa (0 a 1) a lo largo del trazo de la partícula i, dada la fase acumulada y el sentido (1 o -1). */
   const posicionParticula = (i, cuantas, fase, sentido) => fraccion(i / cuantas + sentido * fase);
+
+  /** Posición relativa (0 a 1) de la partícula i en un tubo de `longitud` cm, con `avanceCm` recorridos y el sentido (1 o -1). */
+  const posicionParticulaCm = (i, cuantas, longitud, avanceCm, sentido) => fraccion((i * longitud / cuantas + sentido * avanceCm) / longitud);
 
   /* ---------- escena ---------- */
 
@@ -167,12 +173,12 @@
         const cuantas = Math.max(2, Math.round(curva.getLength() / SEPARACION_PARTICULAS_CM));
         const particulas = new THREE.InstancedMesh(geometriaParticula, materialParticula, cuantas);
         particulas.visible = false; particulas.frustumCulled = false; g.add(particulas);
-        pistas.push({ curva, particulas, cuantas, sentido: trazo.inverso ? -1 : 1 });
+        pistas.push({ curva, particulas, cuantas, longitud: curva.getLength(), sentido: trazo.inverso ? -1 : 1 });
       }
       const principal = tubo.trazos[0], medio = principal.puntos3D[Math.floor(principal.puntos3D.length / 2)];
       elementos[tubo.id] = { id: tubo.id, grupo: g, ancla: new THREE.Vector3(medio.x, medio.y + 2.5, medio.z), ayuda: tubo.ayuda };
       grupo.add(g);
-      tubos.push({ id: tubo.id, material, pistas, fase: 0 });
+      tubos.push({ id: tubo.id, material, pistas, avanceCm: 0 });
     }
 
     let ultimo = null;
@@ -184,11 +190,11 @@
         tubo.material.emissiveIntensity = a.activo ? 0.4 : 0;
         for (const pista of tubo.pistas) pista.particulas.visible = a.activo;
         if (!a.activo) continue;
-        tubo.fase += dt / segundosPorCiclo(a.velocidadPct == null ? VELOCIDAD_SIN_BOMBA_PCT : a.velocidadPct);
+        tubo.avanceCm += dt * velocidadCmS(a.velocidadPct == null ? VELOCIDAD_SIN_BOMBA_PCT : a.velocidadPct);
         for (const pista of tubo.pistas) {
           const sentido = pista.sentido * (a.invertido ? -1 : 1);
           for (let i = 0; i < pista.cuantas; i++) {
-            matrizTemporal.position.copy(pista.curva.getPointAt(posicionParticula(i, pista.cuantas, tubo.fase, sentido)));
+            matrizTemporal.position.copy(pista.curva.getPointAt(posicionParticulaCm(i, pista.cuantas, pista.longitud, tubo.avanceCm, sentido)));
             matrizTemporal.updateMatrix();
             pista.particulas.setMatrixAt(i, matrizTemporal.matrix);
           }
@@ -203,7 +209,7 @@
     return { grupo, elementos, actualizar, liberar };
   }
 
-  const api = { crear, parsearPath, redondearEsquinas, trazoA3D, identificarTubo, definirTubos, estadoTuberias, segundosPorCiclo, posicionParticula,
+  const api = { crear, parsearPath, redondearEsquinas, trazoA3D, identificarTubo, definirTubos, estadoTuberias, segundosPorCiclo, posicionParticula, velocidadCmS, posicionParticulaCm, LONGITUD_REFERENCIA_CM,
     RADIO_TUBO_CM, ALTURA_CRUCE_CM };
   if (typeof module !== 'undefined') module.exports = api; else PCT.planta3dTuberias = api;
 })();

@@ -98,3 +98,14 @@ test('segundosPorCiclo coincide con el del esquema 2D y la partícula avanza o r
   assert.ok(Math.abs(t.posicionParticula(0, 4, 0.25, -1) - 0.75) < 1e-12);
   for (let i = 0; i < 6; i++) { const p = t.posicionParticula(i, 6, 3.7, -1); assert.ok(p >= 0 && p < 1); }
 });
+
+test('la velocidad es la misma en cm/s en todos los tubos, sea cual sea su longitud', () => {
+  assert.ok(t.velocidadCmS(100) > t.velocidadCmS(10));
+  // 10 cm de avance sobre un tubo corto y sobre uno largo: la partícula recorre los mismos cm (no la misma fracción)
+  const corto = 60, largo = 240;
+  const dCorto = (t.posicionParticulaCm(0, 10, corto, 10, 1) - 0) * corto;
+  const dLargo = (t.posicionParticulaCm(0, 40, largo, 10, 1) - 0) * largo;
+  assert.ok(Math.abs(dCorto - 10) < 1e-9 && Math.abs(dLargo - 10) < 1e-9);
+  const p = t.posicionParticulaCm(3, 12, 100, 1234.5, -1);
+  assert.ok(p >= 0 && p < 1);
+});

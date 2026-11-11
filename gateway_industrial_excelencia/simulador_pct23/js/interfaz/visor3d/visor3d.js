@@ -109,7 +109,8 @@
   }
 
   // En la planta completa cada pieza se describe con el texto de ayuda del simulador (el mismo del clic derecho).
-  const PIEZAS_SIN_ETIQUETA = id => id.startsWith('TUBO_') || ['LVL', 'HLC', 'HL', 'LL', 'TERM', 'RES', 'L1', 'T2'].includes(id);
+  // Sin etiqueta: tubos, captadores de los depósitos (se ven al abrir cada depósito) y carteles que ya llevan su propio texto en el 3D.
+  const PIEZAS_SIN_ETIQUETA = id => id.startsWith('TUBO_') || ['LVL', 'HLC', 'HL', 'LL', 'TERM', 'RES', 'L1', 'T2', 'DESVIO', 'FINAL', 'DRAIN', 'COLD'].includes(id);
   function construirPanelPlanta(panel, modelo, seleccion) {
     const ayudas = ELEMENTOS_AYUDA();
     if (!seleccion) {
@@ -180,13 +181,16 @@
       if (!dentro) e.boton.style.visibility = 'hidden';
       if (dentro) puestas.push({ e, x, y });
     }
-    // Etiquetas que caerían una sobre otra: se apilan hacia abajo para que todas se puedan pulsar.
-    const ALTO_ETIQUETA = 26, ANCHO_MINIMO = 90;
-    puestas.sort((a, b) => a.y - b.y);
+    // Etiquetas que caerían una sobre otra: se comparan por su tamaño real y las de más arriba se suben, para que todas se lean y se puedan pulsar.
+    const HUECO = 3;
+    for (const p of puestas) { p.w = p.e.boton.offsetWidth || 90; p.h = p.e.boton.offsetHeight || 24; }
+    puestas.sort((a, b) => b.y - a.y);                       // de abajo arriba en pantalla
     puestas.forEach((p, i) => {
-      for (let vueltas = 0, j = 0; j < i && vueltas < 50; j++) {                  // tope de vueltas: nunca puede quedarse dando vueltas
+      for (let vueltas = 0, j = 0; j < i && vueltas < 60; j++) {                  // tope de vueltas: nunca puede quedarse dando vueltas
         const q = puestas[j];
-        if (Math.abs(p.x - q.x) < ANCHO_MINIMO && Math.abs(p.y - q.y) < ALTO_ETIQUETA) { p.y = q.y + ALTO_ETIQUETA; j = -1; vueltas++; }
+        if (Math.abs(p.x - q.x) < (p.w + q.w) / 2 + HUECO && Math.abs(p.y - q.y) < (p.h + q.h) / 2 + HUECO) {
+          p.y = q.y - (p.h + q.h) / 2 - HUECO; j = -1; vueltas++;
+        }
       }
     });
     for (const p of puestas) p.e.boton.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, -100%)`;
