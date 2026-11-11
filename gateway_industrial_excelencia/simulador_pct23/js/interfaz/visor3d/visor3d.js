@@ -171,15 +171,18 @@
       punto.copy(escena.elementos[id].ancla).project(camara);
       const e = etiquetas[id];
       e.boton.style.visibility = punto.z < 1 ? 'visible' : 'hidden';
-      if (punto.z < 1) puestas.push({ e, x: (punto.x * 0.5 + 0.5) * ancho, y: (-punto.y * 0.5 + 0.5) * alto });
+      const x = (punto.x * 0.5 + 0.5) * ancho, y = (-punto.y * 0.5 + 0.5) * alto;
+      const dentro = punto.z < 1 && Math.abs(x) < 1e5 && Math.abs(y) < 1e5;          // anclas casi en el plano de la cámara dan valores absurdos
+      if (!dentro) e.boton.style.visibility = 'hidden';
+      if (dentro) puestas.push({ e, x, y });
     }
     // Etiquetas que caerían una sobre otra: se apilan hacia abajo para que todas se puedan pulsar.
     const ALTO_ETIQUETA = 26, ANCHO_MINIMO = 90;
     puestas.sort((a, b) => a.y - b.y);
     puestas.forEach((p, i) => {
-      for (let j = 0; j < i; j++) {
+      for (let vueltas = 0, j = 0; j < i && vueltas < 50; j++) {                  // tope de vueltas: nunca puede quedarse dando vueltas
         const q = puestas[j];
-        if (Math.abs(p.x - q.x) < ANCHO_MINIMO && Math.abs(p.y - q.y) < ALTO_ETIQUETA) { p.y = q.y + ALTO_ETIQUETA; j = -1; }
+        if (Math.abs(p.x - q.x) < ANCHO_MINIMO && Math.abs(p.y - q.y) < ALTO_ETIQUETA) { p.y = q.y + ALTO_ETIQUETA; j = -1; vueltas++; }
       }
     });
     for (const p of puestas) p.e.boton.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, -100%)`;
@@ -244,7 +247,7 @@
     if (!sesion) return;
     sesion.animacion = requestAnimationFrame(fotograma);
     const ahora = performance.now();
-    const minimo = sesion.lento ? MS_LENTO : MODELOS[sesion.clave].escena === 'planta' ? MS_PLANTA : 0;
+    const minimo = sesion.lento ? MS_LENTO : MS_PLANTA;      // ~30 fps para todos los modelos
     if (ahora - (sesion.ultimoDibujo || 0) < minimo) return;
     vigilarRendimiento(ahora);
     sesion.ultimoDibujo = ahora;
@@ -295,13 +298,13 @@
     etapa('Paso 1 de 3: creando el contexto gráfico (WebGL)…'); await pausa();
     try {
       // En la planta completa, si el navegador solo puede dibujar por software (sin la tarjeta gráfica) se falla enseguida en lugar de colgarse.
-      renderer = new THREE.WebGLRenderer({ canvas: lienzo, antialias: !pesada && !porSoftware, alpha: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: pesada });
+      renderer = new THREE.WebGLRenderer({ canvas: lienzo, antialias: false, alpha: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: pesada });
     } catch (error) {
       avisar(pesada ? 'Tu navegador no puede usar la tarjeta gráfica para el 3D (aceleración por hardware desactivada o gráfica no compatible), y la planta completa es demasiado pesada por software. Actívala en Ajustes → Sistema, o abre un depósito o una bomba suelto, que sí van.'
         : 'Este navegador no puede mostrar gráficos 3D (WebGL no disponible).');
       etapa('No se pudo crear el contexto 3D.'); return false;
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, pesada ? 1 : 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, pesada ? 1 : 1.5));
     renderer.localClippingEnabled = true;
     etapa('Paso 2 de 3: construyendo equipos, tuberías y válvulas…'); await pausa();
     const threeEscena = new THREE.Scene();
