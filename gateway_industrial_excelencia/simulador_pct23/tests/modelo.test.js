@@ -52,7 +52,7 @@ test('T5 (en el calentamiento) queda entre la temperatura ambiente y T4, y vuelv
   assert.ok(o.T5 > C.temperaturaAmbienteC + 5);
   assert.ok(o.T5 < o.T4);
   assert.ok(Math.abs(o.T5 - (C.temperaturaAmbienteC + (o.T4 - C.temperaturaAmbienteC) / 2)) < 0.01);
-  s.salidas.N1 = false; avanzar(s, 3000);
+  s.salidas.N1 = false; s.salidas.N2 = false; s.salidas.RES = false; avanzar(s, 3000);     // planta parada: sin producto ni agua caliente
   assert.ok(observaciones(s).T5 < C.temperaturaAmbienteC + 1);
 });
 
@@ -83,9 +83,9 @@ test('T4 (salida del calentamiento) se adelanta a T1 y ambas suben con el produc
   assert.ok(s.t4C >= s.t3C);
 });
 
-test('Sin producto circulando T4 vuelve despacio a la temperatura ambiente', () => {
+test('Sin producto circulando y sin agua caliente T4 vuelve despacio a la temperatura ambiente', () => {
   const s = activarEjemplo(crearEstado()); avanzar(s, 300); const caliente = s.t4C;
-  s.salidas.N1 = false; avanzar(s, 1200);
+  s.salidas.N1 = false; s.salidas.N2 = false; s.salidas.RES = false; avanzar(s, 1200);
   assert.ok(caliente > 30); assert.ok(s.t4C < caliente - 5); assert.ok(s.t4C >= 22);
 });
 
@@ -134,4 +134,18 @@ test('Los contadores miden siempre que circula producto: desvío con SOL1 activa
   assert.equal(s.desviadoMl, desv); assert.ok(s.finalMl > 200);
   s.salidas.N1 = false; const f0 = s.finalMl; avanzar(s, 60);
   assert.equal(s.finalMl, f0); assert.equal(s.desviadoMl, desv);
+});
+
+test('Producto quieto con el agua caliente circulando: T4, T5 y T1 siguen a T2 (no solo sube T2)', () => {
+  const s = crearEstado(); s.salidas.N2 = true; s.salidas.RES = true; s.consignas.potenciaPct = 60;   // N1 parada
+  avanzar(s, 600);
+  const o = observaciones(s);
+  assert.ok(o.T2 > 45);
+  assert.ok(o.T4 > C.temperaturaAmbienteC + 15, `T4 ${o.T4.toFixed(1)}`);                      // el producto quieto en las placas se calienta
+  assert.ok(o.T4 < o.T2);                                                                      // sin llegar a la temperatura del agua
+  assert.ok(o.T5 > C.temperaturaAmbienteC + 5 && o.T5 < o.T4);                                // la mitad de la sección, entre ambiente y T4
+  assert.ok(o.T1 > C.temperaturaAmbienteC + 2 && o.T1 < o.T4);                                // el tubo de residencia solo recibe por conducción
+  assert.equal(Math.round(o.T3), C.temperaturaAmbienteC);                                      // la salida enfriada no se calienta
+  s.salidas.N2 = false; s.salidas.RES = false; avanzar(s, 3000);
+  assert.ok(observaciones(s).T4 < C.temperaturaAmbienteC + 1);                                 // al parar el agua caliente vuelve al ambiente
 });

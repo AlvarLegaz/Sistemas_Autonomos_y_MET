@@ -85,11 +85,23 @@
     estado.t3C = matematicas.acercarExponencial(estado.t3C, objetivoSalida, segundosPaso, 22);
   }
 
+  // Producto quieto en el intercambiador (sin caudal) con el agua caliente circulando (N2): se calienta por contacto con las placas.
+  const EFICIENCIA_PARADO = 0.85;            // el producto quieto llega casi a la temperatura del agua (hay mucho tiempo de contacto)
+  const CONSTANTE_PARADO_S = 70;             // segundos que tarda en acercarse a ese objetivo
+  const ACOPLAMIENTO_TUBO_PARADO = 0.5;      // el tubo de residencia (sin fuente de calor propia) solo recibe la mitad por conducción desde la salida de calentamiento
+  const CONSTANTE_TUBO_PARADO_S = 300;
+
   function enfriarProductoParado(estado, segundosPaso) {
     const ambiente = constantes.temperaturaAmbienteC;
-    estado.t1C = matematicas.acercarExponencial(estado.t1C, ambiente, segundosPaso, 320);
+    if (estado.salidas.N2) {
+      // T4 (salida de la sección de calentamiento) y, con ella, T5 (mitad de la sección) siguen al agua caliente.
+      estado.t4C = matematicas.acercarExponencial(estado.t4C, productoConAgua(estado.aguaCalienteC, EFICIENCIA_PARADO, ambiente), segundosPaso, CONSTANTE_PARADO_S);
+      estado.t1C = matematicas.acercarExponencial(estado.t1C, ambiente + (estado.t4C - ambiente) * ACOPLAMIENTO_TUBO_PARADO, segundosPaso, CONSTANTE_TUBO_PARADO_S);
+    } else {
+      estado.t1C = matematicas.acercarExponencial(estado.t1C, ambiente, segundosPaso, 320);
+      estado.t4C = matematicas.acercarExponencial(estado.t4C, ambiente, segundosPaso, 320);
+    }
     estado.t3C = matematicas.acercarExponencial(estado.t3C, ambiente, segundosPaso, 200);
-    estado.t4C = matematicas.acercarExponencial(estado.t4C, ambiente, segundosPaso, 320);
   }
 
   function avanzarTemperaturasProducto(estado, segundosPaso) {
