@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Banco de pruebas · 3D de la planta HTST</title>
+<style>html,body{margin:0;height:100%;background:#12161a;color:#cfd8df;font:13px system-ui,sans-serif}canvas{display:block;width:100%;height:100%}
+#info{position:fixed;left:8px;top:8px;background:#0008;padding:6px 10px;border-radius:6px;white-space:pre}</style></head>
+<body><canvas id="lienzo"></canvas><div id="info"></div>
+<script>window.PCT = window.PCT || {};</script>
+<script src="/simulador/js/vendor/three.js"></script>
+<script src="/simulador/js/interfaz/visor3d/controles_orbita.js"></script>
+<script src="/planta-real/js/layout.js"></script>
+<script src="/planta-real/js/visor3d_htst/kit.js"></script>
+<script src="/planta-real/js/visor3d_htst/efectos_averias.js"></script>
+<script src="/planta-real/js/visor3d_htst/estado_demo.js"></script>
+<script src="/planta-real/js/visor3d_htst/puertos.js"></script>
+<script src="/planta-real/js/visor3d_htst/base_equipo.js"></script>
+<script src="/planta-real/js/visor3d_htst/tuberias.js"></script>
+<script src="/planta-real/js/visor3d_htst/equipos_proceso.js"></script>
+<script src="/planta-real/js/visor3d_htst/instrumentos.js"></script>
+<script src="/planta-real/js/visor3d_htst/armario.js"></script>
+<script src="/planta-real/js/visor3d_htst/escena_planta.js"></script>
+<script>
+// Banco de pruebas del DISEÑADOR: construye la escena completa con un estado de demostración y mide el coste de dibujo. Parámetros de la URL:
+// ?modo=PRODUCCION|PARADA|RECIRCULACION_AGUA|CIP  &desvio=1  &averias=AV-ID:TAG,TAG;AV-ID2:TAG
+const q = new URLSearchParams(location.search);
+const averias = (q.get('averias') || '').split(';').filter(Boolean).map((a, i) => { const [id, tags] = a.split(':'); return { instancia: 'i' + i, id, tags: (tags || '').split(',') }; });
+const opciones = { modo: q.get('modo') || 'PRODUCCION', desvio: q.get('desvio') === '1', averias };
+const lienzo = document.getElementById('lienzo');
+const renderer = new THREE.WebGLRenderer({ canvas: lienzo, antialias: false, alpha: true });
+renderer.setPixelRatio(1);
+const escenaThree = new THREE.Scene();
+escenaThree.add(new THREE.HemisphereLight(0xdde8f5, 0x1b2330, 1.15));
+const sol = new THREE.DirectionalLight(0xffffff, 1.6); sol.position.set(30, 55, 40); escenaThree.add(sol);
+const contra = new THREE.DirectionalLight(0x8fb4ff, 0.7); contra.position.set(-40, 20, -30); escenaThree.add(contra);
+const t0 = performance.now();
+const planta = PCT.visor3dEscenas.htst.crearEscena(THREE, 'HTST');
+const construirMs = Math.round(performance.now() - t0);
+escenaThree.add(planta.raiz);
+const camara = new THREE.PerspectiveCamera(38, 1, 1, planta.vistaInicial.far || 500);
+const controles = new PCT.controlesOrbita.ControlesOrbita(lienzo, planta.vistaInicial, () => {});
+let estado = PCT.htstEstadoDemo.estadoDemo(opciones);
+function ajustar() { renderer.setSize(innerWidth, innerHeight, false); camara.aspect = innerWidth / innerHeight; camara.updateProjectionMatrix(); }
+addEventListener('resize', ajustar); ajustar();
+function dibujar() {
+  planta.actualizar({ sensores: {} }, estado);
+  const p = controles.posicion(), o = controles.vista.objetivo;
+  camara.position.set(p.x, p.y, p.z); camara.lookAt(o.x, o.y, o.z);
+  renderer.render(escenaThree, camara);
+}
+function bucle() { requestAnimationFrame(bucle); dibujar(); }
+dibujar(); bucle();
+function info() {
+  const r = renderer.info.render, m = renderer.info.memory;
+  return { construirMs, llamadas: r.calls, triangulos: r.triangles, geometrias: m.geometries, texturas: m.textures, programas: (renderer.info.programs || []).length,
+    elementos: Object.keys(planta.elementos).length, seleccionables: planta.mallasSeleccionables().length };
+}
+window.banco = { renderer, planta, controles, THREE, dibujar, info, get estado() { return estado; }, poner(nuevo) { estado = PCT.htstEstadoDemo.estadoDemo(Object.assign({}, opciones, nuevo)); } };
+document.getElementById('info').textContent = JSON.stringify(info(), null, 1);
+</script></body></html>

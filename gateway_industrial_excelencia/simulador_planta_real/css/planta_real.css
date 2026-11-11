@@ -1,0 +1,80 @@
+/* Planta real HTST: estilos propios. Los colores y la base (cabecera, barra, pestañas, visor 3D) vienen de /simulador/css/interfaz.css. */
+.aviso-planta { margin: 0; padding: 8px 20px; background: color-mix(in srgb, var(--aviso) 22%, var(--panel)); border-bottom: 1px solid var(--aviso); color: var(--texto); font-weight: 600; }
+#boton-planta3d, #boton-ayuda { border: 1px solid var(--acento); background: transparent; color: var(--acento); border-radius: 999px; padding: 3px 12px; font: 600 13px system-ui, sans-serif; cursor: pointer; }
+#boton-planta3d { margin-left: auto; }
+#boton-planta3d:hover, #boton-ayuda:hover { background: color-mix(in srgb, var(--acento) 16%, transparent); }
+.paro { background: var(--error); border-color: var(--error); color: #fff; font-weight: 800; }
+.barra .derecha label { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; font-size: 13px; }
+.barra .derecha input[type="number"] { width: 5.2em; }
+.velocidad button { min-height: 32px; padding: 0 10px; border: 1px solid var(--borde); background: var(--panel); border-radius: 6px; cursor: pointer; }
+.velocidad button[aria-pressed="true"] { background: var(--acento); border-color: var(--acento); color: var(--sobre-acento, #fff); }
+
+/* esquema y leyenda */
+.leyenda-htst { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 10px 0 0; padding: 0; list-style: none; font-size: 13px; color: var(--tenue); }
+.leyenda-htst li { display: inline-flex; align-items: center; gap: 6px; }
+.ley-linea { width: 26px; height: 4px; border-radius: 2px; background: var(--c); }
+.ley-punto { width: 12px; height: 12px; border-radius: 50%; background: var(--c); }
+.leyenda-nota { margin: 6px 0 0; font-size: 12.5px; color: var(--tenue); }
+.instr.on { fill: color-mix(in srgb, var(--ok) 35%, var(--panel)); stroke: var(--ok); }
+.instr.alarma { fill: color-mix(in srgb, var(--error) 40%, var(--panel)); stroke: var(--error); }
+svg g[data-tag] { cursor: pointer; }
+svg g[data-tag]:hover .instr, svg g[data-tag]:hover .caja { stroke: var(--acento); }
+
+/* alarmas y paneles laterales */
+#lista-alarmas { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+#lista-alarmas li { padding: 7px 10px; border-radius: 6px; background: var(--fondo); border-left: 5px solid var(--error); font-size: 14px; }
+#lista-alarmas li.sin-alarmas { border-left-color: var(--ok); color: var(--tenue); }
+body[data-estado="alarma"] .barra { box-shadow: inset 0 -4px 0 var(--error); }
+.panel-pestana h2, .panel-pestana h3 { margin: 14px 0 6px; font-size: 16px; }
+.panel-pestana label { display: grid; gap: 3px; margin: 6px 0; font-size: 13px; color: var(--tenue); }
+.panel-pestana select, .panel-pestana input[type="text"], .panel-pestana input[type="number"] { min-height: 32px; border: 1px solid var(--borde); border-radius: 6px; background: var(--fondo); color: var(--texto); padding: 0 8px; }
+.panel-pestana button { min-height: 34px; padding: 0 12px; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); cursor: pointer; font-weight: 600; }
+.panel-pestana button:hover { border-color: var(--acento); }
+.fila-form { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: end; }
+
+/* gráficas */
+.graf { margin: 10px 0; }
+.graf figcaption { font-size: 13px; font-weight: 700; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; }
+.graf-leyenda { font-weight: 500; color: var(--tenue); }
+.graf-leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 4px 0 8px; }
+.graf canvas { width: 100%; height: auto; border: 1px solid var(--borde); border-radius: 6px; }
+.graf-barra { display: flex; gap: 6px; }
+.graf-barra button[aria-pressed="true"] { background: var(--acento); border-color: var(--acento); color: var(--sobre-acento, #fff); }
+
+/* instrumentos virtuales */
+.mm-pantalla { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 14px; border-radius: 8px; background: #b7c9a1; color: #1b2614; font: 700 30px ui-monospace, Consolas, monospace; }
+.mm-pantalla.continuidad { background: #d9e8a0; box-shadow: 0 0 0 3px var(--ok) inset; }
+.mm-modo { font-size: 13px; font-weight: 600; }
+.mm-avisos { min-height: 2.6em; font-size: 12.5px; color: var(--tenue); margin: 6px 0; }
+.osc-pantalla { width: 100%; height: auto; border-radius: 8px; border: 2px solid #3b4a43; background: #0b1410; }
+.osc-datos { min-height: 2.6em; font: 600 12.5px ui-monospace, Consolas, monospace; color: var(--ok); }
+
+/* hojas y registro */
+.hoja { margin: 0 0 18px; padding-bottom: 12px; border-bottom: 1px solid var(--borde); }
+.hoja p { font-size: 13px; color: var(--tenue); margin: 4px 0 8px; }
+.lista-pruebas { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.lista-pruebas li { padding: 8px 10px; border-radius: 6px; background: var(--fondo); }
+.lista-pruebas small { color: var(--tenue); }
+.registro-lista { margin: 8px 0 0; padding-left: 0; list-style: none; max-height: 260px; overflow: auto; font-size: 12.5px; }
+.registro-lista li { padding: 4px 0; border-bottom: 1px dotted var(--borde); }
+.registro-lista time { color: var(--tenue); margin-right: 6px; }
+
+/* panel del profesor */
+.aviso-profesor { font-size: 13px; color: var(--tenue); }
+.averias-catalogo details { margin: 6px 0; border: 1px solid var(--borde); border-radius: 6px; padding: 4px 10px; }
+.averias-catalogo summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
+.averia, .averia-activa { display: grid; gap: 4px; padding: 8px 0; border-top: 1px dotted var(--borde); }
+.averia-activa { border-left: 5px solid var(--error); padding-left: 10px; background: var(--fondo); border-radius: 6px; margin: 6px 0; }
+.codigo-salida { font: 600 12px ui-monospace, Consolas, monospace; word-break: break-all; }
+
+/* ficha de equipo y guía */
+#ficha-equipo, #guia-htst { position: fixed; z-index: 10040; top: 12vh; left: 50%; transform: translateX(-50%); width: min(560px, 94vw); max-height: 76vh; overflow: auto; padding: 14px 18px 18px; background: var(--panel); color: var(--texto); border: 1px solid var(--borde); border-radius: 10px; box-shadow: 0 18px 50px rgba(0, 0, 0, .55); }
+#ficha-equipo[hidden], #guia-htst[hidden] { display: none; }
+#ficha-equipo header, #guia-htst header { display: flex; justify-content: space-between; align-items: start; gap: 12px; border-bottom: 3px solid var(--acento); margin-bottom: 8px; }
+#ficha-equipo h3, #guia-htst h3 { margin: 0 0 6px; font-size: 17px; }
+#ficha-equipo h4, #guia-htst h4 { margin: 12px 0 2px; font-size: 14px; }
+#ficha-equipo p, #guia-htst p { margin: 0 0 6px; }
+#ficha-equipo header button, #guia-htst header button { width: 34px; height: 34px; border: 1px solid var(--borde); border-radius: 6px; background: var(--fondo); font-size: 20px; cursor: pointer; }
+.etiqueta-ficha { display: inline-block; padding: 1px 9px; border-radius: 999px; background: var(--fondo); font-size: 12px; color: var(--tenue); }
+.ficha-botones { display: flex; gap: 8px; margin-top: 12px; }
+.ficha-botones button { min-height: 36px; padding: 0 14px; border: 1px solid var(--acento); border-radius: 8px; background: transparent; color: var(--texto); font-weight: 700; cursor: pointer; }

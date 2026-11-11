@@ -1,0 +1,162 @@
+// Simulación de la planta HTST: une las capas (proceso → instrumentos → PLC → actuadores → proceso) y expone PCT.htst.simulacion (ARQUITECTURA.md §4).
+// Paso fijo interno de 0,1 s. El estado es un solo objeto (js/modelo/estado.js); la interfaz y el 3D solo lo leen.
+(function () {
+  const esNode = typeof require !== 'undefined';
+  const layout = esNode ? require('../layout.js') : PCT.htstLayout;
+  const { CONSTANTES: C } = esNode ? require('../configuracion/constantes.js') : PCT.htstConstantes;
+  const { crearEstado } = esNode ? require('./estado.js') : PCT.htstEstado;
+  const termica = esNode ? require('./fisica_termica.js') : PCT.htstFisicaTermica;
+  const hidraulica = esNode ? require('./fisica_hidraulica.js') : PCT.htstFisicaHidraulica;
+  const instrumentos = esNode ? require('./instrumentos.js') : PCT.htstInstrumentos;
+  const plc = esNode ? require('../plc/programa.js') : PCT.htstPrograma;
+  const { crearMotorAverias, CATALOGO } = esNode ? require('../averias/motor.js') : PCT.htstAverias;
+  const medidas = esNode ? require('./medidas.js') : PCT.htstMedidas;
+  const { limitar } = termica;
+  const P = C.proceso;
+
+  function crearSimulacion({ semilla = 1 } = {}) {
+    const motor = crearMotorAverias(CATALOGO, { semilla });
+    let estado = crearEstado(), mem = plc.crearMemoria(), salidas = plc.salidasApagadas();
+    let ord, pbRestoS = 0, pulsoTSH = false, restoDt = 0, registroAI = {};
+    const ordenesVacias = () => ({ arrancar: false, parar: false, modo: null, pulsadores: [], manual: {}, consignaTT103C: null, consignaCaudalLh: null });
+    ord = ordenesVacias();
+
+    /** Un paso de 0,1 s de toda la planta. */
+    function tick(dt) {
+      const eq = estado.equipos, T = estado.proceso.temperaturas, DO = salidas.DO, AO = salidas.AO;
+      estado.tiempoS += dt; motor.reloj(estado.tiempoS);
+      const alim = motor.alimentacion(estado); estado.alimentacion = alim;
+      motor.alCalcularProceso(estado);
+      eq['F-201'].fundido = !alim.fusibleF201; eq['PS-001'].tensionV = alim.v24; eq['PS-001'].ok = alim.v24 >= 22;
+
+      // ---- 1. Actuadores: lo que ordena el PLC pasa por las averías de actuador y por el paro de emergencia (relé de seguridad) ----
+      const es = eq['ES-001'].rearmado;
+      const cierra = (tag, orden) => motor.alAccionarSalida(tag, es && orden ? 1 : 0) === 1;
+      const armado = eq['QF-102'].armado;
+      eq['KM-102'].cerrado = cierra('KM-102', DO['P-102']); eq['KM-103'].cerrado = cierra('KM-103', DO['P-103']);
+      eq['KM-201'].cerrado = cierra('KM-201', DO['KM-201']); eq['KM-202'].cerrado = cierra('KM-202', DO['KM-202']);
+      eq['SV-101'].energizada = cierra('SV-101', DO['SV-101']);
+      eq['SV-101'].bobinaOhm = motor.hay('AV-BOBINA-ABIERTA') ? Infinity : C.electrico.resistenciaBobinaSV101Ohm;
+      eq['XV-301'].abierta = es && DO['XV-301'] === 1; eq['XV-401'].abierta = es && DO['XV-401'] === 1;
+      eq['P-102'].marcha = eq['KM-102'].cerrado && armado;
+      eq['P-103'].marcha = eq['KM-103'].cerrado;
+      const hw = eq['HW-101'];
+      hw.banco1 = eq['KM-201'].cerrado && armado; hw.banco2 = eq['KM-202'].cerrado && armado;
+      hw.potenciaKW = ((hw.banco1 ? 1 : 0) + (hw.banco2 ? 1 : 0)) * C.aguaCaliente.bancoKW;
+      const p101 = eq['P-101'];
+      p101.marcha = es && DO['P-101'] === 1 && !p101.fallo; p101.velocidadPct = AO['VFD-101'];
+      // Neumática y FDV (seguridad positiva: sin tensión o sin aire el muelle la lleva a desvío)
+      const fdv = eq['FDV-101'], aireOK = eq['FRL-101'].presionBar >= P.aireMinimoBar;
+      eq['PSL-201'].contactoCerrado = aireOK; fdv.aireOK = aireOK;
+      fdv.apertura01 = hidraulica.pasoFDV(fdv.apertura01, { objetivo01: eq['SV-101'].energizada && aireOK ? 1 : 0, dt, aireOK, atascadaEnAvance: fdv.atascada });
+      fdv.posicion = hidraulica.posicionFDV(fdv.apertura01);
+      eq['P-102'].corrienteA = eq['P-102'].marcha ? C.p102.corrienteNominalA : 0;
+
+      // ---- 2. Proceso ----
+      const flt = eq['FLT-101'];
+      const caudalObj = hidraulica.caudalObjetivo({ marcha: p101.marcha, velocidadPct: p101.velocidadPct, obstruccion01: flt.obstruccion01, nivelPct: estado.tanque.nivelPct });
+      p101.caudalLh = caudalObj === 0 && p101.caudalLh < 0.5 ? 0 : termica.acercar(p101.caudalLh, caudalObj, dt, C.p101.tauCaudalS);
+      const caudal = p101.caudalLh;
+      p101.corrienteA = p101.marcha ? C.p101.corrienteNominalA * (0.3 + 0.7 * p101.velocidadPct / 100) * (1 - 0.3 * flt.obstruccion01) : 0;
+      p101.temperaturaDisipadorC = termica.pasoDisipadorVariador(p101.temperaturaDisipadorC, { corrienteA: p101.corrienteA, ventiladorOK: p101.ventiladorOK, dt });
+      if (p101.temperaturaDisipadorC >= C.variador.disparoC) p101.fallo = true;
+      else if (p101.fallo && p101.temperaturaDisipadorC < C.variador.disparoC - 20) p101.fallo = false;
+      eq['VFD-101'].fallo = p101.fallo;
+
+      const hayAvance = fdv.apertura01 >= 0.5;
+      const obj = termica.objetivosProducto({ entradaC: estado.tanque.temperaturaC, aguaC: T.aguaCaliente, salidaTuboC: T.salidaTubo, caudalLh: caudal, hayAvance, aguaFria: eq['XV-301'].abierta });
+      const tau = caudal > 1 ? C.intercambiador.tauSeccionS : 120;
+      T.entrada = estado.tanque.temperaturaC;
+      T.trasRegeneracion = termica.acercar(T.trasRegeneracion, obj.t102, dt, tau);
+      T.trasCalentamiento = termica.acercar(T.trasCalentamiento, obj.tCalentamiento, dt, tau);
+      const tRes = hidraulica.tiempoResidenciaS(caudal);
+      T.salidaTubo = termica.acercar(T.salidaTubo, T.trasCalentamiento, dt, Number.isFinite(tRes) ? limitar(tRes, 2, 60) : 120);   // el tubo retrasa la temperatura
+      T.salidaFinal = termica.acercar(T.salidaFinal, obj.t104, dt, tau);
+      const perdidaLecheKW = eq['P-102'].marcha && caudal > 1 ? termica.potenciaALeche(caudal, T.trasRegeneracion, T.trasCalentamiento) : 0;
+      T.aguaCaliente = termica.pasoAguaCaliente(T.aguaCaliente, { potenciaKW: hw.potenciaKW, perdidaLecheKW, dt });
+      hw.temperaturaC = T.aguaCaliente;
+      const tsh = eq['TSH-101'];
+      tsh.disparado = termica.pasoTermostato(tsh.disparado, T.aguaCaliente, pulsoTSH); pulsoTSH = false;
+      tsh.abierto = tsh.disparado || tsh.falsoContacto;
+      estado.proceso.presiones = hidraulica.presiones({ caudalLh: caudal, hayAvance, fuga01: eq['HX-101'].fugaPlaca01, obstruccion01: flt.obstruccion01 });
+      estado.proceso.caudalLh = caudal; estado.proceso.tiempoResidenciaS = tRes; eq['HT-101'].tiempoResidenciaS = tRes;
+      estado.proceso.pasteurizadoReal = caudal > 1 && T.salidaTubo >= P.temperaturaPasteurizacionC && tRes >= P.tiempoResidenciaMinS;
+      eq['HX-101'].regeneracion.tempC = T.trasRegeneracion; eq['HX-101'].calentamiento.tempC = T.trasCalentamiento; eq['HX-101'].enfriamiento.tempC = T.salidaFinal;
+
+      // Tanque de balance: sale lo que bombea P-101, entra la reposición y el desvío (la leche desviada vuelve al tanque)
+      const tk = eq['TK-101'], pct = tk.volumenL / C.tanque.capacidadL * 100;
+      if (pct < C.tanque.reponerDesdePct) tk.reponiendo = true; else if (pct >= C.tanque.reponerHastaPct) tk.reponiendo = false;
+      const retorno = fdv.apertura01 < 0.5 ? caudal : 0;
+      tk.volumenL = hidraulica.pasoTanque(tk.volumenL, { entradaLh: (tk.reponiendo ? C.tanque.reposicionLh : 0) + retorno, salidaLh: caudal, dt });
+      tk.nivelPct = tk.volumenL / C.tanque.capacidadL * 100;
+      estado.tanque.volumenL = tk.volumenL; estado.tanque.nivelPct = tk.nivelPct;
+
+      // Contadores
+      const k = estado.contadores, litros = caudal * dt / 3600;
+      if (fdv.posicion === 'AVANCE' && estado.modo === 'PRODUCCION') { k.producidoL += litros; if (!estado.proceso.pasteurizadoReal) k.noConformeL += litros; }
+      if (fdv.apertura01 < 0.5) k.desviadoL += litros;
+      k.energiaKWh += hw.potenciaKW * dt / 3600;
+
+      // ---- 3. Instrumentos → entradas del PLC ----
+      pbRestoS = Math.max(0, pbRestoS - dt);
+      const entradas = instrumentos.leerEntradas(estado, estado.tiempoS, motor, alim, pbRestoS > 0);
+      registroAI = entradas.registroAI;
+      estado.instrumentos = {};
+      for (const [tag, r] of Object.entries(registroAI)) estado.instrumentos[tag] = r;
+      for (const [tag, nivel] of Object.entries(entradas.DI)) estado.instrumentos[tag] = { nivel };
+      eq['PB-001'].pulsado = pbRestoS > 0;
+
+      // ---- 4. Programa del PLC ----
+      const ordenes = { arrancar: ord.arrancar, parar: ord.parar, modo: ord.modo, pulsadores: ord.pulsadores.slice(), manual: Object.assign({}, ord.manual),
+        consignaTT103C: ord.consignaTT103C, consignaCaudalLh: ord.consignaCaudalLh };
+      ord.arrancar = false; ord.parar = false; ord.modo = null; ord.pulsadores = [];
+      const res = plc.ejecutarPLC({ AI: entradas.AI, DI: entradas.DI }, mem, ordenes, dt);
+      salidas = { DO: res.DO, AO: res.AO };
+      estado.salidasPLC = { DO: Object.assign({}, res.DO), AO: Object.assign({}, res.AO) };
+      estado.modo = res.modo; estado.alarmas = res.alarmas; estado.averiasActivas = motor.activas();
+      eq['HL-001'].encendida = res.DO['HL-001'] === 1;
+      estado.plc = { paro: res.paro, motivosParo: res.motivosParo, consignaAguaC: res.consignaAguaC, cip: res.cip, cumpleCondiciones: res.cumpleCondiciones };
+    }
+
+    /** Avanza el tiempo simulado dtS segundos (se trocea en pasos de 0,1 s). */
+    function paso(dtS) {
+      restoDt += Math.max(0, Math.min(Number(dtS) || 0, 3600));
+      while (restoDt >= C.PASO_S - 1e-9) { tick(C.PASO_S); restoDt -= C.PASO_S; }
+    }
+
+    const ordenes = {
+      arrancar() { ord.arrancar = true; },
+      parar() { ord.parar = true; },
+      consignaTemperaturaC(c) { if (Number.isFinite(Number(c))) ord.consignaTT103C = limitar(Number(c), 60, 85); },   // un valor no numérico se ignora
+      consignaCaudalLh(q) { if (Number.isFinite(Number(q))) ord.consignaCaudalLh = limitar(Number(q), 0, P.caudalMaximoLh); },
+      modo(m) { if (layout.MODOS.includes(m)) ord.modo = m; },
+      pulsador(tag) {
+        if (tag === 'PB-001') { pbRestoS = 1; ord.pulsadores.push('PB-001'); }
+        else if (tag === 'TSH-101') pulsoTSH = true;                      // rearme manual del termostato (solo si el agua ya bajó de 80 °C)
+      },
+      manual(tag, valor) { if (valor === null || valor === undefined) delete ord.manual[tag]; else ord.manual[tag] = valor; },
+      paroEmergencia(activo) { estado.equipos['ES-001'].rearmado = !activo; },
+    };
+
+    const senales = () => {
+      const AI = {}, DI = {};
+      for (const tag of Object.keys(registroAI)) AI[tag] = { mA: registroAI[tag].mA, valor: registroAI[tag].valorPLC, calidad: registroAI[tag].calidad };
+      for (const tag of instrumentos.TAGS_DI) DI[tag] = estado.instrumentos[tag] ? estado.instrumentos[tag].nivel : 0;
+      return { AI, DI, DO: Object.assign({}, salidas.DO), AO: Object.assign({}, salidas.AO) };
+    };
+
+    /** Vuelve la planta a su estado inicial (las averías inyectadas se conservan salvo que se pida quitarlas). */
+    function reiniciar({ quitarAverias = false } = {}) {
+      estado = crearEstado(); mem = plc.crearMemoria(); salidas = plc.salidasApagadas(); ord = ordenesVacias(); restoDt = 0; pbRestoS = 0; pulsoTSH = false; registroAI = {};
+      if (quitarAverias) for (const a of motor.activas()) motor.quitar(a.instancia);
+      motor.reloj(0);
+    }
+
+    return { estado: () => estado, paso, ordenes, senales, alarmas: () => estado.alarmas, averias: motor, reiniciar,
+      // Al medir se ven siempre las averías de ahora mismo (aunque se hayan inyectado hace un instante, antes del siguiente paso)
+      medidas: { medir: (instrumento, puntoA, puntoB, modo) => medidas.medir(instrumento, puntoA, puntoB, modo, Object.assign({}, estado, { averiasActivas: motor.activas() })), puntos: medidas.PUNTOS } };
+  }
+
+  const api = { crearSimulacion };
+  if (typeof module !== 'undefined') module.exports = api; else { window.PCT = window.PCT || {}; PCT.htst = PCT.htst || {}; PCT.htst.simulacion = api; PCT.htst.crearSimulacion = crearSimulacion; PCT.htstSimulacion = api; }
+})();

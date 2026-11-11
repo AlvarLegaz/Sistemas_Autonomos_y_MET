@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="author" content="Álvar Legaz Aparicio">
+<meta name="copyright" content="© 2026 Álvar Legaz Aparicio. Todos los derechos reservados.">
+<title>PCT23 · Planta real HTST en 3D</title>
+<link rel="icon" type="image/png" href="/simulador/img/favicon.png">
+<link rel="stylesheet" href="/simulador/css/interfaz.css">
+<link rel="stylesheet" href="css/planta_real.css">
+</head>
+<body class="v3d-ventana">
+<script src="js/interfaz/cargador.js"></script>
+<script>
+// Ventana aparte del 3D: lee el estado de la ventana que la abrió (mismo origen), así el 3D se mueve igual que el SCADA.
+(async function () {
+  await HTST_CARGADOR.cargarTodo({ conInterfaz: false });
+  PCT.htstVisor.registrar();
+  const parametros = new URLSearchParams(location.search);
+  const clave = parametros.get('modelo') || 'HTST', foco = parametros.get('foco') || undefined;
+  let ultimo = null;
+  if (!window.opener) {                                   // abierta directamente (sin SCADA detrás): una planta de demostración parada
+    await HTST_CARGADOR.cargarScript('js/interfaz/simulacion_demo.js');
+    ultimo = PCT.htstDemo.crearSimulacion({}).estado();
+  }
+  function estadoDelSimulador() {
+    try { const o = window.opener; if (o && !o.closed && o.PCT && o.PCT.htstApp) { const e = o.PCT.htstApp.estadoActual(); if (e) ultimo = e; } } catch (error) { /* la ventana de origen se cerró */ }
+    return ultimo;
+  }
+  PCT.visor3d.alCerrar = () => window.close();
+  PCT.visor3d.abrir(clave, estadoDelSimulador, foco);
+})();
+</script>
+</body>
+</html>
