@@ -253,19 +253,29 @@
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.25;
   }
 
-  function iniciarMotor(clave, obtenerEstado) {
+  const pausa = () => new Promise(resolver => setTimeout(resolver, 40));   // deja pintar el texto del paso antes del trabajo pesado
+
+  async function iniciarMotor(clave, obtenerEstado, etapa) {
     const THREE = window.THREE;
     const lienzo = modal.querySelector('canvas');
     let renderer;
     const pesada = !!MODELOS[clave].escena && MODELOS[clave].escena === 'planta';       // la planta entera: más ligera
-    try { renderer = new THREE.WebGLRenderer({ canvas: lienzo, antialias: !pesada, alpha: true, powerPreference: 'high-performance' }); }
-    catch (error) { avisar('Este navegador no puede mostrar gráficos 3D (WebGL no disponible).'); return false; }
+    etapa('Paso 1 de 3: creando el contexto gráfico (WebGL)…'); await pausa();
+    try {
+      // En la planta completa, si el navegador solo puede dibujar por software (sin la tarjeta gráfica) se falla enseguida en lugar de colgarse.
+      renderer = new THREE.WebGLRenderer({ canvas: lienzo, antialias: !pesada, alpha: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: pesada });
+    } catch (error) {
+      avisar(pesada ? 'Tu navegador no puede usar la tarjeta gráfica para el 3D (aceleración por hardware desactivada o gráfica no compatible), y la planta completa es demasiado pesada por software. Actívala en Ajustes → Sistema, o abre un depósito o una bomba suelto, que sí van.'
+        : 'Este navegador no puede mostrar gráficos 3D (WebGL no disponible).');
+      etapa('No se pudo crear el contexto 3D.'); return false;
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, pesada ? 1 : 2));
     renderer.localClippingEnabled = true;
     try {
       const gl = renderer.getContext(), x = gl.getExtension('WEBGL_debug_renderer_info'), gpu = x ? String(gl.getParameter(x.UNMASKED_RENDERER_WEBGL)) : '';
       if (/swiftshader|llvmpipe|software|basic render/i.test(gpu)) avisar('Tu navegador dibuja el 3D por software (sin la tarjeta gráfica): irá lento. Activa la aceleración por hardware en los ajustes del navegador.');
     } catch (error) { /* sin información de la GPU: no se avisa */ }
+    etapa('Paso 2 de 3: construyendo equipos, tuberías y válvulas…'); await pausa();
     const threeEscena = new THREE.Scene();
     threeEscena.add(new THREE.HemisphereLight(0xdde8f5, 0x1b2330, 1.15));
     const sol = new THREE.DirectionalLight(0xffffff, 1.6); sol.position.set(30, 55, 40); threeEscena.add(sol);
@@ -274,6 +284,7 @@
     const escena = modulo.crearEscena(THREE, clave);
     threeEscena.add(escena.raiz);
     if (escena.sombras) activarSombras(THREE, renderer);
+    etapa('Paso 3 de 3: preparando controles y etiquetas…'); await pausa();
     const camara = new THREE.PerspectiveCamera(38, 1, 1, 500);
     const controles = new ControlesOrbita(lienzo, escena.vistaInicial, () => {});
     sesion = { THREE, renderer, camara, threeEscena, escena, controles, clave, obtenerEstado, seleccion: null, animacion: 0,
@@ -314,7 +325,6 @@
     modal.hidden = false; document.body.classList.add('v3d-abierto');
     const panel = modal.querySelector('.v3d-panel');
     const etapa = texto => { panel.innerHTML = `<p>${texto}</p>`; };
-    const siguientePintado = () => new Promise(resolver => setTimeout(resolver, 40));
     const t0 = performance.now();
     etapa(window.THREE ? 'Preparando el modelo 3D…' : 'Descargando Three.js (la primera vez tarda un poco)…');
     const aviso = setTimeout(() => { if (!window.THREE) etapa('La descarga de Three.js tarda más de lo normal. Comprueba la conexión con el servidor (F12 → Red).'); }, 8000);
@@ -323,11 +333,10 @@
     clearTimeout(aviso);
     if (modal.hidden) return;                       // se cerró mientras cargaba
     const t1 = performance.now();
-    etapa('Creando la escena 3D…');
-    await siguientePintado();                       // deja pintar el texto antes del trabajo pesado
-    if (modal.hidden) return;
     try {
-      if (!iniciarMotor(clave, obtenerEstado || (() => null))) return;
+      if (!(await iniciarMotor(clave, obtenerEstado || (() => null), etapa))) return;
+      if (modal.hidden) { modal.hidden = false; cerrar(); return; }   // se cerró mientras se creaba: se libera todo
+      etapa('Primer dibujo (la tarjeta gráfica compila los materiales)…'); await pausa();
       sesion.escena.ponerCorte(false);
       seleccionar(foco || null);
       fotograma();
