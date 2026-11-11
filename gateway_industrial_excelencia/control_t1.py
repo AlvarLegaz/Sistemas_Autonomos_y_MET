@@ -110,6 +110,11 @@ class ControlT1:
         t1, t2 = _temperatura(datos, CANAL_T1), _temperatura(datos, CANAL_T2)
         antes = self._res_on
 
+        if datos.get(CANAL_TERMOSTATO) is False:
+            # Un disparo del termostato es un fallo: el control se desactiva y no vuelve solo al cerrarse el termostato.
+            self.activo, self._res_on, self._t2_objetivo = False, False, None
+            self._aviso = "Termostato disparado: control automático desactivado"
+            return {SALIDA_RES: False}
         if t1 is None or t2 is None:
             self._res_on, self._t2_objetivo, self._aviso = False, None, "Sin lectura de T1 o T2: calefactor apagado"
         else:
@@ -121,9 +126,7 @@ class ControlT1:
         objetivo = self._consigna_t2(t1, dt)
         histeresis = a["histeresis"]
         self._aviso = ""
-        if datos.get(CANAL_TERMOSTATO) is False:
-            self._res_on, self._aviso = False, "Termostato disparado: calefactor apagado"
-        elif t2 >= a["t2_max"]:
+        if t2 >= a["t2_max"]:
             self._res_on, self._aviso = False, "T2 en su máximo: calefactor apagado"
         elif t2 <= objetivo - histeresis:
             self._res_on = True

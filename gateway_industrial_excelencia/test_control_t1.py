@@ -89,6 +89,11 @@ class Histeresis(unittest.TestCase):
         ordenes = self.paso(22, 30, termostato_ok=False)
         self.assertEqual(ordenes[c.SALIDA_RES], False)
         self.assertIn("Termostato", self.control.estado()["aviso"])
+        self.assertFalse(self.control.activo)                  # se desactiva: no se reactiva solo al cerrarse el termostato
+        self.assertEqual(self.paso(22, 22), {})
+        self.assertIn("Termostato", self.control.estado()["aviso"])      # el aviso se mantiene hasta volver a activarlo
+        self.control.activar()
+        self.assertEqual(self.control.estado()["aviso"], "")
 
     def test_sin_lectura_apaga_y_se_recupera(self):
         self.paso(22, 22)

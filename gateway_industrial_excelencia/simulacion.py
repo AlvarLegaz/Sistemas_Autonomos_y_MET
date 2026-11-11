@@ -25,9 +25,12 @@ class PCFDigitalOutputSim:
 class PCFDigitalInputSim:
     def __init__(self, salidas, **_):
         self.salidas = salidas
+        self.termostato_ok = True      # DigitalIn1 (termostato): True = cerrado; una prueba puede ponerlo a False
 
     def read_inputs(self):
-        return {f"DigitalIn{i + 1}_value": v for i, v in enumerate(self.salidas.valores)}
+        entradas = {f"DigitalIn{i + 1}_value": v for i, v in enumerate(self.salidas.valores)}
+        entradas["DigitalIn1_value"] = self.termostato_ok
+        return entradas
 
     def close(self):
         pass

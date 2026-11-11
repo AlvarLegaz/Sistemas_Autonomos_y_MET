@@ -851,7 +851,10 @@ function avisoPlanta(s, d) {
     accion = 'Las lecturas pueden no ser actuales. Comprueba la Raspberry Pi y su servicio.';
   } else if (d && !!d[MAPA.digitales.TERM.canal] === MAPA.digitales.TERM.alarmaSi) {
     causa = 'Termostato disparado: sobretemperatura en el depósito caliente';
-    accion = 'La protección corta el calefactor. Deja enfriar el agua antes de volver a calentar.';
+    accion = 'La protección corta el calefactor y no se rearma sola: deja enfriar el agua y vuelve a encenderlo tú. El control automático se desactiva.';
+  } else if (d && d.calefactor_bloqueado) {
+    causa = 'Calefactor bloqueado: no se puede leer el termostato';
+    accion = 'Por seguridad la resistencia no conduce hasta saber que el termostato está cerrado. Comprueba la E/S del gateway.';
   }
   caja.hidden = !causa;
   $('alarma-causa').textContent = causa;
@@ -927,7 +930,7 @@ function pintarControl(c, conectado) {
   }
   const estado = $('control-estado');
   estado.classList.toggle('mal', !!c.aviso);
-  estado.textContent = !c.activo ? ''
+  estado.textContent = !c.activo ? (c.aviso || '')
     : c.aviso ? c.aviso
     : `Regulando · T2 objetivo ${c.t2_objetivo == null ? '—' : String(c.t2_objetivo).replace('.', ',') + ' °C'} · calefactor ${c.calefactor ? 'conectado' : 'desconectado'}`;
 }

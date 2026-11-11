@@ -20,6 +20,14 @@ OUT_BOMBA_HEAT = 7           # OUT07: bomba heat unit, PWM = PWMOut2
 OUT_BOMBA_FEED = 8           # OUT08: bomba feed unit, PWM = PWMOut1
 POTENCIA_POR_DEFECTO = 100.0  # PWMOut1, PWMOut2 y AnalogOut1 (potencia de la resistencia) arrancan al 100 %
 
+# Seguridad de la resistencia. DigitalIn1 es el termostato de la heat unit: cerrado (True) = todo bien, abierto (False) = sobretemperatura.
+# La resistencia SOLO puede conducir si se sabe que el termostato esta cerrado; es un enclavamiento del gateway, vale para
+# cualquier origen de la orden (mandos manuales, control automatico, consola). No sustituye al termostato fisico de la maqueta.
+ENTRADA_TERMOSTATO = "DigitalIn1_value"
+SALIDA_RESISTENCIA = f"TransistorOut{OUT_RESISTENCIA}_value"
+MOTIVO_TERMOSTATO_ABIERTO = "termostato_abierto"
+MOTIVO_TERMOSTATO_SIN_LECTURA = "termostato_sin_lectura"
+
 
 def burst_activo(ciclo, porcentaje, ciclos=BURST_CICLOS):
     """Control por rafagas: de cada ventana de `ciclos` ciclos de red conduce
@@ -72,6 +80,7 @@ class Runtime:
         self.scan_overruns = 0
         self.io_errors = 0
         self.io_ok = True
+        self._entradas_leidas = False     # hasta el primer scan correcto no se sabe en que estado esta el termostato
 
         # Corriente y RTD: sin hardware todavia, se quedan a 0.
         self.inputs = {**_canales("AnalogIn", 0.0), **_canales("DigitalIn", False),
@@ -202,8 +211,18 @@ class Runtime:
         # Un hilo muerto por un error inesperado no debe seguir publicandose como en marcha.
         en_marcha = self.running and all(hilo.is_alive() for hilo in self.threads)
         with self.lock:
+            motivos = self._motivos_bloqueo()
             return {"running": en_marcha, "io_ok": self.io_ok,
-                    "io_errors": self.io_errors, "scan_overruns": self.scan_overruns}
+                    "io_errors": self.io_errors, "scan_overruns": self.scan_overruns,
+                    "calefactor_bloqueado": bool(motivos), "motivos_bloqueo": motivos}
+
+    def _motivos_bloqueo(self):
+        """Por que no puede conducir la resistencia ahora (lista vacia = puede). Llamar con el lock cogido."""
+        if not self._entradas_leidas or not self.io_ok:
+            return [MOTIVO_TERMOSTATO_SIN_LECTURA]       # no se sabe si el termostato esta cerrado: por seguridad, apagada
+        if self.inputs.get(ENTRADA_TERMOSTATO) is not True:
+            return [MOTIVO_TERMOSTATO_ABIERTO]
+        return []
 
     # ============================================================
     # API pública de escritura
@@ -228,6 +247,9 @@ class Runtime:
                 nuevos[nombre] = float(valor)
 
         with self.lock:
+            if nuevos.get(SALIDA_RESISTENCIA) and MOTIVO_TERMOSTATO_ABIERTO in self._motivos_bloqueo():
+                nuevos[SALIDA_RESISTENCIA] = False       # con el termostato abierto no se acepta la orden de calentar
+                print("Orden de calentar rechazada: termostato abierto")
             self.outputs.update(nuevos)
         return ignoradas
 
@@ -290,6 +312,15 @@ class Runtime:
             self.io_ok = True
             self.inputs.update(digitales)
             self.inputs.update(analogicas)
+            self._entradas_leidas = True
+            self._enclavar_resistencia()
+
+    def _enclavar_resistencia(self):
+        """Termostato abierto: se borra la orden de calentar. Aunque el termostato se cierre solo al enfriarse,
+        la resistencia NO vuelve a encenderse hasta que alguien la ordene de nuevo. Llamar con el lock cogido."""
+        if MOTIVO_TERMOSTATO_ABIERTO in self._motivos_bloqueo() and self.outputs[SALIDA_RESISTENCIA]:
+            self.outputs[SALIDA_RESISTENCIA] = False
+            print("TERMOSTATO ABIERTO: resistencia apagada (no se rearma sola)")
 
     def _error_io(self, donde, e):
         with self.lock:
@@ -309,7 +340,8 @@ class Runtime:
             potencia = self.outputs["AnalogOut1_value"]
             heat = self.outputs["PWMOut2_value"]
             feed = self.outputs["PWMOut1_value"]
-        cmd[OUT_RESISTENCIA - 1] = cmd[OUT_RESISTENCIA - 1] and burst_activo(tick // CICLO_RED_TICKS, potencia)
+            bloqueada = bool(self._motivos_bloqueo())
+        cmd[OUT_RESISTENCIA - 1] = cmd[OUT_RESISTENCIA - 1] and not bloqueada and burst_activo(tick // CICLO_RED_TICKS, potencia)
         cmd[OUT_BOMBA_HEAT - 1] = cmd[OUT_BOMBA_HEAT - 1] and pwm_activo(tick, heat)
         cmd[OUT_BOMBA_FEED - 1] = cmd[OUT_BOMBA_FEED - 1] and pwm_activo(tick, feed)
         return cmd
