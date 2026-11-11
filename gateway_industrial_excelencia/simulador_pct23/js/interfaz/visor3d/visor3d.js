@@ -337,6 +337,9 @@
       if (!(await iniciarMotor(clave, obtenerEstado || (() => null), etapa))) return;
       if (modal.hidden) { modal.hidden = false; cerrar(); return; }   // se cerró mientras se creaba: se libera todo
       etapa('Primer dibujo (la tarjeta gráfica compila los materiales)…'); await pausa();
+      // Compilación asíncrona de los shaders: no bloquea el navegador mientras la tarjeta gráfica trabaja.
+      if (sesion.renderer.compileAsync) await sesion.renderer.compileAsync(sesion.threeEscena, sesion.camara);
+      if (!sesion) return;
       sesion.escena.ponerCorte(false);
       seleccionar(foco || null);
       fotograma();

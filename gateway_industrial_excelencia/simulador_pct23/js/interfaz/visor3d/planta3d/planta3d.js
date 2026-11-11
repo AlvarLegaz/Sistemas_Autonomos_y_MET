@@ -7,7 +7,18 @@
     : [PCT.planta3dEquipos, PCT.planta3dTuberias, PCT.planta3dValvulasInstrumentos]);
   const { MESA } = layout;
 
-  function crearEscena(THREE) {
+  // Versión ligera de Three.js para la planta: MeshStandardMaterial pasa a MeshLambertMaterial (sin metal ni rugosidad), que la tarjeta
+  // gráfica compila y dibuja mucho más rápido. Los módulos llaman a THREE.MeshStandardMaterial sin saberlo. ?calidad=alta en la URL lo desactiva.
+  function versionLigera(THREE) {
+    class MaterialLigero extends THREE.MeshLambertMaterial {
+      constructor(parametros) { const { roughness, metalness, envMapIntensity, ...resto } = parametros || {}; super(resto); }
+    }
+    return Object.assign(Object.create(THREE), { MeshStandardMaterial: MaterialLigero });
+  }
+  const calidadAlta = () => typeof location !== 'undefined' && /[?&]calidad=alta/.test(location.search);
+
+  function crearEscena(THREEOriginal) {
+    const THREE = calidadAlta() ? THREEOriginal : versionLigera(THREEOriginal);
     const raiz = new THREE.Group();
     const recursos = [];
     const guardar = r => { recursos.push(r); return r; };
