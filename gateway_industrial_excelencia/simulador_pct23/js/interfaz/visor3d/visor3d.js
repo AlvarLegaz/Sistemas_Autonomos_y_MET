@@ -221,9 +221,13 @@
     sesion.camara.updateProjectionMatrix();
   }
 
+  const MS_ENTRE_FOTOGRAMAS_PLANTA = 33;       // la planta se dibuja a ~30 fps para aliviar la gráfica
   function fotograma() {
     if (!sesion) return;
     sesion.animacion = requestAnimationFrame(fotograma);
+    const ahora = performance.now();
+    if (MODELOS[sesion.clave].escena === 'planta' && ahora - (sesion.ultimoDibujo || 0) < MS_ENTRE_FOTOGRAMAS_PLANTA) return;
+    sesion.ultimoDibujo = ahora;
     const estado = sesion.obtenerEstado();
     if (estado) {
       const lecturas = lecturasModelo(sesion.clave, estado, PCT.planta.observaciones(estado));
@@ -244,27 +248,24 @@
   }
 
   /* ---------- abrir y cerrar ---------- */
-  // Planta completa: tonos de cine, sombras suaves de la luz principal y luz de relleno más baja para que se noten.
-  function activarSombras(THREE, renderer, raiz, sol) {
+  // Planta completa: solo mapeo de tonos (barato). Las sombras se quitaron: duplicaban el coste de dibujo en gráficas integradas.
+  function activarSombras(THREE, renderer) {
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.25;
-    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    sol.castShadow = true; sol.shadow.mapSize.set(1024, 1024); sol.shadow.bias = -0.0004; sol.shadow.radius = 3;
-    const c = sol.shadow.camera; c.left = -150; c.right = 150; c.top = 100; c.bottom = -100; c.near = 10; c.far = 400; sol.position.set(60, 150, 100);
-    raiz.traverse(o => {
-      if (!o.isMesh || o.isInstancedMesh) return;
-      const m = Array.isArray(o.material) ? o.material[0] : o.material;
-      if (m && !m.transparent) { o.castShadow = true; o.receiveShadow = true; } else if (m) o.receiveShadow = false;
-    });
   }
 
   function iniciarMotor(clave, obtenerEstado) {
     const THREE = window.THREE;
     const lienzo = modal.querySelector('canvas');
     let renderer;
-    try { renderer = new THREE.WebGLRenderer({ canvas: lienzo, antialias: true, alpha: true }); }
+    const pesada = !!MODELOS[clave].escena && MODELOS[clave].escena === 'planta';       // la planta entera: más ligera
+    try { renderer = new THREE.WebGLRenderer({ canvas: lienzo, antialias: !pesada, alpha: true, powerPreference: 'high-performance' }); }
     catch (error) { avisar('Este navegador no puede mostrar gráficos 3D (WebGL no disponible).'); return false; }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, pesada ? 1 : 2));
     renderer.localClippingEnabled = true;
+    try {
+      const gl = renderer.getContext(), x = gl.getExtension('WEBGL_debug_renderer_info'), gpu = x ? String(gl.getParameter(x.UNMASKED_RENDERER_WEBGL)) : '';
+      if (/swiftshader|llvmpipe|software|basic render/i.test(gpu)) avisar('Tu navegador dibuja el 3D por software (sin la tarjeta gráfica): irá lento. Activa la aceleración por hardware en los ajustes del navegador.');
+    } catch (error) { /* sin información de la GPU: no se avisa */ }
     const threeEscena = new THREE.Scene();
     threeEscena.add(new THREE.HemisphereLight(0xdde8f5, 0x1b2330, 1.15));
     const sol = new THREE.DirectionalLight(0xffffff, 1.6); sol.position.set(30, 55, 40); threeEscena.add(sol);
@@ -272,7 +273,7 @@
     const modulo = { intercambiador: PCT.visor3dEscenaIntercambiador, bomba: PCT.visor3dEscenaBomba, planta: PCT.planta3d }[MODELOS[clave].escena] || PCT.visor3dEscena;
     const escena = modulo.crearEscena(THREE, clave);
     threeEscena.add(escena.raiz);
-    if (escena.sombras) activarSombras(THREE, renderer, escena.raiz, sol);
+    if (escena.sombras) activarSombras(THREE, renderer);
     const camara = new THREE.PerspectiveCamera(38, 1, 1, 500);
     const controles = new ControlesOrbita(lienzo, escena.vistaInicial, () => {});
     sesion = { THREE, renderer, camara, threeEscena, escena, controles, clave, obtenerEstado, seleccion: null, animacion: 0,
@@ -327,5 +328,8 @@
     if (boton) seleccionar(boton.dataset.id);
   }
 
-  PCT.visor3d = { abrir, cerrar, estaAbierto: () => !!modal && !modal.hidden };
+  // Para diagnosticar el rendimiento: llamadas de dibujo, triángulos, memoria y renderizador (consola: PCT.visor3d.info()).
+  const info = () => sesion && { render: Object.assign({}, sesion.renderer.info.render), memoria: Object.assign({}, sesion.renderer.info.memory), programas: (sesion.renderer.info.programs || []).length,
+    gpu: (() => { const gl = sesion.renderer.getContext(), x = gl.getExtension('WEBGL_debug_renderer_info'); return x ? gl.getParameter(x.UNMASKED_RENDERER_WEBGL) : 'desconocido'; })() };
+  PCT.visor3d = { abrir, cerrar, estaAbierto: () => !!modal && !modal.hidden, info };
 })();
