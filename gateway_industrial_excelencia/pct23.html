@@ -948,13 +948,13 @@ for (const [clave, nombre, unidad, minimo, maximo, paso] of AJUSTES_CONTROL) {
   r.onchange = () => enviarControl({[clave]: Number(r.value)});
   controlUI[clave] = {r, o, texto};
 }
-// Elegir "Automático" solo muestra sus ajustes: el control no arranca hasta pulsar Iniciar, y Parar lo detiene.
+// Elegir "Automático" solo muestra sus ajustes: el control no arranca hasta pulsar Iniciar, y Parar lo detiene y apaga todas las salidas.
 let vistaAuto = false, ultimoControl = null, ultimoConectado = false;
 const ajustesActuales = () => Object.fromEntries(Object.entries(controlUI).map(([k, u]) => [k, Number(u.r.value)]));
 $('modo-manual').onclick = () => { vistaAuto = false; enviarControl({activo: false}); if (ultimoControl) pintarControl(ultimoControl, ultimoConectado); };
 $('modo-auto').onclick = () => { vistaAuto = true; if (ultimoControl) pintarControl(ultimoControl, ultimoConectado); };
 $('auto-iniciar').onclick = () => enviarControl({activo: true, ...ajustesActuales()});
-$('auto-parar').onclick = () => enviarControl({activo: false});
+$('auto-parar').onclick = () => $('parar-todo').click();   // detiene el control y apaga también bombas, calefactor y válvulas
 function pintarControl(c, conectado) {
   if (!c) return;
   ultimoControl = c; ultimoConectado = conectado;
