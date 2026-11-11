@@ -221,12 +221,32 @@
     sesion.camara.updateProjectionMatrix();
   }
 
-  const MS_ENTRE_FOTOGRAMAS_PLANTA = 33;       // la planta se dibuja a ~30 fps para aliviar la gráfica
+  // Modo lento: si el navegador dibuja por software o la gráfica no da más de ~11 fps, se baja la resolución interna y los fotogramas por segundo
+  // para que el navegador no se cuelgue. Se activa solo (detectando la GPU al abrir, o midiendo el tiempo entre dibujos).
+  const MS_PLANTA = 33, MS_LENTO = 70, UMBRAL_LENTO_MS = 90, FOTOGRAMAS_PARA_JUZGAR = 8;
+  function activarModoLento(motivo) {
+    if (!sesion || sesion.lento) return;
+    sesion.lento = true;
+    sesion.renderer.setPixelRatio(0.6); ajustarTamano();
+    avisar(motivo);
+  }
+  function vigilarRendimiento(ahora) {
+    if (sesion.lento) return;
+    if (sesion.ultimoDibujo) {
+      sesion.sumaIntervalos = (sesion.sumaIntervalos || 0) + (ahora - sesion.ultimoDibujo); sesion.contados = (sesion.contados || 0) + 1;
+      if (sesion.contados >= FOTOGRAMAS_PARA_JUZGAR) {
+        if (sesion.sumaIntervalos / sesion.contados > UMBRAL_LENTO_MS) activarModoLento('Tu equipo dibuja el 3D despacio: se ha bajado la calidad para que no se cuelgue. Activa la aceleración por hardware del navegador para verlo fluido.');
+        sesion.sumaIntervalos = 0; sesion.contados = 0;
+      }
+    }
+  }
   function fotograma() {
     if (!sesion) return;
     sesion.animacion = requestAnimationFrame(fotograma);
     const ahora = performance.now();
-    if (MODELOS[sesion.clave].escena === 'planta' && ahora - (sesion.ultimoDibujo || 0) < MS_ENTRE_FOTOGRAMAS_PLANTA) return;
+    const minimo = sesion.lento ? MS_LENTO : MODELOS[sesion.clave].escena === 'planta' ? MS_PLANTA : 0;
+    if (ahora - (sesion.ultimoDibujo || 0) < minimo) return;
+    vigilarRendimiento(ahora);
     sesion.ultimoDibujo = ahora;
     const estado = sesion.obtenerEstado();
     if (estado) {
@@ -253,6 +273,17 @@
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.25;
   }
 
+  const REGEX_SOFTWARE = /swiftshader|llvmpipe|software|basic render|microsoft basic/i;
+  /** true si el navegador dibujaría el WebGL por software (sin GPU): se mira con un contexto de prueba antes de crear el real. */
+  function gpuPorSoftware() {
+    try {
+      const gl = document.createElement('canvas').getContext('webgl'), x = gl && gl.getExtension('WEBGL_debug_renderer_info');
+      const texto = x ? String(gl.getParameter(x.UNMASKED_RENDERER_WEBGL)) : '';
+      if (gl && gl.getExtension('WEBGL_lose_context')) gl.getExtension('WEBGL_lose_context').loseContext();
+      return REGEX_SOFTWARE.test(texto);
+    } catch (error) { return false; }
+  }
+
   const pausa = () => new Promise(resolver => setTimeout(resolver, 40));   // deja pintar el texto del paso antes del trabajo pesado
 
   async function iniciarMotor(clave, obtenerEstado, etapa) {
@@ -260,10 +291,11 @@
     const lienzo = modal.querySelector('canvas');
     let renderer;
     const pesada = !!MODELOS[clave].escena && MODELOS[clave].escena === 'planta';       // la planta entera: más ligera
+    const porSoftware = gpuPorSoftware();
     etapa('Paso 1 de 3: creando el contexto gráfico (WebGL)…'); await pausa();
     try {
       // En la planta completa, si el navegador solo puede dibujar por software (sin la tarjeta gráfica) se falla enseguida en lugar de colgarse.
-      renderer = new THREE.WebGLRenderer({ canvas: lienzo, antialias: !pesada, alpha: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: pesada });
+      renderer = new THREE.WebGLRenderer({ canvas: lienzo, antialias: !pesada && !porSoftware, alpha: true, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: pesada });
     } catch (error) {
       avisar(pesada ? 'Tu navegador no puede usar la tarjeta gráfica para el 3D (aceleración por hardware desactivada o gráfica no compatible), y la planta completa es demasiado pesada por software. Actívala en Ajustes → Sistema, o abre un depósito o una bomba suelto, que sí van.'
         : 'Este navegador no puede mostrar gráficos 3D (WebGL no disponible).');
@@ -271,10 +303,6 @@
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, pesada ? 1 : 2));
     renderer.localClippingEnabled = true;
-    try {
-      const gl = renderer.getContext(), x = gl.getExtension('WEBGL_debug_renderer_info'), gpu = x ? String(gl.getParameter(x.UNMASKED_RENDERER_WEBGL)) : '';
-      if (/swiftshader|llvmpipe|software|basic render/i.test(gpu)) avisar('Tu navegador dibuja el 3D por software (sin la tarjeta gráfica): irá lento. Activa la aceleración por hardware en los ajustes del navegador.');
-    } catch (error) { /* sin información de la GPU: no se avisa */ }
     etapa('Paso 2 de 3: construyendo equipos, tuberías y válvulas…'); await pausa();
     const threeEscena = new THREE.Scene();
     threeEscena.add(new THREE.HemisphereLight(0xdde8f5, 0x1b2330, 1.15));
@@ -289,7 +317,8 @@
     const controles = new ControlesOrbita(lienzo, escena.vistaInicial, () => {});
     sesion = { THREE, renderer, camara, threeEscena, escena, controles, clave, obtenerEstado, seleccion: null, animacion: 0,
       raton: new THREE.Vector2(), rayo: new THREE.Raycaster(), seleccionables: escena.mallasSeleccionables(), etiquetas: crearEtiquetas(clave, escena),
-      observador: null, alPulsar: alPulsarEscena };
+      observador: null, alPulsar: alPulsarEscena, lento: false };
+    if (porSoftware) activarModoLento('Tu navegador dibuja el 3D por software (sin la tarjeta gráfica): se ha bajado la calidad. Activa la aceleración por hardware en los ajustes del navegador (Ajustes → Sistema).');
     sesion.observador = new ResizeObserver(ajustarTamano); sesion.observador.observe(modal.querySelector('.v3d-escena'));
     lienzo.addEventListener('pointerup', sesion.alPulsar);
     ajustarTamano();
