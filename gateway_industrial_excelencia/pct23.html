@@ -280,6 +280,8 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
 .ctl-boton:hover:not(:disabled) { border-color: var(--acento); }
 .ctl-boton.sel { background: var(--acento); border-color: var(--acento); color: var(--sobre-acento); }
 .ctl-boton.on { background: var(--ok); border-color: var(--ok); color: #fff; }
+.acciones-auto { display: flex; gap: 8px; margin: 8px 0; }
+.acciones-auto .ctl-boton { flex: 1; padding: 6px 8px; font-size: 13px; }
 .ctl-boton:disabled { opacity: .6; cursor: not-allowed; }
 #tarjetas-valvulas { grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
 #tarjetas-valvulas .tarjeta { padding: 10px; border: 1px solid var(--borde); border-radius: 6px; }
@@ -539,6 +541,10 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
         </div>
         <p class="sec-aviso" id="control-descripcion"></p>
         <div id="ajustes-control"></div>
+        <div class="acciones-auto" id="acciones-auto" role="group" aria-label="Iniciar o parar el control automático" hidden>
+          <button type="button" class="ctl-boton" id="auto-iniciar">▶ Iniciar</button>
+          <button type="button" class="ctl-boton" id="auto-parar">■ Parar</button>
+        </div>
         <p class="sec-aviso" id="control-estado" aria-live="polite"></p>
         <p class="sec-aviso">T2 máxima: el termostato de la maqueta salta a 70 °C y T2 sigue subiendo unos grados después de cortar la resistencia. Con velocidades de N1 altas el producto se lleva más calor.</p>
       </section>
@@ -921,7 +927,7 @@ const AJUSTES_CONTROL = [   // [clave en el servidor, nombre, unidad, mínimo, m
 ];
 const DESCRIPCION_MODO = {
   manual: 'Manual: gobiernas las bombas y el calefactor desde el esquema.',
-  auto: 'Automático: el servidor regula T1 con una consigna de T2 (nunca por encima de la máxima). El calefactor se conecta y desconecta con la histéresis; N1 y N2 quedan encendidas y N1 a la velocidad elegida.',
+  auto: 'Automático: ajusta los valores y pulsa Iniciar; el servidor regula T1 con una consigna de T2 (nunca por encima de la máxima). El calefactor se conecta y desconecta con la histéresis; N1 y N2 quedan encendidas y N1 a la velocidad elegida.',
 };
 const controlUI = {};
 function enviarControl(cambios) {
@@ -942,20 +948,29 @@ for (const [clave, nombre, unidad, minimo, maximo, paso] of AJUSTES_CONTROL) {
   r.onchange = () => enviarControl({[clave]: Number(r.value)});
   controlUI[clave] = {r, o, texto};
 }
-$('modo-manual').onclick = () => enviarControl({activo: false});
-$('modo-auto').onclick = () => enviarControl({activo: true, ...Object.fromEntries(Object.entries(controlUI).map(([k, u]) => [k, Number(u.r.value)]))});
+// Elegir "Automático" solo muestra sus ajustes: el control no arranca hasta pulsar Iniciar, y Parar lo detiene.
+let vistaAuto = false, ultimoControl = null, ultimoConectado = false;
+const ajustesActuales = () => Object.fromEntries(Object.entries(controlUI).map(([k, u]) => [k, Number(u.r.value)]));
+$('modo-manual').onclick = () => { vistaAuto = false; enviarControl({activo: false}); if (ultimoControl) pintarControl(ultimoControl, ultimoConectado); };
+$('modo-auto').onclick = () => { vistaAuto = true; if (ultimoControl) pintarControl(ultimoControl, ultimoConectado); };
+$('auto-iniciar').onclick = () => enviarControl({activo: true, ...ajustesActuales()});
+$('auto-parar').onclick = () => enviarControl({activo: false});
 function pintarControl(c, conectado) {
   if (!c) return;
-  $('modo-manual').setAttribute('aria-pressed', String(!c.activo));
-  $('modo-auto').setAttribute('aria-pressed', String(c.activo));
-  $('modo-auto').disabled = !conectado && !c.activo;
-  $('control-descripcion').textContent = DESCRIPCION_MODO[c.activo ? 'auto' : 'manual'];
+  ultimoControl = c; ultimoConectado = conectado;
+  const auto = vistaAuto || c.activo;
+  $('modo-manual').setAttribute('aria-pressed', String(!auto));
+  $('modo-auto').setAttribute('aria-pressed', String(auto));
+  $('acciones-auto').hidden = !auto;
+  $('auto-iniciar').disabled = c.activo || !conectado;
+  $('auto-parar').disabled = !c.activo;
+  $('control-descripcion').textContent = DESCRIPCION_MODO[auto ? 'auto' : 'manual'];
   for (const [clave, u] of Object.entries(controlUI)) {
     if (document.activeElement !== u.r) { u.r.value = c[clave]; u.o.textContent = u.texto(); }
   }
   const estado = $('control-estado');
   estado.classList.toggle('mal', !!c.aviso);
-  estado.textContent = !c.activo ? (c.aviso || '')
+  estado.textContent = !c.activo ? (c.aviso || (auto ? 'Parado: pulsa Iniciar para empezar a regular.' : ''))
     : c.aviso ? c.aviso
     : `Regulando · T2 objetivo ${c.t2_objetivo == null ? '—' : String(c.t2_objetivo).replace('.', ',') + ' °C'} · calefactor ${c.calefactor ? 'conectado' : 'desconectado'}`;
 }
