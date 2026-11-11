@@ -29,7 +29,7 @@
     carcasa.rotation.x = Math.PI / 2; carcasa.position.set(0, CENTRO_Y, -1.2);
     const fondo = malla(new THREE.CylinderGeometry(RADIO + 0.9, RADIO + 0.9, 0.6, 64), material(0x59636e), raiz);
     fondo.rotation.x = Math.PI / 2; fondo.position.set(0, CENTRO_Y, -3.6);
-    const matTapa = guardar(new THREE.MeshPhysicalMaterial({ color: 0xaed4ff, transparent: true, opacity: 0.2, roughness: 0.1, metalness: 0, side: THREE.DoubleSide, depthWrite: false }));
+    const matTapa = guardar(new THREE.MeshStandardMaterial({ color: 0xaed4ff, transparent: true, opacity: 0.2, roughness: 0.1, metalness: 0, side: THREE.DoubleSide, depthWrite: false }));
     const tapa = malla(new THREE.CylinderGeometry(RADIO + 0.9, RADIO + 0.9, 0.3, 64), matTapa, raiz);
     tapa.rotation.x = Math.PI / 2; tapa.position.set(0, CENTRO_Y, 1.3); tapa.renderOrder = 3;
 

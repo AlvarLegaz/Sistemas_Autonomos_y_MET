@@ -54,12 +54,12 @@
       g.position.set(origen.x, 0, origen.z); grupo.add(g);
       const sobreMesa = v => new THREE.Vector3(origen.x + v.x, v.y, origen.z + v.z);
 
-      const matVidrio = guardar(new THREE.MeshPhysicalMaterial({ color: 0xaed4ff, transparent: true, opacity: 0.17, roughness: 0.08, metalness: 0, side: THREE.DoubleSide, depthWrite: false }));
+      const matVidrio = guardar(new THREE.MeshStandardMaterial({ color: 0xaed4ff, transparent: true, opacity: 0.17, roughness: 0.08, metalness: 0, side: THREE.DoubleSide, depthWrite: false }));
       const cuerpo = new THREE.Group(); g.add(cuerpo);
       const vidrio = malla(new THREE.CylinderGeometry(R, R, H, 48, 1, true), matVidrio, cuerpo); vidrio.position.y = H / 2; vidrio.renderOrder = 3;
       malla(new THREE.CylinderGeometry(R + 0.4, R + 0.4, 0.6, 48), material(COLOR.oscuro, { roughness: 0.7 }), cuerpo).position.y = 0.3;
       for (const y of [0.6, H]) { const aro = malla(new THREE.TorusGeometry(R, 0.28, 8, 48), material(0xc9d3dc, { roughness: 0.3 }), cuerpo); aro.rotation.x = Math.PI / 2; aro.position.y = y; }
-      const matLiquido = guardar(new THREE.MeshPhysicalMaterial({ color: COLOR.agua, transparent: true, opacity: 0.58, roughness: 0.15, metalness: 0, side: THREE.DoubleSide, depthWrite: false }));
+      const matLiquido = guardar(new THREE.MeshStandardMaterial({ color: COLOR.agua, transparent: true, opacity: 0.58, roughness: 0.15, metalness: 0, side: THREE.DoubleSide, depthWrite: false }));
       const liquido = malla(new THREE.CylinderGeometry(R - 0.15, R - 0.15, 1, 48), matLiquido, cuerpo); liquido.renderOrder = 1;
       marcar(cuerpo, clave, true);                                  // el vidrio y el líquido se pueden pulsar, pero ceden ante los captadores (userData.fondo)
       elementos[clave] = { id: clave, grupo: cuerpo, ancla: sobreMesa(new THREE.Vector3(0, H + 4, 0)), ayuda: clave };
@@ -154,7 +154,7 @@
       malla(new THREE.BoxGeometry(radio * 1.6, radio * 1.6, radio), material(0x3b444e), g).position.set(0, cy, -radio * 0.9);
       const carcasa = malla(new THREE.CylinderGeometry(radio + 0.5, radio + 0.5, 2.6, 40, 1, true), material(0xc9d3dc, { roughness: 0.35, side: THREE.DoubleSide }), g);
       carcasa.rotation.x = Math.PI / 2; carcasa.position.set(0, cy, -0.4);
-      const tapa = malla(new THREE.CylinderGeometry(radio + 0.5, radio + 0.5, 0.2, 40), guardar(new THREE.MeshPhysicalMaterial({ color: 0xaed4ff, transparent: true, opacity: 0.2, roughness: 0.1, side: THREE.DoubleSide, depthWrite: false })), g);
+      const tapa = malla(new THREE.CylinderGeometry(radio + 0.5, radio + 0.5, 0.2, 40), guardar(new THREE.MeshStandardMaterial({ color: 0xaed4ff, transparent: true, opacity: 0.2, roughness: 0.1, side: THREE.DoubleSide, depthWrite: false })), g);
       tapa.rotation.x = Math.PI / 2; tapa.position.set(0, cy, 0.95); tapa.renderOrder = 3;
       const tubo = malla(new THREE.TorusGeometry(radio - 0.5, 0.4, 8, 36, Math.PI * 1.25), material(0xe9e2c8, { roughness: 0.5, metalness: 0.05, emissive: clave === 'N2' ? COLOR.calida : 0xd9d3b0, emissiveIntensity: 0 }), g);
       tubo.position.set(0, cy, 0); tubo.rotation.z = Math.PI * 1.375;       // arco apoyado abajo

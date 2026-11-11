@@ -36,7 +36,7 @@
     malla(new THREE.CylinderGeometry(R + 2.2, R + 2.6, 1.2, 64), material(COLOR.oscuro, { roughness: 0.7 }), base).position.y = -0.6;
     const rejilla = guardar(new THREE.GridHelper(70, 28, 0x39424d, 0x232a31)); rejilla.position.y = -1.25; raiz.add(rejilla);
 
-    const matVidrio = guardar(new THREE.MeshPhysicalMaterial({ color: 0xaed4ff, transparent: true, opacity: 0.17, roughness: 0.08, metalness: 0,
+    const matVidrio = guardar(new THREE.MeshStandardMaterial({ color: 0xaed4ff, transparent: true, opacity: 0.17, roughness: 0.08, metalness: 0,
       side: THREE.DoubleSide, depthWrite: false }));
     const vidrio = malla(new THREE.CylinderGeometry(R, R, H, 72, 1, true), matVidrio, raiz); vidrio.position.y = H / 2; vidrio.renderOrder = 3;
     const matBorde = material(0xc9d3dc, { roughness: 0.3 });
@@ -61,7 +61,7 @@
     for (let cm = 0; cm <= UTIL; cm += 10) rotulo(`${cm} cm`, polar(R + 2.9, -8, cm));
 
     // ---------- líquido ----------
-    const matLiquido = guardar(new THREE.MeshPhysicalMaterial({ color: COLOR.agua, transparent: true, opacity: 0.58, roughness: 0.15, metalness: 0,
+    const matLiquido = guardar(new THREE.MeshStandardMaterial({ color: COLOR.agua, transparent: true, opacity: 0.58, roughness: 0.15, metalness: 0,
       side: THREE.DoubleSide, depthWrite: false }));
     const liquido = malla(new THREE.CylinderGeometry(R - 0.15, R - 0.15, 1, 72, 1, false), matLiquido, raiz); liquido.renderOrder = 1;
     recortables.push(matLiquido);

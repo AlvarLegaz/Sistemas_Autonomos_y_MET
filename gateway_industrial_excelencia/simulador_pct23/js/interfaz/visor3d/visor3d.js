@@ -312,13 +312,31 @@
     avisar('');
     modal.dataset.modelo = MODELOS[clave].escena || 'deposito';
     modal.hidden = false; document.body.classList.add('v3d-abierto');
+    const panel = modal.querySelector('.v3d-panel');
+    const etapa = texto => { panel.innerHTML = `<p>${texto}</p>`; };
+    const siguientePintado = () => new Promise(resolver => setTimeout(resolver, 40));
+    const t0 = performance.now();
+    etapa(window.THREE ? 'Preparando el modelo 3D…' : 'Descargando Three.js (la primera vez tarda un poco)…');
+    const aviso = setTimeout(() => { if (!window.THREE) etapa('La descarga de Three.js tarda más de lo normal. Comprueba la conexión con el servidor (F12 → Red).'); }, 8000);
     try { await cargarThree(); }
-    catch (error) { avisar('No se pudo cargar el visor 3D. Comprueba la conexión con el servidor y vuelve a intentarlo.'); return; }
+    catch (error) { clearTimeout(aviso); avisar('No se pudo cargar el visor 3D. Comprueba la conexión con el servidor y vuelve a intentarlo.'); return; }
+    clearTimeout(aviso);
     if (modal.hidden) return;                       // se cerró mientras cargaba
-    if (!iniciarMotor(clave, obtenerEstado || (() => null))) return;
-    sesion.escena.ponerCorte(false);
-    seleccionar(foco || null);
-    fotograma();
+    const t1 = performance.now();
+    etapa('Creando la escena 3D…');
+    await siguientePintado();                       // deja pintar el texto antes del trabajo pesado
+    if (modal.hidden) return;
+    try {
+      if (!iniciarMotor(clave, obtenerEstado || (() => null))) return;
+      sesion.escena.ponerCorte(false);
+      seleccionar(foco || null);
+      fotograma();
+    } catch (error) {
+      console.error('[visor3d]', error);
+      avisar('No se pudo crear la escena 3D: ' + (error && error.message ? error.message : error));
+      return;
+    }
+    console.info(`[visor3d] ${clave}: descarga ${Math.round(t1 - t0)} ms, escena ${Math.round(performance.now() - t1)} ms`);
   }
 
   function alPulsarPanel(evento) {
