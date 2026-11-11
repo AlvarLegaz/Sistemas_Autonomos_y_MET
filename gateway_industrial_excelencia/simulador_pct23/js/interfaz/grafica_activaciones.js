@@ -29,10 +29,12 @@
     return muestra;
   }
 
-  function registrar(estado) {
-    historial.push(tomarMuestra(estado));
+  function registrarMuestra(muestra) {
+    historial.push(muestra);
     if (historial.length > LIMITE_MUESTRAS) historial.shift();
   }
+
+  function registrar(estado) { registrarMuestra(tomarMuestra(estado)); }
 
   function reiniciar() { historial.length = 0; }
 
@@ -153,7 +155,7 @@
     PCT.grafica.crearLeyenda(contenedor, items, id => { seleccion = id; pintar(); });
   }
 
-  const api = { tomarMuestra, registrar, reiniciar, pintar, ventana: () => historial };
+  const api = { tomarMuestra, registrar, registrarMuestra, reiniciar, pintar, ventana: () => historial };
   if (typeof module !== 'undefined') module.exports = api;
   else { PCT.graficaActivaciones = api; iniciarLeyenda(); }
 })();

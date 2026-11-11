@@ -13,8 +13,9 @@ import threading
 import time
 
 import paho.mqtt.client as mqtt
-from flask import Flask, Response, jsonify, request, send_file, send_from_directory
+from flask import Flask, Response, abort, jsonify, request, send_file, send_from_directory
 
+from control_t1 import ControlT1
 from gateway_main_app import (BROKER_POR_DEFECTO, TOPIC_ENTRADAS, TOPIC_SALIDAS,
                               broker, credenciales)
 
@@ -28,6 +29,7 @@ estado = {"datos": None, "recibido": 0.0, "broker": False, "rechazo": None}
 suscriptores = set()
 lock = threading.Lock()
 client = None
+control = ControlT1()     # control de T1 por cascada: corre aquí, no en el navegador (se activa desde la página)
 
 
 def instantanea():
@@ -36,7 +38,13 @@ def instantanea():
         edad = time.time() - estado["recibido"] if estado["datos"] else None
         return {"broker": estado["broker"], "rechazo": estado["rechazo"],
                 "gateway": edad is not None and edad < GATEWAY_TIMEOUT_S,
-                "datos": estado["datos"]}
+                "datos": estado["datos"], "control": control.estado()}
+
+
+def publicar(ordenes):
+    """Manda al gateway las órdenes del control (si las hay)."""
+    if ordenes and client is not None:
+        client.publish(TOPIC_SALIDAS, json.dumps(ordenes), qos=0)
 
 
 def difundir():
@@ -71,6 +79,8 @@ def on_message(c, userdata, msg):
         return
     with lock:
         estado["datos"], estado["recibido"] = datos, time.time()
+        ordenes = control.paso(datos) if isinstance(datos, dict) else {}
+    publicar(ordenes)
     difundir()
 
 
@@ -88,6 +98,18 @@ def sinoptico_pct23():
 def imagen(nombre):
     """Logo y favicon del centro, compartidos con el simulador del aula."""
     return send_from_directory("simulador_pct23/img", nombre)
+
+
+# Código de las gráficas del simulador que reutiliza el sinóptico (solo estos archivos).
+JS_GRAFICAS = {"utilidades/modulos.js", "interfaz/dom.js", "interfaz/escala_grafica.js",
+               "interfaz/grafica.js", "interfaz/grafica_activaciones.js"}
+
+
+@app.get("/sim/<path:nombre>")
+def js_simulador(nombre):
+    if nombre not in JS_GRAFICAS:
+        abort(404)
+    return send_from_directory("simulador_pct23/js", nombre)
 
 
 @app.get("/api/estado")
@@ -129,6 +151,32 @@ def api_salidas():
     if info.rc != mqtt.MQTT_ERR_SUCCESS:
         return jsonify(error="broker no disponible"), 503
     return jsonify(ok=True)
+
+
+@app.post("/api/control")
+def api_control():
+    """Ajustes del control de T1 y su activación: {"activo": bool, "consigna_t1", "t2_max", "histeresis", "velocidad_n1"}."""
+    cuerpo = request.get_json(silent=True)
+    if not isinstance(cuerpo, dict) or not cuerpo:
+        return jsonify(error="se esperaba un objeto JSON con ajustes"), 400
+    activo = cuerpo.pop("activo", None)
+    if activo is not None and not isinstance(activo, bool):
+        return jsonify(error="activo debe ser true o false"), 400
+    if activo and not estado["broker"]:
+        return jsonify(error="broker no disponible"), 503
+    with lock:
+        try:
+            control.configurar(**cuerpo)
+        except ValueError as e:
+            return jsonify(error=str(e)), 400
+        ordenes = {}
+        if activo is True:
+            control.activar()
+        elif activo is False:
+            ordenes = control.desactivar()
+    publicar(ordenes)
+    difundir()
+    return jsonify(control.estado())
 
 
 def main():

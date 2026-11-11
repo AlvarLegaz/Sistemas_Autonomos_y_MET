@@ -6,7 +6,7 @@
   const CURVAS = [['T2', '#d66d2b'], ['T1', '#2d80c7'], ['T3', '#22a2a0']];
   // Series con otra unidad: solo se ven al elegirlas en la leyenda, con su propia escala.
   const SERIES_APARTE = {
-    F1: { color: '#8f6bd6', unidad: 'ml/min', tope: { minimo: 0, maximo: 600 }, margen: 10 },
+    F1: { color: '#8f6bd6', unidad: 'ml/min', tope: { minimo: 0, maximo: 1500 }, margen: 10 },
     L1: { color: '#c9a227', unidad: 'mm', tope: { minimo: 0, maximo: 250 }, margen: 5 },
   };
   const historial = [];
@@ -142,17 +142,23 @@
     if (activaciones) ajustarLienzoDe($('sim-activaciones'), activaciones.pintar);
   }
 
-  // marcas: { t1, t2 } consignas a dibujar; sin marcas (manual) no se dibuja ninguna.
-  function muestrear(estado, marcas) {
+  // Registra una muestra con datos de cualquier origen (simulador o planta real).
+  // t: segundos; o: lecturas {T1, T2, T3, F1, L1}; activaciones: muestra de la gráfica de activaciones.
+  // marcas: { t1, t2 } consignas a dibujar; sin marcas no se dibuja ninguna.
+  function registrar(t, o, activaciones, marcas) {
     marcasConsigna = marcas || null;
-    const t = estado.tiempo;
     if (t - ultimoTiempo < INTERVALO_S && historial.length) { pintarGrafica(); return; }
-    const o = planta.observaciones(estado);
     historial.push({ tiempo: t, T1: o.T1, T2: o.T2, T3: o.T3, F1: o.F1, L1: o.L1 });
     if (historial.length > LIMITE_MUESTRAS) historial.shift();
     ultimoTiempo = t;
-    if (PCT.graficaActivaciones) PCT.graficaActivaciones.registrar(estado);
+    if (PCT.graficaActivaciones && activaciones) PCT.graficaActivaciones.registrarMuestra(activaciones);
     pintarGrafica();
+  }
+
+  // En el simulador los datos salen del estado de la planta simulada.
+  function muestrear(estado, marcas) {
+    const activaciones = PCT.graficaActivaciones ? PCT.graficaActivaciones.tomarMuestra(estado) : null;
+    registrar(estado.tiempo, planta.observaciones(estado), activaciones, marcas);
   }
 
   function reiniciarGrafica() {
@@ -214,5 +220,5 @@
   iniciarLeyenda();
   iniciarBaseDeTiempos();
   window.addEventListener('resize', ajustarLienzo);
-  PCT.grafica = { muestrear, pintarGrafica, ajustarLienzo, reiniciarGrafica, colorCss, rotularTiempos, crearLeyenda, ventana: () => historial, visibles: () => visibles, baseDeTiempo: () => ventanaS };
+  PCT.grafica = { muestrear, registrar, pintarGrafica, ajustarLienzo, reiniciarGrafica, colorCss, rotularTiempos, crearLeyenda, ventana: () => historial, visibles: () => visibles, baseDeTiempo: () => ventanaS };
 })();

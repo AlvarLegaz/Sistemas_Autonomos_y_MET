@@ -176,6 +176,19 @@ details.avanzado { margin-top: 16px; border-top: 1px solid var(--borde); padding
 details.avanzado summary { cursor: pointer; font-weight: 700; }
 
 .grafica { display: block; width: 100%; height: 230px; background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; }
+.grafica-activaciones { height: 256px; }
+.titulo-grafica { margin: 16px 0 6px; font-size: 14px; }
+.modo-regulacion { display: flex; gap: 6px; margin: 8px 0 4px; }
+.modo-regulacion button { flex: 1; min-height: 40px; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); color: var(--tenue); font-weight: 600; cursor: pointer; }
+.modo-regulacion button[aria-pressed="true"] { background: var(--fondo); color: var(--texto); border-color: var(--acento); box-shadow: inset 0 -3px 0 var(--acento); }
+.modo-regulacion button:disabled { opacity: .5; cursor: not-allowed; }
+#ajustes-control { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.graficas { margin-top: 18px; padding: 14px; background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; }
+.base-tiempos { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 13px; color: var(--tenue); }
+.base-tiempos > span { margin-right: 6px; font-weight: 700; }
+.ley-boton { display: inline-flex; align-items: center; min-height: 38px; padding: 0 14px; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); color: var(--tenue); font-weight: 600; cursor: pointer; }
+.ley-boton[aria-pressed="true"] { background: var(--fondo); color: var(--texto); border-color: var(--acento); box-shadow: inset 0 -3px 0 var(--acento); }
+.base-tiempos .ley-boton { min-height: 32px; padding: 0 12px; }
 .leyenda { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 18px 0 8px; font-size: 13px; color: var(--tenue); }
 .leyenda i { display: inline-block; width: 18px; height: 3px; margin-right: 6px; vertical-align: middle; }
 .registros { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow: auto; font-size: 13px; }
@@ -495,12 +508,15 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
     </foreignObject>
   </svg>
     </div>
-    <section class="grupo grupo-valvulas" id="panel-valvulas">
-      <h2>Electroválvulas</h2>
-      <div class="tarjetas" id="tarjetas-valvulas"></div>
-      <div class="fila-botones"><button id="cerrar-valvulas" type="button">Cerrar electroválvulas</button></div>
+    <section class="graficas" id="p-graficas" aria-label="Gráficas">
+      <div class="base-tiempos" id="base-tiempos" role="group" aria-label="Base de tiempos"></div>
+      <div class="leyenda" id="leyenda-temp" role="group" aria-label="Series de temperatura"></div>
+      <canvas id="sim-trend" class="grafica" width="1000" height="260" aria-label="Evolución de T1, T2, T3, F1 y L1"></canvas>
+      <h3 class="titulo-grafica">Activaciones</h3>
+      <div class="leyenda" id="leyenda-act" role="group" aria-label="Señales de activación"></div>
+      <canvas id="sim-activaciones" class="grafica grafica-activaciones" width="1000" height="256" aria-label="Potencia de la resistencia, velocidad de las bombas y estado de las electroválvulas en el tiempo"></canvas>
     </section>
-    <p class="nota">Pulsa una bomba o una electroválvula, en el esquema o en sus tarjetas (las bombas a la derecha y las electroválvulas bajo el esquema), para activarla o desactivarla. El color es el estado real que publica el gateway.
+    <p class="nota">Pulsa una bomba, una electroválvula o los controles del esquema para activarla o desactivarla. El color es el estado real que publica el gateway.
     Las válvulas manuales (V1, V2, V3, PRV1) y el filtro son solo dibujo. Qué canal del gateway es cada elemento está en la tabla <code>MAPA</code> al principio del script de esta página.</p>
   </main>
 
@@ -511,23 +527,16 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
     </div>
 
     <div id="p-controles" role="tabpanel" aria-labelledby="tab-controles">
-      <section class="grupo" id="panel-bombas">
-        <h2>Bombas y calefacción</h2>
-        <div class="tarjetas" id="tarjetas-bombas">
-          <div class="tarjeta" id="t-N2"><h3>Heat unit</h3><small>Acción: J7 OUT07</small>
-            <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
-            <button class="grande" id="b-N2">Encender</button>
-            <div class="sentido"><small>Sentido de giro · J7 OUT05</small>
-              <button class="btn-sentido" data-bomba="N2">—</button></div>
-            <div class="consigna" id="c-N2V"></div></div>
-          <div class="tarjeta" id="t-N1"><h3>Feed unit</h3><small>Acción: J7 OUT08</small>
-            <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
-            <button class="grande" id="b-N1">Encender</button>
-            <div class="sentido"><small>Sentido de giro · J7 OUT06</small>
-              <button class="btn-sentido" data-bomba="N1">—</button></div>
-            <div class="consigna" id="c-N1V"></div></div>
+      <section class="grupo" id="panel-regulacion">
+        <h2>Regulación de temperatura</h2>
+        <div class="modo-regulacion" role="group" aria-label="Modo de regulación">
+          <button type="button" id="modo-manual" aria-pressed="true">Manual</button>
+          <button type="button" id="modo-auto" aria-pressed="false">Automático (T1)</button>
         </div>
-        <div class="fila-botones"><button id="parar-bombas" type="button">Parar bombas</button></div>
+        <p class="sec-aviso" id="control-descripcion"></p>
+        <div id="ajustes-control"></div>
+        <p class="sec-aviso" id="control-estado" aria-live="polite"></p>
+        <p class="sec-aviso">T2 máxima: el termostato de la maqueta salta a 70 °C y T2 sigue subiendo unos grados después de cortar la resistencia. Con velocidades de N1 altas el producto se lleva más calor.</p>
       </section>
     </div>
 
@@ -560,6 +569,12 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
   </aside>
 </div>
 
+<!-- Código de las gráficas del simulador (lo sirve servidor_web.py desde /sim/) -->
+<script src="/sim/utilidades/modulos.js"></script>
+<script src="/sim/interfaz/dom.js"></script>
+<script src="/sim/interfaz/escala_grafica.js"></script>
+<script src="/sim/interfaz/grafica.js"></script>
+<script src="/sim/interfaz/grafica_activaciones.js"></script>
 <script>
 // ---------------------------------------------------------------------------
 // Asignacion de canales del gateway a la planta, segun la lista de E/S de la
@@ -637,72 +652,33 @@ function enviar(orden) {
 }
 
 const actual = canal => !!(ultimo && ultimo.datos && ultimo.datos[canal]);
+// Con el control automático activo, él manda sobre la resistencia y las bombas: sus mandos se bloquean.
+const bajoControl = salida => !!(ultimo && ultimo.control && ultimo.control.activo) && ['RES', 'N1', 'N2'].includes(salida);
 document.querySelectorAll('[data-salida]').forEach(g => {
   g.onclick = () => {
-    if (!ultimo || !ultimo.broker) return;
+    if (!ultimo || !ultimo.broker || bajoControl(g.dataset.salida)) return;
     const canal = MAPA.salidas[g.dataset.salida];
     enviar({[canal]: !actual(canal)});
   };
 });
-// Deslizadores de consigna (resistencias y velocidad de bomba 1).
+// Consignas (potencia de la resistencia y velocidad de las bombas): se recuerda su valor y cómo se escribe.
 const consigna = {};   // valor recordado: el gateway no devuelve las AnalogOut
-let filaRES = null;
 for (const [id, c] of Object.entries(MAPA.consignas)) {
   consigna[id] = 100;   // el gateway arranca con PWM y potencia al 100 %
-  const fila = document.createElement('div');
-  fila.className = 'consigna';
-  fila.innerHTML = `<label for="r-${id}">${c.nombre}</label>
-    <div class="fila"><input type="range" id="r-${id}" min="0" max="100" step="1" value="100">
-    <output id="o-${id}">${c.ciclos ? '100 % · ' + c.ciclos + '/' + c.ciclos + ' ciclos' : '100 %'}</output></div>`;
-  if (id === 'RES') filaRES = fila;                  // se coloca en la tarjeta Calefaccion al crearla
-  else $(`c-${id}`).replaceWith(fila);               // bajo el selector de sentido de su bomba
-  const r = fila.querySelector('input');
-  const texto = v => c.ciclos ? `${v} % · ${Math.round(v * c.ciclos / 100)}/${c.ciclos} ciclos` : `${v} %`;
-  c.texto = texto;
-  r.oninput = () => { $(`o-${id}`).textContent = texto(r.value); };
-  r.onchange = () => {
-    consigna[id] = Number(r.value);
-    enviar({[c.canal]: consigna[id]});
-    resumenCalentador();
-  };
+  c.texto = v => c.ciclos ? `${v} % · ${Math.round(v * c.ciclos / 100)}/${c.ciclos} ciclos` : `${v} %`;
 }
-// Panel de bombas.
-const botonesSentido = {};
-document.querySelectorAll('.btn-sentido').forEach(bt => {
-  const id = bt.dataset.bomba;
-  botonesSentido[id] = bt;
-  bt.onclick = () => enviar({[MAPA.sentido[id]]: !actual(MAPA.sentido[id])});
-});
-for (const id of ['N1', 'N2']) {
-  $(`b-${id}`).onclick = () => enviar({[MAPA.salidas[id]]: !actual(MAPA.salidas[id])});
-}
-$('parar-bombas').onclick = () => enviar({
-  [MAPA.salidas.N1]: false, [MAPA.salidas.N2]: false, [MAPA.sentido.N1]: false, [MAPA.sentido.N2]: false});
-// Panel de electrovalvulas y calefaccion.
-for (const [id, titulo, detalle] of MAPA.valvulas) {
-  const t = document.createElement('div');
-  t.className = 'tarjeta'; t.id = `t-${id}`;
-  t.innerHTML = `<h3>${titulo}</h3><small>${detalle}</small>
-    <span class="estado-bomba"><i class="punto"></i><span>—</span></span>
-    <button class="grande" id="b-${id}">Activar</button>`;
-  if (id === 'RES') t.appendChild(filaRES);
-  if (id === 'RES') $('tarjetas-bombas').insertBefore(t, $('t-N1'));   // entre heat unit y feed unit
-  else $('tarjetas-valvulas').appendChild(t);
-  $(`b-${id}`).onclick = () => enviar({[MAPA.salidas[id]]: !actual(MAPA.salidas[id])});
-}
-$('cerrar-valvulas').onclick = () => enviar(Object.fromEntries(
-  MAPA.valvulas.filter(([id]) => id.startsWith('SOL')).map(([id]) => [MAPA.salidas[id], false])));
 const parar = document.createElement('button');
 parar.id = 'parar-todo'; parar.type = 'button';
 parar.textContent = 'Parar todo';
 parar.onclick = () => {
+  if (ultimo && ultimo.control && ultimo.control.activo) enviarControl({activo: false});   // si no, el control volvería a encender
   const orden = Object.fromEntries([...Object.values(MAPA.salidas), ...Object.values(MAPA.sentido)].map(c => [c, false]));
   // Las consignas (PWM y potencia) no se tocan: "Parar todo" solo apaga las ordenes de encendido.
   enviar(orden);
   resumenCalentador();
 };
 $('controles').appendChild(parar);
-// Bloque de controles dentro del esquema: mismas salidas y consignas que las tarjetas laterales.
+// Bloque de controles dentro del esquema (bombas y calefactor).
 const PANEL = [   // [titulo, id de consigna, boton: 'sentido' o 'RES']
   ['Bomba N1', 'N1V', 'N1'], ['Bomba N2', 'N2V', 'N2'], ['Calefactor', 'RES', 'RES'],
 ];
@@ -739,7 +715,9 @@ function pintarPanel(d, conectado) {
     const v = !!d[res ? MAPA.salidas.RES : MAPA.sentido[p.bomba]];
     p.boton.textContent = res ? (v ? 'Apagar' : 'Encender') : (v ? 'Atrás' : 'Adelante');
     p.boton.classList.toggle(res ? 'on' : 'sel', v);
-    p.boton.disabled = !conectado;
+    const auto = !!(ultimo && ultimo.control && ultimo.control.activo);
+    p.boton.disabled = !conectado || (res && auto);      // el control conecta y desconecta la resistencia
+    p.r.disabled = auto && id === 'N1V';                 // y fija la velocidad de N1
     const canal = MAPA.consignas[id].canal;
     if (canal in d && document.activeElement !== p.r) {
       p.r.value = Math.round(d[canal]); p.o.textContent = `${p.r.value} %`;
@@ -762,6 +740,7 @@ function marcar(id, on, clase = 'on') {
 function pintar(s) {
   ultimo = s;
   const d = s.datos;
+  pintarControl(s.control, s.broker);
   if (s.rechazo) chip('chip-broker', 'error', `Broker: rechazado (${s.rechazo})`);
   else chip('chip-broker', s.broker ? 'ok' : 'aviso', s.broker ? 'Broker: conectado' : 'Broker: conectando…');
   chip('chip-gateway', !d ? '' : s.gateway ? (d.running ? 'ok' : 'aviso') : 'error',
@@ -771,6 +750,7 @@ function pintar(s) {
   avisoPlanta(s, d);
   document.querySelector('.lienzo svg').classList.toggle('en-pausa', !s.gateway || !d || !d.running);   // sin datos o gateway parado: el flujo se congela
   if (!d) return;
+  if (s.gateway) registrarGraficas(d);
   if (s.gateway) registro.muestrear(d);
 
   for (const [el, canal] of Object.entries(MAPA.salidas)) marcar(`g-${el}`, !!d[canal]);
@@ -806,43 +786,15 @@ function pintar(s) {
     t.classList.toggle('activo', ['SOL4', 'SOL5'].some(id => !!d[MAPA.salidas[id]]));
   });
   velocidadDelFlujo(d);
-  // El gateway devuelve PWMOut1/2 y AnalogOut1: se sincronizan los deslizadores (salvo el que se esta moviendo).
+  // El gateway devuelve PWMOut1/2 y AnalogOut1: se actualiza el valor recordado (salvo el deslizador que se esta moviendo).
   for (const [id, c] of Object.entries(MAPA.consignas)) {
-    if (c.canal in d && document.activeElement !== $(`r-${id}`)) {
-      consigna[id] = Math.round(d[c.canal]);
-      $(`r-${id}`).value = consigna[id]; $(`o-${id}`).textContent = c.texto(consigna[id]);
-    }
+    if (c.canal in d && document.activeElement !== panelCtl[id].r) consigna[id] = Math.round(d[c.canal]);
   }
   resumenCalentador();
   pintarPanel(d, s.broker);
-  for (const [id, bt] of Object.entries(botonesSentido)) {
-    const v = !!d[MAPA.sentido[id]];
-    bt.classList.toggle('sel', v);
-    bt.textContent = `Sentido ${+v} · pulsa para invertir`;
-    bt.disabled = !s.broker;
-    $(`g-${id}`).querySelector('path').classList.toggle('invertida', v);   // la flecha de la bomba en el esquema sigue el sentido de giro
-  }
   for (const id of ['N1', 'N2']) {
-    const on = !!d[MAPA.salidas[id]];
-    const bt = $(`b-${id}`);
-    bt.classList.toggle('on', on);
-    bt.textContent = on ? 'Apagar' : 'Encender';
-    bt.disabled = !s.broker;
-    const est = $(`t-${id}`).querySelector('.estado-bomba');
-    est.className = `estado-bomba ${on ? 'ok' : ''}`;
-    est.lastElementChild.textContent = on ? 'En marcha' : 'Parada';
+    $(`g-${id}`).querySelector('path').classList.toggle('invertida', !!d[MAPA.sentido[id]]);   // la flecha de la bomba sigue el sentido de giro
   }
-  for (const [id] of MAPA.valvulas) {
-    const on = !!d[MAPA.salidas[id]];
-    const bt = $(`b-${id}`);
-    bt.classList.toggle('on', on);
-    bt.textContent = on ? 'Desactivar' : 'Activar';
-    bt.disabled = !s.broker;
-    const est = $(`t-${id}`).querySelector('.estado-bomba');
-    est.className = `estado-bomba ${on ? 'ok' : ''}`;
-    est.lastElementChild.textContent = id === 'RES' ? (on ? 'Calentando' : 'Apagada') : (on ? 'Abierta' : 'Cerrada');
-  }
-  $('cerrar-valvulas').disabled = !s.broker;
   for (const [tag, m] of Object.entries(MAPA.analogicas)) {
     const v = Number(d[m.canal] ?? 0);
     const fisico = m.min + (m.max - m.min) * Math.min(1, Math.max(0, v / m.fondo));
@@ -864,12 +816,13 @@ function pintar(s) {
   $('nivel-B').setAttribute('y', 208 - altoB);
   $('nivel-B').setAttribute('height', altoB);
   $('v-VB').textContent = sinAguaB ? 'vacío' : llenoB ? 'lleno' : 'nivel medio';   // el tanque B solo tiene interruptores de nivel: no se mide el volumen
-  // Heat unit: no se mide el volumen; solo el interruptor de nivel (LVLC) y el de nivel alto (HLC).
-  // Con agua se dibuja como en el simulador (70 %); si el interruptor indica nivel alto o falta de agua, se avisa.
+  // Heat unit: no se mide el volumen; solo hay dos avisos: LVLC (nivel del depósito caliente) y HLC (nivel alto).
+  // Sin avisos se dibuja como en el simulador (70 %). Igual que en los círculos LVL y HL, un interruptor en alarma se tiene por aviso:
+  // LVLC en alarma = falta de agua; HLC en alarma = nivel alto. El significado de LVLC es un supuesto (ver MAPA.digitales).
   const altoH = !!d[MAPA.digitales.HLC.canal] === MAPA.digitales.HLC.alarmaSi;
-  const hayAguaH = !!d[MAPA.digitales.LVLC.canal] === MAPA.digitales.LVLC.alarmaSi;
-  $('v-VH').textContent = !hayAguaH ? 'sin agua' : altoH ? 'nivel alto' : `${UNIDAD_CALENTAMIENTO.ml} ml · ${UNIDAD_CALENTAMIENTO.pct} %`;
-  const alturaH = !hayAguaH ? 0 : altoH ? 126 : 91;
+  const sinAguaH = !!d[MAPA.digitales.LVLC.canal] === MAPA.digitales.LVLC.alarmaSi;
+  $('v-VH').textContent = sinAguaH ? 'sin agua' : altoH ? 'nivel alto' : `${UNIDAD_CALENTAMIENTO.ml} ml · ${UNIDAD_CALENTAMIENTO.pct} %`;
+  const alturaH = sinAguaH ? 0 : altoH ? 126 : 91;
   $('nivel-H').setAttribute('y', 168 - alturaH);
   $('nivel-H').setAttribute('height', alturaH);
   pintarLecturas(d);
@@ -928,6 +881,74 @@ function pintarLecturas(d) {
     dd.classList.toggle('alarma', alarma);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Regulación de temperatura: el control de T1 corre en el servidor (control_t1.py), así que sigue aunque se cierre esta página.
+// Aquí solo se eligen el modo y los ajustes, y se muestra su estado.
+const AJUSTES_CONTROL = [   // [clave en el servidor, nombre, unidad, mínimo, máximo, paso]
+  ['consigna_t1', 'Consigna de T1', '°C', 20, 80, 1],
+  ['t2_max', 'T2 máxima', '°C', 30, 65, 1],
+  ['histeresis', 'Histéresis de T2 (±)', '°C', 0.5, 10, 0.5],
+  ['velocidad_n1', 'Velocidad de N1', '%', 10, 100, 5],
+];
+const DESCRIPCION_MODO = {
+  manual: 'Manual: gobiernas las bombas y el calefactor desde el esquema.',
+  auto: 'Automático: el servidor regula T1 con una consigna de T2 (nunca por encima de la máxima). El calefactor se conecta y desconecta con la histéresis; N1 y N2 quedan encendidas y N1 a la velocidad elegida.',
+};
+const controlUI = {};
+function enviarControl(cambios) {
+  return fetch('/api/control', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(cambios)})
+    .then(r => r.json().then(cuerpo => { if (!r.ok) $('control-estado').textContent = cuerpo.error || 'No se pudo cambiar el control.'; }))
+    .catch(() => { $('control-estado').textContent = 'No se pudo hablar con el servidor.'; });
+}
+for (const [clave, nombre, unidad, minimo, maximo, paso] of AJUSTES_CONTROL) {
+  const fila = document.createElement('div');
+  fila.className = 'consigna';
+  fila.innerHTML = `<label for="ctl-${clave}">${nombre}</label>
+    <div class="fila"><input type="range" id="ctl-${clave}" min="${minimo}" max="${maximo}" step="${paso}" value="${minimo}">
+    <output id="octl-${clave}">—</output></div>`;
+  $('ajustes-control').appendChild(fila);
+  const [r, o] = [fila.querySelector('input'), fila.querySelector('output')];
+  const texto = () => `${r.value.replace('.', ',')} ${unidad}`;
+  r.oninput = () => { o.textContent = texto(); };
+  r.onchange = () => enviarControl({[clave]: Number(r.value)});
+  controlUI[clave] = {r, o, texto};
+}
+$('modo-manual').onclick = () => enviarControl({activo: false});
+$('modo-auto').onclick = () => enviarControl({activo: true, ...Object.fromEntries(Object.entries(controlUI).map(([k, u]) => [k, Number(u.r.value)]))});
+function pintarControl(c, conectado) {
+  if (!c) return;
+  $('modo-manual').setAttribute('aria-pressed', String(!c.activo));
+  $('modo-auto').setAttribute('aria-pressed', String(c.activo));
+  $('modo-auto').disabled = !conectado && !c.activo;
+  $('control-descripcion').textContent = DESCRIPCION_MODO[c.activo ? 'auto' : 'manual'];
+  for (const [clave, u] of Object.entries(controlUI)) {
+    if (document.activeElement !== u.r) { u.r.value = c[clave]; u.o.textContent = u.texto(); }
+  }
+  const estado = $('control-estado');
+  estado.classList.toggle('mal', !!c.aviso);
+  estado.textContent = !c.activo ? ''
+    : c.aviso ? c.aviso
+    : `Regulando · T2 objetivo ${c.t2_objetivo == null ? '—' : String(c.t2_objetivo).replace('.', ',') + ' °C'} · calefactor ${c.calefactor ? 'conectado' : 'desconectado'}`;
+}
+
+// ---------------------------------------------------------------------------
+// Gráficas: mismo código que el simulador, alimentado con las lecturas del gateway (el tiempo cuenta desde que se abre la página).
+const INICIO_GRAFICAS = Date.now();
+function medidaFisica(tag, d) {
+  const m = MAPA.analogicas[tag];
+  return m.min + (m.max - m.min) * Math.min(1, Math.max(0, Number(d[m.canal] ?? 0) / m.fondo));
+}
+function registrarGraficas(d) {
+  const t = (Date.now() - INICIO_GRAFICAS) / 1000;
+  const encendida = id => !!d[MAPA.salidas[id]];
+  const lecturas = Object.fromEntries(['T1', 'T2', 'T3', 'F1', 'L1'].map(tag => [tag, medidaFisica(tag, d)]));
+  const activaciones = {tiempo: t, RES: encendida('RES') ? consigna.RES : 0, N1: encendida('N1') ? consigna.N1V : 0, N2: encendida('N2') ? consigna.N2V : 0};
+  for (const id of ['SOL1', 'SOL2', 'SOL3', 'SOL4', 'SOL5']) activaciones[id] = encendida(id);
+  PCT.grafica.registrar(t, lecturas, activaciones);
+}
+PCT.grafica.ajustarLienzo();
+
 // pestañas Controles / Lecturas
 const pestanas = [['tab-controles', 'p-controles'], ['tab-lecturas', 'p-lecturas']];
 function mostrar(tab) {
