@@ -109,8 +109,8 @@
   }
 
   // En la planta completa cada pieza se describe con el texto de ayuda del simulador (el mismo del clic derecho).
-  // Sin etiqueta: tubos, captadores de los depósitos (se ven al abrir cada depósito) y carteles que ya llevan su propio texto en el 3D.
-  const PIEZAS_SIN_ETIQUETA = id => id.startsWith('TUBO_') || ['LVL', 'HLC', 'HL', 'LL', 'TERM', 'RES', 'L1', 'T2', 'DESVIO', 'FINAL', 'DRAIN', 'COLD'].includes(id);
+  // Sin etiqueta: tubos, captadores de los depósitos (se ven al abrir cada depósito; T2 y RES sí llevan etiqueta con su valor) y carteles que ya llevan su propio texto en el 3D.
+  const PIEZAS_SIN_ETIQUETA = id => id.startsWith('TUBO_') || ['LVL', 'HLC', 'HL', 'LL', 'TERM', 'L1', 'DESVIO', 'FINAL', 'DRAIN', 'COLD'].includes(id);
   function construirPanelPlanta(panel, modelo, seleccion) {
     const ayudas = ELEMENTOS_AYUDA();
     if (!seleccion) {

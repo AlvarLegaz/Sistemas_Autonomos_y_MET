@@ -132,3 +132,9 @@ test('la órbita de la cámara: de frente, desde arriba y a distancia constante'
     assert.ok(Math.abs(Math.hypot(p.x - objetivo.x, p.y - objetivo.y, p.z - objetivo.z) - 42) < 1e-9);
   }
 });
+
+test('planta: T2 y la resistencia llevan su lectura para la etiqueta', () => {
+  const l = lecturas('PLANTA', e => { e.aguaCalienteC = 61.5; e.salidas.RES = true; e.consignas.potenciaPct = 40; });
+  assert.equal(l.sensores.T2.texto, '61,5 °C');
+  assert.match(l.sensores.RES.texto, /ON · 40,0 %/);
+});

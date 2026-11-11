@@ -41,7 +41,12 @@
   /** clave: 'TANKA', 'TANKB' o 'HEAT'; estado: estado de la planta; observaciones: PCT.planta.observaciones(estado). */
   function lecturasModelo(clave, estado, observaciones) {
     const modelo = MODELOS[clave];
-    if (modelo.escena === 'planta') return { fraccion: 0, alturaLiquidoCm: 0, volumenMl: 0, presionFondoPa: 0, temperaturaAguaC: null, sensores: {} };
+    if (modelo.escena === 'planta') {
+      // En la planta solo llevan valor en su etiqueta las lecturas principales de la heat unit.
+      const sensores = {};
+      for (const id of ['T2', 'RES']) sensores[id] = LECTORES[id](observaciones, estado);
+      return { fraccion: 0, alturaLiquidoCm: 0, volumenMl: 0, presionFondoPa: 0, temperaturaAguaC: null, sensores };
+    }
     if (modelo.escena === 'bomba') {
       const b = modelo.bomba, activa = !!estado.salidas[b], pct = estado.consignas['velocidad' + b + 'Pct'], inversa = !!estado.giro[b];
       const caudal = b === 'N1' ? ` · caudal ${Math.round(estado.caudalProductoMlMin)} ml/min` : '';
