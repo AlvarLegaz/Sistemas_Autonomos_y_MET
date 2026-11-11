@@ -35,18 +35,18 @@
       queEs: 'Mide el producto a la salida del tubo de residencia, justo antes de SOL1. Es la temperatura que decide si el producto se acepta o ' +
           'se desvía. Rango del sensor: 0-150 °C.',
       enSimulador: 'Es la variable que mantiene la secuencia automática en producción.', paginas: 'p. 9' },
-    T2: { titulo: 'T2 · Temperatura del agua caliente', etiqueta: 'Sensor de temperatura',
+    T2: { modelo3d: 'HEAT', foco3d: 'T2', titulo: 'T2 · Temperatura del agua caliente', etiqueta: 'Sensor de temperatura',
       queEs: 'Mide el agua del depósito con calefactor (heat unit). Rango del sensor: 0-150 °C.', enSimulador:
           'Baja cuando el producto circula por el intercambiador, porque se lleva calor del agua (más caudal, más bajada). Si T2 pasa del umbral ' +
           'del modelo salta el corte térmico simulado.', paginas: 'p. 9' },
-    T3: { titulo: 'T3 · Producto a la salida', etiqueta: 'Sensor de temperatura',
+    T3: { modelo3d: 'EXCH', foco3d: 'T3', titulo: 'T3 · Producto a la salida', etiqueta: 'Sensor de temperatura',
       queEs: 'Mide el producto ya enfriado, antes de salir como producto acabado.', enSimulador: 'Depende de SOL3: con refrigeración sale más frío.', paginas:
           'p. 9' },
     T4: { titulo: 'T4 · Salida de alimentación', etiqueta: 'Sensor de temperatura',
       queEs: 'Mide el producto a la salida de la sección de alimentación, antes del filtro, de F1 y del tubo de residencia.', enSimulador:
           'Va un poco por delante de T1: el producto lo alcanza antes de recorrer el tubo de residencia, que añade el retraso. Con la planta ' +
           'parada vuelve a la temperatura ambiente.', paginas: 'p. 9' },
-    T5: { titulo: 'T5 · Sonda en el calentamiento', etiqueta: 'Sensor de temperatura',
+    T5: { modelo3d: 'EXCH', foco3d: 'T5', titulo: 'T5 · Sonda en el calentamiento', etiqueta: 'Sensor de temperatura',
       queEs: 'Sonda auxiliar de temperatura. El manual dice que puede colocarse en cualquiera de los conectores; aquí está conectada a la sección ' +
           'de calentamiento del intercambiador.',
       enSimulador: 'Lee el producto a mitad de camino entre la entrada y T4 (supuesto del simulador): sube por delante de T1 y vuelve a la ' +
@@ -55,39 +55,39 @@
       queEs: 'Sensor de caudal tipo turbina instalado en la corriente de alimentación. Mide el caudal a la entrada del tubo de residencia. Un ' +
           'filtro en línea anterior evita que entre suciedad.',
       enSimulador: 'Muestra el caudal que mueve N1 (ml/min).', paginas: 'p. 9' },
-    L1: { titulo: 'L1 · Sensor de nivel del tanque A', etiqueta: 'Sensor de nivel',
+    L1: { modelo3d: 'TANKA', foco3d: 'L1', titulo: 'L1 · Sensor de nivel del tanque A', etiqueta: 'Sensor de nivel',
       queEs: 'Sensor de presión conectado al tanque A que da una medida directa del nivel, de 0 a 250 mm.', enSimulador:
           'Baja cuando N1 consume del tanque A y sube con SOL4.', paginas: 'p. 9' },
-    LL: { titulo: 'LL · Flotador de nivel bajo (tanque B)', etiqueta: 'Interruptor de nivel',
+    LL: { modelo3d: 'TANKB', foco3d: 'LL', titulo: 'LL · Flotador de nivel bajo (tanque B)', etiqueta: 'Interruptor de nivel',
       queEs: 'Interruptor de flotador que detecta el nivel bajo en el tanque B.', enSimulador:
           'Se activa cuando el tanque B queda al 20 % o menos, que es la altura a la que está dibujado.', paginas: 'p. 9' },
-    HL: { titulo: 'HL · Flotador de nivel alto (tanque B)', etiqueta: 'Interruptor de nivel',
+    HL: { modelo3d: 'TANKB', foco3d: 'HL', titulo: 'HL · Flotador de nivel alto (tanque B)', etiqueta: 'Interruptor de nivel',
       queEs: 'Interruptor de flotador que detecta el nivel alto en el tanque B. Se puede ajustar la altura deslizando su soporte por el casquillo ' +
           'de la base del tanque.', enSimulador: 'Se activa cuando el tanque B llega al 80 % o más, que es la altura a la que está dibujado.', paginas:
           'p. 10' },
-    HLC: { titulo: 'Nivel alto del depósito de calefacción', etiqueta: 'Interruptor de nivel',
+    HLC: { modelo3d: 'HEAT', foco3d: 'HLC', titulo: 'Nivel alto del depósito de calefacción', etiqueta: 'Interruptor de nivel',
       queEs: 'Indicador de nivel del depósito de agua caliente (heat unit).', enSimulador: 'En el simulador no está modelado: permanece apagado.', paginas:
           'p. 8' },
-    LVL: { titulo: 'LVL · Interruptor de nivel del depósito caliente', etiqueta: 'Interruptor de nivel',
+    LVL: { modelo3d: 'HEAT', foco3d: 'LVL', titulo: 'LVL · Interruptor de nivel del depósito caliente', etiqueta: 'Interruptor de nivel',
       queEs: 'Interruptor de nivel del depósito de agua caliente. Protege al calefactor: si el nivel es bajo la consola enciende la alarma de ' +
           'nivel bajo.', enSimulador: 'En el simulador no está modelado: permanece apagado.', paginas: 'p. 8 y 15' },
-    TERM: { titulo: 'STAT · Termostato del depósito caliente', etiqueta: 'Protección',
+    TERM: { modelo3d: 'HEAT', foco3d: 'TERM', titulo: 'STAT · Termostato del depósito caliente', etiqueta: 'Protección',
       queEs: 'Termostato del tanque de agua caliente. Si hay sobretemperatura corta el calefactor y la consola lo indica con el piloto OVER TEMP.',
       enSimulador: 'Salta (corte térmico simulado) cuando T2 llega a 70 °C: desconecta la resistencia y el agua se enfría despacio. Se rearma por ' +
           'debajo de 70 °C y hay que volver a conectar la resistencia a mano.', paginas: 'p. 8 y 15' },
-    RES: { titulo: 'Resistencia de calefacción (PWR)', etiqueta: 'Calefactor',
+    RES: { modelo3d: 'HEAT', foco3d: 'RES', titulo: 'Resistencia de calefacción (PWR)', etiqueta: 'Calefactor',
       queEs: 'Elemento calefactor del depósito de agua caliente. La consola tiene un ajuste de potencia y un indicador en kW. En la maqueta son ' +
           'dos resistencias de 120 V en serie, alimentadas a 230 V.',
       enSimulador: 'OUT03 la conecta; su potencia se reparte por ráfagas de 50 ciclos de red (50 % = 25 ciclos de cada 50).', paginas: 'p. 8 y 15' },
-    HEAT: { titulo: 'HEAT UNIT · Depósito de agua caliente', etiqueta: 'Depósito',
+    HEAT: { modelo3d: 'HEAT', titulo: 'HEAT UNIT · Depósito de agua caliente', etiqueta: 'Depósito',
       queEs: 'Depósito de agua caliente con elemento calefactor eléctrico (la resistencia), bomba de agua N2, termostato (STAT) e interruptor de ' +
           'nivel (LVL). Su agua caliente circula por la sección de calentamiento del intercambiador y calienta el producto. Si el nivel es bajo o ' +
           'hay sobretemperatura, la protección corta el calefactor.', enSimulador: 'Su temperatura es T2. El simulador lo supone siempre lleno: ' +
           'el interruptor de nivel no se modela. Se regula con la potencia de la resistencia y se mueve con N2.', paginas: 'p. 8 y 15' },
-    TANKA: { titulo: 'Tanque de alimentación A', etiqueta: 'Depósito',
+    TANKA: { modelo3d: 'TANKA', titulo: 'Tanque de alimentación A', etiqueta: 'Depósito',
       queEs: 'Tanque de producto con válvula de llenado SOL4 y sensor de nivel L1.', enSimulador: 'Se elige como origen con SOL2 en reposo.', paginas:
           'p. 8' },
-    TANKB: { titulo: 'Tanque de alimentación B', etiqueta: 'Depósito',
+    TANKB: { modelo3d: 'TANKB', titulo: 'Tanque de alimentación B', etiqueta: 'Depósito',
       queEs: 'Tanque de producto con válvula de llenado SOL5 e interruptores de nivel alto (HL) y bajo (LL).', enSimulador:
           'Se elige como origen activando SOL2.', paginas: 'p. 8' },
     V1: { titulo: 'V1 · Válvula de control de caudal del agua fría', etiqueta: 'Válvula manual',
@@ -109,13 +109,13 @@
       queEs: 'Tubo aislado donde el producto se mantiene a la temperatura de proceso durante un tiempo. Es el tiempo muerto de la planta. Tras ' +
           'él, T1 mide la temperatura y SOL1 decide si el producto sigue o se rechaza.', enSimulador:
           'El modelo lo aproxima con una inercia, no con un retardo de transporte.', paginas: 'p. 8' },
-    REGEN: { titulo: 'Regeneración / precalentamiento', etiqueta: 'Intercambiador de placas',
+    REGEN: { modelo3d: 'EXCH', foco3d: 'SEC_REGEN', titulo: 'Regeneración / precalentamiento', etiqueta: 'Intercambiador de placas',
       queEs: 'Primera etapa del intercambiador: el producto que entra se precalienta con el calor del producto caliente que ya pasó el tubo de ' +
           'residencia, y así se ahorra energía.', enSimulador: 'Se modela como una recuperación de calor aproximada.', paginas: 'p. 8' },
-    CALENT: { titulo: 'Calentamiento', etiqueta: 'Intercambiador de placas',
+    CALENT: { modelo3d: 'EXCH', foco3d: 'SEC_CALENT', titulo: 'Calentamiento', etiqueta: 'Intercambiador de placas',
       queEs: 'Etapa donde el agua caliente de N2 calienta el producto hasta la temperatura de proceso.', enSimulador:
           'La ganancia térmica depende de N2, del caudal y de la potencia del calefactor.', paginas: 'p. 8' },
-    ENFRIA: { titulo: 'Enfriamiento', etiqueta: 'Intercambiador de placas',
+    ENFRIA: { modelo3d: 'EXCH', foco3d: 'SEC_ENFRIA', titulo: 'Enfriamiento', etiqueta: 'Intercambiador de placas',
       queEs: 'Última etapa: el agua fría de SOL3 enfría el producto lo más posible antes de la salida.', enSimulador:
           'Con SOL3 cerrada casi no enfría.', paginas: 'p. 8' },
     DESVIO: { titulo: 'DIVERTED PRODUCT · Producto rechazado', etiqueta: 'Salida de SOL1',

@@ -159,6 +159,9 @@
     ventana.querySelector('.que-es').textContent = elemento.queEs;
     ventana.querySelector('.en-simulador').textContent = elemento.enSimulador;
     ventana.querySelector('.pie').textContent = `Fuente: manual de la PCT23, ${elemento.paginas}. Pulsa la × o Esc para cerrar.`;
+    const boton3d = ventana.querySelector('.boton-3d');
+    boton3d.hidden = !elemento.modelo3d;
+    boton3d.onclick = () => { cerrarAyuda(); PCT.visor3d.abrir(elemento.modelo3d, obtenerEstado, elemento.foco3d); };
     velo.hidden = false; ventana.hidden = false;
     refrescarEstadoVivo();
     clearInterval(temporizador);
@@ -171,7 +174,8 @@
     ventana.setAttribute('role', 'dialog'); ventana.setAttribute('aria-label', 'Ayuda del elemento');
     ventana.innerHTML = '<header><h3></h3><button type="button" aria-label="Cerrar (Esc)" title="Cerrar (Esc)">×</button></header><span class="etiqueta-ayuda"></span>' +
       '<div class="cuerpo"><p class="que-es"></p><div class="titulo-seccion">En el simulador</div><p class="en-simulador"></p>' +
-      '<div class="titulo-seccion">Estado ahora</div><p class="estado-vivo"></p></div><div class="pie"></div>';
+      '<div class="titulo-seccion">Estado ahora</div><p class="estado-vivo"></p>' +
+      '<button type="button" class="boton-3d" hidden>Ver modelo 3D ▸</button></div><div class="pie"></div>';
     velo = document.createElement('div');
     velo.id = 'velo-ayuda'; velo.hidden = true;
     document.body.append(velo, ventana);

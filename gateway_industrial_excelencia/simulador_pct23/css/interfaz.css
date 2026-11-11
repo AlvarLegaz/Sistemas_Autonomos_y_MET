@@ -353,3 +353,47 @@ svg path.invertida { transform-box: fill-box; transform-origin: center; transfor
 .en-pausa .flujo { animation-play-state: paused; }
 @keyframes flujo { to { stroke-dashoffset: -47; } }
 @media (prefers-reduced-motion: reduce) { .flujo { animation: none; } }
+
+/* ---------- visor 3D de depósitos ---------- */
+body.v3d-abierto { overflow: hidden; }
+#visor3d { position: fixed; inset: 0; z-index: 10050; display: flex; align-items: center; justify-content: center; padding: 12px; background: rgba(6, 8, 12, .84); }
+#visor3d[hidden] { display: none; }
+.v3d-caja { display: flex; flex-direction: column; width: min(1260px, 100%); height: min(800px, 100%); background: var(--panel); color: var(--texto); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, .6); }
+.v3d-caja header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 10px 14px; border-bottom: 3px solid var(--acento); }
+.v3d-titulo { margin: 0; font-size: 18px; flex: 1 1 260px; }
+.v3d-botones { display: flex; flex-wrap: wrap; gap: 6px; }
+.v3d-botones button, .v3d-cerrar { min-height: 36px; padding: 0 12px; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); color: var(--tenue); font-weight: 600; cursor: pointer; }
+.v3d-botones button[aria-pressed="true"] { background: var(--fondo); color: var(--texto); border-color: var(--acento); box-shadow: inset 0 -3px 0 var(--acento); }
+.v3d-botones button:hover, .v3d-cerrar:hover { border-color: var(--acento); }
+.v3d-cerrar { width: 36px; padding: 0; font-size: 22px; line-height: 1; }
+.v3d-cuerpo { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-height: 0; }
+.v3d-escena { position: relative; min-height: 0; background: radial-gradient(circle at 50% 38%, #2a3440, #0d1116 72%); }
+.v3d-escena canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+.v3d-escena canvas:active { cursor: grabbing; }
+.v3d-etiquetas { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.v3d-etq { position: absolute; left: 0; top: 0; pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; border: 1px solid #ffffff55; background: rgba(15, 20, 26, .82); color: #e8edf1; font: 700 12px var(--fuente); cursor: pointer; white-space: nowrap; }
+.v3d-etq span { font-weight: 600; color: #b9c3cc; }
+.v3d-etq[data-estado="ok"] { border-color: #3fb950; } .v3d-etq[data-estado="alarma"] { border-color: #f85149; } .v3d-etq[data-estado="apagado"] { border-color: #6b7480; }
+.v3d-etq.activa, .v3d-etq:hover { border-color: var(--acento); background: rgba(40, 28, 10, .92); }
+.v3d-pista { position: absolute; left: 12px; right: 12px; bottom: 8px; margin: 0; font-size: 12.5px; color: #9aa7b2; pointer-events: none; }
+.v3d-aviso { position: absolute; left: 12px; right: 12px; top: 12px; margin: 0; padding: 10px 14px; border-radius: 6px; background: var(--error); color: #fff; font-weight: 600; }
+.v3d-panel { overflow: auto; padding: 14px; border-left: 1px solid var(--borde); font-size: 14px; }
+.v3d-panel h4 { margin: 14px 0 4px; font-size: 14px; } .v3d-panel h4:first-child { margin-top: 0; }
+.v3d-panel p { margin: 0 0 6px; line-height: 1.45; }
+.v3d-datos { color: var(--tenue); font-size: 13px; }
+.v3d-nota { margin-top: 14px; font-size: 12.5px; color: var(--tenue); }
+.v3d-estado { padding: 8px 10px; border-radius: 6px; background: var(--fondo); border-left: 5px solid var(--apagado); font-weight: 700; font-size: 16px; }
+.v3d-estado.ok { border-left-color: var(--ok); } .v3d-estado.alarma { border-left-color: var(--error); } .v3d-estado.apagado { border-left-color: var(--apagado); } .v3d-estado.neutro { border-left-color: var(--acento); }
+.v3d-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.v3d-lista button, .v3d-volver { width: 100%; display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 10px; text-align: left; border: 1px solid var(--borde); border-radius: 6px; background: var(--fondo); color: var(--texto); font: 600 13.5px var(--fuente); cursor: pointer; }
+.v3d-lista button:hover, .v3d-volver:hover { border-color: var(--acento); }
+.v3d-volver { margin-bottom: 10px; width: auto; }
+.v3d-punto { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--apagado); flex: none; }
+.v3d-punto.ok { background: var(--ok); } .v3d-punto.alarma { background: var(--error); } .v3d-punto.neutro { background: var(--acento); }
+@media (max-width: 860px) {
+  .v3d-cuerpo { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) 38%; }
+  .v3d-panel { border-left: 0; border-top: 1px solid var(--borde); }
+}
+#ventana-ayuda .boton-3d { display: block; width: 100%; margin: 10px 0 2px; min-height: 40px; border-radius: 8px; border: 1px solid var(--acento, #f68b11); background: color-mix(in srgb, var(--acento, #f68b11) 18%, transparent); color: inherit; font: 700 14px system-ui, sans-serif; cursor: pointer; width: auto !important; padding: 0 16px; }
+#ventana-ayuda .boton-3d:hover { background: color-mix(in srgb, var(--acento, #f68b11) 32%, transparent); }
+#visor3d[data-modelo="intercambiador"] [data-vista], #visor3d[data-modelo="intercambiador"] [data-opcion="tapa"] { display: none; }
