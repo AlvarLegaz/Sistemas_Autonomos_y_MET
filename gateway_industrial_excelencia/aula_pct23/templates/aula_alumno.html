@@ -19,7 +19,7 @@
   <h2>Tiempo por pantalla</h2>
   {% if r['por_pagina'] %}
   <table class="tabla"><thead><tr><th>Pantalla</th><th>Tiempo</th></tr></thead><tbody>
-    {% for p in r['por_pagina'] %}<tr><td data-etiqueta="Pantalla">{{ {'index': 'Inicio', 'manual': 'Modo manual', 'automatico': 'Modo automático', 'demostracion': 'Demostración'}.get(p['pagina'], p['pagina']) }}</td><td data-etiqueta="Tiempo">{{ p['s']|duracion }}</td></tr>{% endfor %}
+    {% for p in r['por_pagina'] %}<tr><td data-etiqueta="Pantalla">{{ {'index': 'Inicio', 'manual': 'Modo manual', 'automatico': 'Modo automático', 'demostracion': 'Demostración', 'planta_real': 'Planta real HTST'}.get(p['pagina'], p['pagina']) }}</td><td data-etiqueta="Tiempo">{{ p['s']|duracion }}</td></tr>{% endfor %}
   </tbody></table>
   {% else %}<p class="vacio">Todavía no hay tiempo registrado.</p>{% endif %}
 

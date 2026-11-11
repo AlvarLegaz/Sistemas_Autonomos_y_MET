@@ -17,7 +17,7 @@
     if (!carga) {
       carga = new Promise((resolver, rechazar) => {
         const script = document.createElement('script');
-        script.src = RUTA_THREE;
+        script.src = PCT.visor3dRutaThree || RUTA_THREE;     // otros simuladores (planta real HTST) lo cargan de /simulador/js/vendor/three.js
         script.onload = resolver;
         script.onerror = () => { carga = null; rechazar(new Error('No se pudo cargar Three.js')); };
         document.head.appendChild(script);
@@ -92,7 +92,7 @@
   function construirPanel(clave, seleccion) {
     const modelo = MODELOS[clave];
     const panel = modal.querySelector('.v3d-panel');
-    if (modelo.escena === 'planta') { construirPanelPlanta(panel, modelo, seleccion); return; }
+    if (esPanelPlanta(modelo)) { construirPanelPlanta(panel, modelo, seleccion); return; }
     const deposito = !modelo.escena, conjunto = { bomba: 'la bomba', valvula: 'la válvula' }[modelo.escena] || 'el intercambiador';
     if (!seleccion) {
       panel.innerHTML = `<h4>${modelo.titulo}</h4><p>${modelo.resumen}</p>` +
@@ -114,9 +114,11 @@
 
   // En la planta completa cada pieza se describe con el texto de ayuda del simulador (el mismo del clic derecho).
   // Sin etiqueta: tubos, captadores de los depósitos (se ven al abrir cada depósito; T2 y RES sí llevan etiqueta con su valor) y carteles que ya llevan su propio texto en el 3D.
+  // Extensión: otros simuladores (planta real HTST) reutilizan este panel con modelo.panel === 'planta' y sus propios textos en modelo.ayudas.
+  const esPanelPlanta = modelo => modelo.escena === 'planta' || modelo.panel === 'planta';
   const PIEZAS_SIN_ETIQUETA = id => id.startsWith('TUBO_') || ['LVL', 'HLC', 'HL', 'LL', 'TERM', 'L1', 'DESVIO', 'FINAL', 'DRAIN', 'COLD'].includes(id);
   function construirPanelPlanta(panel, modelo, seleccion) {
-    const ayudas = ELEMENTOS_AYUDA();
+    const ayudas = modelo.ayudas || ELEMENTOS_AYUDA();
     if (!seleccion) {
       const ids = Object.keys(sesion.escena.elementos).filter(id => !id.startsWith('TUBO_'));
       panel.innerHTML = `<h4>${modelo.titulo}</h4><p>${modelo.resumen}</p><h4>Piezas</h4><ul class="v3d-lista">` +
@@ -160,7 +162,7 @@
     contenedor.innerHTML = '';
     const etiquetas = {};
     const modelo = MODELOS[clave];
-    const piezas = modelo.escena === 'planta' ? Object.keys(escena.elementos).filter(id => !PIEZAS_SIN_ETIQUETA(id)).map(id => ({ id, nombre: id })) : [...modelo.captadores, ...modelo.conexiones];
+    const piezas = esPanelPlanta(modelo) ? Object.keys(escena.elementos).filter(id => !(modelo.sinEtiqueta || PIEZAS_SIN_ETIQUETA)(id)).map(id => ({ id, nombre: id })) : [...modelo.captadores, ...modelo.conexiones];
     for (const e of piezas) {
       const boton = document.createElement('button');
       boton.type = 'button'; boton.className = 'v3d-etq'; boton.dataset.id = e.id;
@@ -265,8 +267,10 @@
     sesion.ultimoDibujo = ahora;
     const estado = sesion.obtenerEstado();
     if (estado) {
-      const lecturas = lecturasModelo(sesion.clave, estado, PCT.planta.observaciones(estado));
-      sesion.escena.actualizar(lecturas, estado, PCT.planta.observaciones(estado));
+      const modelo = MODELOS[sesion.clave];
+      const observaciones = (modelo.observaciones || PCT.planta.observaciones)(estado);          // ganchos opcionales para otros simuladores
+      const lecturas = modelo.lecturas ? modelo.lecturas(estado) : lecturasModelo(sesion.clave, estado, observaciones);
+      sesion.escena.actualizar(lecturas, estado, observaciones);
       actualizarPanel(lecturas, sesion.seleccion);
       for (const [id, e] of Object.entries(sesion.etiquetas)) {
         const texto = textoCorto(lecturas.sensores[id]);
@@ -305,7 +309,7 @@
     const THREE = window.THREE;
     const lienzo = modal.querySelector('canvas');
     let renderer;
-    const pesada = !!MODELOS[clave].escena && MODELOS[clave].escena === 'planta';       // la planta entera: más ligera
+    const pesada = MODELOS[clave].pesada === true || MODELOS[clave].escena === 'planta';       // la planta entera: más ligera
     const porSoftware = gpuPorSoftware();
     etapa('Paso 1 de 3: creando el contexto gráfico (WebGL)…'); await pausa();
     try {
@@ -323,12 +327,14 @@
     threeEscena.add(new THREE.HemisphereLight(0xdde8f5, 0x1b2330, 1.15));
     const sol = new THREE.DirectionalLight(0xffffff, 1.6); sol.position.set(30, 55, 40); threeEscena.add(sol);
     const contra = new THREE.DirectionalLight(0x8fb4ff, 0.7); contra.position.set(-40, 20, -30); threeEscena.add(contra);
-    const modulo = { intercambiador: PCT.visor3dEscenaIntercambiador, bomba: PCT.visor3dEscenaBomba, valvula: PCT.visor3dEscenaValvula, planta: PCT.planta3d }[MODELOS[clave].escena] || PCT.visor3dEscena;
+    // Registro de escenas (PCT.visor3dEscenas): permite que otros simuladores (planta real HTST) añadan la suya sin tocar este archivo.
+    const modulo = (PCT.visor3dEscenas && PCT.visor3dEscenas[MODELOS[clave].escena]) ||
+      { intercambiador: PCT.visor3dEscenaIntercambiador, bomba: PCT.visor3dEscenaBomba, valvula: PCT.visor3dEscenaValvula, planta: PCT.planta3d }[MODELOS[clave].escena] || PCT.visor3dEscena;
     const escena = modulo.crearEscena(THREE, clave);
     threeEscena.add(escena.raiz);
     if (escena.sombras) activarSombras(THREE, renderer);
     etapa('Paso 3 de 3: preparando controles y etiquetas…'); await pausa();
-    const camara = new THREE.PerspectiveCamera(38, 1, 1, 500);
+    const camara = new THREE.PerspectiveCamera(38, 1, 1, escena.vistaInicial.far || Math.max(500, (escena.vistaInicial.maximo || 0) * 2));   // escenas grandes (planta real) piden más alcance
     const controles = new ControlesOrbita(lienzo, escena.vistaInicial, () => {});
     sesion = { THREE, renderer, camara, threeEscena, escena, controles, clave, obtenerEstado, seleccion: null, animacion: 0,
       raton: new THREE.Vector2(), rayo: new THREE.Raycaster(), seleccionables: escena.mallasSeleccionables(), etiquetas: crearEtiquetas(clave, escena),

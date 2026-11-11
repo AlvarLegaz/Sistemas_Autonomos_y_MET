@@ -202,7 +202,7 @@
 
   function abrirGuia() {
     const cuerpo = guia.querySelector('.cuerpo');
-    guia.querySelector('h3').textContent = TITULOS_GUIA[tipoGuia];
+    guia.querySelector('h3').textContent = TITULOS_GUIA[tipoGuia] || TITULOS_GUIA.inicio;      // tipo nuevo (planta_real): título de reserva
     cuerpo.innerHTML = seccionesDeGuia(tipoGuia).map(seccion => `<h4>${seccion[0]}</h4>${seccion[1]}`).join('');
     cuerpo.scrollTop = 0;
     cerrarAyuda();

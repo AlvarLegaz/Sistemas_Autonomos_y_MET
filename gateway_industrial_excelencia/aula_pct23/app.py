@@ -37,7 +37,10 @@ EXTENSIONES_SIMULADOR = {".html", ".css", ".js", ".png", ".svg", ".ico", ".json"
 CORREO = re.compile(r"^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$")
 LARGO_MAX = {"nombre": 80, "apellidos": 120, "modulo": 80, "correo": 254}
 CLAVE_MINIMA = 8
-PAGINAS_SIMULADOR = ("index", "manual", "automatico", "demostracion")
+PAGINAS_SIMULADOR = ("index", "manual", "automatico", "demostracion", "planta_real")
+# Páginas que no llevan la barra del aula (son ventanas auxiliares) y archivos que nunca se sirven (bancos de pruebas de desarrollo).
+SIN_BARRA = {"visor3d"}
+NUNCA_SERVIR = {"banco_pruebas.html"}
 SEGUNDOS_MAX_POR_ENVIO = 120
 EVENTOS_MAX_POR_ENVIO = 30
 EVENTOS_MAX_POR_ALUMNO = 3000
@@ -54,6 +57,7 @@ def config_desde_entorno():
         "secret_key": env.get("AULA_SECRET_KEY") or None,
         "datos": Path(env.get("AULA_DATOS", "./datos")),
         "simulador": Path(env.get("AULA_SIMULADOR", Path(__file__).resolve().parent.parent / "simulador_pct23")),
+        "planta_real": Path(env.get("AULA_PLANTA_REAL", Path(__file__).resolve().parent.parent / "simulador_planta_real")),
         "modulos": [m.strip() for m in env.get("AULA_MODULOS", "").split(",") if m.strip()],
         "cookie_segura": env.get("AULA_COOKIE_SEGURA", "0") == "1",
         # 1 = al arrancar se borra el PIN cambiado desde el aula y vuelve a valer AULA_PIN (por si se olvida)
@@ -204,6 +208,7 @@ def crear_app(config=None):
     validar_pin(cfg["pin"])
     cfg["datos"] = Path(cfg["datos"])
     cfg["simulador"] = Path(cfg["simulador"])
+    cfg["planta_real"] = Path(cfg["planta_real"])
     cfg["datos"].mkdir(parents=True, exist_ok=True)
     if not (cfg["simulador"] / "index.html").is_file():
         raise RuntimeError(f"No se encuentra el simulador en {cfg['simulador']}")
@@ -311,7 +316,7 @@ def crear_app(config=None):
         resp.headers["Content-Security-Policy"] = (
             "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; "
             "img-src 'self' data:; frame-ancestors 'none'; form-action 'self'; base-uri 'self'")
-        if request.path.startswith("/simulador/"):
+        if request.path.startswith(("/simulador/", "/planta-real/")):
             resp.headers["Cache-Control"] = "private, no-cache"          # solo para quien ha entrado; se revalida
         elif request.endpoint != "static":
             resp.headers["Cache-Control"] = "no-store"
@@ -448,38 +453,57 @@ def crear_app(config=None):
             return redirect("/simulador/")
         return render_template("pendiente.html", a=a)
 
-    # ----- simulador (protegido) -----
-    @app.get("/simulador/", defaults={"ruta": "index.html"})
-    @app.get("/simulador/<path:ruta>")
-    def simulador(ruta):
+    # ----- simulador y planta real (protegidos: alumno autorizado o profesor con el PIN) -----
+    def servir(raiz, ruta, pagina_de_inicio=None):
+        """Sirve un archivo de `raiz` (simulador_pct23 o simulador_planta_real) con el mismo control de acceso, las mismas extensiones y la misma
+        exclusión de tests. pagina_de_inicio: nombre con el que se registra la actividad cuando se abre index.html (para distinguir las dos pantallas de inicio)."""
         a = alumno()
         if not profesor() and not (a and a["estado"] == "autorizado"):
             return redirect(url_for("entrar" if a is None else "pendiente"))
         partes = Path(ruta).parts
-        if any(p.startswith(".") or p in ("tests", "__pycache__") for p in partes):
+        if any(p.startswith(".") or p in ("tests", "__pycache__") for p in partes) or Path(ruta).name in NUNCA_SERVIR:
             abort(404)
         ext = Path(ruta).suffix.lower()
         if ext not in EXTENSIONES_SIMULADOR:
             abort(404)
         if ext != ".html":
-            return send_from_directory(cfg["simulador"], ruta, max_age=0)
-        destino = safe_join(str(cfg["simulador"]), ruta)
+            return send_from_directory(raiz, ruta, max_age=0)
+        destino = safe_join(str(raiz), ruta)
         if destino is None or not Path(destino).is_file():
             abort(404)
         texto = Path(destino).read_text(encoding="utf-8")
         nombre = f"{a['nombre']} {a['apellidos']}" if a else "Profesor"
         pagina = Path(ruta).stem
+        if pagina_de_inicio and pagina == "index":
+            pagina = pagina_de_inicio
         if a is not None and a["estado"] == "autorizado" and pagina in PAGINAS_SIMULADOR:
             registrar_actividad(a["id"], "pagina", f"Abrió {pagina}")
             bd().commit()
-        if pagina != "visor3d":                       # la ventana aparte del visor 3D no lleva la barra del aula
+        if pagina not in SIN_BARRA:
             barra = render_template("barra_simulador.html", nombre=nombre, es_profesor=profesor(), con_cuenta=a is not None,
                                     pagina=pagina if pagina in PAGINAS_SIMULADOR else "index")
             fin = texto.lower().rfind("</body>")
             texto = texto[:fin] + barra + texto[fin:] if fin != -1 else texto + barra
+        if raiz == cfg["planta_real"] and profesor():
+            # Solo en sesiones de profesor: la planta real muestra el panel de averías (nunca se decide por la dirección de la página).
+            marca = "<script>window.PCT_ES_PROFESOR = true;</script>"
+            cabeza = texto.lower().find("</head>")
+            texto = texto[:cabeza] + marca + texto[cabeza:] if cabeza != -1 else marca + texto
         resp = Response(texto, mimetype="text/html")
         resp.headers["Cache-Control"] = "no-store"
         return resp
+
+    @app.get("/simulador/", defaults={"ruta": "index.html"})
+    @app.get("/simulador/<path:ruta>")
+    def simulador(ruta):
+        return servir(cfg["simulador"], ruta)
+
+    @app.get("/planta-real/", defaults={"ruta": "index.html"})
+    @app.get("/planta-real/<path:ruta>")
+    def planta_real(ruta):
+        if not (cfg["planta_real"] / "index.html").is_file():
+            abort(404)                                  # despliegue sin la planta real
+        return servir(cfg["planta_real"], ruta, "planta_real")
 
     # ----- aula del profesor -----
     @app.get("/aula")

@@ -203,6 +203,69 @@ class Simulador(Base):
         self.assertIn("SameSite=Lax", r.headers["Set-Cookie"])
 
 
+class PlantaReal(Base):
+    """El segundo simulador (planta real HTST) se sirve en /planta-real/ con el mismo control de acceso que el simulador de la maqueta."""
+
+    def test_sin_sesion_se_redirige_a_entrar(self):
+        for ruta in ("/planta-real/", "/planta-real/css/planta_real.css", "/planta-real/js/layout.js"):
+            self.assertEqual(self.c.get(ruta).headers["Location"], "/entrar", ruta)
+
+    def test_un_alumno_pendiente_no_la_ve(self):
+        self.registrar()
+        self.entrar(self.c)
+        self.assertEqual(self.c.get("/planta-real/").headers["Location"], "/pendiente")
+
+    def test_el_alumno_autorizado_ve_la_planta_con_la_barra_del_aula(self):
+        alumno, _ = self.autorizado()
+        r = alumno.get("/planta-real/")
+        html = r.get_data(as_text=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("Planta real HTST", html)
+        self.assertIn('id="aula-barra"', html)
+        self.assertNotIn("PCT_ES_PROFESOR", html)                       # el panel de averías no es para el alumno
+        for recurso in ("css/planta_real.css", "js/layout.js", "js/interfaz/cargador.js", "js/interfaz/pagina.js", "js/modelo/simulacion.js"):
+            with alumno.get("/planta-real/" + recurso) as resp:
+                self.assertEqual(resp.status_code, 200, recurso)
+
+    def test_la_ventana_del_3d_no_lleva_la_barra(self):
+        alumno, _ = self.autorizado()
+        r = alumno.get("/planta-real/visor3d.html")
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn('id="aula-barra"', r.get_data(as_text=True))
+
+    def test_solo_la_sesion_de_profesor_marca_el_panel_de_averias(self):
+        html = self.profesor().get("/planta-real/").get_data(as_text=True)
+        self.assertIn("window.PCT_ES_PROFESOR = true", html)
+        self.assertLess(html.index("window.PCT_ES_PROFESOR"), html.lower().index("</head>"))
+        alumno, _ = self.autorizado()
+        self.assertNotIn("PCT_ES_PROFESOR", alumno.get("/planta-real/?profesor=1").get_data(as_text=True))   # el parámetro de la dirección no vale
+
+    def test_no_se_sirve_nada_que_no_sea_de_la_planta(self):
+        alumno, _ = self.autorizado()
+        for ruta in ("/planta-real/../app.py", "/planta-real/%2e%2e/app.py", "/planta-real/ARQUITECTURA.md", "/planta-real/servir_local.py", "/planta-real/tests/x.js",
+                     "/planta-real/js/visor3d_htst/banco_pruebas.html", "/planta-real/.git/config", "/planta-real/inexistente.html"):
+            self.assertEqual(alumno.get(ruta).status_code, 404, ruta)
+
+    def test_se_registra_la_pantalla_de_inicio_como_planta_real(self):
+        alumno, _ = self.autorizado()
+        alumno.get("/planta-real/")
+        tipos = [(f["tipo"], f["detalle"]) for f in self.consulta("SELECT tipo, detalle FROM actividad ORDER BY id")]
+        self.assertIn(("pagina", "Abrió planta_real"), tipos)
+
+    def test_sin_la_carpeta_de_la_planta_real_da_404(self):
+        import tempfile as _tf
+        with _tf.TemporaryDirectory(ignore_cleanup_errors=True) as vacia:
+            app = aula.crear_app({"pin": PIN, "datos": self.tmp.name + "/otro", "simulador": SIMULADOR, "planta_real": vacia, "secret_key": "x", "reloj": self.reloj})
+            cliente = app.test_client()
+            self.assertEqual(self.profesor_de(app).get("/planta-real/").status_code, 404)
+            self.assertEqual(cliente.get("/planta-real/").status_code, 404)       # sin la carpeta no hay nada que proteger: 404 también sin sesión
+
+    def profesor_de(self, app):
+        p = app.test_client()
+        self.assertEqual(self.post(p, "/aula/entrar", {"pin": PIN}, "/aula").status_code, 302)
+        return p
+
+
 class AulaDelProfesor(Base):
     def test_sin_pin_no_hay_acceso_ni_acciones(self):
         self.registrar()

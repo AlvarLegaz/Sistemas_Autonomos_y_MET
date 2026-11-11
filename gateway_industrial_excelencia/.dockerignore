@@ -6,5 +6,9 @@
 !aula_pct23/static
 !simulador_pct23
 simulador_pct23/tests
+!simulador_planta_real
+simulador_planta_real/tests
+simulador_planta_real/js/visor3d_htst/banco_pruebas.html
+simulador_planta_real/servir_local.py
 **/__pycache__
 **/*.pyc
