@@ -18,6 +18,13 @@ PWM_PERIODO_TICKS = 20       # PWM de bombas: 20 ticks = 100 ms (pasos del 5 %)
 OUT_RESISTENCIA = 3          # OUT03 (J7 pin 4, PCF P2): resistencia (230 V, dos de 120 V en serie), por rafagas
 OUT_BOMBA_HEAT = 7           # OUT07: bomba heat unit, PWM = PWMOut2
 OUT_BOMBA_FEED = 8           # OUT08: bomba feed unit, PWM = PWMOut1
+OUT_SENTIDO_HEAT = 5         # OUT05: sentido de giro de la bomba heat unit
+OUT_SENTIDO_FEED = 6         # OUT06: sentido de giro de la bomba feed unit
+# Proteccion del driver de las bombas (puente en H): ni se invierte el sentido con la bomba girando (la contracorriente del motor
+# es muy alta) ni se arranca de golpe a plena potencia (pico de corriente de arranque).
+BOMBAS = {OUT_BOMBA_HEAT: OUT_SENTIDO_HEAT, OUT_BOMBA_FEED: OUT_SENTIDO_FEED}   # OUT de encendido -> OUT de sentido
+RAMPA_ARRANQUE_S = 2.0       # el PWM de una bomba sube de 0 a su valor en este tiempo al encenderla
+ESPERA_CAMBIO_SENTIDO_S = 1.5  # tras apagar una bomba, hasta que se acepta cambiar su sentido
 POTENCIA_POR_DEFECTO = 100.0  # PWMOut1, PWMOut2 y AnalogOut1 (potencia de la resistencia) arrancan al 100 %
 
 # Seguridad de la resistencia. DigitalIn1 es el termostato de la heat unit: cerrado (True) = todo bien, abierto (False) = sobretemperatura.
@@ -83,6 +90,8 @@ class Runtime:
         self.caducidad_calefactor_s = caducidad_calefactor_s
         self._calefactor_hasta = 0.0
         self._paro_emergencia = False     # enclavado hasta que alguien lo rearme
+        self._bomba_inicio = {}           # OUT de la bomba -> instante (monotonic) en que se encendio
+        self._bomba_parada = {}           # OUT de la bomba -> instante en que se apago
         self.lock = threading.Lock()
         self.stop_event = threading.Event()
         self.threads = []
@@ -256,6 +265,10 @@ class Runtime:
                 for nombre in self.outputs:
                     if nombre.startswith(("DigitalOut", "TransistorOut")):
                         self.outputs[nombre] = False
+                ahora = time.monotonic()
+                for salida_bomba in BOMBAS:
+                    self._bomba_inicio.pop(salida_bomba, None)
+                    self._bomba_parada[salida_bomba] = ahora
         print("PARO DE EMERGENCIA ACTIVADO: todas las salidas apagadas" if activo else "Paro de emergencia rearmado (todo sigue apagado)")
 
     # ============================================================
@@ -290,10 +303,37 @@ class Runtime:
             elif nuevos.get(SALIDA_RESISTENCIA) and self._hay_fallo(motivos):
                 nuevos[SALIDA_RESISTENCIA] = False       # con un fallo (termostato abierto, sonda T2) no se acepta calentar
                 print(f"Orden de calentar rechazada: {', '.join(motivos)}")
+            self._proteger_bombas(nuevos)
             if nuevos.get(SALIDA_RESISTENCIA) and self.caducidad_calefactor_s is not None:
                 self._calefactor_hasta = time.monotonic() + self.caducidad_calefactor_s   # cada orden de calentar renueva el plazo
             self.outputs.update(nuevos)
         return ignoradas
+
+    def _proteger_bombas(self, nuevos):
+        """Filtra `nuevos` (se modifica) segun la proteccion del driver de las bombas y anota cuando se encienden y apagan.
+        Un cambio de sentido se rechaza si la bomba esta girando o se paro hace menos de ESPERA_CAMBIO_SENTIDO_S. Llamar con el lock cogido."""
+        ahora = time.monotonic()
+        for salida_bomba, salida_sentido in BOMBAS.items():
+            enc, sen = f"TransistorOut{salida_bomba}_value", f"TransistorOut{salida_sentido}_value"
+            estaba_on = self.outputs[enc]
+            parada = self._bomba_parada.get(salida_bomba)
+            if sen in nuevos and nuevos[sen] != self.outputs[sen]:
+                if estaba_on or (parada is not None and ahora - parada < ESPERA_CAMBIO_SENTIDO_S):
+                    del nuevos[sen]
+                    print(f"Cambio de sentido de OUT{salida_bomba:02d} rechazado: la bomba esta girando o acaba de parar")
+            if enc in nuevos and nuevos[enc] != estaba_on:
+                if nuevos[enc]:
+                    self._bomba_inicio[salida_bomba] = ahora
+                else:
+                    self._bomba_inicio.pop(salida_bomba, None)
+                    self._bomba_parada[salida_bomba] = ahora
+
+    def _factor_rampa(self, salida_bomba, ahora):
+        """0..1: cuanto de su PWM puede dar la bomba ahora. Sin instante de arranque registrado (ordenes directas) no hay rampa."""
+        inicio = self._bomba_inicio.get(salida_bomba)
+        if inicio is None or RAMPA_ARRANQUE_S <= 0:
+            return 1.0
+        return min(1.0, max(0.0, (ahora - inicio) / RAMPA_ARRANQUE_S))
 
     def _escribir_grupo(self, prefijo, valores):
         if len(valores) != NUM_CHANNELS:
@@ -381,8 +421,9 @@ class Runtime:
     # Scan de potencia: transistores (J7), con rafagas en OUT03 y PWM en OUT07/OUT08
     # ============================================================
 
-    def transistores_efectivos(self, tick):
-        """Nivel fisico de OUT01..OUT08 en el tick dado, a partir de la imagen."""
+    def transistores_efectivos(self, tick, ahora=None):
+        """Nivel fisico de OUT01..OUT08 en el tick dado, a partir de la imagen. `ahora` (monotonic) solo se pasa en pruebas."""
+        ahora = time.monotonic() if ahora is None else ahora
         with self.lock:
             cmd = [self.outputs[f"TransistorOut{i}_value"] for i in range(1, NUM_CHANNELS + 1)]
             potencia = self.outputs["AnalogOut1_value"]
@@ -390,6 +431,8 @@ class Runtime:
             feed = self.outputs["PWMOut1_value"]
             bloqueada = bool(self._motivos_bloqueo())
             paro = self._paro_emergencia
+            heat *= self._factor_rampa(OUT_BOMBA_HEAT, ahora)
+            feed *= self._factor_rampa(OUT_BOMBA_FEED, ahora)
         if paro:
             return [False] * NUM_CHANNELS
         cmd[OUT_RESISTENCIA - 1] = cmd[OUT_RESISTENCIA - 1] and not bloqueada and burst_activo(tick // CICLO_RED_TICKS, potencia)

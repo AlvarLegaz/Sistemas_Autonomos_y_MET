@@ -740,7 +740,10 @@ function pintarPanel(d, conectado) {
     p.boton.textContent = res ? (v ? 'Apagar' : 'Encender') : (v ? 'Atrás' : 'Adelante');
     p.boton.classList.toggle(res ? 'on' : 'sel', v);
     const auto = !!(ultimo && ultimo.control && ultimo.control.activo);
-    p.boton.disabled = !conectado || (res && auto);      // el control conecta y desconecta la resistencia
+    // El sentido de una bomba solo se cambia con ella parada (el gateway rechaza el cambio si no, para no dañar el driver).
+    const girando = !res && !!d[MAPA.salidas[p.bomba]];
+    p.boton.disabled = !conectado || (res && auto) || girando;      // el control conecta y desconecta la resistencia
+    p.boton.title = girando ? 'Para la bomba para cambiar su sentido de giro' : '';
     p.r.disabled = auto && id === 'N1V';                 // y fija la velocidad de N1
     const canal = MAPA.consignas[id].canal;
     if (canal in d && document.activeElement !== p.r) {

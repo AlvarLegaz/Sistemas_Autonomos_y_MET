@@ -141,7 +141,7 @@ class PiEmulada(unittest.TestCase):
     def test_pwm_independiente_en_cada_bomba(self):
         self.rt.update_outputs({"TransistorOut7_value": True, "TransistorOut8_value": True,
                                 "PWMOut2_value": 100, "PWMOut1_value": 25})
-        time.sleep(0.3)
+        time.sleep(rt.RAMPA_ARRANQUE_S + 0.3)      # pasada la rampa de arranque de las bombas
         t0 = time.monotonic()
         time.sleep(3.0)
         t1 = time.monotonic()
@@ -167,7 +167,7 @@ class PiEmulada(unittest.TestCase):
 
     def test_fallo_i2c_se_marca_y_se_recupera(self):
         self.rt.update_outputs({"TransistorOut8_value": True})
-        time.sleep(0.3)
+        time.sleep(rt.RAMPA_ARRANQUE_S + 0.3)      # pasada la rampa de arranque de la bomba
         FALLO_I2C.set()
         time.sleep(0.5)
         d = self.rt.diagnostico()
