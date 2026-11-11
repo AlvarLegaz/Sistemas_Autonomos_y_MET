@@ -83,7 +83,7 @@
     // Conexiones: tubería, brida y cono que indica hacia dónde va el fluido.
     for (const conexion of modelo.conexiones) {
       const puerto = PUERTOS[conexion.id], g = new THREE.Group(), largo = 4.2, dir = vec(puerto.d), origen = vec(puerto.p);
-      const agua = conexion.id.startsWith('AGUA_FRIA') ? COLOR.frio : conexion.id.startsWith('AGUA_CAL') ? COLOR.caliente : 0xd9d3b0;
+      const agua = conexion.id.startsWith('AGUA_FRIA') ? COLOR.frio : conexion.id.startsWith('AGUA_CAL') ? COLOR.caliente : 0x2f9e44;
       const tubo = malla(new THREE.CylinderGeometry(0.9, 0.9, largo, 24), material(agua, { roughness: 0.5 }), g);
       orientar(tubo, puerto.d); tubo.position.copy(origen).addScaledVector(dir, largo / 2);
       const brida = malla(new THREE.CylinderGeometry(1.5, 1.5, 0.5, 24), material(COLOR.oscuro), g);

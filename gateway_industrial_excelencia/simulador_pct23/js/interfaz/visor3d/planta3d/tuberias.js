@@ -9,7 +9,7 @@
   const RADIO_CODO_CM = 2.2;
   const ALTURA_CRUCE_CM = 1.9;          // un tubo que cruza a otro pasa por encima: arco de esta altura
   const SEPARACION_PARTICULAS_CM = 6;
-  const COLOR = { producto: 0xd9d3b0, caliente: 0xd9480f, frio: 0x2f7fc7 };
+  const COLOR = { producto: 0x2f9e44, caliente: 0xd9480f, frio: 0x2f7fc7 };
 
   /* ---------- funciones puras ---------- */
 

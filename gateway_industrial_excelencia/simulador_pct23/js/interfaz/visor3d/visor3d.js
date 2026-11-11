@@ -39,6 +39,7 @@
           '<button type="button" data-vista="corte" aria-pressed="false">Corte</button>' +
           '<button type="button" data-opcion="etiquetas" aria-pressed="true">Etiquetas</button>' +
           '<button type="button" data-opcion="tapa" aria-pressed="true">Tapa</button>' +
+          '<button type="button" data-accion="volver" hidden>← Volver a la planta</button>' +
           '<button type="button" data-accion="reiniciar">Vista inicial</button>' +
           '<button type="button" data-accion="ventana" title="Abrir el 3D en otra ventana para verlo junto al sinóptico">Ventana aparte ⧉</button>' +
         '</div><button type="button" class="v3d-cerrar" aria-label="Cerrar (Esc)" title="Cerrar (Esc)">×</button></header>' +
@@ -69,6 +70,9 @@
       if (opcion === 'tapa') sesion.escena.ponerTapa(activo);
     } else if (accion === 'reiniciar') {
       sesion.controles.reiniciar();
+    } else if (accion === 'volver') {
+      const { origen, obtenerEstado, clave } = sesion;
+      abrir(origen, obtenerEstado, clave === origen ? undefined : undefined);
     } else if (accion === 'ventana') {
       const { clave, obtenerEstado, seleccion } = sesion;
       if (abrirEnVentana(clave, obtenerEstado, seleccion || undefined)) cerrar();
@@ -89,19 +93,19 @@
     const modelo = MODELOS[clave];
     const panel = modal.querySelector('.v3d-panel');
     if (modelo.escena === 'planta') { construirPanelPlanta(panel, modelo, seleccion); return; }
-    const deposito = !modelo.escena, conjunto = modelo.escena === 'bomba' ? 'la bomba' : 'el intercambiador';
+    const deposito = !modelo.escena, conjunto = { bomba: 'la bomba', valvula: 'la válvula' }[modelo.escena] || 'el intercambiador';
     if (!seleccion) {
       panel.innerHTML = `<h4>${modelo.titulo}</h4><p>${modelo.resumen}</p>` +
         (deposito ? `<p class="v3d-datos">Ø ${decimal(GEOMETRIA.diametroCm * 10, 0)} mm × ${decimal(GEOMETRIA.alturaCm * 10, 0)} mm · altura útil ${decimal(GEOMETRIA.alturaUtilCm * 10, 0)} mm</p>` +
           '<p class="v3d-datos" data-vivo="resumen"></p>' : '') + '<h4>Captadores y conexiones</h4><ul class="v3d-lista">' +
         [...modelo.captadores, ...modelo.conexiones].map(e => `<li><button type="button" data-id="${e.id}"><i data-vivo-punto="${e.id}"></i>${e.nombre}</button></li>`).join('') +
         '</ul><p class="v3d-nota">' + (deposito ? 'Las medidas del depósito (Ø 155 × 285 mm) son un dato tuyo; la posición de los captadores dentro es orientativa.' :
-          (modelo.escena === 'bomba' ? 'Modelo ilustrativo de una bomba peristáltica de rodillos: el manual no da sus medidas.' : 'Modelo ilustrativo: el manual no da las medidas del intercambiador ni la distribución de sus placas.')) + '</p>';
+          ({ bomba: 'Modelo ilustrativo de una bomba peristáltica de rodillos: el manual no da sus medidas.', valvula: 'Modelo didáctico de una electroválvula (corte): el manual no da sus medidas ni su construcción interna.' }[modelo.escena] || 'Modelo ilustrativo: el manual no da las medidas del intercambiador ni la distribución de sus placas.')) + '</p>';
       return;
     }
     const e = [...modelo.captadores, ...modelo.conexiones].find(x => x.id === seleccion);
     const esCaptador = !!e.queMide;
-    panel.innerHTML = `<button type="button" class="v3d-volver" data-id="">← ${deposito ? 'Todo el depósito' : modelo.escena === 'bomba' ? 'Toda la bomba' : 'Todo el intercambiador'}</button>` +
+    panel.innerHTML = `<button type="button" class="v3d-volver" data-id="">← ${deposito ? 'Todo el depósito' : ({ bomba: 'Toda la bomba', valvula: 'Toda la válvula' }[modelo.escena] || 'Todo el intercambiador')}</button>` +
       `<h4>${e.nombre}</h4>` + (esCaptador ? '<p class="v3d-estado" data-vivo="estado"></p>' : '') +
       (esCaptador ? filaDato('Qué mide', e.queMide) + filaDato('Para qué sirve', e.uso) + filaDato('Señal', e.senal) +
         (e.alturaCm !== undefined ? filaDato('Posición', `a ${decimal(e.alturaCm * 10, 0)} mm del fondo (orientativa)`) : '') + '<div data-vivo="extra"></div>' + filaDato('Nota', e.nota)
@@ -319,7 +323,7 @@
     threeEscena.add(new THREE.HemisphereLight(0xdde8f5, 0x1b2330, 1.15));
     const sol = new THREE.DirectionalLight(0xffffff, 1.6); sol.position.set(30, 55, 40); threeEscena.add(sol);
     const contra = new THREE.DirectionalLight(0x8fb4ff, 0.7); contra.position.set(-40, 20, -30); threeEscena.add(contra);
-    const modulo = { intercambiador: PCT.visor3dEscenaIntercambiador, bomba: PCT.visor3dEscenaBomba, planta: PCT.planta3d }[MODELOS[clave].escena] || PCT.visor3dEscena;
+    const modulo = { intercambiador: PCT.visor3dEscenaIntercambiador, bomba: PCT.visor3dEscenaBomba, valvula: PCT.visor3dEscenaValvula, planta: PCT.planta3d }[MODELOS[clave].escena] || PCT.visor3dEscena;
     const escena = modulo.crearEscena(THREE, clave);
     threeEscena.add(escena.raiz);
     if (escena.sombras) activarSombras(THREE, renderer);
@@ -357,7 +361,7 @@
   }
 
   /** clave: 'TANKA', 'TANKB', 'HEAT', 'EXCH', 'BOMBA_N1', 'BOMBA_N2' o 'PLANTA'; obtenerEstado() devuelve el estado de la planta; foco: id de un captador para seleccionarlo al abrir. */
-  async function abrir(clave, obtenerEstado, foco) {
+  async function abrir(clave, obtenerEstado, foco, origen) {
     if (!MODELOS[clave]) return;
     if (sesion) cerrar();
     crearModal();
@@ -381,6 +385,8 @@
     const t1 = performance.now();
     try {
       if (!(await iniciarMotor(clave, obtenerEstado || (() => null), etapa))) return;
+      sesion.origen = origen || null;
+      modal.querySelector('[data-accion="volver"]').hidden = !sesion.origen;
       if (modal.hidden) { modal.hidden = false; cerrar(); return; }   // se cerró mientras se creaba: se libera todo
       etapa('Primer dibujo (la tarjeta gráfica compila los materiales)…'); await pausa();
       // Compilación asíncrona de los shaders: no bloquea el navegador mientras la tarjeta gráfica trabaja.
@@ -399,7 +405,7 @@
 
   function alPulsarPanel(evento) {
     const abrirOtro = evento.target.closest('button[data-abrir]');
-    if (abrirOtro) { const { obtenerEstado } = sesion; abrir(abrirOtro.dataset.abrir, obtenerEstado, abrirOtro.dataset.foco || undefined); return; }
+    if (abrirOtro) { const { obtenerEstado } = sesion; abrir(abrirOtro.dataset.abrir, obtenerEstado, abrirOtro.dataset.foco || undefined, sesion.clave === 'PLANTA' ? 'PLANTA' : sesion.origen); return; }
     const boton = evento.target.closest('button[data-id]');
     if (boton) seleccionar(boton.dataset.id);
   }

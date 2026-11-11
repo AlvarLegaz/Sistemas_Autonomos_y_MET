@@ -156,7 +156,7 @@
       carcasa.rotation.x = Math.PI / 2; carcasa.position.set(0, cy, -0.4);
       const tapa = malla(new THREE.CylinderGeometry(radio + 0.5, radio + 0.5, 0.2, 40), guardar(new THREE.MeshStandardMaterial({ color: 0xaed4ff, transparent: true, opacity: 0.2, roughness: 0.1, side: THREE.DoubleSide, depthWrite: false })), g);
       tapa.rotation.x = Math.PI / 2; tapa.position.set(0, cy, 0.95); tapa.renderOrder = 3;
-      const tubo = malla(new THREE.TorusGeometry(radio - 0.5, 0.4, 8, 36, Math.PI * 1.25), material(0xe9e2c8, { roughness: 0.5, metalness: 0.05, emissive: clave === 'N2' ? COLOR.calida : 0xd9d3b0, emissiveIntensity: 0 }), g);
+      const tubo = malla(new THREE.TorusGeometry(radio - 0.5, 0.4, 8, 36, Math.PI * 1.25), material(0x7fd495, { roughness: 0.5, metalness: 0.05, emissive: clave === 'N2' ? COLOR.calida : 0xd9d3b0, emissiveIntensity: 0 }), g);
       tubo.position.set(0, cy, 0); tubo.rotation.z = Math.PI * 1.375;       // arco apoyado abajo
       const rotor = new THREE.Group(); rotor.position.set(0, cy, 0.1); g.add(rotor);
       const matRotor = material(COLOR.acero, { emissive: COLOR.ok, emissiveIntensity: 0 });
@@ -189,7 +189,7 @@
       g.position.set(o.x, 0, o.z); grupo.add(g);
       for (let i = 0; i <= pasos; i++) { const t = i / pasos, a = t * vueltas * 2 * Math.PI; puntos.push(new THREE.Vector3(5.5 * Math.cos(a), 2.2 + 1.9 * vueltas * t + 0.0, 5.5 * Math.sin(a))); }
       malla(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(puntos), pasos * 2, 1.2, 12, false), material(COLOR.aislante, { roughness: 0.85, metalness: 0.05 }), g);
-      malla(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(puntos), pasos * 2, 0.55, 10, false), material(0xd9d3b0, { roughness: 0.5, metalness: 0.1 }), g);
+      malla(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(puntos), pasos * 2, 0.55, 10, false), material(0x2f9e44, { roughness: 0.5, metalness: 0.1 }), g);
       malla(new THREE.CylinderGeometry(7.2, 7.2, 0.6, 32), material(COLOR.oscuro, { roughness: 0.7 }), g).position.y = 0.3;
       registrar('HOLDING', g, new THREE.Vector3(o.x, 13, o.z), 'HOLDING');
     }

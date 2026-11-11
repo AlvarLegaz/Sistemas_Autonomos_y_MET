@@ -2,7 +2,7 @@
 // Mismo contrato que escena.js. El rotor gira según la velocidad y el sentido de la bomba. Geometría ilustrativa.
 (function () {
   const { MODELOS } = typeof require !== 'undefined' ? require('./especificaciones.js') : PCT.visor3dEspecificaciones;
-  const COLOR = { acento: 0xf68b11, acero: 0x9aa6b1, oscuro: 0x2a3038, ok: 0x3fb950, tubo: 0xe9e2c8, calida: 0xd9480f, frio: 0x2f7fc7 };
+  const COLOR = { acento: 0xf68b11, acero: 0x9aa6b1, oscuro: 0x2a3038, ok: 0x3fb950, tubo: 0x7fd495, calida: 0xd9480f, frio: 0x2f7fc7 };
   const RADIO = 7, CENTRO_Y = 9, RPM_MAXIMA = 60;   // a 100 % el rotor da 1 vuelta por segundo (valor didáctico, no real)
 
   function crearEscena(THREE, clave) {
@@ -16,7 +16,7 @@
       grupo.traverse(o => { if (o.isMesh) o.userData.id = id; });
       raiz.add(grupo); elementos[id] = { id, tipo, grupo, ancla, datos };
     }
-    const colorFluido = clave === 'BOMBA_N2' ? COLOR.calida : 0xd9d3b0;
+    const colorFluido = clave === 'BOMBA_N2' ? COLOR.calida : 0x2f9e44;
 
     // Suelo, bancada y motor (no seleccionables).
     const rejilla = guardar(new THREE.GridHelper(70, 28, 0x39424d, 0x232a31)); rejilla.position.y = -1.25; raiz.add(rejilla);

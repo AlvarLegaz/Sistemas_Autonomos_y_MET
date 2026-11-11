@@ -13,22 +13,22 @@
           'describe con ajuste de velocidad manual o todo/nada.',
       enSimulador: 'Acción en J7 OUT07, sentido de giro en OUT05 y velocidad por PWM (PWMOut2). Sin N2 el producto casi no se calienta.', paginas:
           'p. 8 y 14' },
-    SOL1: { titulo: 'SOL1 · Válvula solenoide de tres vías', etiqueta: 'Electroválvula',
+    SOL1: { modelo3d: 'VALV_SOL1', titulo: 'SOL1 · Válvula solenoide de tres vías', etiqueta: 'Electroválvula',
       queEs: 'Está después del tubo de residencia. En posición normal deja pasar el producto hacia el resto del proceso y la salida. Si el ' +
           'producto no está a la temperatura correcta se rechaza: el producto sale por la toma de desvío y vuelve al tanque de alimentación.',
       enSimulador: 'Relé K3. Activa = producto desviado: se ilumina la rama de DIVERTED PRODUCT y se apaga la de producto acabado. El volumen ' +
           'desviado vuelve al tanque.', paginas: 'p. 8 y 16' },
-    SOL2: { titulo: 'SOL2 · Selección del tanque de alimentación', etiqueta: 'Electroválvula',
+    SOL2: { modelo3d: 'VALV_SOL2', titulo: 'SOL2 · Selección del tanque de alimentación', etiqueta: 'Electroválvula',
       queEs: 'Elige de qué tanque aspira la bomba N1: el A o el B.',
       enSimulador: 'Relé K4. En reposo alimenta desde A; activa, desde B. El manual no detalla el sentido físico exacto, así que esta ' +
           'correspondencia es una convención del simulador.', paginas: 'p. 8 y 16' },
-    SOL3: { titulo: 'SOL3 · Agua de refrigeración del producto', etiqueta: 'Electroválvula',
+    SOL3: { modelo3d: 'VALV_SOL3', titulo: 'SOL3 · Agua de refrigeración del producto', etiqueta: 'Electroválvula',
       queEs: 'Abre o corta el paso del agua fría al intercambiador de enfriamiento. Es la última etapa de enfriamiento del producto antes de la salida.',
       enSimulador: 'Relé K5. Abierta: el producto sale más frío (T3) y se cuenta agua enviada a desagüe.', paginas: 'p. 9 y 16' },
-    SOL4: { titulo: 'SOL4 · Llenado del tanque A', etiqueta: 'Electroválvula',
+    SOL4: { modelo3d: 'VALV_SOL4', titulo: 'SOL4 · Llenado del tanque A', etiqueta: 'Electroválvula',
       queEs: 'Válvula solenoide de llenado del tanque de alimentación A.', enSimulador: 'Relé K6. Abierta, el tanque A se rellena en el modelo.', paginas:
           'p. 8 y 16' },
-    SOL5: { titulo: 'SOL5 · Llenado del tanque B', etiqueta: 'Electroválvula',
+    SOL5: { modelo3d: 'VALV_SOL5', titulo: 'SOL5 · Llenado del tanque B', etiqueta: 'Electroválvula',
       queEs: 'Válvula solenoide de llenado del tanque de alimentación B.', enSimulador: 'Relé K7. Abierta, el tanque B se rellena en el modelo.', paginas:
           'p. 8 y 16' },
     T1: { titulo: 'T1 · Salida del tubo de residencia', etiqueta: 'Sensor de temperatura',

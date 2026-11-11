@@ -41,6 +41,14 @@
   /** clave: 'TANKA', 'TANKB' o 'HEAT'; estado: estado de la planta; observaciones: PCT.planta.observaciones(estado). */
   function lecturasModelo(clave, estado, observaciones) {
     const modelo = MODELOS[clave];
+    if (modelo.escena === 'valvula') {
+      const activa = !!estado.salidas[modelo.salida];
+      const camino = modelo.vias === 2 ? (activa ? 'abierta' : 'cerrada') : (activa ? 'activa' : 'reposo');
+      return { fraccion: 0, alturaLiquidoCm: 0, volumenMl: 0, presionFondoPa: 0, temperaturaAguaC: null, vias: modelo.vias, camino, sensores: {
+        BOBINA: { activo: activa, texto: activa ? 'Con corriente (ON): el solenoide tira del émbolo' : 'Sin corriente (OFF): el muelle empuja el émbolo' },
+        EMBOLO: { activo: activa, texto: modelo.vias === 2 ? (activa ? 'Arriba: válvula ABIERTA' : 'Abajo: válvula CERRADA') : (activa ? 'Cambiado: sale por la vía activa' : 'En reposo: sale por la vía de reposo') },
+      } };
+    }
     if (modelo.escena === 'planta') {
       // En la planta solo llevan valor en su etiqueta las lecturas principales de la heat unit.
       const sensores = {};

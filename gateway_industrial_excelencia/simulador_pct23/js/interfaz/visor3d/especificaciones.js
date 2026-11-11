@@ -128,6 +128,89 @@
         { id: 'IMPULSION', ayuda: 'N2', nombre: 'Impulsión', tipo: 'salida', detalle: 'Por aquí sale el fluido hacia el intercambiador. Si el sentido de giro se invierte, el flujo va al revés.' },
       ],
     },
+    // Electroválvulas (solenoide + válvula): modelo didáctico, geometría ilustrativa.
+    VALV_SOL1: {
+      escena: 'valvula', vias: 3, salida: 'SOL1',
+      titulo: 'SOL1 · Válvula de desvío (3 vías)',
+      resumen: 'Electroválvula de 3 vías (la «doble»): tiene tres conexiones y reparte el flujo por un camino u otro; nunca cierra el paso del todo. Sin corriente, el muelle deja el émbolo en la posición de reposo (camino de reposo). Al dar corriente al solenoide, el émbolo cambia de posición y el fluido va por el otro camino. Aquí: en reposo el producto sigue hacia la salida; activa, se desvía y vuelve al tanque de alimentación.',
+      captadores: [
+        { id: 'BOBINA', ayuda: 'SOL1', nombre: 'Solenoide (bobina)', tipo: 'bobina', senal: 'Relé K3 (alimenta la bobina)',
+          queMide: 'No mide: es el actuador. Es hilo de cobre enrollado: cuando le llega corriente crea un campo magnético.',
+          uso: 'El campo magnético tira del émbolo de acero y vence al muelle. Al quitar la corriente el muelle devuelve el émbolo a su sitio y la válvula vuelve a reposo.', nota: 'Geometría ilustrativa.' },
+        { id: 'EMBOLO', ayuda: 'SOL1', nombre: 'Émbolo y muelle', tipo: 'embolo', senal: 'Sin señal: lo mueve la bobina',
+          queMide: 'No mide: es la pieza móvil que abre, cierra o desvía el paso.', uso: 'En reposo el muelle lo deja en una posición que cierra una de las vías y comunica la común con la otra. Con corriente se desplaza y comunica la común con la vía activa.', nota: 'Geometría ilustrativa.' },
+      ],
+      conexiones: [
+        { id: 'COMUN', ayuda: 'SOL1', nombre: 'Entrada común (del tubo de residencia)', tipo: 'entrada', detalle: 'Por aquí llega siempre el producto, venga del tubo de residencia.' },
+        { id: 'VIA_REPOSO', ayuda: 'SOL1', nombre: 'Vía de reposo · producto aceptado', tipo: 'salida', detalle: 'Sin corriente el producto sale por aquí hacia el resto del proceso y la salida.' },
+        { id: 'VIA_ACTIVA', ayuda: 'SOL1', nombre: 'Vía activa · producto desviado', tipo: 'salida', detalle: 'Con la bobina activa el producto se rechaza y sale por la toma de desvío, de vuelta al tanque.' },
+      ],
+    },
+    VALV_SOL2: {
+      escena: 'valvula', vias: 3, salida: 'SOL2',
+      titulo: 'SOL2 · Selección de tanque (3 vías)',
+      resumen: 'Electroválvula de 3 vías (la «doble»): tiene tres conexiones y reparte el flujo por un camino u otro; nunca cierra el paso del todo. Sin corriente, el muelle deja el émbolo en la posición de reposo (camino de reposo). Al dar corriente al solenoide, el émbolo cambia de posición y el fluido va por el otro camino. Aquí: en reposo la bomba N1 aspira del tanque A; activa, del tanque B (convención del simulador).',
+      captadores: [
+        { id: 'BOBINA', ayuda: 'SOL2', nombre: 'Solenoide (bobina)', tipo: 'bobina', senal: 'Relé K4 (alimenta la bobina)',
+          queMide: 'No mide: es el actuador. Es hilo de cobre enrollado: cuando le llega corriente crea un campo magnético.',
+          uso: 'El campo magnético tira del émbolo de acero y vence al muelle. Al quitar la corriente el muelle devuelve el émbolo a su sitio y la válvula vuelve a reposo.', nota: 'Geometría ilustrativa.' },
+        { id: 'EMBOLO', ayuda: 'SOL2', nombre: 'Émbolo y muelle', tipo: 'embolo', senal: 'Sin señal: lo mueve la bobina',
+          queMide: 'No mide: es la pieza móvil que abre, cierra o desvía el paso.', uso: 'En reposo el muelle lo deja en una posición que cierra una de las vías y comunica la común con la otra. Con corriente se desplaza y comunica la común con la vía activa.', nota: 'Geometría ilustrativa.' },
+      ],
+      conexiones: [
+        { id: 'COMUN', ayuda: 'SOL2', nombre: 'Salida común (a la bomba N1)', tipo: 'salida', detalle: 'Por aquí sale siempre el producto hacia la bomba N1.' },
+        { id: 'VIA_REPOSO', ayuda: 'SOL2', nombre: 'Vía de reposo · tanque A', tipo: 'entrada', detalle: 'Sin corriente la válvula toma el producto del tanque A.' },
+        { id: 'VIA_ACTIVA', ayuda: 'SOL2', nombre: 'Vía activa · tanque B', tipo: 'entrada', detalle: 'Con la bobina activa la válvula toma el producto del tanque B.' },
+      ],
+    },
+    VALV_SOL3: {
+      escena: 'valvula', vias: 2, salida: 'SOL3',
+      titulo: 'SOL3 · Agua de refrigeración (2 vías)',
+      resumen: 'Electroválvula de 2 vías (la «simple»): tiene una entrada y una salida y solo abre o cierra el paso. Es normalmente cerrada: sin corriente el muelle empuja el émbolo contra el asiento y no pasa nada. Al dar corriente al solenoide, el campo magnético sube el émbolo y el fluido pasa. Aquí: abierta, el agua fría pasa al enfriamiento y se envía a desagüe.',
+      captadores: [
+        { id: 'BOBINA', ayuda: 'SOL3', nombre: 'Solenoide (bobina)', tipo: 'bobina', senal: 'Relé K5 (alimenta la bobina)',
+          queMide: 'No mide: es el actuador. Es hilo de cobre enrollado: cuando le llega corriente crea un campo magnético.',
+          uso: 'El campo magnético tira del émbolo de acero y vence al muelle. Al quitar la corriente el muelle devuelve el émbolo a su sitio y la válvula vuelve a reposo.', nota: 'Geometría ilustrativa.' },
+        { id: 'EMBOLO', ayuda: 'SOL3', nombre: 'Émbolo y muelle', tipo: 'embolo', senal: 'Sin señal: lo mueve la bobina',
+          queMide: 'No mide: es la pieza móvil que abre, cierra o desvía el paso.', uso: 'En reposo el muelle lo baja y tapa el orificio (válvula cerrada). Con corriente sube y deja pasar el fluido.', nota: 'Geometría ilustrativa.' },
+      ],
+      conexiones: [
+        { id: 'ENTRADA', ayuda: 'SOL3', nombre: 'Entrada de agua fría', tipo: 'entrada', detalle: 'Agua de la red, hacia el intercambiador de enfriamiento.' },
+        { id: 'SALIDA', ayuda: 'SOL3', nombre: 'Salida hacia el enfriamiento', tipo: 'salida', detalle: 'El agua pasa por aquí solo con la bobina activa.' },
+      ],
+    },
+    VALV_SOL4: {
+      escena: 'valvula', vias: 2, salida: 'SOL4',
+      titulo: 'SOL4 · Llenado del tanque A (2 vías)',
+      resumen: 'Electroválvula de 2 vías (la «simple»): tiene una entrada y una salida y solo abre o cierra el paso. Es normalmente cerrada: sin corriente el muelle empuja el émbolo contra el asiento y no pasa nada. Al dar corriente al solenoide, el campo magnético sube el émbolo y el fluido pasa. Aquí: abierta, el tanque A se rellena.',
+      captadores: [
+        { id: 'BOBINA', ayuda: 'SOL4', nombre: 'Solenoide (bobina)', tipo: 'bobina', senal: 'Relé K6 (alimenta la bobina)',
+          queMide: 'No mide: es el actuador. Es hilo de cobre enrollado: cuando le llega corriente crea un campo magnético.',
+          uso: 'El campo magnético tira del émbolo de acero y vence al muelle. Al quitar la corriente el muelle devuelve el émbolo a su sitio y la válvula vuelve a reposo.', nota: 'Geometría ilustrativa.' },
+        { id: 'EMBOLO', ayuda: 'SOL4', nombre: 'Émbolo y muelle', tipo: 'embolo', senal: 'Sin señal: lo mueve la bobina',
+          queMide: 'No mide: es la pieza móvil que abre, cierra o desvía el paso.', uso: 'En reposo el muelle lo baja y tapa el orificio (válvula cerrada). Con corriente sube y deja pasar el fluido.', nota: 'Geometría ilustrativa.' },
+      ],
+      conexiones: [
+        { id: 'ENTRADA', ayuda: 'SOL4', nombre: 'Entrada de agua', tipo: 'entrada', detalle: 'Agua de la red.' },
+        { id: 'SALIDA', ayuda: 'SOL4', nombre: 'Salida hacia el tanque A', tipo: 'salida', detalle: 'El tanque A se llena solo con la bobina activa.' },
+      ],
+    },
+    VALV_SOL5: {
+      escena: 'valvula', vias: 2, salida: 'SOL5',
+      titulo: 'SOL5 · Llenado del tanque B (2 vías)',
+      resumen: 'Electroválvula de 2 vías (la «simple»): tiene una entrada y una salida y solo abre o cierra el paso. Es normalmente cerrada: sin corriente el muelle empuja el émbolo contra el asiento y no pasa nada. Al dar corriente al solenoide, el campo magnético sube el émbolo y el fluido pasa. Aquí: abierta, el tanque B se rellena.',
+      captadores: [
+        { id: 'BOBINA', ayuda: 'SOL5', nombre: 'Solenoide (bobina)', tipo: 'bobina', senal: 'Relé K7 (alimenta la bobina)',
+          queMide: 'No mide: es el actuador. Es hilo de cobre enrollado: cuando le llega corriente crea un campo magnético.',
+          uso: 'El campo magnético tira del émbolo de acero y vence al muelle. Al quitar la corriente el muelle devuelve el émbolo a su sitio y la válvula vuelve a reposo.', nota: 'Geometría ilustrativa.' },
+        { id: 'EMBOLO', ayuda: 'SOL5', nombre: 'Émbolo y muelle', tipo: 'embolo', senal: 'Sin señal: lo mueve la bobina',
+          queMide: 'No mide: es la pieza móvil que abre, cierra o desvía el paso.', uso: 'En reposo el muelle lo baja y tapa el orificio (válvula cerrada). Con corriente sube y deja pasar el fluido.', nota: 'Geometría ilustrativa.' },
+      ],
+      conexiones: [
+        { id: 'ENTRADA', ayuda: 'SOL5', nombre: 'Entrada de agua', tipo: 'entrada', detalle: 'Agua de la red.' },
+        { id: 'SALIDA', ayuda: 'SOL5', nombre: 'Salida hacia el tanque B', tipo: 'salida', detalle: 'El tanque B se llena solo con la bobina activa.' },
+      ],
+    },
     // Planta completa: los elementos salen de la propia escena (planta3d/), no de esta lista.
     PLANTA: {
       escena: 'planta', titulo: 'Planta PCT23 completa',

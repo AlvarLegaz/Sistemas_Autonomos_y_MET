@@ -16,7 +16,7 @@
   --fondo: #E2E7EB; --panel: #F5F7F8; --texto: #16202A; --tenue: #56636F; --borde: #BAC4CC;
   --acento: #F68B11; --acento-texto: #A85200; --sobre-acento: #16202A; --marca-gris: #5A5758;
   --ok: #1A7F4B; --error: #C0262D; --aviso: #9A5B00; --apagado: #9AA6B1;
-  --tubo: #6A7886; --agua: #1F78B4; --caliente: #D9480F; --frio: #14877F;
+  --tubo: #6A7886; --agua: #1F78B4; --caliente: #D9480F; --frio: #14877F; --producto: #1E9E57;
   --fuente: Bahnschrift, "DIN Alternate", "Segoe UI", system-ui, -apple-system, sans-serif;
   --alto-barra: 76px;
   color-scheme: light dark;
@@ -26,7 +26,7 @@
     --fondo: #161314; --panel: #221E1F; --texto: #F0ECED; --tenue: #A9A3A5; --borde: #403B3C;
     --acento: #F68B11; --acento-texto: #FFA640; --sobre-acento: #16202A; --marca-gris: #C9C5C6;
     --ok: #4CC28A; --error: #F0605F; --aviso: #E0A33A; --apagado: #6B6567;
-    --tubo: #A39E9F; --agua: #4AA3DF; --caliente: #FF8A3D; --frio: #29C1BA;
+    --tubo: #A39E9F; --agua: #4AA3DF; --caliente: #FF8A3D; --frio: #29C1BA; --producto: #46CF82;
   }
 }
 
@@ -114,9 +114,9 @@ body[data-estado="fin"] #fases li.actual { background: var(--ok); color: #fff; }
 /* esquema */
 svg text { fill: var(--texto); font: 12px var(--fuente); }
 .tubo { fill: none; stroke: var(--tubo); stroke-width: 3; stroke-linejoin: round; }
-.tubo.activo { stroke: var(--agua); stroke-width: 3.6; }
+.tubo.activo { stroke: var(--producto); stroke-width: 3.6; }      /* producto en verde */
 .tubo.caliente.activo { stroke: var(--caliente); }
-.tubo.frio.activo { stroke: var(--frio); }
+.tubo.frio.activo { stroke: var(--agua); }                   /* agua fría en azul */
 .caja { fill: none; stroke: var(--tubo); stroke-width: 2.5; }
 .liquido { fill: var(--agua); opacity: .4; }
 .instr { fill: var(--panel); stroke: var(--tubo); stroke-width: 2; }
