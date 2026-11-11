@@ -24,7 +24,9 @@ OUT_SENTIDO_FEED = 6         # OUT06: sentido de giro de la bomba feed unit
 # es muy alta) ni se arranca de golpe a plena potencia (pico de corriente de arranque).
 BOMBAS = {OUT_BOMBA_HEAT: OUT_SENTIDO_HEAT, OUT_BOMBA_FEED: OUT_SENTIDO_FEED}   # OUT de encendido -> OUT de sentido
 RAMPA_ARRANQUE_S = 2.0       # el PWM de una bomba sube de 0 a su valor en este tiempo al encenderla
+RAMPA_PARADA_S = 1.0         # al apagar una bomba (parada normal) su PWM baja hasta 0 en este tiempo; el paro de emergencia no la usa
 ESPERA_CAMBIO_SENTIDO_S = 1.5  # tras apagar una bomba, hasta que se acepta cambiar su sentido
+PWM_DE_BOMBA = {OUT_BOMBA_HEAT: "PWMOut2_value", OUT_BOMBA_FEED: "PWMOut1_value"}   # canal PWM de cada bomba
 POTENCIA_POR_DEFECTO = 100.0  # PWMOut1, PWMOut2 y AnalogOut1 (potencia de la resistencia) arrancan al 100 %
 
 # Seguridad de la resistencia. DigitalIn1 es el termostato de la heat unit: cerrado (True) = todo bien, abierto (False) = sobretemperatura.
@@ -92,6 +94,7 @@ class Runtime:
         self._paro_emergencia = False     # enclavado hasta que alguien lo rearme
         self._bomba_inicio = {}           # OUT de la bomba -> instante (monotonic) en que se encendio
         self._bomba_parada = {}           # OUT de la bomba -> instante en que se apago
+        self._bomba_frenando = {}         # OUT de la bomba -> (instante de la orden de parar, PWM que llevaba): rampa de parada en curso
         self.lock = threading.Lock()
         self.stop_event = threading.Event()
         self.threads = []
@@ -268,6 +271,7 @@ class Runtime:
                 ahora = time.monotonic()
                 for salida_bomba in BOMBAS:
                     self._bomba_inicio.pop(salida_bomba, None)
+                    self._bomba_frenando.pop(salida_bomba, None)    # el paro corta en seco
                     self._bomba_parada[salida_bomba] = ahora
         print("PARO DE EMERGENCIA ACTIVADO: todas las salidas apagadas" if activo else "Paro de emergencia rearmado (todo sigue apagado)")
 
@@ -324,7 +328,11 @@ class Runtime:
             if enc in nuevos and nuevos[enc] != estaba_on:
                 if nuevos[enc]:
                     self._bomba_inicio[salida_bomba] = ahora
+                    self._bomba_frenando.pop(salida_bomba, None)
                 else:
+                    llevaba = self.outputs[PWM_DE_BOMBA[salida_bomba]] * self._factor_rampa(salida_bomba, ahora)
+                    if RAMPA_PARADA_S > 0 and llevaba > 0:
+                        self._bomba_frenando[salida_bomba] = (ahora, llevaba)
                     self._bomba_inicio.pop(salida_bomba, None)
                     self._bomba_parada[salida_bomba] = ahora
 
@@ -433,6 +441,20 @@ class Runtime:
             paro = self._paro_emergencia
             heat *= self._factor_rampa(OUT_BOMBA_HEAT, ahora)
             feed *= self._factor_rampa(OUT_BOMBA_FEED, ahora)
+            # Rampa de parada: la bomba ya apagada en la imagen sigue empujando con un PWM que baja hasta 0 (el relé de sentido no se toca).
+            for salida_bomba in BOMBAS:
+                frenando = self._bomba_frenando.get(salida_bomba)
+                if frenando is None:
+                    continue
+                transcurrido = ahora - frenando[0]
+                if cmd[salida_bomba - 1] or paro or transcurrido >= RAMPA_PARADA_S:
+                    self._bomba_frenando.pop(salida_bomba, None)
+                    continue
+                cmd[salida_bomba - 1] = True
+                if salida_bomba == OUT_BOMBA_HEAT:
+                    heat = frenando[1] * (1.0 - transcurrido / RAMPA_PARADA_S)
+                else:
+                    feed = frenando[1] * (1.0 - transcurrido / RAMPA_PARADA_S)
         if paro:
             return [False] * NUM_CHANNELS
         cmd[OUT_RESISTENCIA - 1] = cmd[OUT_RESISTENCIA - 1] and not bloqueada and burst_activo(tick // CICLO_RED_TICKS, potencia)
