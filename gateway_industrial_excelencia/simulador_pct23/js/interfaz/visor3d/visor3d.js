@@ -244,6 +244,19 @@
   }
 
   /* ---------- abrir y cerrar ---------- */
+  // Planta completa: tonos de cine, sombras suaves de la luz principal y luz de relleno más baja para que se noten.
+  function activarSombras(THREE, renderer, raiz, sol) {
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.25;
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    sol.castShadow = true; sol.shadow.mapSize.set(1024, 1024); sol.shadow.bias = -0.0004; sol.shadow.radius = 3;
+    const c = sol.shadow.camera; c.left = -150; c.right = 150; c.top = 100; c.bottom = -100; c.near = 10; c.far = 400; sol.position.set(60, 150, 100);
+    raiz.traverse(o => {
+      if (!o.isMesh || o.isInstancedMesh) return;
+      const m = Array.isArray(o.material) ? o.material[0] : o.material;
+      if (m && !m.transparent) { o.castShadow = true; o.receiveShadow = true; } else if (m) o.receiveShadow = false;
+    });
+  }
+
   function iniciarMotor(clave, obtenerEstado) {
     const THREE = window.THREE;
     const lienzo = modal.querySelector('canvas');
@@ -259,6 +272,7 @@
     const modulo = { intercambiador: PCT.visor3dEscenaIntercambiador, bomba: PCT.visor3dEscenaBomba, planta: PCT.planta3d }[MODELOS[clave].escena] || PCT.visor3dEscena;
     const escena = modulo.crearEscena(THREE, clave);
     threeEscena.add(escena.raiz);
+    if (escena.sombras) activarSombras(THREE, renderer, escena.raiz, sol);
     const camara = new THREE.PerspectiveCamera(38, 1, 1, 500);
     const controles = new ControlesOrbita(lienzo, escena.vistaInicial, () => {});
     sesion = { THREE, renderer, camara, threeEscena, escena, controles, clave, obtenerEstado, seleccion: null, animacion: 0,
