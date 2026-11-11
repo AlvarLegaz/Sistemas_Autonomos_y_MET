@@ -15,7 +15,7 @@ import time
 import paho.mqtt.client as mqtt
 from flask import Flask, Response, abort, jsonify, request, send_file, send_from_directory
 
-from control_t1 import ControlT1
+from control_t1 import SALIDA_RES, ControlT1
 from gateway_main_app import (BROKER_POR_DEFECTO, TOPIC_ENTRADAS, TOPIC_SALIDAS,
                               broker, credenciales)
 
@@ -31,6 +31,13 @@ lock = threading.Lock()
 client = None
 control = ControlT1()     # control de T1 por cascada: corre aquí, no en el navegador (se activa desde la página)
 
+# La orden de calentar caduca en el gateway (15 s): mientras la resistencia deba estar encendida, este servidor la repite.
+REFRESCO_CALEFACTOR_S = 5.0
+ESPERA_ORDEN_S = 3.0        # tras una orden, margen antes de fiarse de que el gateway aun la muestra apagada
+res_deseado = False         # la resistencia deberia estar encendida (orden de la pagina o del control)
+ultima_orden_res = 0.0
+emergencia_pedida = False   # paro de emergencia pedido: se repite hasta que el gateway lo confirme
+
 
 def instantanea():
     """Lo que ve el navegador: el ultimo estado del gateway y la salud de las conexiones."""
@@ -38,13 +45,39 @@ def instantanea():
         edad = time.time() - estado["recibido"] if estado["datos"] else None
         return {"broker": estado["broker"], "rechazo": estado["rechazo"],
                 "gateway": edad is not None and edad < GATEWAY_TIMEOUT_S,
-                "datos": estado["datos"], "control": control.estado()}
+                "datos": estado["datos"], "control": control.estado(), "emergencia_pedida": emergencia_pedida}
 
 
-def publicar(ordenes):
+def _verdadero(valor):
+    return valor is True or valor in (1, "1", "true", "on", "True")
+
+
+def registrar_orden(orden):
+    """Recuerda si la resistencia debe estar encendida, para ir renovando la orden. Llamar con el lock cogido."""
+    global res_deseado, ultima_orden_res
+    if isinstance(orden, dict) and SALIDA_RES in orden:
+        res_deseado, ultima_orden_res = _verdadero(orden[SALIDA_RES]), time.time()
+
+
+def sincronizar_con_gateway(datos):
+    """Si el gateway dice que la resistencia esta apagada (fallo, termostato, paro o caducidad), se deja de insistir. Lock cogido."""
+    global res_deseado, emergencia_pedida
+    if not isinstance(datos, dict):
+        return
+    if res_deseado and datos.get(SALIDA_RES) is False and time.time() - ultima_orden_res > ESPERA_ORDEN_S:
+        res_deseado = False
+    if datos.get("paro_emergencia") is True:
+        res_deseado = False
+        if emergencia_pedida:
+            emergencia_pedida = False          # el gateway ya esta en paro: no hace falta repetir
+
+
+def publicar(ordenes, qos=0):
     """Manda al gateway las órdenes del control (si las hay)."""
     if ordenes and client is not None:
-        client.publish(TOPIC_SALIDAS, json.dumps(ordenes), qos=0)
+        with lock:
+            registrar_orden(ordenes)
+        client.publish(TOPIC_SALIDAS, json.dumps(ordenes), qos=qos)
 
 
 def difundir():
@@ -80,6 +113,7 @@ def on_message(c, userdata, msg):
     with lock:
         estado["datos"], estado["recibido"] = datos, time.time()
         ordenes = control.paso(datos) if isinstance(datos, dict) else {}
+        sincronizar_con_gateway(datos)
     publicar(ordenes)
     difundir()
 
@@ -150,6 +184,8 @@ def api_salidas():
     info = client.publish(TOPIC_SALIDAS, json.dumps(orden), qos=0)
     if info.rc != mqtt.MQTT_ERR_SUCCESS:
         return jsonify(error="broker no disponible"), 503
+    with lock:
+        registrar_orden(orden)
     return jsonify(ok=True)
 
 
@@ -179,6 +215,51 @@ def api_control():
     return jsonify(control.estado())
 
 
+@app.post("/api/emergencia")
+def api_emergencia():
+    """Paro de emergencia: {"activo": true} apaga todo en el gateway y desactiva el control; {"activo": false} lo rearma."""
+    global res_deseado, emergencia_pedida
+    cuerpo = request.get_json(silent=True)
+    if not isinstance(cuerpo, dict) or not isinstance(cuerpo.get("activo"), bool):
+        return jsonify(error="se esperaba {\"activo\": true|false}"), 400
+    activo = cuerpo["activo"]
+    with lock:
+        if activo:
+            emergencia_pedida, res_deseado = True, False    # se sigue pidiendo hasta que el gateway lo confirme
+            control.desactivar()
+        else:
+            emergencia_pedida = False
+    enviado = False
+    if client is not None:
+        info = client.publish(TOPIC_SALIDAS, json.dumps({"paro_emergencia": activo}), qos=1)
+        enviado = info.rc == mqtt.MQTT_ERR_SUCCESS
+    if not activo and not enviado:
+        return jsonify(error="broker no disponible"), 503
+    difundir()
+    return jsonify(activo=activo, enviado=enviado)
+
+
+def refrescar_ordenes():
+    """Una pasada del refresco: repite el paro pendiente y renueva la orden de calentar (para que no caduque)."""
+    if client is None or not estado["broker"]:
+        return
+    with lock:
+        paro, calentar = emergencia_pedida, res_deseado
+    if paro:
+        client.publish(TOPIC_SALIDAS, json.dumps({"paro_emergencia": True}), qos=1)
+    elif calentar:
+        client.publish(TOPIC_SALIDAS, json.dumps({SALIDA_RES: True}), qos=0)
+
+
+def bucle_refresco():
+    while True:
+        time.sleep(REFRESCO_CALEFACTOR_S)
+        try:
+            refrescar_ordenes()
+        except Exception as e:     # un fallo aqui no debe tumbar el servidor
+            print(f"Error en el refresco de ordenes: {e}")
+
+
 def main():
     global client
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -195,6 +276,7 @@ def main():
     client.on_connect, client.on_disconnect, client.on_message = on_connect, on_disconnect, on_message
     client.connect_async(*args.broker, keepalive=30)
     client.loop_start()
+    threading.Thread(target=bucle_refresco, name="refresco_ordenes", daemon=True).start()
 
     print(f"Interfaz web en http://0.0.0.0:{args.puerto}/  (broker {args.broker[0]}:{args.broker[1]})")
     try:

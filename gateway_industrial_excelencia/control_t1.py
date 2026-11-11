@@ -28,6 +28,9 @@ EFICIENCIA_BASE, REDUCCION_POR_CAUDAL = 0.79, 0.25   # intercambiador (mismos va
 GANANCIA_P, GANANCIA_I = 1.0, 0.002            # lazo externo (T1 -> consigna de T2), como en el simulador
 SEGUNDOS_REENVIO = 5.0                         # las órdenes se repiten para que el gateway no las pierda
 PASO_MAXIMO_S = 5.0                            # un hueco largo entre lecturas no acumula integral
+# Motivos por los que el gateway no deja calentar (los publica en `motivos_bloqueo`) y que desactivan el control.
+FALLOS = {"termostato_abierto": "Termostato disparado", "sonda_t2_fuera_de_rango": "Sonda T2 fuera de rango",
+          "paro_emergencia": "Paro de emergencia"}
 
 LIMITES = {                                    # (mínimo, máximo) de cada ajuste
     "consigna_t1": (20.0, 80.0),
@@ -110,10 +113,13 @@ class ControlT1:
         t1, t2 = _temperatura(datos, CANAL_T1), _temperatura(datos, CANAL_T2)
         antes = self._res_on
 
-        if datos.get(CANAL_TERMOSTATO) is False:
-            # Un disparo del termostato es un fallo: el control se desactiva y no vuelve solo al cerrarse el termostato.
+        fallos = [FALLOS[m] for m in (datos.get("motivos_bloqueo") or []) if m in FALLOS]
+        if datos.get(CANAL_TERMOSTATO) is False and not fallos:
+            fallos = [FALLOS["termostato_abierto"]]
+        if fallos:
+            # Un fallo (termostato, sonda T2, paro de emergencia): el control se desactiva y no vuelve solo cuando se arregle.
             self.activo, self._res_on, self._t2_objetivo = False, False, None
-            self._aviso = "Termostato disparado: control automático desactivado"
+            self._aviso = f"{' y '.join(fallos)}: control automático desactivado"
             return {SALIDA_RES: False}
         if t1 is None or t2 is None:
             self._res_on, self._t2_objetivo, self._aviso = False, None, "Sin lectura de T1 o T2: calefactor apagado"

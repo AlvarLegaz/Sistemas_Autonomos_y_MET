@@ -39,12 +39,15 @@ class PCFDigitalInputSim:
 class MCP3008AnalogInputSim:
     def __init__(self, **_):
         self.t0 = time.monotonic()
+        self.t2_v = 0.5     # AnalogIn2 (sonda T2): 50 °C fijos; una prueba puede cambiarlo para simular un fallo de sonda
 
     def read_inputs(self):
         t = time.monotonic() - self.t0
-        return {f"AnalogIn{ch + 1}_value":
-                round(ADC_VREF * (0.5 + 0.5 * math.sin(t * (0.3 + 0.15 * ch) + ch)), 3)
-                for ch in range(NUM_CANALES)}
+        lecturas = {f"AnalogIn{ch + 1}_value":
+                    round(ADC_VREF * (0.5 + 0.5 * math.sin(t * (0.3 + 0.15 * ch) + ch)), 3)
+                    for ch in range(NUM_CANALES)}
+        lecturas["AnalogIn2_value"] = self.t2_v
+        return lecturas
 
     def close(self):
         pass

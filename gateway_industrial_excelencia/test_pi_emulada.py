@@ -50,7 +50,8 @@ class SpiFalso:
         pass
 
     def xfer2(self, datos):
-        raw = 512
+        canal = (datos[1] >> 4) - 8
+        raw = 155 if canal == 1 else 512      # AnalogIn2 (sonda T2) a ~0,5 V = 50 °C; el resto a media escala
         return [0, (raw >> 8) & 3, raw & 0xFF]
 
     def close(self):

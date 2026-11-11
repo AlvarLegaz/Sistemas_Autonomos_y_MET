@@ -178,6 +178,10 @@ details.avanzado summary { cursor: pointer; font-weight: 700; }
 .grafica { display: block; width: 100%; height: 230px; background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; }
 .grafica-activaciones { height: 256px; }
 .titulo-grafica { margin: 16px 0 6px; font-size: 14px; }
+#paro-emergencia { min-height: 40px; padding: 0 16px; border-radius: 6px; border: 2px solid #fff3; background: #c0262d; color: #fff; font-weight: 800; letter-spacing: .02em; cursor: pointer; }
+#paro-emergencia:hover { filter: brightness(1.12); }
+#paro-emergencia.rearmar { background: #f0b429; color: #16202A; animation: parpadeo-paro 1s steps(2) infinite; }
+@keyframes parpadeo-paro { 50% { opacity: .65; } }
 .modo-regulacion { display: flex; gap: 6px; margin: 8px 0 4px; }
 .modo-regulacion button { flex: 1; min-height: 40px; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); color: var(--tenue); font-weight: 600; cursor: pointer; }
 .modo-regulacion button[aria-pressed="true"] { background: var(--fondo); color: var(--texto); border-color: var(--acento); box-shadow: inset 0 -3px 0 var(--acento); }
@@ -678,6 +682,20 @@ parar.onclick = () => {
   resumenCalentador();
 };
 $('controles').appendChild(parar);
+// Paro de emergencia: lo ejecuta el gateway (apaga todas las salidas y bloquea los encendidos hasta rearmar) y desactiva el control.
+const emergencia = document.createElement('button');
+emergencia.id = 'paro-emergencia'; emergencia.type = 'button'; emergencia.textContent = 'PARO DE EMERGENCIA';
+emergencia.onclick = () => {
+  const enParo = !!(ultimo && ultimo.datos && ultimo.datos.paro_emergencia);
+  fetch('/api/emergencia', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({activo: !enParo})}).catch(() => {});
+};
+$('controles').prepend(emergencia);
+function pintarEmergencia(s) {
+  const enParo = !!(s.datos && s.datos.paro_emergencia), pendiente = !!s.emergencia_pedida && !enParo;
+  emergencia.classList.toggle('rearmar', enParo);
+  emergencia.textContent = enParo ? 'REARMAR' : pendiente ? 'PARO PEDIDO…' : 'PARO DE EMERGENCIA';
+  emergencia.title = enParo ? 'Rearma el gateway: no enciende nada, hay que volver a ordenarlo' : 'Apaga todas las salidas y desactiva el control hasta rearmar';
+}
 // Bloque de controles dentro del esquema (bombas y calefactor).
 const PANEL = [   // [titulo, id de consigna, boton: 'sentido' o 'RES']
   ['Bomba N1', 'N1V', 'N1'], ['Bomba N2', 'N2V', 'N2'], ['Calefactor', 'RES', 'RES'],
@@ -741,6 +759,7 @@ function pintar(s) {
   ultimo = s;
   const d = s.datos;
   pintarControl(s.control, s.broker);
+  pintarEmergencia(s);
   if (s.rechazo) chip('chip-broker', 'error', `Broker: rechazado (${s.rechazo})`);
   else chip('chip-broker', s.broker ? 'ok' : 'aviso', s.broker ? 'Broker: conectado' : 'Broker: conectando…');
   chip('chip-gateway', !d ? '' : s.gateway ? (d.running ? 'ok' : 'aviso') : 'error',
@@ -849,9 +868,15 @@ function avisoPlanta(s, d) {
   } else if (d && !s.gateway) {
     causa = 'El gateway no responde';
     accion = 'Las lecturas pueden no ser actuales. Comprueba la Raspberry Pi y su servicio.';
+  } else if (d && d.paro_emergencia) {
+    causa = 'PARO DE EMERGENCIA activo: todas las salidas apagadas';
+    accion = 'Nada se enciende hasta que pulses Rearmar. Al rearmar tampoco se enciende nada: vuelve a ordenar lo que necesites.';
   } else if (d && !!d[MAPA.digitales.TERM.canal] === MAPA.digitales.TERM.alarmaSi) {
     causa = 'Termostato disparado: sobretemperatura en el depósito caliente';
     accion = 'La protección corta el calefactor y no se rearma sola: deja enfriar el agua y vuelve a encenderlo tú. El control automático se desactiva.';
+  } else if (d && (d.motivos_bloqueo || []).includes('sonda_t2_fuera_de_rango')) {
+    causa = 'Sonda T2 fuera de rango: calefactor bloqueado';
+    accion = 'T2 marca un valor imposible (sonda desconectada o en corto). La resistencia no calienta hasta que la lectura sea normal, y después hay que encenderla de nuevo.';
   } else if (d && d.calefactor_bloqueado) {
     causa = 'Calefactor bloqueado: no se puede leer el termostato';
     accion = 'Por seguridad la resistencia no conduce hasta saber que el termostato está cerrado. Comprueba la E/S del gateway.';

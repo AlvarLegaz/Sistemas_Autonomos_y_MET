@@ -25,6 +25,9 @@ TOPIC_SALIDAS = "pct_23/salidas"
 TOPIC_ENTRADAS = "pct_23/entradas"
 
 PUBLISH_INTERVAL_S = 0.1
+# La orden de calentar caduca si nadie la renueva en este tiempo (el servidor web la repite cada 5 s): si cae el servidor o el broker,
+# la resistencia se apaga sola.
+CADUCIDAD_CALEFACTOR_S = 15.0
 
 
 def broker(texto):
@@ -54,7 +57,7 @@ class Gateway:
     def __init__(self, host, puerto, usuario=None, clave=None, simular=False):
         self.host, self.puerto = host, puerto
         self.stop_event = threading.Event()
-        self.runtime = Runtime(simular=simular)
+        self.runtime = Runtime(simular=simular, caducidad_calefactor_s=CADUCIDAD_CALEFACTOR_S)
 
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=MQTT_CLIENT_ID)
         if usuario:
@@ -72,7 +75,7 @@ class Gateway:
             print(f"Error conectando a MQTT: {reason_code}")
             return
         print("MQTT conectado")
-        client.subscribe(TOPIC_SALIDAS)
+        client.subscribe(TOPIC_SALIDAS, qos=1)
         print(f"Subscrito a {TOPIC_SALIDAS}")
 
     def on_disconnect(self, client, userdata, flags, reason_code, properties):
@@ -89,7 +92,12 @@ class Gateway:
             data = json.loads(msg.payload.decode("utf-8"))
             if not isinstance(data, dict):
                 raise ValueError("se esperaba un objeto JSON")
-            ignoradas = self.runtime.update_outputs(data)
+            if "paro_emergencia" in data:                  # orden especial: activa o rearma el paro de emergencia
+                paro = data.pop("paro_emergencia")
+                if not isinstance(paro, bool):
+                    raise ValueError("paro_emergencia debe ser true o false")
+                self.runtime.paro_emergencia(paro)
+            ignoradas = self.runtime.update_outputs(data) if data else []
         except (ValueError, TypeError) as e:
             print(f"Mensaje MQTT descartado en {msg.topic}: {e}")
             return

@@ -27,6 +27,14 @@ ENTRADA_TERMOSTATO = "DigitalIn1_value"
 SALIDA_RESISTENCIA = f"TransistorOut{OUT_RESISTENCIA}_value"
 MOTIVO_TERMOSTATO_ABIERTO = "termostato_abierto"
 MOTIVO_TERMOSTATO_SIN_LECTURA = "termostato_sin_lectura"
+# Sonda T2 (AnalogIn2, 10 mV/°C): una lectura fuera de 5 a 145 °C es una sonda desconectada, en corto o rota; sin saber T2 no se calienta.
+ENTRADA_SONDA_T2 = "AnalogIn2_value"
+SONDA_T2_MIN_V, SONDA_T2_MAX_V = 0.05, 1.45
+MOTIVO_SONDA_T2 = "sonda_t2_fuera_de_rango"
+MOTIVO_PARO = "paro_emergencia"
+# Con estos motivos hay un fallo real: se borra la orden de calentar, se rechazan las nuevas y no se rearma sola.
+# (termostato_sin_lectura solo impide conducir mientras dure, sin borrar la orden.)
+MOTIVOS_DE_FALLO = (MOTIVO_TERMOSTATO_ABIERTO, MOTIVO_SONDA_T2, MOTIVO_PARO)
 
 
 def burst_activo(ciclo, porcentaje, ciclos=BURST_CICLOS):
@@ -67,9 +75,14 @@ class Runtime:
     rapido (125 us) solo existe si hay un GPIO de PWM configurado.
     """
 
-    def __init__(self, pwm_pin=PWM_GPIO_PIN, simular=False):
+    def __init__(self, pwm_pin=PWM_GPIO_PIN, simular=False, caducidad_calefactor_s=None):
+        """caducidad_calefactor_s: si no es None, la orden de calentar caduca a los N segundos de la ultima vez que se
+        recibio (quien la manda tiene que repetirla): si cae el servidor o el broker, la resistencia se apaga sola."""
         self.pwm_pin = pwm_pin
         self.simular = simular
+        self.caducidad_calefactor_s = caducidad_calefactor_s
+        self._calefactor_hasta = 0.0
+        self._paro_emergencia = False     # enclavado hasta que alguien lo rearme
         self.lock = threading.Lock()
         self.stop_event = threading.Event()
         self.threads = []
@@ -214,15 +227,36 @@ class Runtime:
             motivos = self._motivos_bloqueo()
             return {"running": en_marcha, "io_ok": self.io_ok,
                     "io_errors": self.io_errors, "scan_overruns": self.scan_overruns,
-                    "calefactor_bloqueado": bool(motivos), "motivos_bloqueo": motivos}
+                    "calefactor_bloqueado": bool(motivos), "motivos_bloqueo": motivos,
+                    "paro_emergencia": self._paro_emergencia}
 
     def _motivos_bloqueo(self):
         """Por que no puede conducir la resistencia ahora (lista vacia = puede). Llamar con el lock cogido."""
+        motivos = [MOTIVO_PARO] if self._paro_emergencia else []
         if not self._entradas_leidas or not self.io_ok:
-            return [MOTIVO_TERMOSTATO_SIN_LECTURA]       # no se sabe si el termostato esta cerrado: por seguridad, apagada
+            motivos.append(MOTIVO_TERMOSTATO_SIN_LECTURA)    # no se sabe si el termostato esta cerrado: por seguridad, apagada
+            return motivos
         if self.inputs.get(ENTRADA_TERMOSTATO) is not True:
-            return [MOTIVO_TERMOSTATO_ABIERTO]
-        return []
+            motivos.append(MOTIVO_TERMOSTATO_ABIERTO)
+        tension = self.inputs.get(ENTRADA_SONDA_T2)
+        if not isinstance(tension, (int, float)) or not SONDA_T2_MIN_V <= tension <= SONDA_T2_MAX_V:
+            motivos.append(MOTIVO_SONDA_T2)
+        return motivos
+
+    @staticmethod
+    def _hay_fallo(motivos):
+        return any(m in MOTIVOS_DE_FALLO for m in motivos)
+
+    def paro_emergencia(self, activo):
+        """Activa o rearma el paro de emergencia. Activo: todas las salidas digitales y de transistor se apagan y no se
+        aceptan ordenes de encendido hasta rearmar. Rearmar no enciende nada: hay que volver a ordenar lo que se quiera."""
+        with self.lock:
+            self._paro_emergencia = bool(activo)
+            if activo:
+                for nombre in self.outputs:
+                    if nombre.startswith(("DigitalOut", "TransistorOut")):
+                        self.outputs[nombre] = False
+        print("PARO DE EMERGENCIA ACTIVADO: todas las salidas apagadas" if activo else "Paro de emergencia rearmado (todo sigue apagado)")
 
     # ============================================================
     # API pública de escritura
@@ -247,9 +281,17 @@ class Runtime:
                 nuevos[nombre] = float(valor)
 
         with self.lock:
-            if nuevos.get(SALIDA_RESISTENCIA) and MOTIVO_TERMOSTATO_ABIERTO in self._motivos_bloqueo():
-                nuevos[SALIDA_RESISTENCIA] = False       # con el termostato abierto no se acepta la orden de calentar
-                print("Orden de calentar rechazada: termostato abierto")
+            motivos = self._motivos_bloqueo()
+            if self._paro_emergencia:                      # en paro no se acepta ningun encendido
+                for nombre in nuevos:
+                    if nombre.startswith(("DigitalOut", "TransistorOut")) and nuevos[nombre]:
+                        nuevos[nombre] = False
+                        print(f"Orden de encender {nombre} rechazada: paro de emergencia")
+            elif nuevos.get(SALIDA_RESISTENCIA) and self._hay_fallo(motivos):
+                nuevos[SALIDA_RESISTENCIA] = False       # con un fallo (termostato abierto, sonda T2) no se acepta calentar
+                print(f"Orden de calentar rechazada: {', '.join(motivos)}")
+            if nuevos.get(SALIDA_RESISTENCIA) and self.caducidad_calefactor_s is not None:
+                self._calefactor_hasta = time.monotonic() + self.caducidad_calefactor_s   # cada orden de calentar renueva el plazo
             self.outputs.update(nuevos)
         return ignoradas
 
@@ -294,7 +336,7 @@ class Runtime:
 
     def _scan_lento(self):
         with self.lock:
-            salidas = [self.outputs[f"DigitalOut{i}_value"] for i in range(1, NUM_CHANNELS + 1)]
+            salidas = [self.outputs[f"DigitalOut{i}_value"] and not self._paro_emergencia for i in range(1, NUM_CHANNELS + 1)]
 
         try:
             self.digital_output_driver.write_outputs(*salidas)
@@ -318,9 +360,15 @@ class Runtime:
     def _enclavar_resistencia(self):
         """Termostato abierto: se borra la orden de calentar. Aunque el termostato se cierre solo al enfriarse,
         la resistencia NO vuelve a encenderse hasta que alguien la ordene de nuevo. Llamar con el lock cogido."""
-        if MOTIVO_TERMOSTATO_ABIERTO in self._motivos_bloqueo() and self.outputs[SALIDA_RESISTENCIA]:
+        if not self.outputs[SALIDA_RESISTENCIA]:
+            return
+        motivos = self._motivos_bloqueo()
+        if self._hay_fallo(motivos):
             self.outputs[SALIDA_RESISTENCIA] = False
-            print("TERMOSTATO ABIERTO: resistencia apagada (no se rearma sola)")
+            print(f"FALLO ({', '.join(motivos)}): resistencia apagada (no se rearma sola)")
+        elif self.caducidad_calefactor_s is not None and time.monotonic() > self._calefactor_hasta:
+            self.outputs[SALIDA_RESISTENCIA] = False
+            print("Orden de calentar caducada (nadie la ha renovado): resistencia apagada")
 
     def _error_io(self, donde, e):
         with self.lock:
@@ -341,6 +389,9 @@ class Runtime:
             heat = self.outputs["PWMOut2_value"]
             feed = self.outputs["PWMOut1_value"]
             bloqueada = bool(self._motivos_bloqueo())
+            paro = self._paro_emergencia
+        if paro:
+            return [False] * NUM_CHANNELS
         cmd[OUT_RESISTENCIA - 1] = cmd[OUT_RESISTENCIA - 1] and not bloqueada and burst_activo(tick // CICLO_RED_TICKS, potencia)
         cmd[OUT_BOMBA_HEAT - 1] = cmd[OUT_BOMBA_HEAT - 1] and pwm_activo(tick, heat)
         cmd[OUT_BOMBA_FEED - 1] = cmd[OUT_BOMBA_FEED - 1] and pwm_activo(tick, feed)

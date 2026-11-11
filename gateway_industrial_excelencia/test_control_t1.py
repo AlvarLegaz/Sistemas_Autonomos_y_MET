@@ -120,6 +120,44 @@ class Histeresis(unittest.TestCase):
         self.assertEqual(self.paso(22, 22), {})
 
 
+class FallosDelGateway(unittest.TestCase):
+    """El gateway publica por que no deja calentar; los fallos desactivan el control."""
+
+    def setUp(self):
+        self.reloj = Reloj()
+        self.control = c.ControlT1(self.reloj)
+        self.control.activar()
+
+    def paso(self, motivos, t1=22, t2=22):
+        self.reloj.t += 1.0
+        datos = lectura(t1, t2)
+        datos["motivos_bloqueo"] = motivos
+        return self.control.paso(datos)
+
+    def test_sonda_t2_fuera_de_rango_desactiva_el_control(self):
+        self.assertEqual(self.paso(["sonda_t2_fuera_de_rango"])[c.SALIDA_RES], False)
+        self.assertFalse(self.control.activo)
+        self.assertIn("Sonda T2", self.control.estado()["aviso"])
+
+    def test_paro_de_emergencia_desactiva_el_control(self):
+        self.paso(["paro_emergencia"])
+        self.assertFalse(self.control.activo)
+        self.assertIn("Paro de emergencia", self.control.estado()["aviso"])
+
+    def test_varios_fallos_se_avisan_todos(self):
+        self.paso(["termostato_abierto", "sonda_t2_fuera_de_rango"])
+        aviso = self.control.estado()["aviso"]
+        self.assertTrue("Termostato" in aviso and "Sonda T2" in aviso)
+
+    def test_sin_lectura_del_termostato_no_desactiva(self):
+        self.paso(["termostato_sin_lectura"])
+        self.assertTrue(self.control.activo)
+
+    def test_sin_motivos_sigue_regulando(self):
+        self.assertTrue(self.paso([])[c.SALIDA_RES])
+        self.assertTrue(self.control.activo)
+
+
 class LazoCerrado(unittest.TestCase):
     """Planta simple de primer orden (sin inercia del calefactor): el control debe llevar T1 a su consigna."""
 

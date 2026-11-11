@@ -17,6 +17,7 @@ class ClienteFalso:
 
     def publish(self, topic, payload, qos=0):
         self.publicado.append(json.loads(payload))
+        self.qos = getattr(self, "qos", []) + [qos]
         return type("Info", (), {"rc": 0})()
 
 
@@ -29,6 +30,7 @@ class ServidorControl(unittest.TestCase):
         self.mqtt = ClienteFalso()
         web.client = self.mqtt
         web.control = c.ControlT1()
+        web.res_deseado, web.ultima_orden_res, web.emergencia_pedida = False, 0.0, False
         web.estado.update(datos=None, recibido=0.0, broker=True, rechazo=None)
         self.http = web.app.test_client()
 
@@ -76,6 +78,104 @@ class ServidorControl(unittest.TestCase):
         self.http.post("/api/control", json={"activo": True})
         web.on_message(None, None, MensajeFalso([1, 2, 3]))
         self.assertEqual(self.mqtt.publicado, [])
+
+
+class SeguridadDelServidor(unittest.TestCase):
+    def setUp(self):
+        self.mqtt = ClienteFalso()
+        web.client = self.mqtt
+        web.control = c.ControlT1()
+        web.res_deseado, web.ultima_orden_res, web.emergencia_pedida = False, 0.0, False
+        web.estado.update(datos=None, recibido=0.0, broker=True, rechazo=None)
+        self.http = web.app.test_client()
+
+    # -- la orden de calentar se va renovando (en el gateway caduca) --
+    def test_la_orden_de_calentar_se_renueva_mientras_dure(self):
+        self.http.post("/api/salidas", json={c.SALIDA_RES: True})
+        self.mqtt.publicado.clear()
+        web.refrescar_ordenes()
+        web.refrescar_ordenes()
+        self.assertEqual(self.mqtt.publicado, [{c.SALIDA_RES: True}] * 2)
+
+    def test_si_se_apaga_la_resistencia_deja_de_renovarse(self):
+        self.http.post("/api/salidas", json={c.SALIDA_RES: True})
+        self.http.post("/api/salidas", json={c.SALIDA_RES: False})
+        self.mqtt.publicado.clear()
+        web.refrescar_ordenes()
+        self.assertEqual(self.mqtt.publicado, [])
+
+    def test_si_el_gateway_la_apaga_el_servidor_no_insiste(self):
+        self.http.post("/api/salidas", json={c.SALIDA_RES: True})
+        web.ultima_orden_res -= 10                       # la orden es antigua: el gateway la ha apagado por algo
+        web.on_message(None, None, MensajeFalso({**lectura(22, 22), c.SALIDA_RES: False}))
+        self.mqtt.publicado.clear()
+        web.refrescar_ordenes()
+        self.assertEqual(self.mqtt.publicado, [])
+
+    def test_justo_despues_de_ordenar_aun_no_se_da_por_apagada(self):
+        self.http.post("/api/salidas", json={c.SALIDA_RES: True})
+        web.on_message(None, None, MensajeFalso({**lectura(22, 22), c.SALIDA_RES: False}))   # el gateway aun no la ha encendido
+        self.assertTrue(web.res_deseado)
+
+    def test_el_control_automatico_tambien_renueva(self):
+        self.http.post("/api/control", json={"activo": True})
+        web.on_message(None, None, MensajeFalso(lectura(22, 22)))
+        self.assertTrue(web.res_deseado)
+        self.mqtt.publicado.clear()
+        web.refrescar_ordenes()
+        self.assertEqual(self.mqtt.publicado, [{c.SALIDA_RES: True}])
+
+    # -- paro de emergencia --
+    def test_el_paro_se_envia_con_qos_1_y_desactiva_el_control(self):
+        self.http.post("/api/control", json={"activo": True})
+        self.http.post("/api/salidas", json={c.SALIDA_RES: True})
+        self.mqtt.publicado.clear(); self.mqtt.qos = []
+        r = self.http.post("/api/emergencia", json={"activo": True})
+        self.assertEqual((r.status_code, r.get_json()["enviado"]), (200, True))
+        self.assertEqual(self.mqtt.publicado, [{"paro_emergencia": True}])
+        self.assertEqual(self.mqtt.qos, [1])
+        self.assertFalse(web.control.activo)
+        self.assertFalse(web.res_deseado)
+        self.assertTrue(web.instantanea()["emergencia_pedida"])
+
+    def test_el_paro_se_repite_hasta_que_el_gateway_lo_confirma(self):
+        self.http.post("/api/emergencia", json={"activo": True})
+        self.mqtt.publicado.clear()
+        web.refrescar_ordenes()
+        self.assertEqual(self.mqtt.publicado, [{"paro_emergencia": True}])
+        web.on_message(None, None, MensajeFalso({**lectura(22, 22), "paro_emergencia": True}))
+        self.mqtt.publicado.clear()
+        web.refrescar_ordenes()
+        self.assertEqual(self.mqtt.publicado, [])
+        self.assertFalse(web.instantanea()["emergencia_pedida"])
+
+    def test_durante_el_paro_no_se_renueva_la_orden_de_calentar(self):
+        self.http.post("/api/salidas", json={c.SALIDA_RES: True})
+        self.http.post("/api/emergencia", json={"activo": True})
+        self.mqtt.publicado.clear()
+        web.refrescar_ordenes()
+        self.assertNotIn({c.SALIDA_RES: True}, self.mqtt.publicado)
+
+    def test_rearmar_manda_false_y_necesita_broker(self):
+        self.http.post("/api/emergencia", json={"activo": True})
+        self.mqtt.publicado.clear()
+        self.assertEqual(self.http.post("/api/emergencia", json={"activo": False}).status_code, 200)
+        self.assertEqual(self.mqtt.publicado, [{"paro_emergencia": False}])
+        self.assertFalse(web.emergencia_pedida)
+        web.client = None
+        self.assertEqual(self.http.post("/api/emergencia", json={"activo": False}).status_code, 503)
+
+    def test_el_paro_pedido_sin_broker_queda_pendiente_y_para_el_control(self):
+        self.http.post("/api/control", json={"activo": True})
+        web.client = None
+        r = self.http.post("/api/emergencia", json={"activo": True})
+        self.assertFalse(r.get_json()["enviado"])
+        self.assertTrue(web.emergencia_pedida)
+        self.assertFalse(web.control.activo)
+
+    def test_peticiones_no_validas(self):
+        for cuerpo in ({}, {"activo": "si"}, {"activo": 1}, [], None):
+            self.assertEqual(self.http.post("/api/emergencia", json=cuerpo).status_code, 400, cuerpo)
 
 
 class CodigoDeGraficas(unittest.TestCase):
