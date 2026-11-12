@@ -136,6 +136,24 @@
         sinRayo(caja(2, 2, 12, matZocalo, x, Y0 + y - 4, NAVE.zPared + 6));
       }
     }
+    // Rótulo de la pared del fondo: logo del CIFP Politécnico de Cartagena y «Mantenimiento electrónico» (el logo se carga aparte: el rótulo sale con el texto y el logo se pinta al llegar)
+    {
+      const lz = document.createElement('canvas'); lz.width = 1536; lz.height = 340;
+      const c = lz.getContext('2d'), tx = guardar(new THREE.CanvasTexture(lz)); tx.colorSpace = THREE.SRGBColorSpace;
+      const pintar = logo => {
+        c.fillStyle = '#f4f6f7'; c.fillRect(0, 0, 1536, 340); c.fillStyle = '#f68b11'; c.fillRect(0, 326, 1536, 14);
+        if (logo) { const alto = 190, ancho = alto * (logo.naturalWidth || 166) / (logo.naturalHeight || 60); c.drawImage(logo, 50, 60, ancho, alto); }
+        c.fillStyle = '#5a5758'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.font = '800 98px system-ui, sans-serif';
+        c.fillText('MANTENIMIENTO', 640, 120); c.fillText('ELECTRÓNICO', 640, 235);
+        tx.needsUpdate = true;
+      };
+      pintar(null);
+      if (typeof Image !== 'undefined') { const logo = new Image(); logo.onload = () => pintar(logo); logo.src = '/simulador/img/logo-politecnico.png'; }
+      const ROTULO = { ancho: 480, alto: 106, y: Y0 + 290 }, zR = NAVE.zPared + 1.4;
+      const rotulo = sinRayo(new THREE.Mesh(guardar(new THREE.PlaneGeometry(ROTULO.ancho, ROTULO.alto)), guardar(new THREE.MeshBasicMaterial({ map: tx }))));
+      rotulo.position.set(0, ROTULO.y, zR + 1.2); raiz.add(rotulo);                                          // delante del marco (cuya cara llega a zR + 0,7)
+      sinRayo(caja(ROTULO.ancho + 8, ROTULO.alto + 8, 1.4, matZocalo, 0, ROTULO.y, zR));                     // marco
+    }
     // pasillo marcado: rectángulo amarillo alrededor del patín y del armario
     const matAmarillo = mat(0xd6b11e), xa = -SKID.ancho / 2 - 40, xb = 270, za = -SKID.fondo / 2 - 40, zb = NAVE.canaleta.z + NAVE.canaleta.ancho / 2 + 16;
     for (const [w, d, x, z] of [[xb - xa, 6, (xa + xb) / 2, za], [xb - xa, 6, (xa + xb) / 2, zb], [6, zb - za, xa, (za + zb) / 2], [6, zb - za, xb, (za + zb) / 2]]) plano(w, d, matAmarillo, x, Y0 + 0.15, z);

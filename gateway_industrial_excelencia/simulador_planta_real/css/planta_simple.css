@@ -56,11 +56,15 @@
 .planta-simple #lecturas .nota-lecturas, .planta-simple #lecturas h2 { display: none; }
 .planta-simple #lecturas table { width: 100%; font-size: 12.5px; }
 /* Gráficas debajo del esquema */
-.planta-simple .graficas-simple { padding: 6px 16px 28px; }
+.planta-simple .graficas-simple { padding: 10px 0 28px; }      /* debajo del esquema, con su mismo ancho (el panel lateral queda a la derecha al desplazarse) */
 .planta-simple .graficas-simple h2 { margin: 6px 0 8px; font-size: 12px; font-weight: 800; letter-spacing: .06em; color: var(--tenue); }
-.planta-simple #graficas { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; }
+/* a todo lo ancho del esquema: una fila las temperaturas, otra el caudal y la presión, y otra el cronograma de motores y electroválvulas */
+.planta-simple #graficas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .planta-simple #graficas .graf-barra { grid-column: 1 / -1; }
-.planta-simple #graficas .graf { margin: 0; } .planta-simple #graficas canvas { width: 100%; height: auto; }
+.planta-simple #graficas .graf { margin: 0; min-width: 0; }
+.planta-simple #graficas .graf[data-fig="temperaturas"], .planta-simple #graficas .graf[data-fig="motores"] { grid-column: 1 / -1; }
+.planta-simple #graficas canvas { display: block; width: 100%; }
+@media (max-width: 799px) { .planta-simple #graficas { grid-template-columns: 1fr; } }
 /* Por modo: Normal ve «Mando y consignas»; Revisión ve los ajustes y el botón del calefactor del esquema; el panel dibujado dentro del esquema ya no se usa */
 body:not([data-modo="manual"]) .ajustes-manual { display: none; }
 body[data-modo="manual"] .mando-normal { display: none; }

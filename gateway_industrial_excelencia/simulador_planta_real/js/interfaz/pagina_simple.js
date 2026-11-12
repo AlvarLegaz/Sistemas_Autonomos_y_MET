@@ -56,6 +56,16 @@
     return { ordenes, terminado: pendientes === 0, paro };
   }
 
+  /** Estado todo/nada (1 o 0) de los motores, los bancos, la FDV (1 = en avance) y las electroválvulas, para el cronograma de las gráficas. */
+  function estadosDigitales(estado) {
+    const q = tag => (estado && estado.equipos && estado.equipos[tag]) || {};
+    return {
+      'P-101': q('P-101').marcha ? 1 : 0, 'P-102': q('P-102').marcha ? 1 : 0, 'KM-201': q('KM-201').cerrado ? 1 : 0, 'KM-202': q('KM-202').cerrado ? 1 : 0,
+      'FDV-101': q('FDV-101').posicion === 'AVANCE' ? 1 : 0, 'XV-101': q('XV-101').abierta ? 1 : 0, 'XV-102': q('XV-102').abierta ? 1 : 0, 'XV-301': q('XV-301').abierta ? 1 : 0,
+      'XV-302': q('XV-302').abierta ? 1 : 0, 'XV-303': q('XV-303').abierta ? 1 : 0, 'XV-401': q('XV-401').abierta ? 1 : 0,
+    };
+  }
+
   /**
    * Las condiciones para que la FDV avance, con su valor actual: [{ id, texto, ok, valor }]. Son las del PLC (seguridad positiva): una sola que falle y la FDV se queda en desvío.
    */
@@ -159,7 +169,8 @@
       </div>
       <div id="avisos"></div><p id="aviso-clic" class="aviso-clic" role="status" hidden></p>
       <div class="cuerpo-simple">
-        <main class="escena"><div class="lienzo" id="esquema"></div></main>
+        <main class="escena"><div class="lienzo" id="esquema"></div>
+          <section class="graficas-simple" aria-label="Gráficas de tendencia"><h2>GRÁFICAS</h2><div id="graficas"></div></section></main>
         <aside class="lateral-simple" aria-label="Mando y lecturas">
           <div class="pestanas" role="tablist" aria-label="Paneles"><button type="button" role="tab" id="t-mando" data-p="p-mando" aria-selected="true" aria-controls="p-mando">Mando</button><button type="button" role="tab" id="t-lecturas" data-p="p-lecturas" aria-selected="false" aria-controls="p-lecturas">Lecturas</button></div>
           <div class="panel-pestana" id="p-mando" role="tabpanel" aria-labelledby="t-mando">
@@ -182,8 +193,7 @@
             <section class="contadores" aria-label="Contadores"><h2>CONTADORES</h2><dl id="lista-contadores"></dl></section>
             <div id="lecturas"></div></div>
         </aside>
-      </div>
-      <section class="graficas-simple" aria-label="Gráficas de tendencia"><h2>GRÁFICAS</h2><div id="graficas"></div></section>`;
+      </div>`;
     const $ = id => document.getElementById(id);
     const avisos = [];
     if (enDemostracion) avisos.push('Modelo de demostración: el modelo real de la planta todavía no está cargado.');
@@ -198,7 +208,7 @@
     const consignasPanel = { caudalLh: PROC.caudalNominalLh, tt103C: PROC.consignaTT103C, llenando: false };
     const objetos = PCT.htstEsquema.crearObjetos(canvas, { consignas: () => consignasPanel });
     // Gráficas debajo del esquema y tabla de lecturas en la pestaña del panel lateral
-    const historial = PCT.htstGrafica.crearHistorial(), graficas = PCT.htstGrafica.crearGraficas($('graficas'), { historial });
+    const historial = PCT.htstGrafica.crearHistorial(), graficas = PCT.htstGrafica.crearGraficas($('graficas'), { historial, anchoAuto: true, grupos: PCT.htstGrafica.GRUPOS.concat([PCT.htstGrafica.GRUPO_MOTORES]) });
     const lecturas = PCT.htstPanelLecturas.crearPanelLecturas($('lecturas'));
 
     // Estado de la página
@@ -385,7 +395,7 @@
       if (corriendo) sim.paso(0.25 * velocidad);
       if (llenando) pasoLlenado();
       refrescar();
-      if (corriendo) { const e = sim.estado(), v = {}; for (const [tag, i] of Object.entries(e.instrumentos || {})) if (i && typeof i.valorPLC === 'number') v[tag] = i.valorPLC; historial.registrar(e.tiempoS, v); }
+      if (corriendo) { const e = sim.estado(), v = {}; for (const [tag, i] of Object.entries(e.instrumentos || {})) if (i && typeof i.valorPLC === 'number') v[tag] = i.valorPLC; historial.registrar(e.tiempoS, Object.assign(v, estadosDigitales(e))); }
       if (performance.now() - ultimaGrafica > 1000) { ultimaGrafica = performance.now(); graficas.redibujar(); }
     }, 250);
     refrescar();
@@ -394,7 +404,7 @@
     PCT.htstApp = { estadoActual: () => sim.estado(), sim, enDemostracion, nivel: () => 3, ponerModo, accionarEquipo: accionar, llenarDepositos: alternarLlenado };
   }
 
-  const api = { ALIAS, LLENO_PCT, NIVELES_INICIALES, decidirClic, planLlenado, planCaldera, condicionesFdv, textoEstado, formatoReloj, nombreModo, iniciar };
+  const api = { ALIAS, LLENO_PCT, NIVELES_INICIALES, decidirClic, planLlenado, planCaldera, condicionesFdv, estadosDigitales, textoEstado, formatoReloj, nombreModo, iniciar };
   if (typeof module !== 'undefined') module.exports = api;
   else { window.HTST_PAGINA_SIMPLE = api; if (document.getElementById('app')) iniciar().catch(error => { console.error(error); document.getElementById('app').innerHTML = `<p class="aviso-planta">No se pudo iniciar la planta: ${escapar(error.message || error)}</p>`; }); }
 })();

@@ -155,4 +155,12 @@ test('electroválvulas manuales: se accionan con el clic también en modo Normal
   assert.equal(sim.estado().equipos['XV-301'].abierta, true);                                                        // y a mano sí se abre
 });
 
+test('estados todo/nada para el cronograma: motores, bancos, FDV y electroválvulas', () => {
+  const sim = enManual();
+  sim.ordenes.manual('P-102', 1); sim.ordenes.manual('XV-301', 1); sim.paso(2);
+  const d = simple.estadosDigitales(sim.estado());
+  assert.equal(d['P-102'], 1); assert.equal(d['XV-301'], 1); assert.equal(d['P-101'], 0); assert.equal(d['FDV-101'], 0);
+  for (const g of require('../js/interfaz/grafica_htst.js').GRUPO_MOTORES.series) assert.ok(g[0] in d, `falta ${g[0]}`);
+});
+
 test('reloj con horas, minutos y segundos', () => { assert.equal(simple.formatoReloj(3725.9), '01:02:05'); assert.equal(simple.formatoReloj(), '00:00:00'); });
