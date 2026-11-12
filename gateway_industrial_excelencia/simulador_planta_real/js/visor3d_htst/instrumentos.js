@@ -6,20 +6,20 @@
   const B = typeof require !== 'undefined' ? require('./base_equipo.js') : PCT.htstBase;
   const T = typeof require !== 'undefined' ? require('./tuberias.js') : PCT.htstTuberias;
   const PI = Math.PI;
-  const TAGS = ['TT-101', 'TT-102', 'TT-103', 'TT-104', 'TT-105', 'TT-106', 'TSH-101', 'FT-101', 'PT-101', 'PT-102', 'LT-101', 'LSH-101', 'LSL-101', 'LSL-301', 'LSH-301', 'ZS-101', 'ZS-102', 'PSL-201'];
+  const TAGS = ['TT-101', 'TT-102', 'TT-103', 'TT-104', 'TT-201', 'TT-106', 'TSH-201', 'FT-101', 'PT-101', 'PT-102', 'LT-101', 'LSH-101', 'LSL-101', 'LSL-201', 'LSH-201', 'ZS-101', 'ZS-102', 'PSL-501'];
 
   // Sitio de montaje de cada instrumento (cm, coordenadas del patín): sobre su tubo (punto medio del tramo horizontal más largo), o sobre un equipo.
   // Los de nivel van en la pared del tanque TK-101 (centro (-135, -35), radio 33): z = -35 + √(33² − dx²).
-  const MONTAJE_RUTA = { 'TT-101': 'LECHE_CRUDA_1', 'TT-103': 'LECHE_TRAS_TUBO', 'TT-104': 'LECHE_SALIDA', 'TT-105': 'AGUA_CALIENTE_2', 'PT-101': 'LECHE_CRUDA_4', 'PT-102': 'LECHE_AVANCE', 'TT-106': 'LECHE_REG_ENF' };
+  const MONTAJE_RUTA = { 'TT-101': 'LECHE_CRUDA_1', 'TT-103': 'LECHE_TRAS_TUBO', 'TT-104': 'LECHE_SALIDA', 'TT-201': 'AGUA_CALIENTE_2', 'PT-101': 'LECHE_CRUDA_4', 'PT-102': 'LECHE_AVANCE', 'TT-106': 'LECHE_REG_ENF' };
   const pared = (dx, y) => [-135 + dx, y, -35 + Math.sqrt(33 * 33 - dx * dx)];
   const MONTAJE_FIJO = {
     'TT-102': [-12, 72, -10],                      // en la parte alta del intercambiador, entre los paquetes de regeneración y calentamiento
     'FT-101': [-68, 25, 35],                       // en línea entre la bomba P-101 y la entrada del intercambiador
-    'TSH-101': [28, 42, 62.5],                     // en la pared frontal del calentador
+    'TSH-201': [28, 42, 62.5],                     // en la pared frontal del calentador
     'LT-101': pared(10, 26), 'LSH-101': pared(-15, 70), 'LSL-101': pared(-15, 32),
-    'LSL-301': [6, 18, 54.6],                      // flotador de nivel bajo en la pared del calentador HW-101 (centro (20, 45), radio 17), por debajo del visor frontal
-    'LSH-301': [6, 58, 54.6],                      // flotador de nivel alto, en la misma generatriz que LSL-301 y a la altura del 90 % del visor
-    'ZS-101': [127, 26, -5], 'ZS-102': [111, 26, -5], 'PSL-201': [135, 18, 10],       // los finales de carrera, en el yugo de la FDV
+    'LSL-201': [6, 18, 54.6],                      // flotador de nivel bajo en la pared del calentador HW-201 (centro (20, 45), radio 17), por debajo del visor frontal
+    'LSH-201': [6, 58, 54.6],                      // flotador de nivel alto, en la misma generatriz que LSL-201 y a la altura del 90 % del visor
+    'ZS-101': [127, 26, -5], 'ZS-102': [111, 26, -5], 'PSL-501': [135, 18, 10],       // los finales de carrera, en el yugo de la FDV
   };
   /** Posición de montaje de un instrumento (función pura, sin THREE). */
   function montaje(tag) {
@@ -66,11 +66,11 @@
       enlazarLed(tag, led);
       base.registrar(tag, g, [8, 24, 8], g.position.y + 30);
     }
-    for (const tag of ['TT-101', 'TT-102', 'TT-103', 'TT-104', 'TT-105', 'TT-106']) sondaTemperatura(tag);
+    for (const tag of ['TT-101', 'TT-102', 'TT-103', 'TT-104', 'TT-201', 'TT-106']) sondaTemperatura(tag);
 
-    /* ---------- TSH-101 termostato de seguridad (contacto NC) ---------- */
+    /* ---------- TSH-201 termostato de seguridad (contacto NC) ---------- */
     (function () {
-      const tag = 'TSH-101', g = grupoEn(tag), e = kit.ensamble();
+      const tag = 'TSH-201', g = grupoEn(tag), e = kit.ensamble();
       e.add(kit.caja(7, 9, 5), 'gris', [0, 0, -2]); e.add(kit.cil(1.2, 3, 8), 'inoxMate', [0, -4.5, -5], [PI / 2, 0, 0]); e.add(kit.cil(0.4, 12, 6), 'inoxMate', [0, -6, -9], [PI / 2, 0, 0]);
       e.construir(g, tag);
       const reset = kit.matDinamico(0xc0392b); kit.malla(kit.cil(1.4, 1.5, 10), reset, g, tag, [0, 1.5, 1], [PI / 2, 0, 0]);
@@ -140,11 +140,11 @@
       });
       base.registrar(tag, g, [8, 8, 12], g.position.y + 9);
     }
-    flotador('LSH-101'); flotador('LSL-101'); flotador('LSH-301');       // LSH-301: nivel alto del agua caliente (LED verde = nivel alcanzado)
+    flotador('LSH-101'); flotador('LSL-101'); flotador('LSH-201');       // LSH-201: nivel alto del agua caliente (LED verde = nivel alcanzado)
 
-    /* ---------- LSL-301 flotador de nivel bajo del agua caliente (NC): contacto cerrado = hay agua; abierto = nivel bajo o hilo roto ---------- */
+    /* ---------- LSL-201 flotador de nivel bajo del agua caliente (NC): contacto cerrado = hay agua; abierto = nivel bajo o hilo roto ---------- */
     (function () {
-      const tag = 'LSL-301', g = grupoEn(tag), e = kit.ensamble();
+      const tag = 'LSL-201', g = grupoEn(tag), e = kit.ensamble();
       e.add(kit.cil(2.4, 3, 12), 'inox', [0, 0, 1.5], [PI / 2, 0, 0]); e.add(kit.caja(6, 6, 7), 'oscuro', [0, 0, 6]); e.add(kit.cil(0.4, 9, 6), 'inoxMate', [0, 0, -3.5], [PI / 2, 0, 0]);
       e.construir(g, tag);
       const led = kit.matLed(0x35e06b); kit.malla(kit.esfera(0.7, 6), led, g, tag, [0, 3.6, 6]);
@@ -161,7 +161,7 @@
       base.registrar(tag, g, [8, 12, 14], g.position.y + 9);
     })();
 
-    /* ---------- ZS-101 y ZS-102 finales de carrera de la FDV, PSL-201 presostato ---------- */
+    /* ---------- ZS-101 y ZS-102 finales de carrera de la FDV, PSL-501 presostato ---------- */
     function interruptor(tag, ancho, sentidoBrazo) {
       const g = grupoEn(tag), e = kit.ensamble();
       e.add(kit.caja(ancho, 4, 4), 'negro', [0, 0, 0]); e.add(kit.cil(0.5, 5, 6), 'inoxMate', [0, -3, 0]);
@@ -178,7 +178,7 @@
     }
     interruptor('ZS-101', 5, -1); interruptor('ZS-102', 5, 1);
     (function () {
-      const tag = 'PSL-201', g = grupoEn(tag), e = kit.ensamble();
+      const tag = 'PSL-501', g = grupoEn(tag), e = kit.ensamble();
       e.add(kit.caja(5, 6, 4), 'gris', [0, 0, 0]); e.add(kit.cil(0.5, 6, 6), 'inoxMate', [0, -5, 0]);
       e.construir(g, tag);
       const led = kit.matLed(0x35e06b); kit.malla(kit.esfera(0.6, 6), led, g, tag, [0, 3.6, 0]);

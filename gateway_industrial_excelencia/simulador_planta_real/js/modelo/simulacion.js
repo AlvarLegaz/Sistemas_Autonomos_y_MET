@@ -29,30 +29,30 @@
       estado.tiempoS += dt; motor.reloj(estado.tiempoS);
       const alim = motor.alimentacion(estado); estado.alimentacion = alim;
       motor.alCalcularProceso(estado);
-      eq['F-201'].fundido = !alim.fusibleF201; eq['PS-001'].tensionV = alim.v24; eq['PS-001'].ok = alim.v24 >= 22;
+      eq['F-001'].fundido = !alim.fusibleF201; eq['PS-001'].tensionV = alim.v24; eq['PS-001'].ok = alim.v24 >= 22;
 
       // ---- 1. Actuadores: lo que ordena el PLC pasa por las averías de actuador y por el paro de emergencia (relé de seguridad) ----
       const es = eq['ES-001'].rearmado;
       const cierra = (tag, orden) => motor.alAccionarSalida(tag, es && orden ? 1 : 0) === 1;
-      const armado = eq['QF-102'].armado;
-      eq['KM-102'].cerrado = cierra('KM-102', DO['P-102']);
+      const armado = eq['QF-201'].armado;
+      eq['KM-203'].cerrado = cierra('KM-203', DO['P-201']);
       eq['KM-201'].cerrado = cierra('KM-201', DO['KM-201']); eq['KM-202'].cerrado = cierra('KM-202', DO['KM-202']);
       eq['SV-101'].energizada = cierra('SV-101', DO['SV-101']);
       eq['SV-101'].bobinaOhm = motor.hay('AV-BOBINA-ABIERTA') ? Infinity : C.electrico.resistenciaBobinaSV101Ohm;
       eq['XV-301'].abierta = es && DO['XV-301'] === 1; eq['XV-401'].abierta = es && DO['XV-401'] === 1;
-      for (const v of ['XV-101', 'XV-102', 'XV-302', 'XV-303']) eq[v].abierta = es && DO[v] === 1;
-      eq['P-102'].marcha = eq['KM-102'].cerrado && armado;
-      const hw = eq['HW-101'];
+      for (const v of ['XV-101', 'XV-102', 'XV-201', 'XV-202']) eq[v].abierta = es && DO[v] === 1;
+      eq['P-201'].marcha = eq['KM-203'].cerrado && armado;
+      const hw = eq['HW-201'];
       hw.banco1 = eq['KM-201'].cerrado && armado; hw.banco2 = eq['KM-202'].cerrado && armado;
       hw.potenciaKW = ((hw.banco1 ? 1 : 0) + (hw.banco2 ? 1 : 0)) * C.aguaCaliente.bancoKW;
       const p101 = eq['P-101'];
       p101.marcha = es && DO['P-101'] === 1 && !p101.fallo; p101.velocidadPct = AO['VFD-101'];
       // Neumática y FDV (seguridad positiva: sin tensión o sin aire el muelle la lleva a desvío)
-      const fdv = eq['FDV-101'], aireOK = eq['FRL-101'].presionBar >= P.aireMinimoBar;
-      eq['PSL-201'].contactoCerrado = aireOK; fdv.aireOK = aireOK;
+      const fdv = eq['FDV-101'], aireOK = eq['FRL-501'].presionBar >= P.aireMinimoBar;
+      eq['PSL-501'].contactoCerrado = aireOK; fdv.aireOK = aireOK;
       fdv.apertura01 = hidraulica.pasoFDV(fdv.apertura01, { objetivo01: eq['SV-101'].energizada && aireOK ? 1 : 0, dt, aireOK, atascadaEnAvance: fdv.atascada });
       fdv.posicion = hidraulica.posicionFDV(fdv.apertura01);
-      eq['P-102'].corrienteA = eq['P-102'].marcha ? C.p102.corrienteNominalA : 0;
+      eq['P-201'].corrienteA = eq['P-201'].marcha ? C.p102.corrienteNominalA : 0;
 
       // ---- 2. Proceso ----
       const flt = eq['FLT-101'];
@@ -77,15 +77,15 @@
       T.salidaTubo = termica.acercar(T.salidaTubo, T.trasCalentamiento, dt, Number.isFinite(tRes) ? limitar(tRes, 2, 60) : 120);   // el tubo retrasa la temperatura
       T.trasRegeneracionPas = termica.acercar(T.trasRegeneracionPas, obj.tTrasRegeneracionPas, dt, tau);   // TT-106: entrada al enfriamiento
       T.salidaFinal = termica.acercar(T.salidaFinal, obj.t104, dt, tau);
-      // Sin agua en el depósito P-102 no tiene qué mover y no hay intercambio con la leche
-      const perdidaLecheKW = eq['P-102'].marcha && caudal > 1 && hw.nivelPct > C.aguaCaliente.nivelBajoPct ? termica.potenciaALeche(caudal, T.trasRegeneracion, T.trasCalentamiento) : 0;
-      const mezcla = termica.pasoNivelAguaCaliente(hw.volumenL, T.aguaCaliente, { llenando: eq['XV-302'].abierta, vaciando: eq['XV-303'].abierta, dt });
+      // Sin agua en el depósito P-201 no tiene qué mover y no hay intercambio con la leche
+      const perdidaLecheKW = eq['P-201'].marcha && caudal > 1 && hw.nivelPct > C.aguaCaliente.nivelBajoPct ? termica.potenciaALeche(caudal, T.trasRegeneracion, T.trasCalentamiento) : 0;
+      const mezcla = termica.pasoNivelAguaCaliente(hw.volumenL, T.aguaCaliente, { llenando: eq['XV-201'].abierta, vaciando: eq['XV-202'].abierta, dt });
       hw.volumenL = mezcla.volumenL; hw.nivelPct = hw.volumenL / C.aguaCaliente.capacidadL * 100;
       T.aguaCaliente = termica.pasoAguaCaliente(mezcla.temperaturaC, { potenciaKW: hw.potenciaKW, perdidaLecheKW, dt, volumenL: hw.volumenL });
       estado.aguaCaliente.volumenL = hw.volumenL; estado.aguaCaliente.nivelPct = hw.nivelPct; estado.aguaCaliente.temperaturaC = T.aguaCaliente;
-      eq['LSL-301'].contactoCerrado = hw.nivelPct > C.aguaCaliente.nivelBajoPct;
+      eq['LSL-201'].contactoCerrado = hw.nivelPct > C.aguaCaliente.nivelBajoPct;
       hw.temperaturaC = T.aguaCaliente;
-      const tsh = eq['TSH-101'];
+      const tsh = eq['TSH-201'];
       tsh.disparado = termica.pasoTermostato(tsh.disparado, T.aguaCaliente, pulsoTSH); pulsoTSH = false;
       tsh.abierto = tsh.disparado || tsh.falsoContacto;
       estado.proceso.presiones = hidraulica.presiones({ caudalLh: caudal, hayAvance, fuga01: eq['HX-101'].fugaPlaca01, obstruccion01: flt.obstruccion01 });
@@ -151,18 +151,18 @@
       modo(m) { if (layout.MODOS.includes(m)) ord.modo = m; },
       pulsador(tag) {
         if (tag === 'PB-001') { pbRestoS = 1; ord.pulsadores.push('PB-001'); }
-        else if (tag === 'TSH-101') pulsoTSH = true;                      // rearme manual del termostato (solo si el agua ya bajó de 80 °C)
+        else if (tag === 'TSH-201') pulsoTSH = true;                      // rearme manual del termostato (solo si el agua ya bajó de 80 °C)
       },
       manual(tag, valor) { if (valor === null || valor === undefined) delete ord.manual[tag]; else ord.manual[tag] = valor; },
       paroEmergencia(activo) { estado.equipos['ES-001'].rearmado = !activo; },
-      /** Fija el nivel (0-100 %) de un depósito: 'tanque' (TK-101) o 'aguaCaliente' (HW-101). Sirve de nivel inicial y también para corregirlo con la planta en marcha. */
+      /** Fija el nivel (0-100 %) de un depósito: 'tanque' (TK-101) o 'aguaCaliente' (HW-201). Sirve de nivel inicial y también para corregirlo con la planta en marcha. */
       nivelDeposito(cual, pct) {
         if (pct === null || pct === '' || !Number.isFinite(Number(pct))) return;
         const n = limitar(Number(pct), 0, 100);
         if (cual === 'tanque') { const tk = estado.equipos['TK-101']; tk.volumenL = C.tanque.capacidadL * n / 100; tk.nivelPct = n; tk.desbordando = false; estado.tanque.volumenL = tk.volumenL; estado.tanque.nivelPct = n; }
         else if (cual === 'aguaCaliente') {
-          const hw = estado.equipos['HW-101']; hw.volumenL = C.aguaCaliente.capacidadL * n / 100; hw.nivelPct = n;
-          estado.aguaCaliente.volumenL = hw.volumenL; estado.aguaCaliente.nivelPct = n; estado.equipos['LSL-301'].contactoCerrado = n > C.aguaCaliente.nivelBajoPct;
+          const hw = estado.equipos['HW-201']; hw.volumenL = C.aguaCaliente.capacidadL * n / 100; hw.nivelPct = n;
+          estado.aguaCaliente.volumenL = hw.volumenL; estado.aguaCaliente.nivelPct = n; estado.equipos['LSL-201'].contactoCerrado = n > C.aguaCaliente.nivelBajoPct;
         }
       },
     };

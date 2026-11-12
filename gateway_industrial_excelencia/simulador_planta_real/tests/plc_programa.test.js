@@ -7,14 +7,14 @@ const layout = require('../js/layout.js');
 
 /** Entradas de una planta en producción sana (valores del PLC y contactos auxiliares coherentes). */
 function sanas(cambios = {}) {
-  const v = { 'TT-101': 4, 'TT-102': 64.5, 'TT-103': 73.5, 'TT-104': 5, 'TT-105': 76, 'FT-101': 2000, 'PT-101': 1.3, 'PT-102': 1.8, 'LT-101': 60 };
+  const v = { 'TT-101': 4, 'TT-102': 64.5, 'TT-103': 73.5, 'TT-104': 5, 'TT-201': 76, 'FT-101': 2000, 'PT-101': 1.3, 'PT-102': 1.8, 'LT-101': 60 };
   const AI = {};
   for (const s of layout.SENALES.filter(x => x.tipo === 'AI')) { const val = (cambios.valores || {})[s.tag] != null ? cambios.valores[s.tag] : v[s.tag]; AI[s.tag] = { valor: val, mA: layout.aMilisamperios(val, s.rango[0], s.rango[1]), calidad: (cambios.calidad || {})[s.tag] || 'OK' }; }
-  const DI = { 'ES-001': 1, 'TSH-101': 1, 'LSH-101': 0, 'LSL-101': 1, 'ZS-101': 1, 'ZS-102': 0, 'PSL-201': 1, 'P-101': 1, 'KM-102': 1, 'KM-201': 1, 'KM-202': 0, 'VFD-101': 0, 'QF-102': 1, 'PS-001': 1, 'PB-001': 0 };
+  const DI = { 'ES-001': 1, 'TSH-201': 1, 'LSH-101': 0, 'LSL-101': 1, 'ZS-101': 1, 'ZS-102': 0, 'PSL-501': 1, 'P-101': 1, 'KM-203': 1, 'KM-201': 1, 'KM-202': 0, 'VFD-101': 0, 'QF-201': 1, 'PS-001': 1, 'PB-001': 0 };
   Object.assign(DI, cambios.DI || {});
   return { AI, DI, fijas: Object.keys(cambios.DI || {}) };      // fijas: entradas que la prueba fuerza (no siguen a las órdenes)
 }
-const REALIMENTACION = { 'ZS-101': d => d['SV-101'], 'ZS-102': d => 1 - d['SV-101'], 'KM-102': d => d['P-102'], 'KM-201': d => d['KM-201'], 'KM-202': d => d['KM-202'], 'P-101': d => d['P-101'] };
+const REALIMENTACION = { 'ZS-101': d => d['SV-101'], 'ZS-102': d => 1 - d['SV-101'], 'KM-203': d => d['P-201'], 'KM-201': d => d['KM-201'], 'KM-202': d => d['KM-202'], 'P-101': d => d['P-101'] };
 /**
  * Ejecuta n ciclos y devuelve el último resultado. Cierra el lazo como la planta real: los finales de carrera de la FDV y los contactos auxiliares
  * siguen a las órdenes del ciclo anterior, salvo las entradas que la prueba fuerza (`fijas`). `siempre`: repite las órdenes en cada ciclo.
@@ -37,10 +37,10 @@ test('en PARADA todas las salidas están a 0 salvo la reposición automática de
   assert.equal(r.AO['VFD-101'], 0);
 });
 
-test('arrancar pone recirculación: P-101 y P-102 en marcha y la velocidad sale de la consigna de caudal', () => {
+test('arrancar pone recirculación: P-101 y P-201 en marcha y la velocidad sale de la consigna de caudal', () => {
   const r = correr(crearMemoria(), sanas(), { arrancar: true, consignaCaudalLh: 2000 }, 3);
   assert.equal(r.modo, 'RECIRCULACION_AGUA');
-  assert.equal(r.DO['P-101'], 1); assert.equal(r.DO['P-102'], 1);
+  assert.equal(r.DO['P-101'], 1); assert.equal(r.DO['P-201'], 1);
   assert.ok(Math.abs(r.AO['VFD-101'] - 80) < 1e-9);
 });
 
@@ -58,7 +58,7 @@ test('FDV de seguridad positiva: cada condición que falla manda la válvula a d
     'TT-103 a 71,9 °C': sanas({ valores: { 'TT-103': 71.9 } }),
     'tiempo de residencia corto (caudal alto)': sanas({ valores: { 'FT-101': 2900 } }),
     'diferencial de regeneración bajo': sanas({ valores: { 'PT-102': 1.34 } }),
-    'aire bajo': sanas({ DI: { 'PSL-201': 0 } }),
+    'aire bajo': sanas({ DI: { 'PSL-501': 0 } }),
     'TT-103 con el lazo abierto': sanas({ calidad: { 'TT-103': 'ABIERTO' } }),
     'FT-101 con el lazo en sobreescala': sanas({ calidad: { 'FT-101': 'CORTO' } }),
     'PT-101 con el lazo abierto': sanas({ calidad: { 'PT-101': 'ABIERTO' } }),
@@ -104,7 +104,7 @@ test('el paro de emergencia se enclava: apaga todo, enciende la baliza y solo se
 });
 
 test('termostato abierto, fuente caída, fallo de variador y magnetotérmico disparan el paro', () => {
-  const motivos = { 'TSH-101': { 'TSH-101': 0 }, 'PS-001': { 'PS-001': 0 }, 'VFD-101': { 'VFD-101': 1 }, 'QF-102': { 'QF-102': 0 } };
+  const motivos = { 'TSH-201': { 'TSH-201': 0 }, 'PS-001': { 'PS-001': 0 }, 'VFD-101': { 'VFD-101': 1 }, 'QF-201': { 'QF-201': 0 } };
   for (const [motivo, DI] of Object.entries(motivos)) {
     const { mem } = enProduccion();
     const r = correr(mem, sanas({ DI }), {}, 2);
@@ -114,44 +114,44 @@ test('termostato abierto, fuente caída, fallo de variador y magnetotérmico dis
 });
 
 test('calentamiento: bancos por todo/nada con histéresis y el banco 2 solo cuando falta mucho', () => {
-  const frio = correr(crearMemoria(), sanas({ valores: { 'TT-105': 60 } }), { arrancar: true }, 3);
+  const frio = correr(crearMemoria(), sanas({ valores: { 'TT-201': 60 } }), { arrancar: true }, 3);
   assert.equal(frio.DO['KM-201'], 1); assert.equal(frio.DO['KM-202'], 1);
-  const casiBien = correr(crearMemoria(), sanas({ valores: { 'TT-105': 73 } }), { arrancar: true }, 3);
+  const casiBien = correr(crearMemoria(), sanas({ valores: { 'TT-201': 73 } }), { arrancar: true }, 3);
   assert.equal(casiBien.DO['KM-201'], 1); assert.equal(casiBien.DO['KM-202'], 0);
-  const caliente = correr(crearMemoria(), sanas({ valores: { 'TT-105': 80 } }), { arrancar: true }, 3);
+  const caliente = correr(crearMemoria(), sanas({ valores: { 'TT-201': 80 } }), { arrancar: true }, 3);
   assert.equal(caliente.DO['KM-201'], 0);
 });
 
-test('el calentamiento exige P-102 confirmada (KM-102), termostato normal y lazo sano de TT-105', () => {
-  const base = { valores: { 'TT-105': 60 } };
-  assert.equal(correr(crearMemoria(), sanas(Object.assign({}, base, { DI: { 'KM-102': 0 } })), { arrancar: true }, 3).DO['KM-201'], 0);
-  assert.equal(correr(crearMemoria(), sanas(Object.assign({}, base, { calidad: { 'TT-105': 'ABIERTO' } })), { arrancar: true }, 3).DO['KM-201'], 0);
-  assert.equal(correr(crearMemoria(), sanas({ valores: { 'TT-105': 89 } }), { arrancar: true }, 3).DO['KM-201'], 0);   // límite por software
+test('el calentamiento exige P-201 confirmada (KM-203), termostato normal y lazo sano de TT-201', () => {
+  const base = { valores: { 'TT-201': 60 } };
+  assert.equal(correr(crearMemoria(), sanas(Object.assign({}, base, { DI: { 'KM-203': 0 } })), { arrancar: true }, 3).DO['KM-201'], 0);
+  assert.equal(correr(crearMemoria(), sanas(Object.assign({}, base, { calidad: { 'TT-201': 'ABIERTO' } })), { arrancar: true }, 3).DO['KM-201'], 0);
+  assert.equal(correr(crearMemoria(), sanas({ valores: { 'TT-201': 89 } }), { arrancar: true }, 3).DO['KM-201'], 0);   // límite por software
 });
 
 test('cascada: si TT-103 va por debajo de la consigna sube la consigna del agua; con TT-103 en fallo no se integra', () => {
   const mem = crearMemoria();
-  const normal = correr(mem, sanas({ valores: { 'TT-103': 73.5, 'TT-105': 70 } }), { arrancar: true }, 3).consignaAguaC;
-  const bajo = correr(mem, sanas({ valores: { 'TT-103': 70.5, 'TT-105': 70 } }), {}, 600).consignaAguaC;
+  const normal = correr(mem, sanas({ valores: { 'TT-103': 73.5, 'TT-201': 70 } }), { arrancar: true }, 3).consignaAguaC;
+  const bajo = correr(mem, sanas({ valores: { 'TT-103': 70.5, 'TT-201': 70 } }), {}, 600).consignaAguaC;
   assert.ok(bajo > normal + 2, `${bajo} vs ${normal}`);
   assert.ok(bajo <= 86);
   const memFallo = crearMemoria();
-  const fallo = correr(memFallo, sanas({ valores: { 'TT-105': 70 }, calidad: { 'TT-103': 'ABIERTO' } }), { arrancar: true }, 50).consignaAguaC;
+  const fallo = correr(memFallo, sanas({ valores: { 'TT-201': 70 }, calidad: { 'TT-103': 'ABIERTO' } }), { arrancar: true }, 50).consignaAguaC;
   assert.equal(fallo, C.plc.consignaAguaBaseC);
 });
 
 test('el mando manual no salta los enclavamientos: con el termostato abierto nada calienta', () => {
   const mem = crearMemoria();
   correr(mem, sanas(), { arrancar: true }, 3);
-  const r = correr(mem, sanas({ DI: { 'TSH-101': 0 } }), { manual: { 'KM-201': 1, 'KM-202': 1 } }, 5, 0.1, true);
+  const r = correr(mem, sanas({ DI: { 'TSH-201': 0 } }), { manual: { 'KM-201': 1, 'KM-202': 1 } }, 5, 0.1, true);
   assert.equal(r.paro, true); assert.equal(r.DO['KM-201'], 0); assert.equal(r.DO['KM-202'], 0);
   const mem2 = crearMemoria();
-  correr(mem2, sanas({ valores: { 'TT-105': 76 } }), { arrancar: true }, 3);
-  const ok = correr(mem2, sanas({ valores: { 'TT-105': 76 } }), { manual: { 'KM-202': 1, 'XV-401': 1 } }, 5, 0.1, true);
+  correr(mem2, sanas({ valores: { 'TT-201': 76 } }), { arrancar: true }, 3);
+  const ok = correr(mem2, sanas({ valores: { 'TT-201': 76 } }), { manual: { 'KM-202': 1, 'XV-401': 1 } }, 5, 0.1, true);
   assert.equal(ok.DO['KM-202'], 1); assert.equal(ok.DO['XV-401'], 1);
   const mem3 = crearMemoria();
-  correr(mem3, sanas({ DI: { 'PSL-201': 0 } }), { arrancar: true }, 3);
-  const sinAire = correr(mem3, sanas({ DI: { 'PSL-201': 0 } }), { manual: { 'SV-101': 1 } }, 5, 0.1, true);
+  correr(mem3, sanas({ DI: { 'PSL-501': 0 } }), { arrancar: true }, 3);
+  const sinAire = correr(mem3, sanas({ DI: { 'PSL-501': 0 } }), { manual: { 'SV-101': 1 } }, 5, 0.1, true);
   assert.equal(sinAire.DO['SV-101'], 0);
 });
 
@@ -168,8 +168,8 @@ test('CIP: recorre sus pasos por tiempos con XV-401 abierta, la FDV en avance y 
 
 test('discrepancias: contactor que no sigue la orden → A130; FDV que no sigue → A120 y paro', () => {
   const mem = crearMemoria();
-  correr(mem, sanas({ valores: { 'TT-105': 60 } }), { arrancar: true }, 2);               // ordena KM-201 = 1
-  const r = correr(mem, sanas({ valores: { 'TT-105': 60 }, DI: { 'KM-201': 0 } }), {}, 40);   // el auxiliar nunca cierra
+  correr(mem, sanas({ valores: { 'TT-201': 60 } }), { arrancar: true }, 2);               // ordena KM-201 = 1
+  const r = correr(mem, sanas({ valores: { 'TT-201': 60 }, DI: { 'KM-201': 0 } }), {}, 40);   // el auxiliar nunca cierra
   assert.ok(r.alarmas.some(a => a.codigo === 'A130' && a.tag === 'KM-201'));
   const m2 = enProduccion().mem;
   const r2 = correr(m2, sanas({ DI: { 'ZS-101': 1, 'ZS-102': 0 } }), { parar: true }, 40);   // pide desvío y la válvula se queda atascada en avance
@@ -180,9 +180,9 @@ test('discrepancias: contactor que no sigue la orden → A130; FDV que no sigue 
 });
 
 test('alarmas: lazo abierto A101, sobreescala A102, diferencial A110, aire A160 y nivel bajo A200', () => {
-  const r = correr(crearMemoria(), sanas({ calidad: { 'TT-105': 'ABIERTO', 'TT-104': 'CORTO' }, DI: { 'PSL-201': 0 } }), { arrancar: true }, 3);
+  const r = correr(crearMemoria(), sanas({ calidad: { 'TT-201': 'ABIERTO', 'TT-104': 'CORTO' }, DI: { 'PSL-501': 0 } }), { arrancar: true }, 3);
   const tiene = (c, t) => r.alarmas.some(a => a.codigo === c && a.tag === t);
-  assert.ok(tiene('A101', 'TT-105')); assert.ok(tiene('A102', 'TT-104')); assert.ok(tiene('A160', 'PSL-201'));
+  assert.ok(tiene('A101', 'TT-201')); assert.ok(tiene('A102', 'TT-104')); assert.ok(tiene('A160', 'PSL-501'));
   const dp = correr(crearMemoria(), sanas({ valores: { 'PT-102': 1.31 } }), { arrancar: true }, 3);
   assert.ok(dp.alarmas.some(a => a.codigo === 'A110'));
   const nivel = correr(crearMemoria(), sanas({ DI: { 'LSL-101': 0 } }), { arrancar: true }, 3);
@@ -192,13 +192,13 @@ test('alarmas: lazo abierto A101, sobreescala A102, diferencial A110, aire A160 
 test('la planta no tiene booster: el PLC no genera ninguna salida para P-103', () => {
   const { r } = enProduccion();
   assert.equal(r.DO['P-103'], undefined);
-  assert.equal(r.DO['P-101'], 1); assert.equal(r.DO['P-102'], 1);
+  assert.equal(r.DO['P-101'], 1); assert.equal(r.DO['P-201'], 1);
 });
 
 test('las alarmas conservan el instante en que aparecieron', () => {
   const mem = crearMemoria();
-  correr(mem, sanas({ calidad: { 'TT-105': 'ABIERTO' } }), { arrancar: true }, 10);
+  correr(mem, sanas({ calidad: { 'TT-201': 'ABIERTO' } }), { arrancar: true }, 10);
   const antes = mem.alarmas.find(a => a.codigo === 'A101').desdeS;
-  correr(mem, sanas({ calidad: { 'TT-105': 'ABIERTO' } }), {}, 50);
+  correr(mem, sanas({ calidad: { 'TT-201': 'ABIERTO' } }), {}, 50);
   assert.equal(mem.alarmas.find(a => a.codigo === 'A101').desdeS, antes);
 });

@@ -9,12 +9,12 @@
   const ALIAS = { 'FDV-101': 'SV-101' };       // la válvula de desvío se acciona por su piloto
   const LLENO_PCT = 99;                        // a partir de este nivel el depósito se da por lleno (el rebosadero empieza en el 100 %)
   const NIVELES_INICIALES = { normal: { tanque: 100, aguaCaliente: 100 }, revision: { tanque: 0, aguaCaliente: 0 } };     // % de partida de cada modo
-  const PULSADORES = ['PB-001', 'TSH-101'];    // se «pulsan»: rearme local del PLC y rearme del termostato de seguridad
+  const PULSADORES = ['PB-001', 'TSH-201'];    // se «pulsan»: rearme local del PLC y rearme del termostato de seguridad
 
   /**
    * Qué hace un clic izquierdo sobre el equipo `tag` con el estado `estado`. Devuelve { tipo, ... }:
    *   'seta' | 'liberar-seta'  → pulsa o libera la seta ES-001 (vale en cualquier modo)
-   *   'pulsador'               → pulsa PB-001 o TSH-101 (rearme)
+   *   'pulsador'               → pulsa PB-001 o TSH-201 (rearme)
    *   'orden'                  → { tag, valor } orden manual al actuador
    *   'confirmar'              → igual que orden pero peligrosa: { tag, valor, texto } (hay que confirmar)
    *   'bloqueado' | 'aviso' | 'info' → { texto } mensaje para el operador, sin orden
@@ -39,16 +39,16 @@
   }
 
   /**
-   * Un paso del llenado de los dos depósitos (tanque de balance con XV-101 y depósito de agua caliente con XV-302). Devuelve { ordenes: [[tag, valor]], terminado, paro }.
+   * Un paso del llenado de los dos depósitos (tanque de balance con XV-101 y depósito de agua caliente con XV-201). Devuelve { ordenes: [[tag, valor]], terminado, paro }.
    * Abre la válvula de cada depósito que no está lleno y cierra la del que ya lo está (en Manual la orden es 0; en automático se quita el forzado y vuelve a mandar el PLC).
    * Con el paro de emergencia puesto no abre nada: da el llenado por terminado.
    */
   function planLlenado(estado, enManual) {
     const e = estado || {};
-    // El tanque de balance mide porcentaje (LT-101); el depósito de agua caliente solo tiene los interruptores LSL-301 y LSH-301: se da por lleno cuando salta el de nivel alto.
+    // El tanque de balance mide porcentaje (LT-101); el depósito de agua caliente solo tiene los interruptores LSL-201 y LSH-201: se da por lleno cuando salta el de nivel alto.
     const I = e.instrumentos || {};
-    const aguaLlena = I['LSH-301'] && typeof I['LSH-301'].nivel === 'number' ? I['LSH-301'].nivel === 1 : typeof (e.aguaCaliente && e.aguaCaliente.nivelPct) === 'number' && e.aguaCaliente.nivelPct >= LLENO_PCT;
-    const niveles = [['XV-101', typeof (e.tanque && e.tanque.nivelPct) === 'number' && e.tanque.nivelPct >= LLENO_PCT], ['XV-302', aguaLlena]];
+    const aguaLlena = I['LSH-201'] && typeof I['LSH-201'].nivel === 'number' ? I['LSH-201'].nivel === 1 : typeof (e.aguaCaliente && e.aguaCaliente.nivelPct) === 'number' && e.aguaCaliente.nivelPct >= LLENO_PCT;
+    const niveles = [['XV-101', typeof (e.tanque && e.tanque.nivelPct) === 'number' && e.tanque.nivelPct >= LLENO_PCT], ['XV-201', aguaLlena]];
     const paro = !!(e.plc && e.plc.paro);
     let pendientes = 0;
     const ordenes = niveles.map(([tag, lleno]) => {
@@ -62,9 +62,9 @@
   function estadosDigitales(estado) {
     const q = tag => (estado && estado.equipos && estado.equipos[tag]) || {};
     return {
-      'P-101': q('P-101').marcha ? 1 : 0, 'P-102': q('P-102').marcha ? 1 : 0, 'KM-201': q('KM-201').cerrado ? 1 : 0, 'KM-202': q('KM-202').cerrado ? 1 : 0,
+      'P-101': q('P-101').marcha ? 1 : 0, 'P-201': q('P-201').marcha ? 1 : 0, 'KM-201': q('KM-201').cerrado ? 1 : 0, 'KM-202': q('KM-202').cerrado ? 1 : 0,
       'FDV-101': q('FDV-101').posicion === 'AVANCE' ? 1 : 0, 'XV-101': q('XV-101').abierta ? 1 : 0, 'XV-102': q('XV-102').abierta ? 1 : 0, 'XV-301': q('XV-301').abierta ? 1 : 0,
-      'XV-302': q('XV-302').abierta ? 1 : 0, 'XV-303': q('XV-303').abierta ? 1 : 0, 'XV-401': q('XV-401').abierta ? 1 : 0,
+      'XV-201': q('XV-201').abierta ? 1 : 0, 'XV-202': q('XV-202').abierta ? 1 : 0, 'XV-401': q('XV-401').abierta ? 1 : 0,
     };
   }
 
@@ -81,13 +81,13 @@
       { id: 'temperatura', texto: `Temperatura TT-103 ≥ ${dec(P.temperaturaPasteurizacionC, 0)} °C`, ok: tt !== null && tt >= P.temperaturaPasteurizacionC, valor: tt === null ? '—' : `${dec(tt, 1)} °C` },
       { id: 'residencia', texto: `Tiempo de residencia ≥ ${dec(P.tiempoResidenciaMinS, 0)} s`, ok: Number.isFinite(tRes) && tRes >= P.tiempoResidenciaMinS, valor: Number.isFinite(tRes) ? `${dec(tRes, 0)} s` : '—' },
       { id: 'diferencial', texto: `Diferencial de la regeneración ≥ ${dec(P.diferencialMinimoRegeneracionBar, 2)} bar`, ok: dp !== null && dp >= P.diferencialMinimoRegeneracionBar, valor: dp === null ? '—' : `${dec(dp, 2)} bar` },
-      { id: 'aire', texto: 'Aire comprimido suficiente (PSL-201)', ok: !!(I['PSL-201'] && I['PSL-201'].nivel === 1), valor: I['PSL-201'] && I['PSL-201'].nivel === 1 ? 'sí' : 'bajo' },
+      { id: 'aire', texto: 'Aire comprimido suficiente (PSL-501)', ok: !!(I['PSL-501'] && I['PSL-501'].nivel === 1), valor: I['PSL-501'] && I['PSL-501'].nivel === 1 ? 'sí' : 'bajo' },
       { id: 'lazos', texto: 'Lazos de TT-103, FT-101, PT-101 y PT-102 sanos', ok: malos.length === 0, valor: malos.length ? malos.join(', ') : 'sanos' },
     ];
   }
 
   /**
-   * Lo que hace el botón de la caldera en Revisión. Si algún banco está pedido, lo apaga; si no, lo enciende: arranca P-102 (sin circulación las resistencias se cortarían)
+   * Lo que hace el botón de la caldera en Revisión. Si algún banco está pedido, lo apaga; si no, lo enciende: arranca P-201 (sin circulación las resistencias se cortarían)
    * y conecta los dos bancos de 30 kW, salvo que una protección lo impida (termostato, nivel bajo, 24 V, paro…): entonces dice el motivo.
    * Devuelve { accion: 'apagar' | 'encender' | 'bloqueado', ordenes, texto, peligro }.
    */
@@ -95,17 +95,17 @@
     const e = estado || {}, pm = PM();
     if (pm.ordenDe(e, 'KM-201') || pm.ordenDe(e, 'KM-202')) return { accion: 'apagar', ordenes: [['KM-201', 0], ['KM-202', 0]] };
     const eq = e.equipos || {};
-    const conBomba = Object.assign({}, e, { equipos: Object.assign({}, eq, { 'P-102': Object.assign({}, eq['P-102'], { marcha: true }) }) });    // como si P-102 ya girase
+    const conBomba = Object.assign({}, e, { equipos: Object.assign({}, eq, { 'P-201': Object.assign({}, eq['P-201'], { marcha: true }) }) });    // como si P-201 ya girase
     const bloqueo = pm.bloqueo(conBomba, 'KM-201');
     if (bloqueo) return { accion: 'bloqueado', texto: `Caldera bloqueada: ${bloqueo}` };
-    return { accion: 'encender', ordenes: [['P-102', 1], ['KM-201', 1], ['KM-202', 1]], peligro: pm.peligro(e, 'KM-201') };
+    return { accion: 'encender', ordenes: [['P-201', 1], ['KM-201', 1], ['KM-202', 1]], peligro: pm.peligro(e, 'KM-201') };
   }
 
-  /** Nivel del depósito de agua caliente según sus dos interruptores (LSL-301 abre en nivel bajo, LSH-301 cierra en nivel alto): 'bajo', 'normal' o 'alto'. Sin porcentaje. */
+  /** Nivel del depósito de agua caliente según sus dos interruptores (LSL-201 abre en nivel bajo, LSH-201 cierra en nivel alto): 'bajo', 'normal' o 'alto'. Sin porcentaje. */
   function nivelAgua(estado) {
     const I = (estado && estado.instrumentos) || {};
-    if (I['LSL-301'] && I['LSL-301'].nivel === 0) return 'bajo';
-    if (I['LSH-301'] && I['LSH-301'].nivel === 1) return 'alto';
+    if (I['LSL-201'] && I['LSL-201'].nivel === 0) return 'bajo';
+    if (I['LSH-201'] && I['LSH-201'].nivel === 1) return 'alto';
     return 'normal';
   }
 
@@ -134,6 +134,7 @@
     ['Cómo se maneja', '<p><b>Clic izquierdo</b> sobre un equipo lo acciona (bombas, válvulas, contactores y la seta). <b>Clic derecho</b> abre su ficha: qué es, qué hace, su estado y «Ver en 3D», que abre solo ese equipo. Las <b>electroválvulas (XV)</b> las manejas siempre tú con el clic, en cualquier modo: no las gobierna el PLC, así que ni reponen niveles ni abren el agua fría solas.</p>'],
     [`${M.manual} (modo manual)`, '<p>Mandas tú cada actuador con el clic izquierdo; el PLC solo mantiene las protecciones. <b>No hay Iniciar</b>: el reloj corre siempre y lo que haces ocurre al momento. Con <b>Restablecer</b> vuelves al estado inicial. Debajo del reloj tienes las barras de la <b>velocidad de P-101</b> y del <b>nivel de los dos depósitos</b> (sirven también de nivel inicial), y los botones <b>Llenar los dos depósitos</b> y <b>Rearme</b>.</p>'],
     [`${M.normal}`, '<p>El PLC lleva la planta. Pulsa <b>Iniciar</b> y pasa de recirculación de agua a producción cuando se cumplen las condiciones. En el esquema aparece el panel <b>Mando y consignas</b>: caudal, consigna de pasteurización TT-103, MARCHA, PARO, REARME y <b>LLENAR LOS DOS DEPÓSITOS</b>. Al pasar de un modo a otro se conserva el estado de la planta, niveles incluidos.</p>'],
+    ['Cómo se numeran los equipos', `<p>Las letras dicen qué es (P bomba, TT termómetro, LSL interruptor de nivel bajo…) y la <b>centena</b> del número, a qué circuito pertenece: ${Object.entries(layout.CIRCUITOS).map(([n, c]) => `<b>${n}xx</b> ${c.toLowerCase()}`).join(', ')}. Un instrumento lleva el número del equipo donde está: LSL-201 y LSH-201 son los interruptores de nivel de HW-201.</p>`],
     ['Ventanas aparte', '<p><b>Fuerza</b> y <b>Mando</b> muestran los planos eléctricos con el estado en vivo; <b>Planta 3D</b> la planta completa. Se siguen moviendo con la planta.</p>'],
   ]; };
 
@@ -252,21 +253,21 @@
       aplicarAhora(); refrescar();
     }
 
-    // Llenado de los dos depósitos: abre XV-101 y XV-302 hasta que estén llenos y cierra cada una al llegar
+    // Llenado de los dos depósitos: abre XV-101 y XV-201 hasta que estén llenos y cierra cada una al llegar
     function pasoLlenado() {
       const plan = planLlenado(sim.estado(), enManual());
       for (const [tag, valor] of plan.ordenes) sim.ordenes.manual(tag, valor);
-      if (plan.terminado) { llenando = false; consignasPanel.llenando = false; avisar(plan.paro ? 'Llenado cancelado: hay un paro de emergencia.' : 'Depósitos llenos: XV-101 y XV-302 cerradas.'); }
+      if (plan.terminado) { llenando = false; consignasPanel.llenando = false; avisar(plan.paro ? 'Llenado cancelado: hay un paro de emergencia.' : 'Depósitos llenos: XV-101 y XV-201 cerradas.'); }
     }
     function alternarLlenado() {
       if (llenando) {
         llenando = false; consignasPanel.llenando = false;
-        for (const tag of ['XV-101', 'XV-302']) sim.ordenes.manual(tag, 0);
+        for (const tag of ['XV-101', 'XV-201']) sim.ordenes.manual(tag, 0);
         avisar('Llenado cancelado.'); return;
       }
       llenando = true; consignasPanel.llenando = true;
       if (!corriendo) { corriendo = true; actualizarBotones(); }               // el nivel solo sube si pasa el tiempo
-      pasoLlenado(); if (llenando) avisar('Llenando el tanque de balance (XV-101) y el depósito de agua caliente (XV-302).');
+      pasoLlenado(); if (llenando) avisar('Llenando el tanque de balance (XV-101) y el depósito de agua caliente (XV-201).');
     }
 
     // Panel de mando del esquema: caudal (o velocidad en Manual), consigna de TT-103, marcha, paro, rearme y llenado
@@ -275,7 +276,7 @@
       'tt103-menos': () => cambiarTT103(-0.5), 'tt103-mas': () => cambiarTT103(0.5),
       marcha: () => { sim.ordenes.arrancar(); corriendo = true; actualizarBotones(); },
       paro: () => { sim.ordenes.parar(); },
-      rearme: () => { if (sim.ordenes.paroEmergencia) sim.ordenes.paroEmergencia(false); sim.ordenes.pulsador('PB-001'); sim.ordenes.pulsador('TSH-101'); },
+      rearme: () => { if (sim.ordenes.paroEmergencia) sim.ordenes.paroEmergencia(false); sim.ordenes.pulsador('PB-001'); sim.ordenes.pulsador('TSH-201'); },
       llenar: alternarLlenado,
       calefactor: () => alternarCaldera(),
     };
@@ -328,16 +329,16 @@
     $('vel-p101').addEventListener('input', () => { sim.ordenes.manual('VFD-101', Number($('vel-p101').value)); $('o-vel-p101').textContent = `${$('vel-p101').value} %`; aplicarAhora(); refrescar(); });
     $('m-llenar').addEventListener('click', () => { alternarLlenado(); aplicarAhora(); refrescar(); });
     $('m-caldera').addEventListener('click', alternarCaldera);
-    // Enciende o apaga el calefactor (P-102 y los dos bancos). Lo usan el botón del panel y el botón dibujado junto al calentador HW-101 del esquema.
+    // Enciende o apaga el calefactor (P-201 y los dos bancos). Lo usan el botón del panel y el botón dibujado junto al calentador HW-201 del esquema.
     async function alternarCaldera() {
       const plan = planCaldera(sim.estado());
       if (plan.accion === 'bloqueado') { avisar(plan.texto); return; }
       if (plan.accion === 'encender' && plan.peligro) {
-        const si = await confirmar({ titulo: '¿Encender la caldera?', mensaje: `${plan.peligro} Se arranca P-102 y se conectan los dos bancos de resistencias.`, ok: 'Encender' });
+        const si = await confirmar({ titulo: '¿Encender la caldera?', mensaje: `${plan.peligro} Se arranca P-201 y se conectan los dos bancos de resistencias.`, ok: 'Encender' });
         if (!si) return;
       }
       for (const [tag, valor] of plan.ordenes) sim.ordenes.manual(tag, valor);
-      avisar(plan.accion === 'encender' ? 'Caldera encendida: P-102 en marcha y los dos bancos conectados.' : 'Caldera apagada.');
+      avisar(plan.accion === 'encender' ? 'Caldera encendida: P-201 en marcha y los dos bancos conectados.' : 'Caldera apagada.');
       aplicarAhora(); refrescar();
     }
     $('m-rearme').addEventListener('click', () => { accionesPanel.rearme(); aplicarAhora(); refrescar(); });
@@ -386,12 +387,12 @@
       const paro = !!(e.plc && e.plc.paro), pos = e.equipos && e.equipos['FDV-101'] && e.equipos['FDV-101'].posicion;
       poner('mn-caudal', `${Math.round(consignasPanel.caudalLh)} L/h`); poner('mn-tt103', `${dec(consignasPanel.tt103C, 1)} °C`);
       poner('mn-agua', e.plc && typeof e.plc.consignaAguaC === 'number' ? `${dec(e.plc.consignaAguaC, 1)} °C` : '—');
-      poner('mn-agua-sub', `TT-105: ${PCT.htstEsquema.textoInstrumento(e, 'TT-105')} · TSH a 90 °C`);
+      poner('mn-agua-sub', `TT-201: ${PCT.htstEsquema.textoInstrumento(e, 'TT-201')} · TSH a 90 °C`);
       poner('mn-caudal-sub', `consigna de P-101 · FT-101: ${PCT.htstEsquema.textoInstrumento(e, 'FT-101')}`);
       poner('mn-estado', paro ? `PARO: ${((e.plc && e.plc.motivosParo) || []).join(', ') || 'pulsa REARME'}` : `${nombreModo(e.modo)} · FDV ${pos === 'AVANCE' ? 'en avance' : pos === 'DESVIO' ? 'en desvío' : 'moviéndose'}`);
       const bot = a => document.querySelector(`#mando-normal [data-accion="${a}"]`);
       bot('marcha').classList.toggle('activo', e.modo !== 'PARADA' && !paro); bot('paro').classList.toggle('activo', e.modo === 'PARADA' && !paro);
-      bot('rearme').classList.toggle('alarma', paro || (e.instrumentos && e.instrumentos['TSH-101'] && e.instrumentos['TSH-101'].nivel === 0));
+      bot('rearme').classList.toggle('alarma', paro || (e.instrumentos && e.instrumentos['TSH-201'] && e.instrumentos['TSH-201'].nivel === 0));
       bot('llenar').classList.toggle('activo', llenando); poner('mn-llenar', llenando ? 'Llenando… (cancelar)' : 'Llenar los dos depósitos');
       // Lecturas: condiciones de la FDV, contadores y tabla de instrumentos
       const conds = condicionesFdv(e), todas = conds.every(c => c.ok);

@@ -32,24 +32,24 @@
   const caudalLh = estado => num(estado && estado.proceso && estado.proceso.caudalLh, 0);
   const nivelTanquePct = estado => limitar(num(estado && estado.tanque && estado.tanque.nivelPct, 60), 0, 100);
 
-  /** Nivel (%) del depósito de agua caliente: `aguaCaliente.nivelPct` y, si falta, el del equipo HW-101; por defecto 70 %. */
+  /** Nivel (%) del depósito de agua caliente: `aguaCaliente.nivelPct` y, si falta, el del equipo HW-201; por defecto 70 %. */
   function nivelAguaCalientePct(estado) {
-    const a = estado && estado.aguaCaliente, h = equipoDe(estado, 'HW-101');
+    const a = estado && estado.aguaCaliente, h = equipoDe(estado, 'HW-201');
     return limitar(num(a && a.nivelPct, num(h.nivelPct, 70)), 0, 100);
   }
-  /** Temperatura (°C) del agua caliente: aguaCaliente.temperaturaC, luego HW-101 y por último proceso.temperaturas.aguaCaliente. */
+  /** Temperatura (°C) del agua caliente: aguaCaliente.temperaturaC, luego HW-201 y por último proceso.temperaturas.aguaCaliente. */
   function temperaturaAguaCaliente(estado) {
-    const a = estado && estado.aguaCaliente, h = equipoDe(estado, 'HW-101');
+    const a = estado && estado.aguaCaliente, h = equipoDe(estado, 'HW-201');
     return num(a && a.temperaturaC, num(h.temperaturaC, temperaturaDe(estado, 'aguaCaliente', 20)));
   }
-  /** ¿Está encendido el banco n (1 o 2) del calentador? Manda el contactor KM-201/KM-202 (`cerrado`); si no hay dato, `banco1`/`banco2` de HW-101. */
+  /** ¿Está encendido el banco n (1 o 2) del calentador? Manda el contactor KM-201/KM-202 (`cerrado`); si no hay dato, `banco1`/`banco2` de HW-201. */
   function bancoEncendido(estado, n) {
     const km = equipoDe(estado, n === 1 ? 'KM-201' : 'KM-202');
     if (typeof km.cerrado === 'boolean') return km.cerrado;
-    return !!equipoDe(estado, 'HW-101')[n === 1 ? 'banco1' : 'banco2'];
+    return !!equipoDe(estado, 'HW-201')[n === 1 ? 'banco1' : 'banco2'];
   }
-  /** Contacto del flotador de nivel bajo LSL-301 (NC): 'cerrado' = hay agua, 'abierto' = nivel bajo o hilo roto, 'desconocido' = sin dato. */
-  function contactoLSL(estado, tag = 'LSL-301') {
+  /** Contacto del flotador de nivel bajo LSL-201 (NC): 'cerrado' = hay agua, 'abierto' = nivel bajo o hilo roto, 'desconocido' = sin dato. */
+  function contactoLSL(estado, tag = 'LSL-201') {
     const c = equipoDe(estado, tag).contactoCerrado;
     if (typeof c === 'boolean') return c ? 'cerrado' : 'abierto';
     const n = instrumentoDe(estado, tag).nivel;

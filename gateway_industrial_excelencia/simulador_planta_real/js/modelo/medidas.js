@@ -8,7 +8,7 @@
 
   const TAGS_AI = layout.SENALES.filter(s => s.tipo === 'AI').map(s => s.tag);
   const TAGS_TT = TAGS_AI.filter(t => t.startsWith('TT-'));
-  const CONTACTORES = { 'KM-102': 'P-102', 'KM-201': 'KM-201', 'KM-202': 'KM-202' };   // contactor → salida DO que lo manda
+  const CONTACTORES = { 'KM-203': 'P-201', 'KM-201': 'KM-201', 'KM-202': 'KM-202' };   // contactor → salida DO que lo manda
 
   /** Lista de puntos de medida con su modo natural, para que la interfaz los muestre. */
   const PUNTOS = [];
@@ -17,7 +17,7 @@
   for (const t of TAGS_TT) punto(`${t}:PT100`, `Resistencia de la sonda Pt100 de ${t}`, 'ohm');
   punto('TT-103:BANO', 'TT-103 en baño patrón a 72 °C', 'temperatura');
   for (const t of TAGS_AI) punto(`${t}:MALLA`, `Malla del cable de ${t} a tierra`, 'continuidad');
-  punto('F-201:ENTRADA', 'Fusible F-201, lado fuente', 'V'); punto('F-201:SALIDA', 'Fusible F-201, lado instrumentos', 'V'); punto('F-201:FUSIBLE', 'Continuidad del fusible F-201', 'continuidad');
+  punto('F-001:ENTRADA', 'Fusible F-001, lado fuente', 'V'); punto('F-001:SALIDA', 'Fusible F-001, lado instrumentos', 'V'); punto('F-001:FUSIBLE', 'Continuidad del fusible F-001', 'continuidad');
   punto('PS-001:SALIDA', 'Salida de la fuente de 24 V', 'V');
   for (const k of Object.keys(CONTACTORES)) {
     punto(`${k}:BOBINA`, `Tensión en la bobina de ${k}`, 'V'); punto(`${k}:CARGA`, `Tensión en la carga de ${k}`, 'V');
@@ -25,13 +25,13 @@
   }
   punto('SV-101:BORNAS', 'Tensión en el piloto SV-101', 'V'); punto('SV-101:BOBINA', 'Resistencia de la bobina de SV-101', 'ohm');
   punto('FDV-101:ZS-101', 'Final de carrera ZS-101 (avance)', 'continuidad'); punto('FDV-101:ZS-102', 'Final de carrera ZS-102 (desvío)', 'continuidad');
-  punto('FRL-101:MANOMETRO', 'Manómetro de la unidad de aire', 'presion'); punto('PSL-201:CONTACTO', 'Contacto del presostato de aire', 'continuidad');
+  punto('FRL-501:MANOMETRO', 'Manómetro de la unidad de aire', 'presion'); punto('PSL-501:CONTACTO', 'Contacto del presostato de aire', 'continuidad');
   punto('VFD-101:DISIPADOR', 'Temperatura del disipador del variador', 'temperatura'); punto('VFD-101:VENTILADOR', 'Alimentación del ventilador del variador', 'V');
-  punto('TSH-101:CONTACTO', 'Contacto NC del termostato de seguridad', 'continuidad');
+  punto('TSH-201:CONTACTO', 'Contacto NC del termostato de seguridad', 'continuidad');
   // Válvulas todo/nada (agua fría, CIP, llenados y vaciados): tensión en bornas y resistencia de la bobina
-  const VALVULAS_XV = ['XV-301', 'XV-401', 'XV-101', 'XV-102', 'XV-302', 'XV-303'];
+  const VALVULAS_XV = ['XV-301', 'XV-401', 'XV-101', 'XV-102', 'XV-201', 'XV-202'];
   for (const v of VALVULAS_XV) { punto(`${v}:BORNAS`, `Tensión en las bornas de ${v}`, 'V'); punto(`${v}:BOBINA`, `Resistencia de la bobina de ${v}`, 'ohm'); }
-  punto('LSL-301:CONTACTO', 'Contacto NC del flotador de nivel bajo del agua caliente', 'continuidad');
+  punto('LSL-201:CONTACTO', 'Contacto NC del flotador de nivel bajo del agua caliente', 'continuidad');
   punto('FLT-101:PRESION-ANTES', 'Presión antes del colador', 'presion'); punto('FLT-101:PRESION-DESPUES', 'Presión después del colador', 'presion');
 
   const hay = (estado, id, tag) => estado.averiasActivas.some(a => a.id === id && (tag == null || a.tags.includes(tag)));
@@ -76,7 +76,7 @@
       const sinTierra = hay(estado, 'AV-RUIDO-4-20', parte);          // con ruido, la malla está sin conectar a tierra
       return numero(sinTierra ? Infinity : ES_CERO, 'Ω', { continuidad: !sinTierra });
     }
-    if (parte === 'F-201') {
+    if (parte === 'F-001') {
       if (resto === 'ENTRADA') return modo === 'V' ? numero(v24, 'V') : incorrecto(modo, 'V');
       if (resto === 'SALIDA') return modo === 'V' ? numero(alim.fusibleF201 ? v24 : 0, 'V') : incorrecto(modo, 'V');
       if (resto === 'FUSIBLE') return modo === 'continuidad' ? numero(alim.fusibleF201 ? ES_CERO : Infinity, 'Ω', { continuidad: alim.fusibleF201 }) : incorrecto(modo, 'continuidad (con la alimentación cortada)');
@@ -97,9 +97,9 @@
       if (resto === 'BORNAS') return modo === 'V' ? numero(es && DO[parte] === 1 ? 24 : 0, 'V') : incorrecto(modo, 'V');
       if (resto === 'BOBINA') return modo === 'ohm' ? numero(C.electrico.resistenciaBobinaXVOhm, 'Ω') : incorrecto(modo, 'ohm (con la bobina desconectada)');
     }
-    if (p === 'LSL-301:CONTACTO') {
+    if (p === 'LSL-201:CONTACTO') {
       if (modo !== 'continuidad') return incorrecto(modo, 'continuidad');
-      const cerrado = eq['LSL-301'].contactoCerrado;
+      const cerrado = eq['LSL-201'].contactoCerrado;
       return numero(cerrado ? ES_CERO : Infinity, 'Ω', { continuidad: cerrado });
     }
     if (parte === 'FDV-101' && (resto === 'ZS-101' || resto === 'ZS-102')) {
@@ -107,11 +107,11 @@
       const cierra = resto === 'ZS-101' ? eq['FDV-101'].posicion === 'AVANCE' : eq['FDV-101'].posicion === 'DESVIO';
       return numero(cierra ? ES_CERO : Infinity, 'Ω', { continuidad: cierra });
     }
-    if (p === 'FRL-101:MANOMETRO') return modo === 'presion' ? numero(eq['FRL-101'].presionBar, 'bar') : incorrecto(modo, 'presion');
-    if (p === 'PSL-201:CONTACTO') return modo === 'continuidad' ? numero(eq['PSL-201'].contactoCerrado ? ES_CERO : Infinity, 'Ω', { continuidad: eq['PSL-201'].contactoCerrado }) : incorrecto(modo, 'continuidad');
+    if (p === 'FRL-501:MANOMETRO') return modo === 'presion' ? numero(eq['FRL-501'].presionBar, 'bar') : incorrecto(modo, 'presion');
+    if (p === 'PSL-501:CONTACTO') return modo === 'continuidad' ? numero(eq['PSL-501'].contactoCerrado ? ES_CERO : Infinity, 'Ω', { continuidad: eq['PSL-501'].contactoCerrado }) : incorrecto(modo, 'continuidad');
     if (p === 'VFD-101:DISIPADOR') return modo === 'temperatura' ? numero(eq['P-101'].temperaturaDisipadorC, '°C') : incorrecto(modo, 'temperatura');
     if (p === 'VFD-101:VENTILADOR') return modo === 'V' ? numero(eq['P-101'].ventiladorOK ? 24 : 0, 'V') : incorrecto(modo, 'V');
-    if (p === 'TSH-101:CONTACTO') return modo === 'continuidad' ? numero(eq['TSH-101'].abierto ? Infinity : ES_CERO, 'Ω', { continuidad: !eq['TSH-101'].abierto }) : incorrecto(modo, 'continuidad (en frío y sin tensión)');
+    if (p === 'TSH-201:CONTACTO') return modo === 'continuidad' ? numero(eq['TSH-201'].abierto ? Infinity : ES_CERO, 'Ω', { continuidad: !eq['TSH-201'].abierto }) : incorrecto(modo, 'continuidad (en frío y sin tensión)');
     if (parte === 'FLT-101') {
       if (modo !== 'presion') return incorrecto(modo, 'presion');
       const antes = 0.4, despues = estado.proceso.caudalLh > 1 ? 0.38 - 0.3 * eq['FLT-101'].obstruccion01 : 0.4;

@@ -133,14 +133,14 @@
       const p = (id, nombre, normal) => { const i = instancias.find(x => x.id === id); return i ? i.parametros[nombre] : normal; };
       eq['HX-101'].fugaPlaca01 = p('AV-PLACA-FUGA', 'fuga01', 0);
       eq['FLT-101'].obstruccion01 = p('AV-FILTRO-OBSTRUIDO', 'obstruccion01', 0);
-      eq['FRL-101'].presionBar = p('AV-AIRE-BAJO', 'presionBar', C.aire.presionNominalBar);
+      eq['FRL-501'].presionBar = p('AV-AIRE-BAJO', 'presionBar', C.aire.presionNominalBar);
       eq['P-101'].ventiladorOK = !hay('AV-VFD-SOBRETEMP');
       eq['FDV-101'].atascada = hay('AV-FDV-ATASCADA');
-      eq['TSH-101'].falsoContacto = hay('AV-TSH-DISPARADO');
-      for (const tag of ['KM-102', 'KM-201', 'KM-202']) eq[tag].pegado = hay('AV-KM-PEGADO', tag);
+      eq['TSH-201'].falsoContacto = hay('AV-TSH-DISPARADO');
+      for (const tag of ['KM-203', 'KM-201', 'KM-202']) eq[tag].pegado = hay('AV-KM-PEGADO', tag);
     }
 
-    /** Alimentación: tensión de la fuente y estado del fusible F-201 (el que alimenta los lazos y las entradas digitales). */
+    /** Alimentación: tensión de la fuente y estado del fusible F-001 (el que alimenta los lazos y las entradas digitales). */
     function alimentacion() {
       if (hay('AV-FUENTE-24V')) return { v24: C.electrico.tensionFuenteDegradadaV, fusibleF201: true };
       if (hay('AV-FUSIBLE-F201')) return { v24: C.electrico.tension24V, fusibleF201: false };

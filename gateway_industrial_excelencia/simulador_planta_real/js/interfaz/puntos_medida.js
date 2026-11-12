@@ -4,7 +4,7 @@
   const layout = typeof require !== 'undefined' ? require('../layout.js') : PCT.htstLayout;
 
   const MODO_POR_TIPO = { tension: 'V', lazo: 'mA', resistencia: 'ohm', temperatura: 'temperatura', presion: 'presion' };
-  const CONTACTORES = ['KM-102', 'KM-201', 'KM-202'];
+  const CONTACTORES = ['KM-203', 'KM-201', 'KM-202'];
 
   /** Lista de puntos de prueba derivada del contrato (layout.js). Cada punto: { id, equipo, nombre, tipo } con id «TAG:BORNA». */
   function puntosDeMedida(lay = layout) {
@@ -34,9 +34,9 @@
     poner('PS-001', '+24V', 'PS-001 · salida +24 V', 'tension');
     poner('PS-001', '0V', 'PS-001 · salida 0 V', 'tension');
     poner('PS-001', 'RED', 'PS-001 · entrada de red (230 V CA)', 'tension');
-    poner('F-201', 'ENTRADA', 'F-201 · antes del fusible', 'tension');
-    poner('F-201', 'SALIDA', 'F-201 · después del fusible', 'tension');
-    poner('F-201', 'FUSIBLE', 'F-201 · fusible (continuidad, sin tensión)', 'resistencia');
+    poner('F-001', 'ENTRADA', 'F-001 · antes del fusible', 'tension');
+    poner('F-001', 'SALIDA', 'F-001 · después del fusible', 'tension');
+    poner('F-001', 'FUSIBLE', 'F-001 · fusible (continuidad, sin tensión)', 'resistencia');
     poner('QE-001', 'X1.3', 'QE-001 · borna X1.3 (24 V de instrumentos)', 'tension');
     poner('QE-001', 'X1.1', 'QE-001 · borna X1.1 (230 V de entrada)', 'tension');
     poner('SV-101', 'A', 'SV-101 · bobina del piloto, borna A', 'tension');
@@ -45,11 +45,11 @@
     poner('VFD-101', 'L1', 'VFD-101 · entrada de red (400 V)', 'tension');
     poner('VFD-101', 'U', 'VFD-101 · salida U hacia el motor', 'tension');
     poner('VFD-101', 'DISIPADOR', 'VFD-101 · temperatura del disipador', 'temperatura');
-    poner('HW-101', 'BANCO1', 'HW-101 · resistencias del banco 1 (en ohmios)', 'resistencia');
-    poner('HW-101', 'BANCO2', 'HW-101 · resistencias del banco 2 (en ohmios)', 'resistencia');
+    poner('HW-201', 'BANCO1', 'HW-201 · resistencias del banco 1 (en ohmios)', 'resistencia');
+    poner('HW-201', 'BANCO2', 'HW-201 · resistencias del banco 2 (en ohmios)', 'resistencia');
     poner('ES-001', 'NC', 'ES-001 · contacto NC de la seta (continuidad)', 'resistencia');
-    poner('TSH-101', 'NC', 'TSH-101 · contacto NC del termostato (continuidad)', 'resistencia');
-    poner('FRL-101', 'AIRE', 'FRL-101 · manómetro de aire (bar)', 'presion');
+    poner('TSH-201', 'NC', 'TSH-201 · contacto NC del termostato (continuidad)', 'resistencia');
+    poner('FRL-501', 'AIRE', 'FRL-501 · manómetro de aire (bar)', 'presion');
     return [...puntos.values()];
   }
 

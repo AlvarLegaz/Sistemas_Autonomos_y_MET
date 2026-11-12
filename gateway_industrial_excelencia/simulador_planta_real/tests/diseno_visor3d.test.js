@@ -156,18 +156,18 @@ test('los instrumentos tienen sitio de montaje y los de ruta quedan sobre su tub
   assert.ok(INS.montaje('LSH-101')[1] > INS.montaje('LSL-101')[1], 'el flotador de nivel alto va más arriba que el bajo');
 });
 
-test('TT-106 va en el puente regeneración → enfriamiento y LSH-301 encima de LSL-301 en el calentador', () => {
+test('TT-106 va en el puente regeneración → enfriamiento y LSH-201 encima de LSL-201 en el calentador', () => {
   const puente = T.rutaPorId('LECHE_REG_ENF'), p = EQ.posicionesPlacas();
   assert.ok(puente && puente.fluido === 'leche' && puente.anclas === 'TT-106');
   assert.ok(Math.abs(puente.de[0] - p.separadores[0]) < 0.5 && Math.abs(puente.a[0] - p.separadores[1]) < 0.5, 'las bocas están en las placas intermedias');
   const tt106 = INS.montaje('TT-106');
   assert.ok(puente.puntos.some((q, i) => i && q[1] === tt106[1]) && tt106[0] > puente.de[0] && tt106[0] < puente.a[0], 'TT-106 sobre el puente');
-  const lsh = INS.montaje('LSH-301'), lsl = INS.montaje('LSL-301');
+  const lsh = INS.montaje('LSH-201'), lsl = INS.montaje('LSL-201');
   assert.ok(lsh[1] > lsl[1] + 30 && lsh[0] === lsl[0] && lsh[2] === lsl[2]);
   const prod = T.estadoRutas(estadoDemo({ modo: 'PRODUCCION' })), desv = T.estadoRutas(estadoDemo({ modo: 'PRODUCCION', desvio: true }));
   assert.equal(prod.LECHE_REG_ENF.activo, true); assert.equal(desv.LECHE_REG_ENF.activo, false);
-  assert.equal(estadoDemo({ nivelAguaPct: 95 }).instrumentos['LSH-301'].nivel, 1);
-  assert.equal(estadoDemo({ nivelAguaPct: 50 }).instrumentos['LSH-301'].nivel, 0);
+  assert.equal(estadoDemo({ nivelAguaPct: 95 }).instrumentos['LSH-201'].nivel, 1);
+  assert.equal(estadoDemo({ nivelAguaPct: 50 }).instrumentos['LSH-201'].nivel, 0);
 });
 
 test('soportes de tubería: hay varios, en la bancada, sin atravesar equipos ni otros tubos', () => {
@@ -220,38 +220,38 @@ test('los dispositivos del armario no se solapan entre sí', () => {
 });
 
 test('el estado de demostración cubre todos los tags y las averías que se le pasan', () => {
-  const e = estadoDemo({ averias: [{ instancia: 'x', id: 'AV-FUSIBLE-F201', tags: ['F-201'] }] });
+  const e = estadoDemo({ averias: [{ instancia: 'x', id: 'AV-FUSIBLE-F201', tags: ['F-001'] }] });
   for (const q of layout.EQUIPOS) assert.ok(e.equipos[q.tag], q.tag);
   assert.equal(e.averiasActivas.length, 1);
   assert.equal(e.version, 1);
 });
 
-// ---------- Llenados, calentador con nivel y LSL-301 (modo manual) ----------
+// ---------- Llenados, calentador con nivel y LSL-201 (modo manual) ----------
 test('las funciones de lectura del agua caliente son tolerantes y respetan el orden de preferencia', () => {
   assert.equal(K.nivelAguaCalientePct(undefined), 70);                                           // sin dato: nivel por defecto
   assert.equal(K.nivelAguaCalientePct({ aguaCaliente: { nivelPct: 150 } }), 100);
   assert.equal(K.nivelAguaCalientePct({ aguaCaliente: { nivelPct: -5 } }), 0);
-  assert.equal(K.nivelAguaCalientePct({ equipos: { 'HW-101': { nivelPct: 42 } } }), 42);          // sin aguaCaliente, usa el equipo
-  assert.equal(K.nivelAguaCalientePct({ aguaCaliente: { nivelPct: 30 }, equipos: { 'HW-101': { nivelPct: 42 } } }), 30);
+  assert.equal(K.nivelAguaCalientePct({ equipos: { 'HW-201': { nivelPct: 42 } } }), 42);          // sin aguaCaliente, usa el equipo
+  assert.equal(K.nivelAguaCalientePct({ aguaCaliente: { nivelPct: 30 }, equipos: { 'HW-201': { nivelPct: 42 } } }), 30);
   assert.equal(K.temperaturaAguaCaliente({ aguaCaliente: { temperaturaC: 61 } }), 61);
-  assert.equal(K.temperaturaAguaCaliente({ equipos: { 'HW-101': { temperaturaC: 55 } } }), 55);
+  assert.equal(K.temperaturaAguaCaliente({ equipos: { 'HW-201': { temperaturaC: 55 } } }), 55);
   assert.equal(K.temperaturaAguaCaliente({ proceso: { temperaturas: { aguaCaliente: 48 } } }), 48);
   assert.equal(K.temperaturaAguaCaliente(null), 20);
 });
 
 test('bancoEncendido: manda el contactor KM-201/KM-202 y, sin dato, banco1/banco2 del calentador', () => {
   assert.equal(K.bancoEncendido({ equipos: { 'KM-201': { cerrado: true } } }, 1), true);
-  assert.equal(K.bancoEncendido({ equipos: { 'KM-201': { cerrado: false }, 'HW-101': { banco1: true } } }, 1), false);   // el contactor abierto manda
-  assert.equal(K.bancoEncendido({ equipos: { 'HW-101': { banco2: true } } }, 2), true);
+  assert.equal(K.bancoEncendido({ equipos: { 'KM-201': { cerrado: false }, 'HW-201': { banco1: true } } }, 1), false);   // el contactor abierto manda
+  assert.equal(K.bancoEncendido({ equipos: { 'HW-201': { banco2: true } } }, 2), true);
   assert.equal(K.bancoEncendido({ equipos: { 'KM-202': { cerrado: true }, 'KM-201': { cerrado: false } } }, 2), true);
   assert.equal(K.bancoEncendido(undefined, 1), false);
 });
 
 test('contactoLSL: cerrado con agua, abierto con nivel bajo o hilo roto, desconocido sin dato', () => {
-  assert.equal(K.contactoLSL({ equipos: { 'LSL-301': { contactoCerrado: true } } }), 'cerrado');
-  assert.equal(K.contactoLSL({ equipos: { 'LSL-301': { contactoCerrado: false } } }), 'abierto');
-  assert.equal(K.contactoLSL({ instrumentos: { 'LSL-301': { nivel: 0 } } }), 'abierto');
-  assert.equal(K.contactoLSL({ instrumentos: { 'LSL-301': { nivel: 1 } } }), 'cerrado');
+  assert.equal(K.contactoLSL({ equipos: { 'LSL-201': { contactoCerrado: true } } }), 'cerrado');
+  assert.equal(K.contactoLSL({ equipos: { 'LSL-201': { contactoCerrado: false } } }), 'abierto');
+  assert.equal(K.contactoLSL({ instrumentos: { 'LSL-201': { nivel: 0 } } }), 'abierto');
+  assert.equal(K.contactoLSL({ instrumentos: { 'LSL-201': { nivel: 1 } } }), 'cerrado');
   assert.equal(K.contactoLSL({}), 'desconocido');
   assert.equal(K.contactoLSL(undefined), 'desconocido');
 });
@@ -276,15 +276,15 @@ test('colores del producto: verde de la convención, algo más claro con el calo
 });
 
 test('las válvulas de llenado y vaciado tienen modelo, puertos y tubos con su regla de flujo', () => {
-  for (const tag of ['XV-101', 'XV-102', 'XV-302', 'XV-303']) {
+  for (const tag of ['XV-101', 'XV-102', 'XV-201', 'XV-202']) {
     assert.ok(EQ.TAGS.includes(tag), tag + ' sin modelo 3D');
     assert.ok(P.puerto(tag, 'ent') && P.puerto(tag, 'sal'));
   }
-  assert.ok(INS.TAGS.includes('LSL-301') && INS.montaje('LSL-301').every(Number.isFinite));
+  assert.ok(INS.TAGS.includes('LSL-201') && INS.montaje('LSL-201').every(Number.isFinite));
   const cerradas = T.estadoRutas(estadoDemo({ modo: 'PARADA' }));
   const abiertas = T.estadoRutas(estadoDemo({ modo: 'PARADA', llenandoTK: true, vaciandoTK: true, llenandoHW: true, vaciandoHW: true }));
   const familias = { 'XV-101': ['LECHE_LLENADO_1', 'LECHE_LLENADO_2'], 'XV-102': ['LECHE_VACIADO_1', 'LECHE_VACIADO_2'],
-    'XV-302': ['AGUA_LLENADO_1', 'AGUA_LLENADO_2'], 'XV-303': ['AGUA_VACIADO_1', 'AGUA_VACIADO_2'] };
+    'XV-201': ['AGUA_LLENADO_1', 'AGUA_LLENADO_2'], 'XV-202': ['AGUA_VACIADO_1', 'AGUA_VACIADO_2'] };
   for (const [tag, ids] of Object.entries(familias)) for (const id of ids) {
     assert.ok(T.rutaPorId(id), id + ' no existe');
     assert.equal(T.rutaPorId(id).ayuda, tag);
@@ -308,14 +308,14 @@ test('los tubos de llenado y vaciado empalman con los puertos y los fluidos sigu
   assert.equal(T.rutaPorId('AGUA_VACIADO_1').fluido, 'agua_caliente');                            // agua caliente = naranja
 });
 
-test('estado de demostración: llenados, nivel de agua caliente, LSL-301 y rebosadero', () => {
+test('estado de demostración: llenados, nivel de agua caliente, LSL-201 y rebosadero', () => {
   const base = estadoDemo({ modo: 'MANUAL' });
   assert.equal(base.modo, 'MANUAL');
-  for (const tag of ['XV-101', 'XV-102', 'XV-302', 'XV-303']) assert.equal(base.equipos[tag].abierta, false);
-  assert.equal(base.equipos['LSL-301'].contactoCerrado, true);
+  for (const tag of ['XV-101', 'XV-102', 'XV-201', 'XV-202']) assert.equal(base.equipos[tag].abierta, false);
+  assert.equal(base.equipos['LSL-201'].contactoCerrado, true);
   assert.equal(base.aguaCaliente.nivelPct, 80);
   const e = estadoDemo({ modo: 'MANUAL', llenandoTK: true, vaciandoHW: true, bajoNivelAgua: true, desbordando: true });
-  assert.equal(e.equipos['XV-101'].abierta, true); assert.equal(e.equipos['XV-303'].abierta, true); assert.equal(e.equipos['XV-102'].abierta, false);
+  assert.equal(e.equipos['XV-101'].abierta, true); assert.equal(e.equipos['XV-202'].abierta, true); assert.equal(e.equipos['XV-102'].abierta, false);
   assert.equal(K.contactoLSL(e), 'abierto'); assert.ok(K.nivelAguaCalientePct(e) < 15);
   assert.equal(K.tanqueDesbordando(e), true);
   assert.equal(K.nivelAguaCalientePct(estadoDemo({ nivelAguaPct: 33 })), 33);
@@ -323,15 +323,15 @@ test('estado de demostración: llenados, nivel de agua caliente, LSL-301 y rebos
 
 test('los puertos nuevos caben en el patín y las válvulas de llenado no se solapan con otros equipos', () => {
   const { SKID } = layout;
-  for (const tag of ['XV-101', 'XV-102', 'XV-302', 'XV-303']) for (const n of ['ent', 'sal']) {
+  for (const tag of ['XV-101', 'XV-102', 'XV-201', 'XV-202']) for (const n of ['ent', 'sal']) {
     const [x, , z] = P.puerto(tag, n);
     assert.ok(Math.abs(x) <= SKID.ancho / 2 && Math.abs(z) <= SKID.fondo / 2, `${tag}.${n} fuera del patín: ${x},${z}`);
   }
-  for (const [tag, n] of [['TK-101', 'llen'], ['TK-101', 'vac'], ['HW-101', 'llen'], ['HW-101', 'vac'], ['SUMINISTRO_LECHE', 'sal'], ['DESAGUE_LECHE', 'ent'], ['DESAGUE_AGUA', 'ent']]) assert.ok(P.puerto(tag, n), `${tag}.${n}`);
+  for (const [tag, n] of [['TK-101', 'llen'], ['TK-101', 'vac'], ['HW-201', 'llen'], ['HW-201', 'vac'], ['SUMINISTRO_LECHE', 'sal'], ['DESAGUE_LECHE', 'ent'], ['DESAGUE_AGUA', 'ent']]) assert.ok(P.puerto(tag, n), `${tag}.${n}`);
   // la distancia entre los centros de las válvulas de llenado y vaciado y el resto de equipos del patín supera su tamaño (12 cm)
-  const nuevas = ['XV-101', 'XV-102', 'XV-302', 'XV-303'];
+  const nuevas = ['XV-101', 'XV-102', 'XV-201', 'XV-202'];
   for (const a of nuevas) for (const q of layout.EQUIPOS) {
-    if (a === q.tag || ['control', 'servicios'].includes(q.zona) || ['TK-101', 'HW-101'].includes(q.tag)) continue;
+    if (a === q.tag || ['control', 'servicios'].includes(q.zona) || ['TK-101', 'HW-201'].includes(q.tag)) continue;
     const pa = layout.posicion(a), pq = layout.posicion(q.tag);
     if (!pa || !pq) continue;
     assert.ok(Math.hypot(pa.x - pq.x, pa.z - pq.z) > 7, `${a} pisa a ${q.tag}`);

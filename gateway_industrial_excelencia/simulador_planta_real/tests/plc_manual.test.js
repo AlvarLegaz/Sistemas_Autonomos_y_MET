@@ -7,13 +7,13 @@ const { CONSTANTES: C } = require('../js/configuracion/constantes.js');
 const layout = require('../js/layout.js');
 
 function sanas(cambios = {}) {
-  const v = { 'TT-101': 4, 'TT-102': 64.5, 'TT-103': 73.5, 'TT-104': 5, 'TT-105': 60, 'FT-101': 2000, 'PT-101': 1.3, 'PT-102': 1.8, 'LT-101': 60 };
+  const v = { 'TT-101': 4, 'TT-102': 64.5, 'TT-103': 73.5, 'TT-104': 5, 'TT-201': 60, 'FT-101': 2000, 'PT-101': 1.3, 'PT-102': 1.8, 'LT-101': 60 };
   const AI = {};
   for (const s of layout.SENALES.filter(x => x.tipo === 'AI')) {
     const val = (cambios.valores || {})[s.tag] != null ? cambios.valores[s.tag] : v[s.tag];
     AI[s.tag] = { valor: val, mA: layout.aMilisamperios(val, s.rango[0], s.rango[1]), calidad: 'OK' };
   }
-  const DI = { 'ES-001': 1, 'TSH-101': 1, 'LSH-101': 0, 'LSL-101': 1, 'LSL-301': 1, 'ZS-101': 0, 'ZS-102': 1, 'PSL-201': 1, 'P-101': 0, 'KM-102': 0, 'KM-201': 0, 'KM-202': 0, 'VFD-101': 0, 'QF-102': 1, 'PS-001': 1, 'PB-001': 0 };
+  const DI = { 'ES-001': 1, 'TSH-201': 1, 'LSH-101': 0, 'LSL-101': 1, 'LSL-201': 1, 'ZS-101': 0, 'ZS-102': 1, 'PSL-501': 1, 'P-101': 0, 'KM-203': 0, 'KM-201': 0, 'KM-202': 0, 'VFD-101': 0, 'QF-201': 1, 'PS-001': 1, 'PB-001': 0 };
   Object.assign(DI, cambios.DI || {});
   return { AI, DI, fijas: cambios.DI || {} };
 }
@@ -22,7 +22,7 @@ function correr(mem, ent, ord, n, dt = 0.1, siempre = true) {
   let r;
   for (let i = 0; i < n; i++) {
     const d = mem.ultimas.DO;
-    Object.assign(ent.DI, { 'KM-102': d['P-102'], 'KM-201': d['KM-201'], 'KM-202': d['KM-202'], 'P-101': d['P-101'], 'ZS-101': d['SV-101'], 'ZS-102': 1 - d['SV-101'] }, ent.fijas);
+    Object.assign(ent.DI, { 'KM-203': d['P-201'], 'KM-201': d['KM-201'], 'KM-202': d['KM-202'], 'P-101': d['P-101'], 'ZS-101': d['SV-101'], 'ZS-102': 1 - d['SV-101'] }, ent.fijas);
     r = ejecutarPLC(ent, mem, i === 0 || siempre ? ord : {}, dt);
   }
   return r;
@@ -61,9 +61,9 @@ test('MANUAL: la velocidad del variador manda directamente (0-100 %) y la consig
 });
 
 test('MANUAL: el operador manda la FDV, el calentador y las válvulas de llenado y vaciado', () => {
-  const ent = sanas(); const { mem } = enManual(ent, { 'P-102': 1 });
-  const r = manual(mem, ent, { 'P-102': 1, 'KM-201': 1, 'KM-202': 1, 'SV-101': 1, 'XV-301': 1, 'XV-401': 1, 'XV-101': 1, 'XV-102': 1, 'XV-302': 1, 'XV-303': 1 }, 10);
-  for (const tag of ['KM-201', 'KM-202', 'SV-101', 'XV-301', 'XV-401', 'XV-101', 'XV-102', 'XV-302', 'XV-303']) assert.equal(r.DO[tag], 1, tag);
+  const ent = sanas(); const { mem } = enManual(ent, { 'P-201': 1 });
+  const r = manual(mem, ent, { 'P-201': 1, 'KM-201': 1, 'KM-202': 1, 'SV-101': 1, 'XV-301': 1, 'XV-401': 1, 'XV-101': 1, 'XV-102': 1, 'XV-201': 1, 'XV-202': 1 }, 10);
+  for (const tag of ['KM-201', 'KM-202', 'SV-101', 'XV-301', 'XV-401', 'XV-101', 'XV-102', 'XV-201', 'XV-202']) assert.equal(r.DO[tag], 1, tag);
 });
 
 test('MANUAL no repone niveles ni gobierna la FDV: con el tanque casi vacío XV-101 sigue cerrada y la FDV en desvío', () => {
@@ -76,34 +76,34 @@ test('MANUAL no repone niveles ni gobierna la FDV: con el tanque casi vacío XV-
 test('transferencia sin saltos: al pasar a MANUAL cada actuador conserva lo que hacía, y al volver a automático se sueltan las órdenes', () => {
   const ent = sanas(); const mem = crearMemoria();
   let r = correr(mem, ent, { arrancar: true, consignaCaudalLh: 2000 }, 5, 0.1, false);
-  assert.equal(r.DO['P-101'], 1); assert.equal(r.DO['P-102'], 1);
+  assert.equal(r.DO['P-101'], 1); assert.equal(r.DO['P-201'], 1);
   const vfd = r.AO['VFD-101']; assert.ok(vfd > 50);
   r = correr(mem, ent, { modo: 'MANUAL' }, 5, 0.1, false);
   assert.equal(r.modo, 'MANUAL');
-  assert.equal(r.DO['P-101'], 1); assert.equal(r.DO['P-102'], 1); assert.equal(r.AO['VFD-101'], vfd);
+  assert.equal(r.DO['P-101'], 1); assert.equal(r.DO['P-201'], 1); assert.equal(r.AO['VFD-101'], vfd);
   r = manual(mem, ent, { 'P-101': 0, 'VFD-101': 10 });
   assert.equal(r.DO['P-101'], 0); assert.equal(r.AO['VFD-101'], 10);
   r = correr(mem, ent, { modo: 'RECIRCULACION_AGUA' }, 5, 0.1, false);
-  assert.equal(r.modo, 'RECIRCULACION_AGUA'); assert.equal(r.DO['P-101'], 1); assert.equal(r.DO['P-102'], 1);
+  assert.equal(r.modo, 'RECIRCULACION_AGUA'); assert.equal(r.DO['P-101'], 1); assert.equal(r.DO['P-201'], 1);
 });
 
 // ------------------------------ protecciones cableadas que se mantienen en MANUAL
 test('MANUAL: el termostato abierto corta el calentador pero no para el resto de la planta', () => {
-  const ent = sanas({ DI: { 'TSH-101': 0 } }); const mem = crearMemoria();
+  const ent = sanas({ DI: { 'TSH-201': 0 } }); const mem = crearMemoria();
   correr(mem, ent, { modo: 'MANUAL' }, 3, 0.1, false);
-  const r = manual(mem, ent, { 'P-102': 1, 'KM-201': 1, 'KM-202': 1, 'P-101': 1, 'VFD-101': 50 });
+  const r = manual(mem, ent, { 'P-201': 1, 'KM-201': 1, 'KM-202': 1, 'P-101': 1, 'VFD-101': 50 });
   assert.equal(r.DO['KM-201'], 0); assert.equal(r.DO['KM-202'], 0);
   assert.equal(r.DO['P-101'], 1, 'el resto de la planta sigue a mano'); assert.equal(r.paro, false);
   assert.ok(r.alarmas.some(a => a.codigo === 'A170'));
 });
 
-test('MANUAL: el calentador se corta sin nivel (LSL-301), sin P-102 en marcha o con el agua pasada de 88 °C', () => {
+test('MANUAL: el calentador se corta sin nivel (LSL-201), sin P-201 en marcha o con el agua pasada de 88 °C', () => {
   const caso = (ent, ordenes) => { const mem = crearMemoria(); correr(mem, ent, { modo: 'MANUAL' }, 3, 0.1, false); return manual(mem, ent, ordenes, 10); };
-  assert.equal(caso(sanas(), { 'P-102': 1, 'KM-201': 1 }).DO['KM-201'], 1, 'con todo en regla conecta');
-  assert.equal(caso(sanas({ DI: { 'LSL-301': 0 } }), { 'P-102': 1, 'KM-201': 1 }).DO['KM-201'], 0, 'sin nivel');
-  assert.equal(caso(sanas(), { 'KM-201': 1 }).DO['KM-201'], 0, 'sin P-102');
-  assert.equal(caso(sanas({ valores: { 'TT-105': 89 } }), { 'P-102': 1, 'KM-201': 1 }).DO['KM-201'], 0, 'agua demasiado caliente');
-  assert.ok(caso(sanas({ DI: { 'LSL-301': 0 } }), {}).alarmas.some(a => a.codigo === 'A230'));
+  assert.equal(caso(sanas(), { 'P-201': 1, 'KM-201': 1 }).DO['KM-201'], 1, 'con todo en regla conecta');
+  assert.equal(caso(sanas({ DI: { 'LSL-201': 0 } }), { 'P-201': 1, 'KM-201': 1 }).DO['KM-201'], 0, 'sin nivel');
+  assert.equal(caso(sanas(), { 'KM-201': 1 }).DO['KM-201'], 0, 'sin P-201');
+  assert.equal(caso(sanas({ valores: { 'TT-201': 89 } }), { 'P-201': 1, 'KM-201': 1 }).DO['KM-201'], 0, 'agua demasiado caliente');
+  assert.ok(caso(sanas({ DI: { 'LSL-201': 0 } }), {}).alarmas.some(a => a.codigo === 'A230'));
 });
 
 test('MANUAL: marcha en seco de P-101 (tanque vacío) o fallo del variador paran P-101', () => {
@@ -114,14 +114,14 @@ test('MANUAL: marcha en seco de P-101 (tanque vacío) o fallo del variador paran
 });
 
 test('MANUAL: sin aire la FDV va a desvío aunque el operador la pida en avance', () => {
-  const ent = sanas({ DI: { 'PSL-201': 0 } }); const mem = crearMemoria(); correr(mem, ent, { modo: 'MANUAL' }, 3, 0.1, false);
+  const ent = sanas({ DI: { 'PSL-501': 0 } }); const mem = crearMemoria(); correr(mem, ent, { modo: 'MANUAL' }, 3, 0.1, false);
   assert.equal(manual(mem, ent, { 'SV-101': 1 }).DO['SV-101'], 0);
 });
 
 test('MANUAL: el paro de emergencia apaga todo, y tras rearmar vuelve a PARADA', () => {
   const ent = sanas(); const { mem } = enManual(ent, { 'P-101': 1, 'XV-101': 1 });
   ent.DI['ES-001'] = 0; ent.fijas = { 'ES-001': 0 };
-  const r = manual(mem, ent, { 'P-101': 1, 'XV-101': 1, 'XV-302': 1 });
+  const r = manual(mem, ent, { 'P-101': 1, 'XV-101': 1, 'XV-201': 1 });
   assert.equal(r.paro, true);
   for (const [tag, v] of Object.entries(r.DO)) assert.equal(v, tag === 'HL-001' ? 1 : 0, tag);
   ent.fijas = {}; ent.DI['ES-001'] = 1; ent.DI['PB-001'] = 1;
@@ -142,7 +142,7 @@ test('MANUAL: la alarma de estado M100 informa pero no enciende la baliza; una a
   const { r } = enManual();
   assert.ok(r.alarmas.some(a => a.codigo === 'M100' && a.nivel === 'estado'));
   assert.equal(r.DO['HL-001'], 0);
-  const ent = sanas({ DI: { 'PSL-201': 0 } }); const mem = crearMemoria(); correr(mem, ent, { modo: 'MANUAL' }, 3, 0.1, false);
+  const ent = sanas({ DI: { 'PSL-501': 0 } }); const mem = crearMemoria(); correr(mem, ent, { modo: 'MANUAL' }, 3, 0.1, false);
   assert.equal(manual(mem, ent, {}).DO['HL-001'], 1);
 });
 
@@ -155,16 +155,16 @@ test('automático: XV-101 repone el tanque con histéresis (abre por debajo del 
   ent.AI['LT-101'].valor = 90; assert.equal(correr(mem, ent, {}, 3).DO['XV-101'], 0, 'dentro de la banda sigue cerrada');
 });
 
-test('automático: con el nivel bajo del agua caliente el PLC llena con XV-302 y sigue un rato después de recuperarlo', () => {
-  const mem = crearMemoria(); const ent = sanas({ DI: { 'LSL-301': 0 } });
-  assert.equal(correr(mem, ent, {}, 3).DO['XV-302'], 1);
-  ent.fijas = {}; ent.DI['LSL-301'] = 1;
-  assert.equal(correr(mem, ent, {}, 50).DO['XV-302'], 1, 'sigue llenando 5 s después');
-  assert.equal(correr(mem, ent, {}, Math.ceil(C.plc.llenadoAguaExtraS / 0.1) + 20).DO['XV-302'], 0, 'y acaba cerrando');
+test('automático: con el nivel bajo del agua caliente el PLC llena con XV-201 y sigue un rato después de recuperarlo', () => {
+  const mem = crearMemoria(); const ent = sanas({ DI: { 'LSL-201': 0 } });
+  assert.equal(correr(mem, ent, {}, 3).DO['XV-201'], 1);
+  ent.fijas = {}; ent.DI['LSL-201'] = 1;
+  assert.equal(correr(mem, ent, {}, 50).DO['XV-201'], 1, 'sigue llenando 5 s después');
+  assert.equal(correr(mem, ent, {}, Math.ceil(C.plc.llenadoAguaExtraS / 0.1) + 20).DO['XV-201'], 0, 'y acaba cerrando');
 });
 
 test('los calentadores en automático tampoco conectan sin nivel en el depósito de agua caliente', () => {
-  const ent = sanas({ DI: { 'LSL-301': 0 }, valores: { 'TT-105': 40 } }); const mem = crearMemoria();
+  const ent = sanas({ DI: { 'LSL-201': 0 }, valores: { 'TT-201': 40 } }); const mem = crearMemoria();
   const r = correr(mem, ent, { arrancar: true }, 10);
   assert.equal(r.DO['KM-201'], 0); assert.equal(r.DO['KM-202'], 0);
 });

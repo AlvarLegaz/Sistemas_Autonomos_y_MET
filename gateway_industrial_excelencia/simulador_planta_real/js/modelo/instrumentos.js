@@ -16,7 +16,7 @@
       case 'TT-102': return T.trasRegeneracion;
       case 'TT-103': return T.salidaTubo;
       case 'TT-104': return T.salidaFinal;
-      case 'TT-105': return T.aguaCaliente;
+      case 'TT-201': return T.aguaCaliente;
       case 'TT-106': return T.trasRegeneracionPas;
       case 'FT-101': return estado.proceso.caudalLh;
       case 'PT-101': return P.crudoBar;
@@ -49,26 +49,26 @@
     const nivel = estado.tanque.nivelPct;
     return {
       'ES-001': eq['ES-001'].rearmado ? 1 : 0,
-      'TSH-101': eq['TSH-101'].abierto ? 0 : 1,
+      'TSH-201': eq['TSH-201'].abierto ? 0 : 1,
       'LSH-101': nivel >= T.nivelAltoPct ? 1 : 0,
       'LSL-101': nivel > T.nivelBajoPct ? 1 : 0,
-      'LSL-301': (estado.aguaCaliente ? estado.aguaCaliente.nivelPct : 100) > C.aguaCaliente.nivelBajoPct ? 1 : 0,
-      'LSH-301': (estado.aguaCaliente ? estado.aguaCaliente.nivelPct : 100) >= C.aguaCaliente.nivelAltoPct ? 1 : 0,
+      'LSL-201': (estado.aguaCaliente ? estado.aguaCaliente.nivelPct : 100) > C.aguaCaliente.nivelBajoPct ? 1 : 0,
+      'LSH-201': (estado.aguaCaliente ? estado.aguaCaliente.nivelPct : 100) >= C.aguaCaliente.nivelAltoPct ? 1 : 0,
       'ZS-101': eq['FDV-101'].posicion === 'AVANCE' ? 1 : 0,
       'ZS-102': eq['FDV-101'].posicion === 'DESVIO' ? 1 : 0,
-      'PSL-201': eq['PSL-201'].contactoCerrado ? 1 : 0,
+      'PSL-501': eq['PSL-501'].contactoCerrado ? 1 : 0,
       'P-101': eq['P-101'].marcha ? 1 : 0,
-      'KM-102': eq['KM-102'].cerrado ? 1 : 0,
+      'KM-203': eq['KM-203'].cerrado ? 1 : 0,
       'KM-201': eq['KM-201'].cerrado ? 1 : 0, 'KM-202': eq['KM-202'].cerrado ? 1 : 0,
       'VFD-101': eq['P-101'].fallo ? 1 : 0,
-      'QF-102': eq['QF-102'].armado ? 1 : 0,
+      'QF-201': eq['QF-201'].armado ? 1 : 0,
       'PS-001': eq['PS-001'].tensionV >= 22 ? 1 : 0,
       'PB-001': pulsadoPB ? 1 : 0,
     };
   }
 
   /**
-   * Todas las entradas del PLC: { AI: { tag: {valor, mA, calidad} }, DI: { tag: 0|1 } }. Con el fusible F-201 fundido las entradas digitales
+   * Todas las entradas del PLC: { AI: { tag: {valor, mA, calidad} }, DI: { tag: 0|1 } }. Con el fusible F-001 fundido las entradas digitales
    * alimentadas a 24 V leen todas 0 (se pierde también el contacto NC del paro de emergencia, que es lo seguro).
    */
   function leerEntradas(estado, tS, motor, alim, pulsadoPB) {

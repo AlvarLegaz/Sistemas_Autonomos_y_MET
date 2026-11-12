@@ -2,7 +2,7 @@
 // con su propio esquema, sus tags ISA y su propia lectura del estado (contrato v1, ver ARQUITECTURA.md §4).
 //
 // Distribución (viewBox 1220 × 660), de izquierda a derecha en el orden del proceso, sin cruces de tubería:
-//   fila superior : llenado (XV-101) · TK-101 · desvío de la FDV (por arriba) · agua caliente HW-101 sobre el calentamiento
+//   fila superior : llenado (XV-101) · TK-101 · desvío de la FDV (por arriba) · agua caliente HW-201 sobre el calentamiento
 //   fila de proceso (y = 240): TK-101 → FLT-101 → P-101 → FT-101 → TT-101 → regeneración → calentamiento → tubo de residencia → FDV-101
 //   retorno pasteurizado (y = 360 → 290 → 470): de la FDV por el lado «pasteurizado» de la regeneración, el enfriamiento y la salida
 //   banda inferior: agua fría (XV-301), desagües y limpieza CIP (XV-401); a la derecha, el armario con los LEDs agrupados por función.
@@ -34,12 +34,12 @@
       crudo: flujo,                                         // de TK-101 hasta la FDV
       avance: flujo && posicionFdv(e) === 'AVANCE',        // producto pasteurizado hacia la salida
       desvio: flujo && posicionFdv(e) === 'DESVIO',        // leche que no llegó a temperatura, de vuelta a TK-101
-      caliente: enMarcha(e, 'P-102'),
+      caliente: enMarcha(e, 'P-201'),
       fria: abierta(e, 'XV-301'),
       llenado: abierta(e, 'XV-101'),                        // entrada de leche al tanque de balance
       vaciado: abierta(e, 'XV-102'),                        // vaciado del tanque de balance
-      llenadoHw: abierta(e, 'XV-302'),                      // agua de red al depósito de agua caliente
-      vaciadoHw: abierta(e, 'XV-303'),                      // vaciado del depósito de agua caliente
+      llenadoHw: abierta(e, 'XV-201'),                      // agua de red al depósito de agua caliente
+      vaciadoHw: abierta(e, 'XV-202'),                      // vaciado del depósito de agua caliente
       cip: abierta(e, 'XV-401'),                            // solución de limpieza
     };
   }
@@ -59,17 +59,17 @@
   /** Lectura para el dibujo: igual que textoInstrumento, pero un lazo en fallo sale como «⚠ FALLO» (corto, para que no pise a los vecinos); la calidad exacta está en la ficha. */
   const textoInstrumentoCorto = (e, tag) => (alarmaInstrumento(e, tag) ? '⚠ FALLO' : textoInstrumento(e, tag));
 
-  /** Estado del calentador HW-101 para dibujarlo: bancos, potencia, nivel, protección por nivel y termostato. */
+  /** Estado del calentador HW-201 para dibujarlo: bancos, potencia, nivel, protección por nivel y termostato. */
   function estadoCalentador(e) {
-    const hw = equipo(e, 'HW-101'), nivel = typeof hw.nivelPct === 'number' ? hw.nivelPct : (e && e.aguaCaliente && e.aguaCaliente.nivelPct) || 0;
+    const hw = equipo(e, 'HW-201'), nivel = typeof hw.nivelPct === 'number' ? hw.nivelPct : (e && e.aguaCaliente && e.aguaCaliente.nivelPct) || 0;
     const banco1 = !!equipo(e, 'KM-201').cerrado, banco2 = !!equipo(e, 'KM-202').cerrado;
     const potenciaKW = (banco1 ? 1 : 0) * 30 + (banco2 ? 1 : 0) * 30;
-    // El depósito de agua caliente solo tiene dos interruptores de nivel (LSL-301, nivel bajo, y LSH-301, nivel alto): no mide porcentaje. El nivel solo puede ser bajo, normal o alto.
-    const sinNivel = digital(e, 'LSL-301') === 0, alto = digital(e, 'LSH-301') === 1;
+    // El depósito de agua caliente solo tiene dos interruptores de nivel (LSL-201, nivel bajo, y LSH-201, nivel alto): no mide porcentaje. El nivel solo puede ser bajo, normal o alto.
+    const sinNivel = digital(e, 'LSL-201') === 0, alto = digital(e, 'LSH-201') === 1;
     const estadoNivel = sinNivel ? 'BAJO' : alto ? 'ALTO' : 'NORMAL';
     return { banco1, banco2, bancos: (banco1 ? 1 : 0) + (banco2 ? 1 : 0), potenciaKW, nivelPct: Math.max(0, Math.min(100, nivel)), sinNivel, estadoNivel,
       nivelDibujo: sinNivel ? 12 : alto ? 92 : 55,                                  // lo único que se sabe del nivel: el dibujo solo marca bajo, normal o alto
-      tshDisparado: digital(e, 'TSH-101') === 0, textoBancos: `${(banco1 ? 1 : 0) + (banco2 ? 1 : 0)}/2 bancos · ${potenciaKW} kW`, textoNivel: `NIVEL ${estadoNivel}` };
+      tshDisparado: digital(e, 'TSH-201') === 0, textoBancos: `${(banco1 ? 1 : 0) + (banco2 ? 1 : 0)}/2 bancos · ${potenciaKW} kW`, textoNivel: `NIVEL ${estadoNivel}` };
   }
 
   /**
@@ -78,14 +78,14 @@
    */
   const LEDS = [
     ['PS-001', '24 V', e => digital(e, 'PS-001') === 1, e => digital(e, 'PS-001') === 0],
-    ['F-201', 'F-201', e => !equipo(e, 'F-201').fundido, e => !!equipo(e, 'F-201').fundido],
+    ['F-001', 'F-001', e => !equipo(e, 'F-001').fundido, e => !!equipo(e, 'F-001').fundido],
     ['ES-001', 'Seta', e => digital(e, 'ES-001') === 1, e => digital(e, 'ES-001') === 0],
-    ['PSL-201', 'Aire', e => digital(e, 'PSL-201') === 1, e => digital(e, 'PSL-201') === 0],
-    ['TSH-101', 'TSH', e => digital(e, 'TSH-101') === 1, e => digital(e, 'TSH-101') === 0],
-    ['QF-102', 'QF-102', e => digital(e, 'QF-102') === 1, e => digital(e, 'QF-102') === 0],
+    ['PSL-501', 'Aire', e => digital(e, 'PSL-501') === 1, e => digital(e, 'PSL-501') === 0],
+    ['TSH-201', 'TSH', e => digital(e, 'TSH-201') === 1, e => digital(e, 'TSH-201') === 0],
+    ['QF-201', 'QF-201', e => digital(e, 'QF-201') === 1, e => digital(e, 'QF-201') === 0],
     ['VFD-101', 'VFD', e => !equipo(e, 'VFD-101').fallo, e => !!equipo(e, 'VFD-101').fallo],
     ['P-101', 'P-101', e => enMarcha(e, 'P-101'), () => false],
-    ['KM-102', 'KM-102', e => !!equipo(e, 'KM-102').cerrado, () => false],
+    ['KM-203', 'KM-203', e => !!equipo(e, 'KM-203').cerrado, () => false],
     ['KM-201', 'KM-201', e => !!equipo(e, 'KM-201').cerrado, () => false],
     ['KM-202', 'KM-202', e => !!equipo(e, 'KM-202').cerrado, () => false],
     ['PB-001', 'PB', e => digital(e, 'PB-001') === 1, () => false],
@@ -94,9 +94,9 @@
     ['HL-001', 'Baliza', () => false, e => !!(e && e.salidasPLC && e.salidasPLC.DO && e.salidasPLC.DO['HL-001'])],
   ];
   const GRUPOS_LEDS = [
-    { titulo: 'Alimentación', tags: ['PS-001', 'F-201', 'ES-001', 'PSL-201'] },
-    { titulo: 'Protecciones', tags: ['TSH-101', 'QF-102', 'VFD-101', 'P-101'] },
-    { titulo: 'Contactores', tags: ['KM-102', 'KM-201', 'KM-202'] },
+    { titulo: 'Alimentación', tags: ['PS-001', 'F-001', 'ES-001', 'PSL-501'] },
+    { titulo: 'Protecciones', tags: ['TSH-201', 'QF-201', 'VFD-101', 'P-101'] },
+    { titulo: 'Contactores', tags: ['KM-203', 'KM-201', 'KM-202'] },
     { titulo: 'Mando', tags: ['PB-001', 'PLC-001', 'HMI-001', 'HL-001'] },
   ];
   /** 'apagado' | 'activo' | 'fallo' para un LED del armario. */
@@ -113,8 +113,8 @@
     if (alarmaInstrumento(e, tag)) return 'fallo del lazo';
     if (tag === 'FDV-101') return posicionFdv(e) === 'AVANCE' ? 'en avance' : posicionFdv(e) === 'DESVIO' ? 'en desvío' : 'en movimiento';
     if (tag === 'TK-101') return `nivel ${Math.round((e && e.tanque && e.tanque.nivelPct) || 0)} por ciento`;
-    if (tag === 'HW-101') { const h = estadoCalentador(e); return `${h.bancos} de 2 bancos conectados, ${h.textoNivel.toLowerCase()}${h.sinNivel ? ', nivel bajo: bancos bloqueados' : ''}`; }
-    if (tag === 'TSH-101') return nivel === 0 ? 'disparado' : 'normal';
+    if (tag === 'HW-201') { const h = estadoCalentador(e); return `${h.bancos} de 2 bancos conectados, ${h.textoNivel.toLowerCase()}${h.sinNivel ? ', nivel bajo: bancos bloqueados' : ''}`; }
+    if (tag === 'TSH-201') return nivel === 0 ? 'disparado' : 'normal';
     if (tag === 'ES-001') return nivel === 0 ? 'pulsada' : 'normal';
     if (/^(LSL|LSH|ZS|PSL|PB|PS|QF)-/.test(tag) && nivel !== undefined) return nivel === 1 ? 'activado' : 'desactivado';
     if ('marcha' in eq) return eq.marcha ? 'en marcha' : 'parada';
@@ -140,7 +140,7 @@
   //   geometría del widget del intercambiador (dos flujos en onda); a la derecha, el tubo de residencia en onda, TT-103 y la FDV-101.
   //   avance: de la FDV sube y vuelve por arriba (y = 40) al lado pasteurizado de la regeneración → enfriamiento → envasado (a la izquierda).
   //   desvío: de la FDV baja y vuelve por abajo (y = 620) al tanque TK-101.
-  //   abajo: TK-101 (bajo la regeneración) con P-101 y FT/TT/PT-101 subiendo a la regeneración; HW-101 (bajo el calentamiento) con P-102 y sus resistencias.
+  //   abajo: TK-101 (bajo la regeneración) con P-101 y FT/TT/PT-101 subiendo a la regeneración; HW-201 (bajo el calentamiento) con P-201 y sus resistencias.
   //   abajo a la izquierda: panel de mando y consignas (niveles 2 y 3); a la derecha, el armario con los LEDs agrupados por función.
   const W = typeof require !== 'undefined' ? require('./componentes/intercambiador_basico.js') : PCT.htstIntercambiadorBasico;
   const CAJA_HX = { y: 100, ancho: 220, alto: 160, pasadas: 3, temperaturas: false, nombres: false };
@@ -200,8 +200,8 @@
   const X_ARMARIO = { caja: ARMARIO.x, ancho: ARMARIO.ancho, columnas: [ARMARIO.x + 28, ARMARIO.x + 84] };
   function armario() {
     const c = ARMARIO.x + ARMARIO.ancho / 2;
-    const hijos = [['rect', { class: 'caja', x: X_ARMARIO.caja, y: 14, width: X_ARMARIO.ancho, height: 626, rx: 6, 'data-n': 2 }],
-      g('QE-001', txt(c, 38, 'ARMARIO', 'ht-tag ht-fuerte'), txt(c, 54, 'QE-001 · PLC-001'))];
+    // El cuadro entero pertenece al grupo QE-001 (así se abre su ficha y su 3D al pulsar en cualquier punto del armario, no solo en el rótulo)
+    const hijos = [g('QE-001', ['rect', { class: 'caja', x: X_ARMARIO.caja, y: 14, width: X_ARMARIO.ancho, height: 626, rx: 6, 'data-n': 2 }], txt(c, 38, 'ARMARIO', 'ht-tag ht-fuerte'), txt(c, 54, 'QE-001 · PLC-001'))];
     let y = 92;
     for (const grupo of GRUPOS_LEDS) {
       hijos.push(txt(X_ARMARIO.caja + 10, y, grupo.titulo, 'ht-zona', Object.assign({ 'data-n': 2 }, izq)));
@@ -236,9 +236,9 @@
       ...fila('agua', 656, 'Agua caliente', 'consigna en cascada · TSH a 90 °C', false, ''),
       botonPanel('marcha', X, 690, 110, 'MARCHA', 'Marcha: arranca la planta (recirculación y, si cumple, producción)'),
       botonPanel('paro', X + 120, 690, 110, 'PARO', 'Paro: lleva la planta a parada'),
-      botonPanel('rearme', X + 240, 690, 128, 'REARME', 'Rearme: libera la seta, pulsa PB-001 y rearma el termostato TSH-101'),
-      // Llena los dos depósitos (tanque de balance y agua caliente): abre XV-101 y XV-302 hasta que estén llenos. Lo conecta la página (accion «llenar»).
-      ['g', { class: 'panel-boton', 'data-accion': 'llenar', tabindex: 0, role: 'button', 'aria-label': 'Llenar los dos depósitos: abre XV-101 y XV-302 hasta que estén llenos' },
+      botonPanel('rearme', X + 240, 690, 128, 'REARME', 'Rearme: libera la seta, pulsa PB-001 y rearma el termostato TSH-201'),
+      // Llena los dos depósitos (tanque de balance y agua caliente): abre XV-101 y XV-201 hasta que estén llenos. Lo conecta la página (accion «llenar»).
+      ['g', { class: 'panel-boton', 'data-accion': 'llenar', tabindex: 0, role: 'button', 'aria-label': 'Llenar los dos depósitos: abre XV-101 y XV-201 hasta que estén llenos' },
         ['rect', { x: X, y: 728, width: 368, height: 32, rx: 6 }], txt(X + 184, 749, 'LLENAR LOS DOS DEPÓSITOS', 'ht-tag ht-fuerte', { id: 'panel-llenar-txt' })],
       txt(X, 782, '—', 'ht-tag ht-fuerte', Object.assign({ id: 'panel-estado' }, izq))];
   }
@@ -281,9 +281,7 @@
       valvula('XV-301', 70, Pe.entradaA.y, 'fl-agua', ['XV-301', 'agua fría'], 'debajo'),
       txt(420, 288, 'A DESAGÜE ↓', 'ht-tag', solo2),
       // --- entrada: tanque de balance, filtro, bomba y medidas de la leche cruda ---
-      ['rect', { class: 'caja', x: TK.x, y: TK.y, width: TK.ancho, height: TK.alto, rx: 10 }],
-      ['rect', { class: 'liquido producto', id: 'nivel-TK-101', x: TK.x + 2, y: TK.y + TK.alto - 50, width: TK.ancho - 4, height: 48 }],
-      g('TK-101', txt(650, TK.y + 22, 'TK-101', 'ht-tag ht-fuerte', n1('Tanque|de leche', 650, TK.y + 20)), txt(650, TK.y + 84, '—', 'ht-valor', { id: 'v-LT-101' }),
+      g('TK-101', ['rect', { class: 'caja', x: TK.x, y: TK.y, width: TK.ancho, height: TK.alto, rx: 10 }], ['rect', { class: 'liquido producto', id: 'nivel-TK-101', x: TK.x + 2, y: TK.y + TK.alto - 50, width: TK.ancho - 4, height: 48 }], txt(650, TK.y + 22, 'TK-101', 'ht-tag ht-fuerte', n1('Tanque|de leche', 650, TK.y + 20)), txt(650, TK.y + 84, '—', 'ht-valor', { id: 'v-LT-101' }),
         ['rect', { class: 'banner-alarma', id: 'banner-TK', x: TK.x + 6, y: TK.y + 38, width: TK.ancho - 12, height: 18, rx: 3 }], txt(650, TK.y + 51, 'REBOSA', 'ht-tag ht-banner', { id: 't-banner-TK' })),
       instr('LSH-101', TK.x, 370, 'izquierda', false, 17),
       instr('LSL-101', TK.x, 450, 'izquierda', false, 17),
@@ -297,24 +295,22 @@
       instr('PT-101', 490, 320, 'izquierda'),
       instr('TT-101', 490, 380, 'izquierda'),
       instr('FT-101', 490, 440, 'izquierda'),
-      // --- agua caliente: depósito HW-101 con dos bancos de resistencias, bajo el calentamiento ---
-      ['rect', { class: 'caja', x: HW.x, y: HW.y, width: HW.ancho, height: HW.alto, rx: 10 }],
-      ['rect', { class: 'liquido caliente', id: 'nivel-HW-101', x: HW.x + 2, y: HW.y + HW.alto - 50, width: HW.ancho - 4, height: 48 }],
-      g('HW-101', txt(1050, HW.y + HW.alto + 20, 'agua caliente', 'ht-tag ht-fuerte', n1('Calentador de agua')), txt(1050, HW.y - 8, 'HW-101', 'ht-tag ht-fuerte'), txt(1050, HW.y + 24, '—', 'ht-valor', { id: 'v-HW-nivel' }),
+      // --- agua caliente: depósito HW-201 con dos bancos de resistencias, bajo el calentamiento ---
+      g('HW-201', ['rect', { class: 'caja', x: HW.x, y: HW.y, width: HW.ancho, height: HW.alto, rx: 10 }], ['rect', { class: 'liquido caliente', id: 'nivel-HW-201', x: HW.x + 2, y: HW.y + HW.alto - 50, width: HW.ancho - 4, height: 48 }], txt(1050, HW.y + HW.alto + 20, 'agua caliente', 'ht-tag ht-fuerte', n1('Calentador de agua')), txt(1050, HW.y - 8, 'HW-201', 'ht-tag ht-fuerte'), txt(1050, HW.y + 24, '—', 'ht-valor', { id: 'v-HW-nivel' }),
         txt(1050, HW.y + 42, '—', 'ht-tag', { id: 'v-HW-bancos' }),
         ['rect', { class: 'banner-alarma', id: 'banner-HW', x: HW.x + 15, y: HW.y + 30, width: 150, height: 16, rx: 3 }], txt(1050, HW.y + 42, 'NIVEL BAJO: BLOQUEADO', 'ht-tag ht-banner', { id: 't-banner-HW' }),
         ['path', { class: 'resis', id: 'res-1', d: 'M981 108 L989 88 L997 108 L1005 88 L1013 108 L1021 88 L1029 108'.replace(/(\d+) (\d+)/g, (m, x, y) => `${x} ${Number(y) + 370}`) }], txt(1005, 500, 'B1 · KM-201', 'ht-tag', n1('Resistencia 1')),
         ['path', { class: 'resis', id: 'res-2', d: 'M1071 108 L1079 88 L1087 108 L1095 88 L1103 108 L1111 88 L1119 108'.replace(/(\d+) (\d+)/g, (m, x, y) => `${x} ${Number(y) + 370}`) }], txt(1095, 500, 'B2 · KM-202', 'ht-tag', n1('Resistencia 2'))),
       // Botón del calefactor junto al calentador: solo se ve en la pantalla sencilla, en Revisión (planta_simple.css). Lo conecta la página (accion «calefactor»).
-      ['g', { class: 'panel-boton', 'data-accion': 'calefactor', tabindex: 0, role: 'button', 'aria-label': 'Encender o apagar el calefactor: arranca P-102 y conecta los dos bancos de 30 kW' },
+      ['g', { class: 'panel-boton', 'data-accion': 'calefactor', tabindex: 0, role: 'button', 'aria-label': 'Encender o apagar el calefactor: arranca P-201 y conecta los dos bancos de 30 kW' },
         ['rect', { x: HW.x - 40, y: HW.y + HW.alto + 36, width: 160, height: 30, rx: 6 }], txt(HW.x + 40, HW.y + HW.alto + 56, 'ENCENDER CALEFACTOR', 'ht-tag ht-fuerte', { id: 'btn-calefactor-txt' })],
-      instr('TSH-101', HW.x, 480, 'izquierda', false, 17),
-      instr('LSH-301', HW.x + HW.ancho, 400, 'derecha', false, 17),
-      instr('LSL-301', HW.x + HW.ancho, 455, 'derecha', false, 17),
-      bomba('P-102', 1215, 490, 'bomba-caliente', 'derecha', ['Bomba de agua|caliente', 1215, 528]),
-      instr('TT-105', 1290, 320, 'derecha'),
-      valvula('XV-302', 1110, 350, 'fl-agua', ['XV-302', 'llenado'], 'encima'), txt(1250, 336, 'AGUA DE RED', 'ht-tag', Object.assign({ 'data-n': 2 }, der)),
-      valvula('XV-303', 1120, 555, 'fl-caliente', ['XV-303', 'vaciado'], 'derecha', true),
+      instr('TSH-201', HW.x, 480, 'izquierda', false, 17),
+      instr('LSH-201', HW.x + HW.ancho, 400, 'derecha', false, 17),
+      instr('LSL-201', HW.x + HW.ancho, 455, 'derecha', false, 17),
+      bomba('P-201', 1215, 490, 'bomba-caliente', 'derecha', ['Bomba de agua|caliente', 1215, 528]),
+      instr('TT-201', 1290, 320, 'derecha'),
+      valvula('XV-201', 1110, 350, 'fl-agua', ['XV-201', 'llenado'], 'encima'), txt(1250, 336, 'AGUA DE RED', 'ht-tag', Object.assign({ 'data-n': 2 }, der)),
+      valvula('XV-202', 1120, 555, 'fl-caliente', ['XV-202', 'vaciado'], 'derecha', true),
       txt(1120, 603, 'A DESAGÜE ↓', 'ht-tag', solo2),
       // --- tubo de residencia, TT-103, FDV con su piloto, aire y finales de carrera ---
       g('HT-101', ['path', { class: 'hit', d: d([p(1255, FDV.y), ...ondaResidencia()]) }], txt(1290, 162, 'HT-101 · residencia', 'ht-tag', n1('Tubo de residencia'))),
@@ -322,7 +318,7 @@
       g('FDV-101', ['path', { class: 'valvula fl-producto', id: 's-FDV-101', d: `M${FDV.x - 11} ${FDV.y - 10} L${FDV.x} ${FDV.y} L${FDV.x - 11} ${FDV.y + 10} Z M${FDV.x + 11} ${FDV.y - 10} L${FDV.x} ${FDV.y} L${FDV.x + 11} ${FDV.y + 10} Z M${FDV.x - 9} ${FDV.y + 18} L${FDV.x} ${FDV.y} L${FDV.x + 9} ${FDV.y + 18} Z` }],
         txt(1408, 248, 'FDV-101', 'ht-tag ht-fuerte', Object.assign(n1('Válvula de desvío'), der)), txt(1408, 264, '—', 'ht-tag ht-fuerte', { id: 't-FDV-estado', style: 'text-anchor:end' })),
       g('SV-101', ['circle', { class: 'instr', cx: FDV.x, cy: 70, r: 17, id: 'c-SV-101' }], txt(FDV.x, 68, 'SV', 'ht-tag ht-mini'), txt(FDV.x, 81, '101', 'ht-tag ht-mini')),
-      g('FRL-101', ['rect', { class: 'manual', x: 1352, y: 54, width: 32, height: 32 }], txt(1368, 69, 'FRL'), txt(1368, 82, '101')),
+      g('FRL-501', ['rect', { class: 'manual', x: 1352, y: 54, width: 32, height: 32 }], txt(1368, 69, 'FRL'), txt(1368, 82, '101')),
       ['path', { class: 'enlace', 'data-n': 2, d: `M${FDV.x} 84 V${FDV.y - 10} M1384 70 H${FDV.x - 14}` }],
       g('ZS-101', ['circle', { class: 'instr', cx: 1450, cy: 172, r: 17, id: 'c-ZS-101' }], txt(1450, 170, 'ZS', 'ht-tag ht-mini'), txt(1450, 183, '101', 'ht-tag ht-mini')),
       g('ZS-102', ['circle', { class: 'instr', cx: 1450, cy: 222, r: 17, id: 'c-ZS-102' }], txt(1450, 220, 'ZS', 'ht-tag ht-mini'), txt(1450, 233, '102', 'ht-tag ht-mini')),
@@ -367,16 +363,16 @@
     const objetos = TUBERIAS.map(r => new Tuberia(canvas, `[data-ruta="${r}"]`, e => estadoTubos(e)[r], r === 'caliente' || r === 'fria' ? () => 60 : velocidad));
     const poner = o => { if (o) objetos.push(o); };
 
-    for (const tag of ['P-101', 'P-102']) poner(marcar(`c-${tag}`, e => enMarcha(e, tag)));
-    for (const tag of ['XV-101', 'XV-102', 'XV-301', 'XV-302', 'XV-303', 'XV-401']) poner(marcar(`s-${tag}`, e => abierta(e, tag)));
+    for (const tag of ['P-101', 'P-201']) poner(marcar(`c-${tag}`, e => enMarcha(e, tag)));
+    for (const tag of ['XV-101', 'XV-102', 'XV-301', 'XV-201', 'XV-202', 'XV-401']) poner(marcar(`s-${tag}`, e => abierta(e, tag)));
     poner(marcar('s-FDV-101', e => posicionFdv(e) === 'AVANCE'));
     poner(marcar('c-SV-101', e => !!equipo(e, 'SV-101').energizada));
     poner(marcar('c-ZS-101', e => digital(e, 'ZS-101') === 1)); poner(marcar('c-ZS-102', e => digital(e, 'ZS-102') === 1));
     poner(marcar('c-LSH-101', e => digital(e, 'LSH-101') === 1));
     poner(marcar('c-LSL-101', e => digital(e, 'LSL-101') === 1)); poner(marcar('c-LSL-101', e => digital(e, 'LSL-101') === 0, 'alarma'));
-    poner(marcar('c-LSL-301', e => digital(e, 'LSL-301') === 1)); poner(marcar('c-LSL-301', e => digital(e, 'LSL-301') === 0, 'alarma'));
-    poner(marcar('c-LSH-301', e => digital(e, 'LSH-301') === 1));
-    poner(marcar('c-TSH-101', e => digital(e, 'TSH-101') === 1)); poner(marcar('c-TSH-101', e => digital(e, 'TSH-101') === 0, 'alarma'));
+    poner(marcar('c-LSL-201', e => digital(e, 'LSL-201') === 1)); poner(marcar('c-LSL-201', e => digital(e, 'LSL-201') === 0, 'alarma'));
+    poner(marcar('c-LSH-201', e => digital(e, 'LSH-201') === 1));
+    poner(marcar('c-TSH-201', e => digital(e, 'TSH-201') === 1)); poner(marcar('c-TSH-201', e => digital(e, 'TSH-201') === 0, 'alarma'));
 
     // Lecturas numéricas y burbujas de los instrumentos analógicos
     objetos.push(new Etiqueta(canvas, 'v-LT-101', e => textoInstrumentoCorto(e, 'LT-101')));
@@ -409,13 +405,13 @@
       poner('panel-caudal', manual ? `${Math.round(vfd)} %` : (typeof c.caudalLh === 'number' ? `${Math.round(c.caudalLh)} L/h` : '—'));
       poner('panel-tt103', typeof c.tt103C === 'number' ? `${decimal(c.tt103C)} °C` : '—');
       poner('panel-agua', e.plc && typeof e.plc.consignaAguaC === 'number' ? `${decimal(e.plc.consignaAguaC)} °C` : '—');
-      poner('panel-agua-sub', `TT-105: ${textoInstrumento(e, 'TT-105')} · TSH a 90 °C`);
+      poner('panel-agua-sub', `TT-201: ${textoInstrumento(e, 'TT-201')} · TSH a 90 °C`);
       const paro = e.plc && e.plc.paro, info = layout.MODOS_INFO[e.modo];
       poner('panel-estado', paro ? `PARO: ${(e.plc.motivosParo || []).join(', ') || 'pulsa REARME'}` : `${info ? info.nombre : e.modo} · FDV ${posicionFdv(e) === 'AVANCE' ? 'en avance' : 'en desvío'}`);
       const bot = a => canvas.svg.querySelector(`.panel-boton[data-accion="${a}"]`);
       if (bot('marcha')) bot('marcha').classList.toggle('activo', e.modo !== 'PARADA' && !paro);
       if (bot('paro')) bot('paro').classList.toggle('activo', e.modo === 'PARADA' && !paro);
-      if (bot('rearme')) bot('rearme').classList.toggle('alarma', !!paro || digital(e, 'TSH-101') === 0);
+      if (bot('rearme')) bot('rearme').classList.toggle('alarma', !!paro || digital(e, 'TSH-201') === 0);
       for (const a of ['tt103-menos', 'tt103-mas']) if (bot(a)) bot(a).classList.toggle('inactivo', manual);
       if (bot('calefactor')) { const on = !!(e.salidasPLC && e.salidasPLC.DO && (e.salidasPLC.DO['KM-201'] || e.salidasPLC.DO['KM-202'])); bot('calefactor').classList.toggle('activo', on); poner('btn-calefactor-txt', on ? 'APAGAR CALEFACTOR' : 'ENCENDER CALEFACTOR'); }
       if (bot('llenar')) { bot('llenar').classList.toggle('activo', !!c.llenando); poner('panel-llenar-txt', c.llenando ? 'LLENANDO… (pulsa para cancelar)' : 'LLENAR LOS DOS DEPÓSITOS'); }
@@ -429,15 +425,15 @@
       canvas.buscar('banner-TK').style.display = rebosa ? '' : 'none'; canvas.buscar('t-banner-TK').style.display = rebosa ? '' : 'none';
     } });
 
-    // Calentador HW-101: depósito con nivel, resistencias R1/R2 y aviso de nivel bajo
+    // Calentador HW-201: depósito con nivel, resistencias R1/R2 y aviso de nivel bajo
     poner({ actualizar(e) {
       const h = estadoCalentador(e);
-      nivel('nivel-HW-101', ALTO_HW, h.nivelDibujo);
+      nivel('nivel-HW-201', ALTO_HW, h.nivelDibujo);
       canvas.buscar('res-1').classList.toggle('on', h.banco1); canvas.buscar('res-2').classList.toggle('on', h.banco2);
       canvas.buscar('v-HW-nivel').textContent = nivelPagina() === 1 ? `Nivel ${h.estadoNivel.toLowerCase()}` : h.textoNivel;
       const bancos = canvas.buscar('v-HW-bancos'); bancos.textContent = nivelPagina() === 1 ? `${h.bancos} de 2 resistencias` : h.textoBancos; bancos.style.display = h.sinNivel ? 'none' : '';
       canvas.buscar('banner-HW').style.display = h.sinNivel ? '' : 'none'; canvas.buscar('t-banner-HW').style.display = h.sinNivel ? '' : 'none';
-      canvas.buscar('g-HW-101').classList.toggle('bloqueado', h.sinNivel);
+      canvas.buscar('g-HW-201').classList.toggle('bloqueado', h.sinNivel);
     } });
 
     // LEDs del armario: apagado (anillo vacío), activo (relleno) y fallo (relleno rojo con ✕)

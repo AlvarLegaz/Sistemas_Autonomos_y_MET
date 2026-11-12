@@ -101,11 +101,11 @@
   // Recorrido de la leche: TK-101 → P-101 → regeneración (abajo, se precalienta) → calentamiento (arriba) → retención → FDV:
   //   - temperatura correcta (AVANCE): vuelve a la regeneración por arriba (cede su calor a la leche cruda) → enfriamiento → envasado;
   //   - temperatura baja (DESVÍO): vuelve al depósito TK-101 por abajo de todo.
-  // Agua por abajo: la caliente con su depósito HW-101 y su bomba P-102 bajo el calentamiento; la fría viene de la red y va a desagüe.
-  // Depósitos: TK-101 con nivel continuo LT-101 (da el nivel exacto) y HW-101 con interruptores de nivel alto (LSH-301) y bajo (LSL-301).
-  // Cada depósito tiene su electroválvula de llenado (XV-101, XV-302) y otra de purga para limpieza (XV-102, XV-303), en un circuito aparte.
+  // Agua por abajo: la caliente con su depósito HW-201 y su bomba P-201 bajo el calentamiento; la fría viene de la red y va a desagüe.
+  // Depósitos: TK-101 con nivel continuo LT-101 (da el nivel exacto) y HW-201 con interruptores de nivel alto (LSH-201) y bajo (LSL-201).
+  // Cada depósito tiene su electroválvula de llenado (XV-101, XV-201) y otra de purga para limpieza (XV-102, XV-202), en un circuito aparte.
   // Agua fría de red con su electroválvula XV-401: si no abre, la leche sale caliente (TT-104 sube).
-  // HW-101 se calienta con la resistencia R-301; el termopar TE-301 corta la resistencia si el agua pasa de 95 °C, y LSL-301 si falta agua.
+  // HW-201 se calienta con la resistencia R-301; el termopar TE-301 corta la resistencia si el agua pasa de 95 °C, y LSL-201 si falta agua.
   // En el widget la franja de arriba es el circuito B y la de abajo el A.
   function bocetoPlanta() {
     const caja = { y: 170, ancho: 240, alto: 180, nombres: false };
@@ -115,7 +115,7 @@
     const cal = Object.assign({ tag: 'HX-102', titulo: 'HX-102 · Calentamiento', x: 1070, sentidoA: 'izquierda', circuitoA: AGUA_CALIENTE, circuitoB: LECHE_C }, caja);
     const Pe = W.puertos(enf), Pr = W.puertos(reg), Pc = W.puertos(cal);
     const leche = { tag: 'TK-101', nombre: 'Depósito de leche', fluido: 'leche', x: 700, y: 460, ancho: 130, alto: 180, etiquetaX: 790, numero: true };
-    const caliente = { tag: 'HW-101', nombre: 'Agua caliente', fluido: 'agua_caliente', x: 1130, y: 470, ancho: 120, alto: 120, etiquetaX: 1165, numero: false, resistencia: true };
+    const caliente = { tag: 'HW-201', nombre: 'Agua caliente', fluido: 'agua_caliente', x: 1130, y: 470, ancho: 120, alto: 120, etiquetaX: 1165, numero: false, resistencia: true };
     const fondo = d => d.y + d.alto, centro = d => d.x + d.ancho / 2, derecha = d => d.x + d.ancho;
     const V = { x: 1660, y: Pc.salidaB.y, r: 22 };                    // válvula de desvío FDV-101 (3 vías): entra por la izquierda, avance a la derecha, desvío abajo
     const tubos = [
@@ -134,8 +134,8 @@
       // llenado y purga (limpieza): circuitos aparte, solo con la electroválvula abierta
       { id: 'b-llenado-leche', fluido: 'leche', valvula: 'XV-101', puntos: [{ x: 960, y: 420 }, { x: 800, y: 420 }, { x: 800, y: leche.y }] },
       { id: 'b-purga-leche', fluido: 'leche', valvula: 'XV-102', flechaEn: 0.88, puntos: [{ x: 720, y: fondo(leche) }, { x: 720, y: 740 }] },
-      { id: 'b-llenado-agua', fluido: 'agua_caliente', valvula: 'XV-302', puntos: [{ x: 1030, y: 420 }, { x: 1190, y: 420 }, { x: 1190, y: caliente.y }] },
-      { id: 'b-purga-agua', fluido: 'agua_caliente', valvula: 'XV-303', flechaEn: 0.88, puntos: [{ x: 1232, y: fondo(caliente) }, { x: 1232, y: 648 }] },
+      { id: 'b-llenado-agua', fluido: 'agua_caliente', valvula: 'XV-201', puntos: [{ x: 1030, y: 420 }, { x: 1190, y: 420 }, { x: 1190, y: caliente.y }] },
+      { id: 'b-purga-agua', fluido: 'agua_caliente', valvula: 'XV-202', flechaEn: 0.88, puntos: [{ x: 1232, y: fondo(caliente) }, { x: 1232, y: 648 }] },
     ];
     const deposito = d => {
       const g = ['g', { class: 'boceto-deposito', 'data-tag': d.tag },
@@ -199,19 +199,19 @@
     };
     const equipos = [
       bomba('P-101', 'bomba de leche (variador VFD-101)', 645, fondo(leche) - 30, 'izquierda'),
-      bomba('P-102', 'bomba de agua caliente (contactor KM-102)', 1311, fondo(caliente) - 30, 'derecha'),
+      bomba('P-201', 'bomba de agua caliente (contactor KM-203)', 1311, fondo(caliente) - 30, 'derecha'),
       sonda('TT-101', 590, 420, 'derecha'),                         // leche cruda antes de la regeneración
       sonda('FT-101', 590, 495, 'derecha'),                         // caudal de leche, a la salida de la bomba
       sonda('TT-106', 560, Pr.salidaB.y, 'arriba'),                 // leche pasteurizada antes del enfriamiento
       sonda('TT-104', 140, Pe.salidaB.y, 'arriba'),                 // leche a la salida del enfriamiento
       sonda('TT-103', 1608, V.y, 'arriba'),                         // salida del tubo de retención (decide la FDV)
       sonda('LT-101', 735, leche.y, 'arriba'),                      // nivel continuo del depósito de leche
-      sonda('LSH-301', caliente.x, caliente.y + 15, 'izquierda'),   // nivel alto del agua caliente
-      sonda('LSL-301', caliente.x, fondo(caliente) - 15, 'izquierda'), // nivel bajo del agua caliente
+      sonda('LSH-201', caliente.x, caliente.y + 15, 'izquierda'),   // nivel alto del agua caliente
+      sonda('LSL-201', caliente.x, fondo(caliente) - 15, 'izquierda'), // nivel bajo del agua caliente
       valvula('XV-101', 'llenado del depósito de leche', 840, 420, 'h', 'arriba', { x: 840, y: 446 }),
       valvula('XV-102', 'purga del depósito de leche (limpieza)', 720, 690, 'v', 'izquierda', { x: 662, y: 695, anclaje: 'end' }),
-      valvula('XV-302', 'llenado del depósito de agua caliente', 1150, 420, 'h', 'arriba', { x: 1150, y: 446 }),
-      valvula('XV-303', 'purga del depósito de agua caliente (limpieza)', 1232, 616, 'v', 'derecha', { x: 1290, y: 621, anclaje: 'start' }),
+      valvula('XV-201', 'llenado del depósito de agua caliente', 1150, 420, 'h', 'arriba', { x: 1150, y: 446 }),
+      valvula('XV-202', 'purga del depósito de agua caliente (limpieza)', 1232, 616, 'v', 'derecha', { x: 1290, y: 621, anclaje: 'start' }),
       valvula('XV-401', 'agua fría de enfriamiento', 160, Pe.entradaA.y, 'h', 'arriba', { x: 178, y: Pe.entradaA.y - 31, anclaje: 'start' }),
       sonda('TE-301', derecha(caliente), caliente.y + 30, 'derecha'),     // termopar: corta la resistencia si el agua se pasa de temperatura
     ];
@@ -230,8 +230,8 @@
       ...fila('vel', 470, 'P-101 · velocidad (VFD-101)', '', 'la velocidad de P-101'),
       ...fila('past', 540, 'Pasteurización (TT-103)', 'Por debajo, FDV-101 desvía', 'la consigna de pasteurización'),
       ...fila('agua', 610, 'Agua caliente (R-301)', 'TE-301 corta a 95 °C', 'la consigna del agua caliente'),
-      boton('marcha', 80, 650, 110, 'MARCHA', 'Marcha: arranca P-101 y P-102'),
-      boton('paro', 200, 650, 110, 'PARO', 'Paro: para P-101 y P-102'),
+      boton('marcha', 80, 650, 110, 'MARCHA', 'Marcha: arranca P-101 y P-201'),
+      boton('paro', 200, 650, 110, 'PARO', 'Paro: para P-101 y P-201'),
       boton('rearme', 320, 650, 154, 'REARME', 'Rearme de la protección TE-301'),
       ['text', { id: 'panel-estado', class: 'boceto-panel-etiqueta', x: 80, y: 712 }, ''],
       ['text', { id: 'panel-estado-2', class: 'boceto-panel-sub', x: 80, y: 736 }, '']];
@@ -260,7 +260,7 @@
     const wEnf = W.enlazar(canvas, enf), wReg = W.enlazar(canvas, reg), wCal = W.enlazar(canvas, cal);
 
     // estado del boceto: niveles (%) y electroválvulas; el nivel sube con el llenado abierto y baja con la purga abierta
-    const estado = { niveles: { 'TK-101': 60, 'HW-101': 70 }, abiertas: { 'XV-401': true }, resistencia: true, corte: '', tAgua: 80, tSalida: 4,
+    const estado = { niveles: { 'TK-101': 60, 'HW-201': 70 }, abiertas: { 'XV-401': true }, resistencia: true, corte: '', tAgua: 80, tSalida: 4,
       marcha: true, velocidad: 60, consignaPast: 72, consignaAgua: 80, termostato: true, tLeche: 75 };
     const T_CORTE = 95, T_REARME = 90;        // TE-301: corta la resistencia por encima de 95 °C; se rearma a mano (REARME) cuando baja de 90 °C
     const avance = () => estado.marcha && estado.tLeche >= estado.consignaPast;   // FDV-101: avance si TT-103 llega a la consigna
@@ -280,7 +280,7 @@
         const tx = canvas.svg.querySelector(`#nivel-texto-${d.tag}`);
         if (tx) tx.textContent = `LT-101: ${Math.round(n)} %`;
       }
-      const nHW = estado.niveles['HW-101'];
+      const nHW = estado.niveles['HW-201'];
       const v = estado.velocidad, m = estado.marcha, av = avance();
       wEnf.actualizar(circulando({ circulaA: !!estado.abiertas['XV-401'], circulaB: av, velocidadB: v }));
       wReg.actualizar(circulando({ circulaA: m, circulaB: av, velocidadA: v, velocidadB: v }));
@@ -298,7 +298,7 @@
       q('#boton-rearme').classList.toggle('alarma', estado.corte === 'temperatura');
       q('#panel-estado').textContent = !m ? 'Planta PARADA' : av ? 'En marcha · AVANCE a envasado' : 'En marcha · DESVÍO al depósito';
       q('#panel-estado-2').textContent = estado.corte === 'temperatura' ? (estado.tAgua < T_REARME ? 'TE-301 disparado: pulsa REARME' : 'TE-301 disparado: espera a < 90 °C')
-        : !estado.resistencia ? 'R-301 apagada' : estado.corte === 'nivel' ? 'R-301 cortada por LSL-301' : calienta ? 'R-301 calentando' : 'R-301 en reposo (consigna alcanzada)';
+        : !estado.resistencia ? 'R-301 apagada' : estado.corte === 'nivel' ? 'R-301 cortada por LSL-201' : calienta ? 'R-301 calentando' : 'R-301 en reposo (consigna alcanzada)';
       canvas.svg.querySelector('#r-R-301').classList.toggle('on', calienta);
       canvas.svg.querySelector('#s-TE-301').classList.toggle('activa', estado.corte === 'temperatura');
       canvas.svg.querySelector('#valor-TT-104').textContent = `${estado.tSalida.toFixed(1).replace('.', ',')} °C`;
@@ -307,16 +307,16 @@
       canvas.svg.querySelector('#valor-TE-301').classList.toggle('alarma', estado.tAgua >= T_CORTE);
       const bR = document.querySelector('[data-resistencia]');
       if (bR) bR.setAttribute('aria-pressed', estado.resistencia ? 'true' : 'false');
-      canvas.svg.querySelector('#s-LSH-301').classList.toggle('activa', nHW >= ALTO);
-      canvas.svg.querySelector('#s-LSL-301').classList.toggle('activa', nHW <= BAJO);
-      for (const tag of ['XV-101', 'XV-102', 'XV-302', 'XV-303', 'XV-401']) {
+      canvas.svg.querySelector('#s-LSH-201').classList.toggle('activa', nHW >= ALTO);
+      canvas.svg.querySelector('#s-LSL-201').classList.toggle('activa', nHW <= BAJO);
+      for (const tag of ['XV-101', 'XV-102', 'XV-201', 'XV-202', 'XV-401']) {
         canvas.svg.querySelector(`#v-${tag}`).classList.toggle('abierta', !!estado.abiertas[tag]);
         const b = document.querySelector(`[data-valvula="${tag}"]`);
         if (b) b.setAttribute('aria-pressed', estado.abiertas[tag] ? 'true' : 'false');
       }
       const lectura = $('boceto-lectura');
-      if (lectura) lectura.textContent = `TK-101 (LT-101): ${Math.round(estado.niveles['TK-101'])} %  ·  HW-101: ${nHW >= ALTO ? 'nivel ALTO (LSH-301)' : nHW <= BAJO ? 'nivel BAJO (LSL-301)' : 'entre bajo y alto'}`
-        + `  ·  Resistencia R-301: ${calienta ? 'calentando' : estado.corte === 'temperatura' ? 'CORTADA por TE-301 (más de 95 °C)' : estado.corte === 'nivel' ? 'CORTADA por LSL-301 (falta agua)' : estado.resistencia ? 'en reposo' : 'apagada'}`
+      if (lectura) lectura.textContent = `TK-101 (LT-101): ${Math.round(estado.niveles['TK-101'])} %  ·  HW-201: ${nHW >= ALTO ? 'nivel ALTO (LSH-201)' : nHW <= BAJO ? 'nivel BAJO (LSL-201)' : 'entre bajo y alto'}`
+        + `  ·  Resistencia R-301: ${calienta ? 'calentando' : estado.corte === 'temperatura' ? 'CORTADA por TE-301 (más de 95 °C)' : estado.corte === 'nivel' ? 'CORTADA por LSL-201 (falta agua)' : estado.resistencia ? 'en reposo' : 'apagada'}`
         + `  ·  Agua caliente (TE-301): ${coma(estado.tAgua)} °C  ·  TT-103: ${coma(estado.tLeche, 1)} °C`
         + `  ·  Leche a envasado (TT-104): ${estado.tSalida.toFixed(1).replace('.', ',')} °C${estado.abiertas['XV-401'] ? '' : ' (XV-401 cerrada: no enfría)'}`;
     }
@@ -346,10 +346,10 @@
         const v = estado.niveles[tag] + ((estado.abiertas[llenado] ? VELOCIDAD.llenado : 0) - (estado.abiertas[purga] ? VELOCIDAD.purga : 0)) * dt;
         estado.niveles[tag] = Math.max(0, Math.min(100, v));
       };
-      mover('TK-101', 'XV-101', 'XV-102'); mover('HW-101', 'XV-302', 'XV-303');
-      // protecciones de la resistencia: termopar TE-301 (temperatura) y LSL-301 (nivel); la de temperatura se rearma al bajar de 90 °C
+      mover('TK-101', 'XV-101', 'XV-102'); mover('HW-201', 'XV-201', 'XV-202');
+      // protecciones de la resistencia: termopar TE-301 (temperatura) y LSL-201 (nivel); la de temperatura se rearma al bajar de 90 °C
       if (estado.tAgua >= T_CORTE) estado.corte = 'temperatura';                    // el disparo de TE-301 queda enclavado hasta REARME
-      if (estado.niveles['HW-101'] <= BAJO) estado.corte = estado.corte || 'nivel'; else if (estado.corte === 'nivel') estado.corte = '';
+      if (estado.niveles['HW-201'] <= BAJO) estado.corte = estado.corte || 'nivel'; else if (estado.corte === 'nivel') estado.corte = '';
       // termostato de la consigna de agua caliente, con 2 °C de histéresis
       if (estado.tAgua >= estado.consignaAgua) estado.termostato = false; else if (estado.tAgua <= estado.consignaAgua - 2) estado.termostato = true;
       const calienta = estado.resistencia && !estado.corte && estado.termostato;

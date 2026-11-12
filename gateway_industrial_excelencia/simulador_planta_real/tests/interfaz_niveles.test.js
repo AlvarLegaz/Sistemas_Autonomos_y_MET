@@ -48,7 +48,7 @@ test('el resto de equipos del esquema (sensores, válvulas XV, armario, CIP) sol
   for (const x of resto) assert.equal(String(x.a['data-n']), '2', x.a['data-tag']);
   for (const tag of niveles.EQUIPOS_NIVEL_1) assert.ok(layout.equipo(tag), tag);
   for (const tag of ['TT-103', 'XV-101', 'KM-201', 'QE-001', 'FLT-101']) { assert.equal(niveles.visibleEnNivel(tag, 1), false, tag); assert.equal(niveles.visibleEnNivel(tag, 2), true, tag); }
-  assert.deepEqual(niveles.tagsVisibles(['TK-101', 'TT-103', 'P-102', 'XV-301'], 1), ['TK-101', 'P-102']);
+  assert.deepEqual(niveles.tagsVisibles(['TK-101', 'TT-103', 'P-201', 'XV-301'], 1), ['TK-101', 'P-201']);
 });
 
 test('las tuberías de llenado, vaciado y limpieza y la leyenda con LEDs no se ven en el nivel 1', () => {
@@ -160,7 +160,7 @@ test('nivel 2: lecturas de los instrumentos en solo lectura (valor y estado de c
   const tt = filas.find(f => f.tag === 'TT-103');
   assert.match(tt.valor, /^7\d,\d °C$/); assert.equal(tt.estado, 'Normal'); assert.equal(tt.alarma, false);
   for (const [tag] of lecturas.DIGITALES) assert.ok(filas.some(f => f.tag === tag), tag);
-  for (const tag of ['TSH-101', 'LSL-101', 'LSH-101', 'LSL-301', 'PSL-201', 'ES-001']) assert.equal(filas.find(f => f.tag === tag).alarma, false, `${tag} normal en producción`);
+  for (const tag of ['TSH-201', 'LSL-101', 'LSH-101', 'LSL-201', 'PSL-501', 'ES-001']) assert.equal(filas.find(f => f.tag === tag).alarma, false, `${tag} normal en producción`);
   assert.match(filas.find(f => f.tag === 'LSH-101').valor, /^Nivel alto (no )?alcanzado$/);
   prod.averias.inyectar('AV-LAZO-ABIERTO', { tag: 'TT-103' }); prod.paso(2);
   const mal = lecturas.filasLecturas(prod.estado()).find(f => f.tag === 'TT-103');

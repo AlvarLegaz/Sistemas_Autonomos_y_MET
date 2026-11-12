@@ -38,10 +38,10 @@
 
   /* ---------- qué equipos se ven en el 2D y en el 3D ---------- */
   // Nivel 1: el recorrido de la leche. Todo lo demás (sensores, válvulas de llenado, limpieza, armario, contactores) aparece en el nivel 2.
-  const EQUIPOS_NIVEL_1 = ['TK-101', 'P-101', 'HX-101', 'HT-101', 'FDV-101', 'HW-101', 'P-102'];
+  const EQUIPOS_NIVEL_1 = ['TK-101', 'P-101', 'HX-101', 'HT-101', 'FDV-101', 'HW-201', 'P-201'];
   const NOMBRES_SENCILLOS = {
     'TK-101': 'Tanque de leche', 'P-101': 'Bomba de leche', 'HX-101': 'Intercambiador de placas', 'HT-101': 'Tubo de residencia',
-    'FDV-101': 'Válvula de desvío', 'HW-101': 'Calentador de agua', 'P-102': 'Bomba de agua caliente',
+    'FDV-101': 'Válvula de desvío', 'HW-201': 'Calentador de agua', 'P-201': 'Bomba de agua caliente',
   };
   /** Nivel mínimo en el que un equipo (tag) aparece: 1 para el recorrido de la leche, 2 para el resto. */
   const nivelMinimoDeTag = tag => (EQUIPOS_NIVEL_1.includes(tag) ? 1 : 2);
@@ -92,9 +92,9 @@
       queHace: 'Para quedar pasteurizada, la leche debe estar unos 15 segundos a 72 °C o más. El tubo hace que tarde ese tiempo.' },
     'FDV-101': { queEs: 'Es la válvula que decide si la leche sigue adelante o vuelve atrás.',
       queHace: 'Si la leche llega a 72 °C, la deja pasar a la salida. Si no llega, la devuelve al tanque para que nunca salga leche mal pasteurizada. Es una seguridad.' },
-    'HW-101': { queEs: 'Calienta el agua que luego calienta la leche.',
+    'HW-201': { queEs: 'Calienta el agua que luego calienta la leche.',
       queHace: 'Tiene dos resistencias eléctricas dentro del agua. El agua caliente circula por el intercambiador y le pasa su calor a la leche, sin mezclarse con ella.' },
-    'P-102': { queEs: 'Es la bomba que hace circular el agua caliente.',
+    'P-201': { queEs: 'Es la bomba que hace circular el agua caliente.',
       queHace: 'Mueve el agua desde el calentador hasta el intercambiador y la devuelve. Sin esta bomba, la leche no se calienta.' },
   };
   /** Ficha sencilla del nivel 1: { nombre, queEs, queHace } o null si el equipo no está en ese nivel. */
@@ -160,14 +160,14 @@
   /** «Estado ahora» de la ficha del nivel 1, en una frase sencilla. */
   function estadoVivoNivel1(tag, e) {
     const eq = tag => (e && e.equipos && e.equipos[tag]) || {};
-    const t = numero(instrumento(e, 'TT-103').valorPLC), agua = numero(instrumento(e, 'TT-105').valorPLC);
+    const t = numero(instrumento(e, 'TT-103').valorPLC), agua = numero(instrumento(e, 'TT-201').valorPLC);
     switch (tag) {
       case 'TK-101': return numero(e && e.tanque && e.tanque.nivelPct) !== null ? `Está al ${Math.round(e.tanque.nivelPct)} % de su capacidad.` : '—';
-      case 'P-101': case 'P-102': return eq(tag).marcha ? 'Encendida.' : 'Apagada.';
+      case 'P-101': case 'P-201': return eq(tag).marcha ? 'Encendida.' : 'Apagada.';
       case 'HT-101': return t !== null ? `La leche sale del tubo a ${fmt(t)} °C.` : 'Todavía sin lectura: la planta no ha arrancado.';
       case 'HX-101': return t !== null ? `Después del calentamiento, la leche llega a ${fmt(t)} °C.` : 'Todavía sin lectura: la planta no ha arrancado.';
       case 'FDV-101': return fdvPosicion(e) === 'AVANCE' ? (modoDe(e) === 'RECIRCULACION_AGUA' ? 'Está abierta mientras la planta se prepara.' : 'Deja pasar la leche a la salida.') : 'Devuelve la leche al tanque.';
-      case 'HW-101': {
+      case 'HW-201': {
         const b = (eq('KM-201').cerrado ? 1 : 0) + (eq('KM-202').cerrado ? 1 : 0);
         return `${agua !== null ? `Agua a ${fmt(agua, 0)} °C. ` : ''}${b} de 2 resistencias encendidas.`;
       }

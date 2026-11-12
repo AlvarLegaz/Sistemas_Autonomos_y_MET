@@ -66,8 +66,8 @@
   const alarmasDe = estado => (estado.alarmas || []).map(a => a.codigo);
   const equipoDe = (estado, tag) => (estado.equipos && estado.equipos[tag]) || {};
   const fdvEnDesvio = estado => equipoDe(estado, 'FDV-101').posicion === 'DESVIO';
-  const bancosFuera = estado => !equipoDe(estado, 'HW-101').banco1 && !equipoDe(estado, 'HW-101').banco2;
-  const bombasParadas = estado => ['P-101', 'P-102'].every(tag => !equipoDe(estado, tag).marcha);
+  const bancosFuera = estado => !equipoDe(estado, 'HW-201').banco1 && !equipoDe(estado, 'HW-201').banco2;
+  const bombasParadas = estado => ['P-101', 'P-201'].every(tag => !equipoDe(estado, tag).marcha);
 
   /**
    * Pruebas de enclavamientos: el alumno provoca la condición (pulsar la seta, pedir una avería al profesor...) y pulsa «Comprobar»:
@@ -77,7 +77,7 @@
     { id: 'ES-001', nombre: 'Paro de emergencia (ES-001)', condicion: 'Pulsa la seta con la planta en producción.',
       esperado: 'FDV en desvío, bancos del calentador fuera, bombas paradas y alarma A180.',
       comprobar: e => resultado(alarmasDe(e).includes('A180') && fdvEnDesvio(e) && bancosFuera(e) && bombasParadas(e), 'A180, FDV en desvío, calentador fuera y bombas paradas') },
-    { id: 'TSH-101', nombre: 'Termostato de seguridad (TSH-101)', condicion: 'Abre el termostato (o pide la avería «TSH disparado»).',
+    { id: 'TSH-201', nombre: 'Termostato de seguridad (TSH-201)', condicion: 'Abre el termostato (o pide la avería «TSH disparado»).',
       esperado: 'Calentador fuera y alarma A170; el rearme es manual.',
       comprobar: e => resultado(alarmasDe(e).includes('A170') && bancosFuera(e), 'A170 y bancos fuera') },
     { id: 'TT-103', nombre: 'Fallo de TT-103 → desvío', condicion: 'Con producción, provoca un lazo abierto o una Pt100 abierta en TT-103.',
@@ -86,10 +86,10 @@
     { id: 'DP-REGEN', nombre: 'Diferencial de la regeneración', condicion: 'Provoca una fuga de placa o baja la presión del lado pasteurizado.',
       esperado: 'Alarma A110 y FDV en desvío (no se avanza producto con ΔP insuficiente).',
       comprobar: e => resultado(alarmasDe(e).includes('A110') && fdvEnDesvio(e), 'A110 y FDV en desvío') },
-    { id: 'AIRE', nombre: 'Aire comprimido bajo (PSL-201)', condicion: 'Baja la presión de aire (avería «aire bajo»).',
+    { id: 'AIRE', nombre: 'Aire comprimido bajo (PSL-501)', condicion: 'Baja la presión de aire (avería «aire bajo»).',
       esperado: 'Alarma A160 y FDV en desvío: sin aire, el muelle la lleva a desvío.',
       comprobar: e => resultado(alarmasDe(e).includes('A160') && fdvEnDesvio(e), 'A160 y FDV en desvío') },
-    { id: 'FUENTE', nombre: 'Fuente o fusible de 24 V', condicion: 'Funde el fusible F-201 o baja la fuente (averías de alimentación).',
+    { id: 'FUENTE', nombre: 'Fuente o fusible de 24 V', condicion: 'Funde el fusible F-001 o baja la fuente (averías de alimentación).',
       esperado: 'Alarma A140, FDV en desvío y paro de los equipos.',
       comprobar: e => resultado(alarmasDe(e).includes('A140') && fdvEnDesvio(e) && bombasParadas(e), 'A140, FDV en desvío y bombas paradas') },
   ];

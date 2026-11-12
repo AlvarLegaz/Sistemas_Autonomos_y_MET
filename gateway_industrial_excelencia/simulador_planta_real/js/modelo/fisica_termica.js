@@ -48,7 +48,7 @@
   }
 
   /**
-   * Nivel del depósito de agua caliente tras un paso: llena XV-302 (agua de red fría, que se mezcla y baja la temperatura) y vacía XV-303.
+   * Nivel del depósito de agua caliente tras un paso: llena XV-201 (agua de red fría, que se mezcla y baja la temperatura) y vacía XV-202.
    * Tiene rebosadero: no pasa del 100 %. Devuelve { volumenL, temperaturaC }.
    */
   function pasoNivelAguaCaliente(volumenL, aguaC, { llenando, vaciando, dt }) {
@@ -62,7 +62,7 @@
     return { volumenL: v, temperaturaC: limitar(temp, 0, A.maximoFisicoC) };
   }
 
-  /** Termostato de seguridad TSH-101 (NC): dispara a 90 °C y solo se rearma, a mano, por debajo de 80 °C. Devuelve el nuevo estado `abierto`. */
+  /** Termostato de seguridad TSH-201 (NC): dispara a 90 °C y solo se rearma, a mano, por debajo de 80 °C. Devuelve el nuevo estado `abierto`. */
   function pasoTermostato(abierto, aguaC, rearmar) {
     const A = C.aguaCaliente;
     if (!abierto) return aguaC >= A.tshDisparoC;

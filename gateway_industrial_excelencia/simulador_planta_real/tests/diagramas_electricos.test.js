@@ -13,7 +13,7 @@ const modelo = { fuerza: fuerza.calcularFuerza, mando: mando.calcularMando };
 function produciendo() { const s = crearSimulacion(); s.ordenes.arrancar(); s.paso(20); return s; }
 function conSeta() { const s = produciendo(); s.ordenes.paroEmergencia(true); s.paso(2); return s; }
 function conFusible() { const s = produciendo(); s.averias.inyectar('AV-FUSIBLE-F201'); s.paso(2); return s; }
-function conMagneto() { const s = produciendo(); s.estado().equipos['QF-102'].armado = false; s.paso(1); return s; }
+function conMagneto() { const s = produciendo(); s.estado().equipos['QF-201'].armado = false; s.paso(1); return s; }
 function conVariadorEnFallo() { const s = produciendo(); s.estado().equipos['P-101'].temperaturaDisipadorC = 200; s.paso(1); return s; }
 const todos = () => [crearSimulacion(), produciendo(), conSeta(), conFusible(), conMagneto(), conVariadorEnFallo()].map(s => s.estado());
 
@@ -119,18 +119,18 @@ test('Fuerza con la planta parada: contactores abiertos, motores parados, resist
   const m = fuerza.calcularFuerza(crearSimulacion().estado());
   for (const k of ['km102', 'km201', 'km202']) { assert.equal(m[`f-${k}`].e, 'abierto'); assert.equal(m[`w-${k}-out`].e, 'muerto'); assert.equal(m[`f-${k}-t`].t, 'ABIERTO'); }
   assert.equal(m['f-p102'].e, 'parado'); assert.equal(m['f-p101'].e, 'parado'); assert.equal(m['f-b1'].e, 'off'); assert.equal(m['f-b1-t'].t, 'DESCONECTADO');
-  assert.equal(m['w-bus'].e, 'vivo'); assert.equal(m['w-km102-in'].e, 'vivo');   // la barra y la derivación de QF-102 siguen con tensión
+  assert.equal(m['w-bus'].e, 'vivo'); assert.equal(m['w-km102-in'].e, 'vivo');   // la barra y la derivación de QF-201 siguen con tensión
 });
 test('Fuerza con la seta pulsada: se abren los contactores (el relé abre las bobinas) pero la fuente de 24 V sigue', () => {
   const m = fuerza.calcularFuerza(conSeta().estado());
   assert.equal(m['f-km102'].e, 'abierto'); assert.equal(m['f-p102'].e, 'parado'); assert.equal(m['f-b1'].e, 'off'); assert.equal(m['f-b2'].e, 'off'); assert.equal(m['f-24v'].e, 'vivo');
 });
-test('Fuerza con el fusible F-201 fundido: fusible fundido y sin 24 V hacia el mando, con la potencia sin tocar', () => {
+test('Fuerza con el fusible F-001 fundido: fusible fundido y sin 24 V hacia el mando, con la potencia sin tocar', () => {
   const m = fuerza.calcularFuerza(conFusible().estado());
   assert.equal(m['f-f201'].e, 'fundido'); assert.equal(m['f-f201-t'].t, 'FUNDIDO'); assert.equal(m['w-24v'].e, 'muerto'); assert.match(m['f-24v-t'].t, /SIN TENSIÓN/);
   assert.equal(m['f-ps'].e, 'ok'); assert.equal(m['w-ps-out'].e, 'vivo'); assert.equal(m['w-bus'].e, 'vivo');   // la fuente da 24 V; se pierden después del fusible
 });
-test('Fuerza con QF-102 disparado: sin tensión aguas abajo de la protección', () => {
+test('Fuerza con QF-201 disparado: sin tensión aguas abajo de la protección', () => {
   const m = fuerza.calcularFuerza(conMagneto().estado());
   assert.equal(m['f-qf102'].e, 'disparado'); assert.equal(m['f-qf102-t'].t, 'DISPARADO'); assert.equal(m['w-sub'].e, 'muerto'); assert.equal(m['w-km201-in'].e, 'muerto');
   assert.equal(m['f-p102'].e, 'parado'); assert.equal(m['f-b1'].e, 'off');
@@ -144,27 +144,27 @@ test('Mando con la planta arrancada: bobinas con tensión, entradas a 1 y salida
   const s = produciendo(), e = s.estado(), m = mando.calcularMando(e);
   assert.equal(m['m-bus'].e, 'vivo'); assert.equal(m['m-ps'].e, 'ok'); assert.equal(m['m-f201'].e, 'ok'); assert.equal(m['m-ks'].e, 'cerrado'); assert.match(m['m-ks-t'].t, /HABILITADAS/);
   assert.equal(m['m-c-ES-001'].e, 'cerrado'); assert.equal(m['m-v-ES-001'].e, 'uno'); assert.equal(m['m-vt-ES-001'].t, '1'); assert.equal(m['w-b-ES-001'].e, 'vivo');
-  assert.equal(e.salidasPLC.DO['P-102'], 1);
-  assert.equal(m['m-l-P-102'].e, 'energizada'); assert.equal(m['m-lt-P-102'].t, 'ENERGIZADA'); assert.equal(m['w-o-P-102'].e, 'vivo'); assert.equal(m['m-ovt-P-102'].t, '1');
-  assert.equal(m['m-c-KM-102'].e, 'cerrado'); assert.equal(m['m-vt-KM-102'].t, '1');                       // contacto auxiliar de KM-102
+  assert.equal(e.salidasPLC.DO['P-201'], 1);
+  assert.equal(m['m-l-P-201'].e, 'energizada'); assert.equal(m['m-lt-P-201'].t, 'ENERGIZADA'); assert.equal(m['w-o-P-201'].e, 'vivo'); assert.equal(m['m-ovt-P-201'].t, '1');
+  assert.equal(m['m-c-KM-203'].e, 'cerrado'); assert.equal(m['m-vt-KM-203'].t, '1');                       // contacto auxiliar de KM-203
   assert.equal(m['m-vfd'].e, 'marcha'); assert.equal(m['m-ov-P-101'].e, 'uno'); assert.match(m['m-ovt-VFD-101'].t, /^\d+ %$/); assert.notEqual(m['m-ovt-VFD-101'].t, '0 %');
   assert.equal(m['m-hmi'].e === 'alarma' || m['m-hmi'].e === 'normal', true); assert.match(m['m-plc-t'].t, /^PLC-001 · /);
 });
 test('Mando con la planta parada: bobinas de mando sin tensión y entradas de seguridad a 1', () => {
   const p = crearSimulacion(); p.paso(1); const m = mando.calcularMando(p.estado());
-  assert.equal(m['m-l-P-102'].e, 'apagada'); assert.equal(m['m-lt-P-102'].t, 'SIN TENSIÓN'); assert.equal(m['m-l-KM-201'].e, 'apagada'); assert.equal(m['m-ov-P-102'].e, 'cero');
+  assert.equal(m['m-l-P-201'].e, 'apagada'); assert.equal(m['m-lt-P-201'].t, 'SIN TENSIÓN'); assert.equal(m['m-l-KM-201'].e, 'apagada'); assert.equal(m['m-ov-P-201'].e, 'cero');
   assert.equal(m['m-vt-ES-001'].t, '1'); assert.equal(m['m-vt-PB-001'].t, '0'); assert.equal(m['m-c-PB-001'].e, 'abierto'); assert.equal(m['m-vfd'].e, 'parado');
 });
 test('Mando con la seta pulsada: contacto de la seta abierto, entrada a 0, relé KS abierto y bobinas sin tensión; la baliza sigue encendida', () => {
   const s = conSeta(), e = s.estado(), m = mando.calcularMando(e);
   assert.equal(m['m-c-ES-001'].e, 'disparado'); assert.equal(m['m-v-ES-001'].e, 'cero'); assert.equal(m['m-vt-ES-001'].t, '0'); assert.equal(m['w-b-ES-001'].e, 'muerto');
   assert.equal(m['m-ks'].e, 'disparado'); assert.match(m['m-ks-t'].t, /CORTADAS/); assert.equal(m['w-ks-out'].e, 'muerto');
-  assert.equal(m['m-l-P-102'].e, 'apagada'); assert.equal(m['m-l-SV-101'].e, 'apagada'); assert.equal(m['m-vfd'].e, 'parado');
+  assert.equal(m['m-l-P-201'].e, 'apagada'); assert.equal(m['m-l-SV-101'].e, 'apagada'); assert.equal(m['m-vfd'].e, 'parado');
   assert.equal(m['m-bus'].e, 'vivo'); assert.equal(m['m-l-HL-001'].e, 'encendida'); assert.equal(m['m-lt-HL-001'].t, 'ENCENDIDA');
   assert.match(m['m-plc-t'].t, /PARO/); assert.match(m['m-plc-sub'].t, /ES-001/);
-  assert.equal(m['m-c-KM-102'].e, 'abierto'); assert.equal(m['m-vt-KM-102'].t, '0');
+  assert.equal(m['m-c-KM-203'].e, 'abierto'); assert.equal(m['m-vt-KM-203'].t, '0');
 });
-test('Mando con el fusible F-201 fundido: sin 24 V, fusible fundido, todas las entradas a 0 aunque los contactos de campo sigan como estaban', () => {
+test('Mando con el fusible F-001 fundido: sin 24 V, fusible fundido, todas las entradas a 0 aunque los contactos de campo sigan como estaban', () => {
   const e = conFusible().estado(), m = mando.calcularMando(e);
   assert.equal(m['m-f201'].e, 'fundido'); assert.equal(m['m-f201-t'].t, 'FUNDIDO'); assert.equal(m['m-bus'].e, 'muerto'); assert.equal(m['m-rail'].e, 'muerto'); assert.match(m['m-bus-t'].t, /SIN TENSIÓN/);
   for (const [tag] of mando.FILAS_DI) { assert.equal(m[`m-vt-${tag}`].t, '0', tag); assert.equal(m[`w-b-${tag}`].e, 'muerto', tag); }
@@ -214,10 +214,10 @@ for (const [nombre, d] of Object.entries(DIAGRAMAS)) {
 }
 test('Fuerza: las etiquetas accesibles dicen el estado', () => {
   const a = fuerza.ariaFuerza(conFusible().estado());
-  assert.match(a['F-201'], /^F-201, fundido$/); assert.match(a['KM-102'], /^KM-102, contactor (abierto|cerrado)$/);
-  assert.match(fuerza.ariaFuerza(produciendo().estado())['P-102'], /^P-102, en marcha/);
+  assert.match(a['F-001'], /^F-001, fundido$/); assert.match(a['KM-203'], /^KM-203, contactor (abierto|cerrado)$/);
+  assert.match(fuerza.ariaFuerza(produciendo().estado())['P-201'], /^P-201, en marcha/);
 });
 test('Mando: las etiquetas accesibles incluyen la dirección y el valor', () => {
   const a = mando.ariaMando(conSeta().estado());
-  assert.match(a['ES-001'], /DI1\.01 = 0/); assert.match(a['ES-001'], /cortadas/); assert.match(a['KM-102'], /DI1\.09 = 0/); assert.match(a['KM-102'], /DO1\.02/);
+  assert.match(a['ES-001'], /DI1\.01 = 0/); assert.match(a['ES-001'], /cortadas/); assert.match(a['KM-203'], /DI1\.09 = 0/); assert.match(a['KM-203'], /DO1\.02/);
 });

@@ -2,15 +2,15 @@
 // El historial y la escala son puros (se prueban sin navegador); el dibujo en canvas va al final.
 (function () {
   const GRUPOS = [
-    { id: 'temperaturas', titulo: 'Temperaturas (°C)', unidad: '°C', series: [['TT-101', '#2d80c7'], ['TT-102', '#22a2a0'], ['TT-103', '#d66d2b'], ['TT-104', '#8f6bd6'], ['TT-105', '#c9a227']] },
+    { id: 'temperaturas', titulo: 'Temperaturas (°C)', unidad: '°C', series: [['TT-101', '#2d80c7'], ['TT-102', '#22a2a0'], ['TT-103', '#d66d2b'], ['TT-104', '#8f6bd6'], ['TT-201', '#c9a227']] },
     { id: 'caudal', titulo: 'Caudal (L/h)', unidad: 'L/h', series: [['FT-101', '#46b07c']] },
     { id: 'presiones', titulo: 'Presiones (bar)', unidad: 'bar', series: [['PT-101', '#2d80c7'], ['PT-102', '#d66d2b']] },
   ];
   // Motores y electroválvulas en el tiempo: una fila por equipo, con bloque de color cuando está en marcha / abierta (señales todo/nada: 1 o 0). Opcional: `contexto.grupos`.
   const GRUPO_MOTORES = { id: 'motores', titulo: 'Motores y electroválvulas', tipo: 'digital', alto: 220, series: [
-    ['P-101', '#46b07c', 'P-101 bomba de leche'], ['P-102', '#d66d2b', 'P-102 bomba de agua caliente'], ['KM-201', '#c9a227', 'KM-201 banco 1'], ['KM-202', '#c9a227', 'KM-202 banco 2'],
+    ['P-101', '#46b07c', 'P-101 bomba de leche'], ['P-201', '#d66d2b', 'P-201 bomba de agua caliente'], ['KM-201', '#c9a227', 'KM-201 banco 1'], ['KM-202', '#c9a227', 'KM-202 banco 2'],
     ['FDV-101', '#2d80c7', 'FDV-101 en avance'], ['XV-101', '#22a2a0', 'XV-101 llenado tanque'], ['XV-102', '#22a2a0', 'XV-102 vaciado tanque'], ['XV-301', '#2d80c7', 'XV-301 agua fría'],
-    ['XV-302', '#22a2a0', 'XV-302 llenado agua caliente'], ['XV-303', '#22a2a0', 'XV-303 vaciado agua caliente'], ['XV-401', '#8f6bd6', 'XV-401 CIP']] };
+    ['XV-201', '#22a2a0', 'XV-201 llenado agua caliente'], ['XV-202', '#22a2a0', 'XV-202 vaciado agua caliente'], ['XV-401', '#8f6bd6', 'XV-401 CIP']] };
   const BASES_DE_TIEMPO = [['1 min', 60], ['5 min', 300], ['15 min', 900], ['Todo', null]];
 
   /** Historial de muestras: una fila { t, v: { tag: valor } } cada `intervaloS` segundos de simulación (descarta las más viejas). */

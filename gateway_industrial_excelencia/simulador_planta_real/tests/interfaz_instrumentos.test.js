@@ -14,17 +14,17 @@ test('los puntos de medida derivados del contrato tienen id único, equipo exist
   const lista = puntos.puntosDeMedida(layout);
   assert.equal(new Set(lista.map(p => p.id)).size, lista.length);
   for (const p of lista) { assert.ok(layout.equipo(p.equipo), `${p.id}: equipo ${p.equipo} inexistente`); assert.ok(['V', 'mA', 'ohm', 'temperatura', 'presion'].includes(p.modo), p.id); }
-  assert.ok(lista.some(p => p.id === 'F-201:SALIDA') && lista.some(p => p.id === 'TT-103:PT100'));
+  assert.ok(lista.some(p => p.id === 'F-001:SALIDA') && lista.some(p => p.id === 'TT-103:PT100'));
 });
 
 test('con el modelo cargado los puntos son los suyos (sim.medidas.puntos) y cada uno tiene modo natural', () => {
   const sim = crearSimulacion({ semilla: 1 });
   const lista = puntos.puntosDisponibles(sim);
   assert.equal(lista.length, sim.medidas.puntos.length);
-  const fusible = lista.find(p => p.id === 'F-201:FUSIBLE');
+  const fusible = lista.find(p => p.id === 'F-001:FUSIBLE');
   assert.equal(fusible.modo, 'continuidad');
-  assert.equal(fusible.equipo, 'F-201');
-  assert.equal(puntos.puntosDeEquipo('F-201', lista).length, 3);
+  assert.equal(fusible.equipo, 'F-001');
+  assert.equal(puntos.puntosDeEquipo('F-001', lista).length, 3);
 });
 
 test('el multímetro formatea con unidades y OL en circuito abierto', () => {
@@ -55,17 +55,17 @@ test('avisos de seguridad: ohmios sin tensión, mA en serie, punto con otra func
 test('multímetro con el modelo real: el fusible fundido se diagnostica midiendo antes y después', () => {
   const sana = simConAveria(null), averiada = simConAveria('AV-FUSIBLE-F201');
   const lee = (sim, punto, modo) => mm.leerMultimetro(sim, { modo, punto });
-  assert.equal(lee(sana, 'F-201:SALIDA', 'V').texto, '24,00 V');
-  assert.equal(lee(averiada, 'F-201:ENTRADA', 'V').texto, '24,00 V');           // antes del fusible hay tensión...
-  assert.equal(lee(averiada, 'F-201:SALIDA', 'V').valor, 0);                    // ...y después no
-  assert.equal(lee(averiada, 'F-201:FUSIBLE', 'continuidad').texto, 'OL');
-  assert.equal(lee(averiada, 'F-201:FUSIBLE', 'continuidad').continuidad, false);
-  assert.equal(lee(sana, 'F-201:FUSIBLE', 'continuidad').continuidad, true);
+  assert.equal(lee(sana, 'F-001:SALIDA', 'V').texto, '24,00 V');
+  assert.equal(lee(averiada, 'F-001:ENTRADA', 'V').texto, '24,00 V');           // antes del fusible hay tensión...
+  assert.equal(lee(averiada, 'F-001:SALIDA', 'V').valor, 0);                    // ...y después no
+  assert.equal(lee(averiada, 'F-001:FUSIBLE', 'continuidad').texto, 'OL');
+  assert.equal(lee(averiada, 'F-001:FUSIBLE', 'continuidad').continuidad, false);
+  assert.equal(lee(sana, 'F-001:FUSIBLE', 'continuidad').continuidad, true);
 });
 
 test('multímetro: una función equivocada da ERR con la pista del modelo, y sin modelo avisa', () => {
   const sim = simConAveria(null);
-  const r = mm.leerMultimetro(sim, { modo: 'ohm', punto: 'F-201:SALIDA' });
+  const r = mm.leerMultimetro(sim, { modo: 'ohm', punto: 'F-001:SALIDA' });
   assert.equal(r.texto, 'ERR');
   assert.match(r.aviso, /usa V/);
   assert.match(mm.leerMultimetro(null, { modo: 'V', punto: 'x' }).aviso, /no está cargado/);

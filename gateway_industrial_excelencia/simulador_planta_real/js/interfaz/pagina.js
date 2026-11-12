@@ -265,7 +265,7 @@
       'tt103-menos': () => cambiarTT103(-0.5), 'tt103-mas': () => cambiarTT103(0.5),
       marcha: () => { sim.ordenes.arrancar(); registro.anotar('accion', 'Panel: MARCHA'); },
       paro: () => { sim.ordenes.parar(); registro.anotar('accion', 'Panel: PARO'); },
-      rearme: () => { if (sim.ordenes.paroEmergencia) sim.ordenes.paroEmergencia(false); sim.ordenes.pulsador('PB-001'); sim.ordenes.pulsador('TSH-101'); registro.anotar('accion', 'Panel: REARME (seta liberada, PB-001 y TSH-101)'); },
+      rearme: () => { if (sim.ordenes.paroEmergencia) sim.ordenes.paroEmergencia(false); sim.ordenes.pulsador('PB-001'); sim.ordenes.pulsador('TSH-201'); registro.anotar('accion', 'Panel: REARME (seta liberada, PB-001 y TSH-201)'); },
     };
     function cambiarCaudal(signo) {
       if (sim.estado().modo === 'MANUAL') {

@@ -16,17 +16,17 @@
     'HT-101': { ent: [24, 20, -40], sal: [120, 48, -40] },
     'FDV-101': { com: [118, 14, -15], avance: [128, 14, -5], desvio: [108, 14, -5], aire: [123, 36, -5] },
     'SV-101': { ent: [122, 8, 12], sal: [122, 14, 12] },
-    'FRL-101': { sal: [131, 12, 25] },
-    'HW-101': { sal: [1, 20, 45], ent: [1, 62, 45], llen: [37, 30, 45], vac: [14, 14, 60.9] },
-    'P-102': { ent: [-15, 13, 43], sal: [-15, 26, 55] },
+    'FRL-501': { sal: [131, 12, 25] },
+    'HW-201': { sal: [1, 20, 45], ent: [1, 62, 45], llen: [37, 30, 45], vac: [14, 14, 60.9] },
+    'P-201': { ent: [-15, 13, 43], sal: [-15, 26, 55] },
     'XV-301': { ent: [75, 10, 48], sal: [75, 10, 32] },
     'XV-401': { ent: [100, 10, 48], sal: [100, 10, 32] },
-    // Válvulas de llenado y vaciado (todo/nada). XV-101 y XV-302 se acercan al depósito; XV-102 y XV-303 salen de él hacia el desagüe.
-    // XV-303 va girada 90° (cuerpo a lo largo de x) para no sobresalir del borde del patín (z = 72 ± 8 pasaría de 75).
+    // Válvulas de llenado y vaciado (todo/nada). XV-101 y XV-201 se acercan al depósito; XV-102 y XV-202 salen de él hacia el desagüe.
+    // XV-202 va girada 90° (cuerpo a lo largo de x) para no sobresalir del borde del patín (z = 72 ± 8 pasaría de 75).
     'XV-101': { ent: [-90, 10, -70], sal: [-90, 10, -54] },
     'XV-102': { ent: [-140, 10, 4], sal: [-140, 10, 20] },
-    'XV-302': { ent: [52, 10, 70], sal: [52, 10, 54] },
-    'XV-303': { ent: [12, 10, 72], sal: [28, 10, 72] },
+    'XV-201': { ent: [52, 10, 70], sal: [52, 10, 54] },
+    'XV-202': { ent: [12, 10, 72], sal: [28, 10, 72] },
     SALIDA_PRODUCTO: { ent: [160, 40, 30] },
     SUMINISTRO_FRIO: { sal: [75, 10, 75] },
     DESAGUE: { ent: [26, 2, -75] },

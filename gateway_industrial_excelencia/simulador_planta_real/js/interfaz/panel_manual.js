@@ -14,7 +14,7 @@
       { tag: 'P-101', nombre: 'Bomba de alimentación', tipo: 'onoff' },
       { tag: 'VFD-101', nombre: 'Velocidad de P-101 (variador)', tipo: 'numerico', unidad: '%', min: 0, max: 100 }] },
     { id: 'agua_caliente', titulo: 'Agua caliente', mandos: [
-      { tag: 'P-102', nombre: 'Bomba del agua caliente', tipo: 'onoff' },
+      { tag: 'P-201', nombre: 'Bomba del agua caliente', tipo: 'onoff' },
       { tag: 'KM-201', nombre: 'Banco 1 del calentador (30 kW)', tipo: 'onoff' },
       { tag: 'KM-202', nombre: 'Banco 2 del calentador (30 kW)', tipo: 'onoff' }] },
     { id: 'salida', titulo: 'Salida y FDV', mandos: [{ tag: 'SV-101', nombre: 'FDV-101: avance (piloto energizado) / desvío', tipo: 'onoff', textoOn: 'AVANCE', textoOff: 'DESVÍO' }] },
@@ -23,8 +23,8 @@
     { id: 'llenado', titulo: 'Llenado y vaciado', mandos: [
       { tag: 'XV-101', nombre: 'Llenado del tanque de balance', tipo: 'onoff', textoOn: 'ABIERTA', textoOff: 'CERRADA' },
       { tag: 'XV-102', nombre: 'Vaciado del tanque de balance', tipo: 'onoff', textoOn: 'ABIERTA', textoOff: 'CERRADA' },
-      { tag: 'XV-302', nombre: 'Llenado del depósito de agua caliente', tipo: 'onoff', textoOn: 'ABIERTA', textoOff: 'CERRADA' },
-      { tag: 'XV-303', nombre: 'Vaciado del depósito de agua caliente', tipo: 'onoff', textoOn: 'ABIERTA', textoOff: 'CERRADA' }] },
+      { tag: 'XV-201', nombre: 'Llenado del depósito de agua caliente', tipo: 'onoff', textoOn: 'ABIERTA', textoOff: 'CERRADA' },
+      { tag: 'XV-202', nombre: 'Vaciado del depósito de agua caliente', tipo: 'onoff', textoOn: 'ABIERTA', textoOff: 'CERRADA' }] },
   ];
   const MANDOS = ZONAS.flatMap(z => z.mandos.map(m => Object.assign({ zona: z.id }, m)));
   const mandoDe = tag => MANDOS.find(m => m.tag === tag) || null;
@@ -33,10 +33,10 @@
   /** Protecciones que siguen activas en modo manual (el PLC no automatiza, pero estas están cableadas o son esenciales). */
   const PROTECCIONES = [
     'ES-001: la seta para toda la planta (hay que rearmarla).',
-    'Pérdida de 24 V (F-201 o fuente PS-001): sin tensión no hay ninguna salida.',
-    'TSH-101: el termostato de seguridad corta el calentador (también con TT-105 ≥ 88 °C).',
-    'PSL-201: sin aire comprimido la FDV cae a desvío por el muelle.',
-    'LSL-301 y P-102: los bancos del calentador se cortan sin nivel de agua o sin circulación.',
+    'Pérdida de 24 V (F-001 o fuente PS-001): sin tensión no hay ninguna salida.',
+    'TSH-201: el termostato de seguridad corta el calentador (también con TT-201 ≥ 88 °C).',
+    'PSL-501: sin aire comprimido la FDV cae a desvío por el muelle.',
+    'LSL-201 y P-201: los bancos del calentador se cortan sin nivel de agua o sin circulación.',
     'LSL-101: sin leche en TK-101, P-101 se para por marcha en seco.',
   ];
 
@@ -77,18 +77,18 @@
 
   /**
    * Causa que impide o explica un mando, distinguiendo lo que enseña el mantenimiento: { clase, etiqueta, texto } o null.
-   *   clase 'sin24v'     → falta tensión (fusible F-201 o fuente PS-001): TODAS las entradas digitales leen 0, también la seta;
+   *   clase 'sin24v'     → falta tensión (fusible F-001 o fuente PS-001): TODAS las entradas digitales leen 0, también la seta;
    *   clase 'paro'       → la seta ES-001 está pulsada (o el paro sigue enclavado hasta rearmar);
    *   clase 'proteccion' → una protección cableada o esencial actúa (no es una avería: es el sistema haciendo su trabajo).
-   * Se lee del estado REAL de los equipos (F-201, PS-001, ES-001), no de las entradas digitales: sin 24 V la seta «lee» 0 aunque nadie la haya pulsado.
+   * Se lee del estado REAL de los equipos (F-001, PS-001, ES-001), no de las entradas digitales: sin 24 V la seta «lee» 0 aunque nadie la haya pulsado.
    */
   function causaBloqueo(e, tag) {
     if (!e) return null;
-    const f201 = eq(e, 'F-201'), ps = eq(e, 'PS-001'), es = eq(e, 'ES-001');
+    const f201 = eq(e, 'F-001'), ps = eq(e, 'PS-001'), es = eq(e, 'ES-001');
     const fusible = !!f201.fundido, fuente = ps.ok === false || (ps.ok === undefined && nivelDI(e, 'PS-001') === 0);
     if (fusible || fuente) {
-      return { clase: 'sin24v', etiqueta: fusible ? 'Sin 24 V (F-201)' : 'Sin 24 V (PS-001)',
-        texto: `${fusible ? 'el fusible F-201 está fundido' : 'la fuente PS-001 no da tensión'}: las salidas y las entradas del PLC no tienen alimentación. Mide F-201 y PS-001.` };
+      return { clase: 'sin24v', etiqueta: fusible ? 'Sin 24 V (F-001)' : 'Sin 24 V (PS-001)',
+        texto: `${fusible ? 'el fusible F-001 está fundido' : 'la fuente PS-001 no da tensión'}: las salidas y las entradas del PLC no tienen alimentación. Mide F-001 y PS-001.` };
     }
     const seta = es.rearmado === false || (es.rearmado === undefined && nivelDI(e, 'ES-001') === 0);
     if (seta) return { clase: 'paro', etiqueta: 'Paro de emergencia (ES-001)', texto: 'seta pulsada: nada arranca hasta rearmar.' };
@@ -97,12 +97,12 @@
     if (tag === 'P-101' && nivelDI(e, 'LSL-101') === 0) return proteccion('tanque de balance vacío (LSL-101): P-101 se para por marcha en seco. Llénalo con XV-101.');
     if ((tag === 'P-101' || tag === 'VFD-101') && eq(e, 'VFD-101').fallo) return proteccion('variador VFD-101 en fallo.');
     if (tag === 'KM-201' || tag === 'KM-202') {
-      if (nivelDI(e, 'TSH-101') === 0) return proteccion('termostato de seguridad TSH-101 disparado: el calentador no se puede conectar.');
-      if (nivelDI(e, 'LSL-301') === 0) return proteccion('nivel bajo en el depósito de agua caliente (LSL-301): las resistencias no deben trabajar sin agua. Llénalo con XV-302.');
-      if (!eq(e, 'P-102').marcha) return proteccion('sin circulación: P-102 está parada y los bancos se cortarían. Arranca P-102 primero.');
-      if (typeof valorAI(e, 'TT-105') === 'number' && valorAI(e, 'TT-105') >= 88) return proteccion('agua a 88 °C o más (TT-105): protección por sobretemperatura.');
+      if (nivelDI(e, 'TSH-201') === 0) return proteccion('termostato de seguridad TSH-201 disparado: el calentador no se puede conectar.');
+      if (nivelDI(e, 'LSL-201') === 0) return proteccion('nivel bajo en el depósito de agua caliente (LSL-201): las resistencias no deben trabajar sin agua. Llénalo con XV-201.');
+      if (!eq(e, 'P-201').marcha) return proteccion('sin circulación: P-201 está parada y los bancos se cortarían. Arranca P-201 primero.');
+      if (typeof valorAI(e, 'TT-201') === 'number' && valorAI(e, 'TT-201') >= 88) return proteccion('agua a 88 °C o más (TT-201): protección por sobretemperatura.');
     }
-    if (tag === 'SV-101' && nivelDI(e, 'PSL-201') === 0) return proteccion('sin aire comprimido (PSL-201): la FDV queda en desvío por el muelle.');
+    if (tag === 'SV-101' && nivelDI(e, 'PSL-501') === 0) return proteccion('sin aire comprimido (PSL-501): la FDV queda en desvío por el muelle.');
     return null;
   }
   const textoCausa = c => (c ? `${c.etiqueta}: ${c.texto}` : null);
@@ -114,12 +114,12 @@
   function peligro(e, tag) {
     if (tag === 'KM-201' || tag === 'KM-202') return 'Conectas 30 kW de resistencias. Si el agua no circula o el nivel es bajo, se dañan: las protecciones cortarán, pero comprueba antes la circulación.';
     if (tag === 'XV-102') return 'Vas a vaciar el tanque de balance: P-101 se parará por marcha en seco cuando llegue al mínimo.';
-    if (tag === 'XV-303') return 'Vas a vaciar el depósito de agua caliente: con nivel bajo las resistencias se cortan y el agua se pierde.';
+    if (tag === 'XV-202') return 'Vas a vaciar el depósito de agua caliente: con nivel bajo las resistencias se cortan y el agua se pierde.';
     if (tag === 'SV-101' && !(e && e.plc && e.plc.cumpleCondiciones)) return 'La FDV pasará a AVANCE sin cumplir 72,5 °C, el tiempo de residencia y el diferencial: la leche se contará como NO CONFORME (alarma A220).';
     if (tag === 'P-101' && ((e && e.tanque && e.tanque.nivelPct) || 0) < 15) return 'El tanque de balance está casi vacío: P-101 trabajará casi en seco.';
     if (tag === 'XV-401' && ((e && e.proceso && e.proceso.caudalLh) || 0) > 0) return 'Hay leche circulando: la solución de limpieza no debe mezclarse con ella.';
     if (tag === 'XV-101' && ((e && e.tanque && e.tanque.nivelPct) || 0) >= 95) return 'El tanque de balance está casi lleno: rebosará.';
-    if (tag === 'XV-302' && ((e && e.aguaCaliente && e.aguaCaliente.nivelPct) || 0) >= 95) return 'El depósito de agua caliente está casi lleno: rebosará.';
+    if (tag === 'XV-201' && ((e && e.aguaCaliente && e.aguaCaliente.nivelPct) || 0) >= 95) return 'El depósito de agua caliente está casi lleno: rebosará.';
     return null;
   }
 

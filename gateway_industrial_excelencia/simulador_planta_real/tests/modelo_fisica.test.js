@@ -113,12 +113,12 @@ test('instrumentos: cada AI convierte su magnitud con su rango y los digitales d
   const tt = instrumentos.leerAI('TT-103', e, 0, null, alim); cerca(tt.mA, 4 + 16 * 0.72, 1e-9); assert.equal(tt.calidad, 'OK'); cerca(tt.valorPLC, 72, 1e-9);
   const ft = instrumentos.leerAI('FT-101', e, 0, null, alim); cerca(ft.valorPLC, 1500, 1e-6);
   const dig = instrumentos.nivelesDigitales(e, false);
-  assert.equal(dig['ES-001'], 1); assert.equal(dig['TSH-101'], 1); assert.equal(dig['LSL-101'], 1); assert.equal(dig['LSH-101'], 0);
-  e.equipos['ES-001'].rearmado = false; e.equipos['TSH-101'].abierto = true;
-  const roto = instrumentos.nivelesDigitales(e, false); assert.equal(roto['ES-001'], 0); assert.equal(roto['TSH-101'], 0);
+  assert.equal(dig['ES-001'], 1); assert.equal(dig['TSH-201'], 1); assert.equal(dig['LSL-101'], 1); assert.equal(dig['LSH-101'], 0);
+  e.equipos['ES-001'].rearmado = false; e.equipos['TSH-201'].abierto = true;
+  const roto = instrumentos.nivelesDigitales(e, false); assert.equal(roto['ES-001'], 0); assert.equal(roto['TSH-201'], 0);
 });
 
-test('sin el fusible F-201 los lazos leen 0 mA (ABIERTO) y todas las entradas digitales leen 0', () => {
+test('sin el fusible F-001 los lazos leen 0 mA (ABIERTO) y todas las entradas digitales leen 0', () => {
   const e = crearEstado();
   const ent = instrumentos.leerEntradas(e, 0, null, { v24: 24, fusibleF201: false }, false);
   for (const tag of Object.keys(ent.AI)) { assert.equal(ent.AI[tag].mA, 0); assert.equal(ent.AI[tag].calidad, 'ABIERTO'); }

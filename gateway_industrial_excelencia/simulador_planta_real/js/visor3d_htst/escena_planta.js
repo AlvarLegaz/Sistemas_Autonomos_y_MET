@@ -209,7 +209,7 @@
     }
     placa('TK-101', 'TANQUE DE BALANCE', -135, 52, -1.6, 0);
     placa('HX-101', 'INTERCAMBIADOR', -49.7, 56, -35, -Math.PI / 2);      // en la cara exterior de la placa fija del bastidor
-    placa('HW-101', 'AGUA CALIENTE', 20 + 17.3 * Math.sin(0.75), 48, 45 + 17.3 * Math.cos(0.75), 0.75);
+    placa('HW-201', 'AGUA CALIENTE', 20 + 17.3 * Math.sin(0.75), 48, 45 + 17.3 * Math.cos(0.75), 0.75);
     // zócalo bajo el armario (queda fuera del patín)
     const pos = layout.posicion('QE-001');
     caja(76, SKID.alto + 1, 46, matViga, pos.x, -SKID.alto / 2 - 0.5, pos.z);

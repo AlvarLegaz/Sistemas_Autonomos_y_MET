@@ -1,9 +1,9 @@
 // Catálogo de las 16 averías electrónicas de la planta HTST (esquema de ARQUITECTURA.md §6.1). Solo datos: el efecto físico lo aplica motor.js.
 // Cada avería dice qué equipos toca, qué se ve en el SCADA y en el 3D, cómo se diagnostica con el multímetro/osciloscopio y cómo se resuelve.
-// Los puntos de medida (p. ej. 'F-201:SALIDA') están definidos en js/modelo/medidas.js.
+// Los puntos de medida (p. ej. 'F-001:SALIDA') están definidos en js/modelo/medidas.js.
 (function () {
   const layout = typeof require !== 'undefined' ? require('../layout.js') : PCT.htstLayout;
-  const TAGS_TT = ['TT-101', 'TT-102', 'TT-103', 'TT-104', 'TT-105'];
+  const TAGS_TT = ['TT-101', 'TT-102', 'TT-103', 'TT-104', 'TT-201'];
   const TAGS_AI = layout.SENALES.filter(s => s.tipo === 'AI').map(s => s.tag);
 
   const opcion = (opciones, defecto, descripcion) => ({ tipo: 'opcion', opciones, defecto, descripcion });
@@ -57,14 +57,14 @@
       solucion: { texto: 'Usar cable apantallado, conectar la malla a tierra por un solo extremo y separar el cable de la potencia del variador.', accion: 'reparar', tag: null },
       alarmasEsperadas: ['A102'], pistas: ['Con el multímetro la media parece normal.', 'Usa el osciloscopio sobre el lazo.', 'Fíjate por dónde pasa el cable.'] },
 
-    { id: 'AV-FUSIBLE-F201', nombre: 'Fusible F-201 de 24 V fundido', capa: 'alimentacion', equipos: ['F-201'], dificultad: 1,
+    { id: 'AV-FUSIBLE-F201', nombre: 'Fusible F-001 de 24 V fundido', capa: 'alimentacion', equipos: ['F-001'], dificultad: 1,
       parametros: {},
-      efectos: [{ gancho: 'alimentacion', tag: 'F-201', modificacion: 'se pierden los 24 V de instrumentos (lazos y entradas digitales a 0)' }],
+      efectos: [{ gancho: 'alimentacion', tag: 'F-001', modificacion: 'se pierden los 24 V de instrumentos (lazos y entradas digitales a 0)' }],
       sintomasScada: ['Alarma A140 y todos los lazos a 0 mA a la vez', 'Paro de seguridad y FDV en desvío'],
-      sintomas3d: [{ tag: 'F-201', efecto: 'led_apagado' }, { tag: 'F-201', efecto: 'resaltar_rojo' }],
-      diagnostico: [paso(1, 'multimetro', 'F-201:ENTRADA', '24 V', '24 V (la fuente está bien)', 'V'), paso(2, 'multimetro', 'F-201:SALIDA', '24 V', '0 V (después del fusible no hay tensión)', 'V'),
-        paso(3, 'multimetro', 'F-201:FUSIBLE', 'Continuidad (≈ 0 Ω)', 'Circuito abierto', 'continuidad')],
-      solucion: { texto: 'Buscar la causa del cortocircuito en los lazos y sustituir el fusible por otro del mismo valor.', accion: 'sustituir', tag: 'F-201' },
+      sintomas3d: [{ tag: 'F-001', efecto: 'led_apagado' }, { tag: 'F-001', efecto: 'resaltar_rojo' }],
+      diagnostico: [paso(1, 'multimetro', 'F-001:ENTRADA', '24 V', '24 V (la fuente está bien)', 'V'), paso(2, 'multimetro', 'F-001:SALIDA', '24 V', '0 V (después del fusible no hay tensión)', 'V'),
+        paso(3, 'multimetro', 'F-001:FUSIBLE', 'Continuidad (≈ 0 Ω)', 'Circuito abierto', 'continuidad')],
+      solucion: { texto: 'Buscar la causa del cortocircuito en los lazos y sustituir el fusible por otro del mismo valor.', accion: 'sustituir', tag: 'F-001' },
       alarmasEsperadas: ['A140'], pistas: ['Todos los lazos fallan a la vez: el fallo es común.', 'Mide antes y después del fusible.'] },
 
     { id: 'AV-FUENTE-24V', nombre: 'Fuente de 24 V degradada (18 V con rizado)', capa: 'alimentacion', equipos: ['PS-001'], dificultad: 2,
@@ -79,17 +79,17 @@
     { id: 'AV-KM-PEGADO', nombre: 'Contactor del calentador con los contactos soldados', capa: 'potencia', equipos: ['KM-201'], dificultad: 2,
       parametros: { tag: opcion(['KM-201', 'KM-202'], 'KM-201', 'Contactor que se queda pegado') },
       efectos: [{ gancho: 'salida', tag: '{tag}', modificacion: 'la salida física queda a 1 con la orden a 0' }],
-      sintomasScada: ['Alarma A130 (orden 0 y contacto auxiliar 1)', 'La temperatura del agua sube sin control y puede saltar TSH-101'],
+      sintomasScada: ['Alarma A130 (orden 0 y contacto auxiliar 1)', 'La temperatura del agua sube sin control y puede saltar TSH-201'],
       sintomas3d: [{ tag: '{tag}', efecto: 'contactos_cerrados' }, { tag: '{tag}', efecto: 'resaltar_rojo' }],
       diagnostico: [paso(1, 'multimetro', '{tag}:BOBINA', '0 V con la orden a 0', '0 V (el PLC no lo ordena)', 'V'), paso(2, 'multimetro', '{tag}:CARGA', '0 V con el contactor abierto', '400 V en la carga: el calentador sigue alimentado', 'V'),
         paso(3, 'multimetro', '{tag}:CONTACTOS', 'Circuito abierto sin orden', 'Cerrados (≈ 0 Ω)', 'ohm')],
       solucion: { texto: 'Cortar la alimentación, sustituir el contactor y revisar la causa (arco o sobrecorriente).', accion: 'sustituir', tag: null },
       alarmasEsperadas: ['A130'], pistas: ['¿Está el calentador alimentado aunque el PLC no lo pida?', 'Mide la tensión en la carga con la orden a 0.'] },
 
-    { id: 'AV-KM-NO-CIERRA', nombre: 'Contactor que no cierra (contactos quemados o bobina sin fuerza)', capa: 'potencia', equipos: ['KM-102', 'KM-201', 'KM-202'], dificultad: 2,
-      parametros: { tag: opcion(['KM-102', 'KM-201', 'KM-202'], 'KM-102', 'Contactor que no cierra') },
+    { id: 'AV-KM-NO-CIERRA', nombre: 'Contactor que no cierra (contactos quemados o bobina sin fuerza)', capa: 'potencia', equipos: ['KM-203', 'KM-201', 'KM-202'], dificultad: 2,
+      parametros: { tag: opcion(['KM-203', 'KM-201', 'KM-202'], 'KM-203', 'Contactor que no cierra') },
       efectos: [{ gancho: 'salida', tag: '{tag}', modificacion: 'la salida física queda a 0 con la orden a 1' }],
-      sintomasScada: ['Alarma A130 (orden 1 y contacto auxiliar 0)', 'Con KM-102 la bomba P-102 se para y la temperatura no sube; con KM-201 o KM-202 un banco del calentador no conecta y el agua calienta más despacio'],
+      sintomasScada: ['Alarma A130 (orden 1 y contacto auxiliar 0)', 'Con KM-203 la bomba P-201 se para y la temperatura no sube; con KM-201 o KM-202 un banco del calentador no conecta y el agua calienta más despacio'],
       sintomas3d: [{ tag: '{tag}', efecto: 'resaltar_rojo' }],
       diagnostico: [paso(1, 'multimetro', '{tag}:BOBINA', '24 V con la orden a 1', '24 V (la bobina recibe orden)', 'V'), paso(2, 'multimetro', '{tag}:CARGA', '400 V en la carga', '0 V en bornas de la carga', 'V'),
         paso(3, 'multimetro', '{tag}:BOBINA-R', 'Unos 650 Ω', 'Valor normal o abierta según el fallo', 'ohm')],
@@ -110,17 +110,17 @@
       efectos: [{ gancho: 'proceso', tag: 'FDV-101', modificacion: 'el vástago no sale de avance (ZS-102 nunca llega)' }],
       sintomasScada: ['Alarma A120: al pedir desvío, ZS-102 no llega', 'El PLC hace paro de seguridad y para P-101'],
       sintomas3d: [{ tag: 'FDV-101', efecto: 'resaltar_rojo' }],
-      diagnostico: [paso(1, 'multimetro', 'FDV-101:ZS-102', 'Continuidad con la FDV en desvío', 'Sin continuidad aunque no hay tensión en el piloto', 'continuidad'), paso(2, 'multimetro', 'FRL-101:MANOMETRO', '6 bar de aire', 'Aire correcto: el fallo es mecánico', 'presion')],
+      diagnostico: [paso(1, 'multimetro', 'FDV-101:ZS-102', 'Continuidad con la FDV en desvío', 'Sin continuidad aunque no hay tensión en el piloto', 'continuidad'), paso(2, 'multimetro', 'FRL-501:MANOMETRO', '6 bar de aire', 'Aire correcto: el fallo es mecánico', 'presion')],
       solucion: { texto: 'Desmontar y reparar la válvula (vástago, juntas y muelle).', accion: 'reparar', tag: 'FDV-101' },
       alarmasEsperadas: ['A120'], pistas: ['El piloto está sin tensión y la válvula no vuelve.', 'Comprueba el aire y la posición de los finales de carrera.'] },
 
-    { id: 'AV-AIRE-BAJO', nombre: 'Presión de aire baja (fuga o regulador mal ajustado)', capa: 'neumatica', equipos: ['FRL-101'], dificultad: 1,
+    { id: 'AV-AIRE-BAJO', nombre: 'Presión de aire baja (fuga o regulador mal ajustado)', capa: 'neumatica', equipos: ['FRL-501'], dificultad: 1,
       parametros: { presionBar: numero(2, 4.4, 3.5, 'bar', 'Presión de aire disponible') },
-      efectos: [{ gancho: 'proceso', tag: 'FRL-101', modificacion: 'presión de aire por debajo del mínimo (4,5 bar)' }],
-      sintomasScada: ['Alarma A160 (PSL-201 = 0), FDV lenta y conmutación a desvío', 'No se puede pasar a avance'],
-      sintomas3d: [{ tag: 'FRL-101', efecto: 'resaltar_rojo' }],
-      diagnostico: [paso(1, 'multimetro', 'FRL-101:MANOMETRO', '6 bar', 'Menos de 4,5 bar', 'presion'), paso(2, 'multimetro', 'PSL-201:CONTACTO', 'Continuidad con el aire correcto', 'Sin continuidad (presostato abierto)', 'continuidad')],
-      solucion: { texto: 'Localizar y reparar la fuga y ajustar el regulador a 6 bar.', accion: 'reparar', tag: 'FRL-101' },
+      efectos: [{ gancho: 'proceso', tag: 'FRL-501', modificacion: 'presión de aire por debajo del mínimo (4,5 bar)' }],
+      sintomasScada: ['Alarma A160 (PSL-501 = 0), FDV lenta y conmutación a desvío', 'No se puede pasar a avance'],
+      sintomas3d: [{ tag: 'FRL-501', efecto: 'resaltar_rojo' }],
+      diagnostico: [paso(1, 'multimetro', 'FRL-501:MANOMETRO', '6 bar', 'Menos de 4,5 bar', 'presion'), paso(2, 'multimetro', 'PSL-501:CONTACTO', 'Continuidad con el aire correcto', 'Sin continuidad (presostato abierto)', 'continuidad')],
+      solucion: { texto: 'Localizar y reparar la fuga y ajustar el regulador a 6 bar.', accion: 'reparar', tag: 'FRL-501' },
       alarmasEsperadas: ['A160'], pistas: ['Mira el manómetro de la unidad de aire.', 'El presostato indica aire bajo.'] },
 
     { id: 'AV-VFD-SOBRETEMP', nombre: 'Variador sobrecalentado (ventilador parado o filtro sucio)', capa: 'potencia', equipos: ['VFD-101'], dificultad: 2,
@@ -150,13 +150,13 @@
       solucion: { texto: 'Desmontar y limpiar el colador.', accion: 'limpiar', tag: 'FLT-101' },
       alarmasEsperadas: [], pistas: ['Con la misma velocidad hay menos caudal.', 'Mide la presión antes y después del colador.'] },
 
-    { id: 'AV-TSH-DISPARADO', nombre: 'Termostato TSH-101 abierto (disparo real o falso contacto)', capa: 'sensor', equipos: ['TSH-101'], dificultad: 2,
+    { id: 'AV-TSH-DISPARADO', nombre: 'Termostato TSH-201 abierto (disparo real o falso contacto)', capa: 'sensor', equipos: ['TSH-201'], dificultad: 2,
       parametros: {},
-      efectos: [{ gancho: 'proceso', tag: 'TSH-101', modificacion: 'el contacto NC queda abierto aunque el agua esté fría' }],
+      efectos: [{ gancho: 'proceso', tag: 'TSH-201', modificacion: 'el contacto NC queda abierto aunque el agua esté fría' }],
       sintomasScada: ['Alarma A170 y paro de seguridad: calentador fuera. Rearme manual'],
-      sintomas3d: [{ tag: 'TSH-101', efecto: 'resaltar_rojo' }],
-      diagnostico: [paso(1, 'multimetro', 'TSH-101:CONTACTO', 'Continuidad en frío (NC cerrado)', 'Circuito abierto aunque el agua está fría', 'continuidad'), paso(2, 'multimetro', 'TT-105:LAZO', 'mA de una temperatura normal', 'Temperatura del agua normal: no hay sobretemperatura real', 'mA')],
-      solucion: { texto: 'Sustituir el termostato (no cierra en frío). Nunca se puentea.', accion: 'sustituir', tag: 'TSH-101' },
+      sintomas3d: [{ tag: 'TSH-201', efecto: 'resaltar_rojo' }],
+      diagnostico: [paso(1, 'multimetro', 'TSH-201:CONTACTO', 'Continuidad en frío (NC cerrado)', 'Circuito abierto aunque el agua está fría', 'continuidad'), paso(2, 'multimetro', 'TT-201:LAZO', 'mA de una temperatura normal', 'Temperatura del agua normal: no hay sobretemperatura real', 'mA')],
+      solucion: { texto: 'Sustituir el termostato (no cierra en frío). Nunca se puentea.', accion: 'sustituir', tag: 'TSH-201' },
       alarmasEsperadas: ['A170'], pistas: ['¿Está el agua realmente caliente?', 'Comprueba la continuidad del contacto en frío.'] },
   ];
 

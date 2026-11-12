@@ -5,8 +5,8 @@
   const esquema = typeof require !== 'undefined' ? require('../scada2d/esquema_htst.js') : PCT.htstEsquema;
 
   // Protecciones y contactos que un operador debe poder consultar (todo/nada): [tag, estado de estadoEquipo() que es el BUENO, texto si está bien, texto si no, informativo]; «informativo»: el otro estado es normal (p. ej. el tanque se llena a propósito hasta el nivel alto) y no es alarma
-  const DIGITALES = [['TSH-101', 'normal', 'Normal', 'Disparado'], ['LSL-101', 'activado', 'Hay leche', 'Sin leche'], ['LSH-101', 'desactivado', 'Nivel alto no alcanzado', 'Nivel alto alcanzado', true],
-    ['LSL-301', 'activado', 'Hay agua', 'Nivel bajo'], ['PSL-201', 'activado', 'Aire suficiente', 'Aire bajo'], ['ES-001', 'normal', 'Rearmada', 'Pulsada']];
+  const DIGITALES = [['TSH-201', 'normal', 'Normal', 'Disparado'], ['LSL-101', 'activado', 'Hay leche', 'Sin leche'], ['LSH-101', 'desactivado', 'Nivel alto no alcanzado', 'Nivel alto alcanzado', true],
+    ['LSL-201', 'activado', 'Hay agua', 'Nivel bajo'], ['PSL-501', 'activado', 'Aire suficiente', 'Aire bajo'], ['ES-001', 'normal', 'Rearmada', 'Pulsada']];
   const nombreDe = tag => ((layout.EQUIPOS || []).find(e => e.tag === tag) || {}).nombre || tag;
 
   /** Filas de la tabla: [{ tag, nombre, valor, estado, alarma }], primero los analógicos y luego las protecciones. */

@@ -52,10 +52,10 @@ test('los LEDs del armario: la seta pulsada y el fusible fundido se ven en rojo,
   const led = tag => esquema.LEDS.find(l => l[0] === tag);
   const prod = produciendo();
   assert.equal(led('PS-001')[2](prod.estado()), true);
-  assert.equal(led('F-201')[3](prod.estado()), false);
+  assert.equal(led('F-001')[3](prod.estado()), false);
   prod.averias.inyectar('AV-FUSIBLE-F201');
   for (let i = 0; i < 20; i++) prod.paso(0.5);
-  assert.equal(led('F-201')[3](prod.estado()), true);
+  assert.equal(led('F-001')[3](prod.estado()), true);
   assert.equal(led('HL-001')[3](prod.estado()), true);
 });
 
@@ -117,18 +117,18 @@ test('visor 3D: las lecturas de las etiquetas salen del estado (valor, fallo de 
   let l = visor.lecturasHtst(prod.estado()).sensores;
   assert.match(l['TT-103'].texto, /°C/); assert.equal(l['TT-103'].alarma, false);
   assert.equal(l['FDV-101'].texto, 'AVANCE'); assert.equal(l['P-101'].activo, true);
-  assert.equal(l['F-201'].texto, 'OK');
+  assert.equal(l['F-001'].texto, 'OK');
   prod.averias.inyectar('AV-FUSIBLE-F201');
   for (let i = 0; i < 20; i++) prod.paso(0.5);
   l = visor.lecturasHtst(prod.estado()).sensores;
-  assert.equal(l['F-201'].texto, 'FUNDIDO'); assert.equal(l['F-201'].alarma, true);
+  assert.equal(l['F-001'].texto, 'FUNDIDO'); assert.equal(l['F-001'].alarma, true);
   assert.match(l['TT-101'].texto, /ABIERTO/);                                           // sin los 24 V todos los lazos caen
   assert.deepEqual(visor.lecturasHtst(null).sensores, {});
 });
 
 test('visor 3D: solo llevan etiqueta los equipos principales (los tubos y el resto, no)', () => {
   assert.equal(visor.sinEtiqueta('TUBO_CRUDO'), true);
-  assert.equal(visor.sinEtiqueta('KM-102'), true);
+  assert.equal(visor.sinEtiqueta('KM-203'), true);
   for (const tag of ['TT-103', 'FDV-101', 'P-101', 'HX-101', 'TK-101']) assert.equal(visor.sinEtiqueta(tag), false, tag);
   for (const tag of visor.CON_ETIQUETA) assert.ok(layout.equipo(tag), tag);
 });
@@ -148,7 +148,7 @@ test('ayuda: el tag del equipo se saca del elemento pulsado o de sus padres', ()
 
 test('esquema: los 5 equipos nuevos están, y el svg ya no es role=img (los equipos se pueden tabular)', () => {
   const tags = esquema.tagsDelEsquema();
-  for (const tag of ['XV-101', 'XV-102', 'XV-302', 'XV-303', 'LSL-301']) assert.ok(tags.has(tag), tag);
+  for (const tag of ['XV-101', 'XV-102', 'XV-201', 'XV-202', 'LSL-201']) assert.ok(tags.has(tag), tag);
   assert.equal(esquema.ESQUEMA_HTST[1].role, 'group');
   assert.match(esquema.ESQUEMA_HTST[1].viewBox, /^0 0 1600 800$/);
   const grupos = [];
@@ -157,15 +157,15 @@ test('esquema: los 5 equipos nuevos están, y el svg ya no es role=img (los equi
   assert.ok(grupos.every(a => a.tabindex === 0 && a.role === 'button' && a['aria-label']));
 });
 
-test('HW-101: bancos, potencia, nivel y bloqueo por nivel bajo salen del estado', () => {
+test('HW-201: bancos, potencia, nivel y bloqueo por nivel bajo salen del estado', () => {
   const sim = crearSimulacion({ semilla: 1 });
   let h = esquema.estadoCalentador(sim.estado());
   assert.equal(h.bancos, 0); assert.equal(h.potenciaKW, 0); assert.equal(h.sinNivel, false); assert.equal(h.textoNivel, 'NIVEL NORMAL');       // el depósito de agua solo tiene dos interruptores de nivel: bajo, normal o alto, sin porcentaje
-  sim.ordenes.modo('MANUAL'); sim.ordenes.manual('P-102', 1); sim.ordenes.manual('KM-201', 1); sim.ordenes.manual('KM-202', 1);
+  sim.ordenes.modo('MANUAL'); sim.ordenes.manual('P-201', 1); sim.ordenes.manual('KM-201', 1); sim.ordenes.manual('KM-202', 1);
   sim.paso(5);
   h = esquema.estadoCalentador(sim.estado());
   assert.equal(h.bancos, 2); assert.equal(h.potenciaKW, 60); assert.equal(h.textoBancos, '2/2 bancos · 60 kW');
-  sim.ordenes.manual('XV-303', 1); sim.paso(600);                                         // se vacía el depósito: LSL-301 abre y los bancos se cortan
+  sim.ordenes.manual('XV-202', 1); sim.paso(600);                                         // se vacía el depósito: LSL-201 abre y los bancos se cortan
   h = esquema.estadoCalentador(sim.estado());
   assert.equal(h.sinNivel, true); assert.equal(h.bancos, 0);
 });
@@ -175,7 +175,7 @@ test('LEDs del armario: tres estados (apagado, activo, fallo) y agrupados por fu
   assert.equal(esquema.estadoLed(sim.estado(), 'PS-001'), 'activo');
   assert.equal(esquema.estadoLed(sim.estado(), 'KM-201'), 'apagado');
   sim.averias.inyectar('AV-FUSIBLE-F201'); sim.paso(5);
-  assert.equal(esquema.estadoLed(sim.estado(), 'F-201'), 'fallo');
+  assert.equal(esquema.estadoLed(sim.estado(), 'F-001'), 'fallo');
   const enGrupos = esquema.GRUPOS_LEDS.flatMap(g => g.tags);
   assert.deepEqual([...enGrupos].sort(), esquema.LEDS.map(l => l[0]).sort());
 });
@@ -185,7 +185,7 @@ test('etiqueta accesible de cada equipo: «TAG, valor, estado»', () => {
   assert.match(esquema.etiquetaAria(prod.estado(), 'TT-103'), /^TT-103, 7\d,\d °C, normal$/);
   assert.match(esquema.etiquetaAria(prod.estado(), 'FDV-101'), /^FDV-101, en avance$/);
   assert.match(esquema.etiquetaAria(prod.estado(), 'P-101'), /^P-101, en marcha$/);
-  assert.match(esquema.etiquetaAria(prod.estado(), 'HW-101'), /bancos conectados/);
+  assert.match(esquema.etiquetaAria(prod.estado(), 'HW-201'), /bancos conectados/);
   prod.averias.inyectar('AV-LAZO-ABIERTO', { tag: 'TT-102' }); prod.paso(1);
   assert.match(esquema.etiquetaAria(prod.estado(), 'TT-102'), /^TT-102, fallo ABIERTO/);
 });

@@ -10,7 +10,7 @@ const { estadoDemo } = require('../js/visor3d_htst/estado_demo.js');
 const cerca = (a, b, e = 1e-9) => Math.abs(a - b) <= e;
 
 test('los equipos con interior son los que se pidieron y todos existen en el layout', () => {
-  assert.deepEqual([...I.TAGS_CON_INTERIOR].sort(), ['FDV-101', 'FLT-101', 'HW-101', 'HX-101', 'P-101', 'P-102', 'SV-101', 'TK-101']);
+  assert.deepEqual([...I.TAGS_CON_INTERIOR].sort(), ['FDV-101', 'FLT-101', 'HW-201', 'HX-101', 'P-101', 'P-201', 'SV-101', 'TK-101']);
   const tags = new Set(layout.EQUIPOS.map(e => e.tag));
   for (const tag of I.TAGS_CON_INTERIOR) assert.ok(tags.has(tag), tag);
   assert.equal(I.tieneInterior('HT-101'), false);
@@ -31,7 +31,7 @@ test('todos los equipos con interior tienen su texto «Cómo funciona» (2-4 fra
 test('esCarcasa: solo las piezas indicadas de cada equipo pasan a semitransparentes', () => {
   assert.equal(I.esCarcasa('TK-101', 'inox'), true);
   assert.equal(I.esCarcasa('TK-101', 'azul'), false);              // el motorreductor del agitador sigue opaco
-  assert.equal(I.esCarcasa('HW-101', 'gris'), true);
+  assert.equal(I.esCarcasa('HW-201', 'gris'), true);
   assert.equal(I.esCarcasa('HX-101', 'instanciada'), true);
   assert.equal(I.esCarcasa('HT-101', 'inox'), false);               // sin interior
   assert.equal(I.esCarcasa('P-101', undefined), false);

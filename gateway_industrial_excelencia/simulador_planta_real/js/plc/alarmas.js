@@ -40,12 +40,12 @@
     for (const [tag, mal] of Object.entries(ctx.discrepancia.contactores)) if (mal) lista.push(alarma('A130', tag));
     if (ctx.DI['PS-001'] === 0) lista.push(alarma('A140', 'PS-001'));
     if (ctx.DI['VFD-101'] === 1) lista.push(alarma('A150', 'VFD-101'));
-    if (ctx.DI['PSL-201'] === 0) lista.push(alarma('A160', 'PSL-201'));
-    if (ctx.DI['TSH-101'] === 0) lista.push(alarma('A170', 'TSH-101'));
+    if (ctx.DI['PSL-501'] === 0) lista.push(alarma('A160', 'PSL-501'));
+    if (ctx.DI['TSH-201'] === 0) lista.push(alarma('A170', 'TSH-201'));
     if (ctx.DI['ES-001'] === 0) lista.push(alarma('A180', 'ES-001'));
     if (ctx.DI['LSL-101'] === 0) lista.push(alarma('A200', 'LSL-101'));
     if (ctx.vueltaARecirculacion) lista.push(alarma('A210', 'FDV-101'));
-    if (ctx.DI['LSL-301'] === 0) lista.push(alarma('A230', 'LSL-301'));
+    if (ctx.DI['LSL-201'] === 0) lista.push(alarma('A230', 'LSL-201'));
     if (ctx.modoManual) lista.push(alarma('M100', 'PLC-001'));
     if (ctx.manualFdvSinCondiciones) lista.push(alarma('A220', 'FDV-101'));
     return lista;

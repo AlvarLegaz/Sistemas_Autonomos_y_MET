@@ -21,7 +21,7 @@ test('lazo sano: 4-20 mA en serie, unos 19 V en las bornas del transmisor y 24 V
   const v = M(sim, 'TT-103:+', 'V').valor; assert.ok(v > 17 && v < 21, `${v} V`);
   assert.equal(M(sim, 'QE-001:AI-TT-103', 'V').valor, 24);
   cerca(M(sim, 'TT-103:PT100', 'ohm').valor, 100 * (1 + 0.00385 * T), 0.5);
-  cerca(M(sim, 'F-201:ENTRADA', 'V').valor, 24, 1e-9); cerca(M(sim, 'F-201:SALIDA', 'V').valor, 24, 1e-9); assert.equal(M(sim, 'F-201:FUSIBLE', 'continuidad').continuidad, true);
+  cerca(M(sim, 'F-001:ENTRADA', 'V').valor, 24, 1e-9); cerca(M(sim, 'F-001:SALIDA', 'V').valor, 24, 1e-9); assert.equal(M(sim, 'F-001:FUSIBLE', 'continuidad').continuidad, true);
   assert.equal(M(sim, 'KM-201:CARGA', 'V').valor === 400 || M(sim, 'KM-201:CARGA', 'V').valor === 0, true);
 });
 
@@ -65,8 +65,8 @@ test('AV-RUIDO-4-20: el multímetro da una media normal pero el osciloscopio ve 
 
 test('AV-FUSIBLE-F201: 24 V antes del fusible, 0 V después, y el fusible sin continuidad', () => {
   const sim = plantaEnProduccion(); sim.averias.inyectar('AV-FUSIBLE-F201'); sim.paso(3);
-  assert.equal(M(sim, 'F-201:ENTRADA', 'V').valor, 24); assert.equal(M(sim, 'F-201:SALIDA', 'V').valor, 0);
-  assert.equal(M(sim, 'F-201:FUSIBLE', 'continuidad').continuidad, false); assert.equal(M(sim, 'QE-001:AI-TT-103', 'V').valor, 0);
+  assert.equal(M(sim, 'F-001:ENTRADA', 'V').valor, 24); assert.equal(M(sim, 'F-001:SALIDA', 'V').valor, 0);
+  assert.equal(M(sim, 'F-001:FUSIBLE', 'continuidad').continuidad, false); assert.equal(M(sim, 'QE-001:AI-TT-103', 'V').valor, 0);
 });
 
 test('AV-FUENTE-24V: unos 18 V y un rizado grande en el osciloscopio frente a uno pequeño en una fuente sana', () => {
@@ -82,9 +82,9 @@ test('AV-KM-PEGADO: orden 0 en la bobina pero 400 V en la carga y contactos cerr
 });
 
 test('AV-KM-NO-CIERRA: 24 V en la bobina (orden dada) y 0 V en la carga', () => {
-  const sim = crearSimulacion(); sim.averias.inyectar('AV-KM-NO-CIERRA', { tag: 'KM-102' }); sim.ordenes.arrancar(); sim.paso(20);
-  assert.equal(M(sim, 'KM-102:BOBINA', 'V').valor, 24); assert.equal(M(sim, 'KM-102:CARGA', 'V').valor, 0); assert.equal(M(sim, 'KM-102:CONTACTOS', 'ohm').valor, Infinity);
-  assert.equal(M(sim, 'KM-102:BOBINA-R', 'ohm').valor, 650);
+  const sim = crearSimulacion(); sim.averias.inyectar('AV-KM-NO-CIERRA', { tag: 'KM-203' }); sim.ordenes.arrancar(); sim.paso(20);
+  assert.equal(M(sim, 'KM-203:BOBINA', 'V').valor, 24); assert.equal(M(sim, 'KM-203:CARGA', 'V').valor, 0); assert.equal(M(sim, 'KM-203:CONTACTOS', 'ohm').valor, Infinity);
+  assert.equal(M(sim, 'KM-203:BOBINA-R', 'ohm').valor, 650);
 });
 
 test('AV-BOBINA-ABIERTA: llegan 24 V al piloto pero la bobina mide infinito', () => {
@@ -96,9 +96,9 @@ test('AV-BOBINA-ABIERTA: llegan 24 V al piloto pero la bobina mide infinito', ()
 
 test('AV-FDV-ATASCADA y AV-AIRE-BAJO: finales de carrera y manómetro dicen dónde está el fallo', () => {
   const a = crearSimulacion(); a.averias.inyectar('AV-FDV-ATASCADA'); a.paso(5);
-  assert.equal(M(a, 'FDV-101:ZS-102', 'continuidad').continuidad, false); assert.equal(M(a, 'FDV-101:ZS-101', 'continuidad').continuidad, true); cerca(M(a, 'FRL-101:MANOMETRO', 'presion').valor, 6, 1e-9);
+  assert.equal(M(a, 'FDV-101:ZS-102', 'continuidad').continuidad, false); assert.equal(M(a, 'FDV-101:ZS-101', 'continuidad').continuidad, true); cerca(M(a, 'FRL-501:MANOMETRO', 'presion').valor, 6, 1e-9);
   const b = crearSimulacion(); b.averias.inyectar('AV-AIRE-BAJO'); b.paso(5);
-  cerca(M(b, 'FRL-101:MANOMETRO', 'presion').valor, 3.5, 1e-9); assert.equal(M(b, 'PSL-201:CONTACTO', 'continuidad').continuidad, false);
+  cerca(M(b, 'FRL-501:MANOMETRO', 'presion').valor, 3.5, 1e-9); assert.equal(M(b, 'PSL-501:CONTACTO', 'continuidad').continuidad, false);
 });
 
 test('AV-VFD-SOBRETEMP, AV-FILTRO-OBSTRUIDO, AV-PLACA-FUGA y AV-TSH-DISPARADO se miden como dice el catálogo', () => {
@@ -110,8 +110,8 @@ test('AV-VFD-SOBRETEMP, AV-FILTRO-OBSTRUIDO, AV-PLACA-FUGA y AV-TSH-DISPARADO se
   const dp = (M(p, 'PT-102:LAZO', 'mA').valor - M(p, 'PT-101:LAZO', 'mA').valor) / 16 * 6;
   assert.ok(dp < 0.07, `diferencial ${dp.toFixed(2)} bar`);
   const t = crearSimulacion(); t.averias.inyectar('AV-TSH-DISPARADO'); t.ordenes.arrancar(); t.paso(20);
-  assert.equal(M(t, 'TSH-101:CONTACTO', 'continuidad').continuidad, false); assert.ok(M(t, 'TT-105:LAZO', 'mA').valor < 6.5);      // contacto abierto con el agua fría
-  assert.equal(M(crearSimulacion(), 'TSH-101:CONTACTO', 'continuidad').continuidad, true);
+  assert.equal(M(t, 'TSH-201:CONTACTO', 'continuidad').continuidad, false); assert.ok(M(t, 'TT-201:LAZO', 'mA').valor < 6.5);      // contacto abierto con el agua fría
+  assert.equal(M(crearSimulacion(), 'TSH-201:CONTACTO', 'continuidad').continuidad, true);
 });
 
 test('medir es una función pura: no cambia el estado', () => {

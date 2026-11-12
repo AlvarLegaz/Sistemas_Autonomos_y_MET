@@ -73,9 +73,9 @@
     { id: 'LECHE_REG_ENF', ayuda: 'HX-101', fluido: 'leche', de: p('HX-101', 'reg_out'), a: p('HX-101', 'enf_in'), carril: 86, anclas: 'TT-106' },
     { id: 'LECHE_SALIDA', ayuda: 'HX-101', fluido: 'leche', de: p('HX-101', 'fin_out'), a: SALIDA, carril: 96, anclas: 'TT-104' },
     { id: 'LECHE_DESVIO', ayuda: 'FDV-101', fluido: 'leche', de: p('FDV-101', 'desvio'), a: p('TK-101', 'ret'), carril: 106 },
-    { id: 'AGUA_CALIENTE_1', ayuda: 'HW-101', fluido: 'agua_caliente', de: p('HW-101', 'sal'), a: p('P-102', 'ent'), carril: 30 },
-    { id: 'AGUA_CALIENTE_2', ayuda: 'P-102', fluido: 'agua_caliente', de: p('P-102', 'sal'), a: p('HX-101', 'hot_in'), carril: 70, anclas: 'TT-105' },
-    { id: 'AGUA_CALIENTE_RETORNO', ayuda: 'HX-101', fluido: 'agua_caliente', de: p('HX-101', 'hot_out'), a: p('HW-101', 'ent'), carril: 76 },
+    { id: 'AGUA_CALIENTE_1', ayuda: 'HW-201', fluido: 'agua_caliente', de: p('HW-201', 'sal'), a: p('P-201', 'ent'), carril: 30 },
+    { id: 'AGUA_CALIENTE_2', ayuda: 'P-201', fluido: 'agua_caliente', de: p('P-201', 'sal'), a: p('HX-101', 'hot_in'), carril: 70, anclas: 'TT-201' },
+    { id: 'AGUA_CALIENTE_RETORNO', ayuda: 'HX-101', fluido: 'agua_caliente', de: p('HX-101', 'hot_out'), a: p('HW-201', 'ent'), carril: 76 },
     { id: 'AGUA_FRIA_1', ayuda: 'XV-301', fluido: 'agua_fria', de: SUMINISTRO, a: p('XV-301', 'ent'), carril: 10 },
     { id: 'AGUA_FRIA_2', ayuda: 'XV-301', fluido: 'agua_fria', de: p('XV-301', 'sal'), a: p('HX-101', 'cold_in'), carril: 82 },
     { id: 'AGUA_FRIA_DESAGUE', ayuda: 'HX-101', fluido: 'agua_fria', de: p('HX-101', 'cold_out'), a: DESAGUE, carril: 86 },
@@ -85,11 +85,11 @@
     { id: 'LECHE_LLENADO_2', ayuda: 'XV-101', fluido: 'leche', de: p('XV-101', 'sal'), a: p('TK-101', 'llen'), carril: 62 },
     { id: 'LECHE_VACIADO_1', ayuda: 'XV-102', fluido: 'leche', de: p('TK-101', 'vac'), a: p('XV-102', 'ent'), carril: 26 },
     { id: 'LECHE_VACIADO_2', ayuda: 'XV-102', fluido: 'leche', de: p('XV-102', 'sal'), a: DESAGUE_LECHE, carril: 10 },
-    { id: 'AGUA_LLENADO_1', ayuda: 'XV-302', fluido: 'agua_fria', de: SUMINISTRO, a: p('XV-302', 'ent'), carril: 10 },
-    { id: 'AGUA_LLENADO_2', ayuda: 'XV-302', fluido: 'agua_fria', de: p('XV-302', 'sal'), a: p('HW-101', 'llen'), carril: 30 },
-    { id: 'AGUA_VACIADO_1', ayuda: 'XV-303', fluido: 'agua_caliente', de: p('HW-101', 'vac'), a: p('XV-303', 'ent'), carril: 14 },
-    { id: 'AGUA_VACIADO_2', ayuda: 'XV-303', fluido: 'agua_caliente', de: p('XV-303', 'sal'), a: DESAGUE_AGUA, carril: 10 },
-    { id: 'AIRE_1', ayuda: 'FRL-101', fluido: 'aire', de: p('FRL-101', 'sal'), a: p('SV-101', 'ent'), carril: 24, radio: 0.55 },
+    { id: 'AGUA_LLENADO_1', ayuda: 'XV-201', fluido: 'agua_fria', de: SUMINISTRO, a: p('XV-201', 'ent'), carril: 10 },
+    { id: 'AGUA_LLENADO_2', ayuda: 'XV-201', fluido: 'agua_fria', de: p('XV-201', 'sal'), a: p('HW-201', 'llen'), carril: 30 },
+    { id: 'AGUA_VACIADO_1', ayuda: 'XV-202', fluido: 'agua_caliente', de: p('HW-201', 'vac'), a: p('XV-202', 'ent'), carril: 14 },
+    { id: 'AGUA_VACIADO_2', ayuda: 'XV-202', fluido: 'agua_caliente', de: p('XV-202', 'sal'), a: DESAGUE_AGUA, carril: 10 },
+    { id: 'AIRE_1', ayuda: 'FRL-501', fluido: 'aire', de: p('FRL-501', 'sal'), a: p('SV-101', 'ent'), carril: 24, radio: 0.55 },
     { id: 'AIRE_2', ayuda: 'SV-101', fluido: 'aire', de: p('SV-101', 'sal'), a: p('FDV-101', 'aire'), carril: 42, radio: 0.55 },
   ];
   const RUTAS = DEFINICION.map(d => Object.assign({}, d, { puntos: autoruta(d.de, d.a, d.carril) }));
@@ -116,7 +116,7 @@
   function estadoRutas(estado) {
     const caudal = K.caudalLh(estado), a = K.aperturaFDV(estado);
     const leche = caudal > 0, vl = velocidadLeche(caudal);
-    const bomba102 = !!K.equipoDe(estado, 'P-102').marcha, frio = !!K.equipoDe(estado, 'XV-301').abierta, cip = !!K.equipoDe(estado, 'XV-401').abierta;
+    const bomba102 = !!K.equipoDe(estado, 'P-201').marcha, frio = !!K.equipoDe(estado, 'XV-301').abierta, cip = !!K.equipoDe(estado, 'XV-401').abierta;
     const r = {};
     for (const t of RUTAS) r[t.id] = { activo: false, velocidadCmS: 0 };
     for (const id of ['LECHE_CRUDA_1', 'LECHE_CRUDA_2', 'LECHE_CRUDA_3', 'LECHE_CRUDA_4', 'LECHE_CALIENTE', 'LECHE_TRAS_TUBO']) r[id] = { activo: leche, velocidadCmS: vl };
@@ -127,7 +127,7 @@
     for (const id of ['AGUA_FRIA_1', 'AGUA_FRIA_2', 'AGUA_FRIA_DESAGUE']) r[id] = { activo: frio, velocidadCmS: VELOCIDAD_AGUA_CM_S };
     r.CIP = { activo: cip, velocidadCmS: VELOCIDAD_AGUA_CM_S };
     const llenaTK = K.valvulaAbierta(estado, 'XV-101'), vaciaTK = K.valvulaAbierta(estado, 'XV-102');
-    const llenaHW = K.valvulaAbierta(estado, 'XV-302'), vaciaHW = K.valvulaAbierta(estado, 'XV-303');
+    const llenaHW = K.valvulaAbierta(estado, 'XV-201'), vaciaHW = K.valvulaAbierta(estado, 'XV-202');
     for (const id of ['LECHE_LLENADO_1', 'LECHE_LLENADO_2']) r[id] = { activo: llenaTK, velocidadCmS: VELOCIDAD_LLENADO_CM_S };
     for (const id of ['LECHE_VACIADO_1', 'LECHE_VACIADO_2']) r[id] = { activo: vaciaTK, velocidadCmS: VELOCIDAD_LLENADO_CM_S };
     for (const id of ['AGUA_LLENADO_1', 'AGUA_LLENADO_2']) r[id] = { activo: llenaHW, velocidadCmS: VELOCIDAD_AGUA_CM_S };

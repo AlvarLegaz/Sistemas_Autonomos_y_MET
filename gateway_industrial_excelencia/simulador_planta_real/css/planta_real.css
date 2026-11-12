@@ -75,7 +75,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .instr { fill: var(--panel); stroke: var(--tubo); stroke-width: 2; }
 /* Estados con color y brillo (no gris): activo = verde con halo; nivel alto alcanzado = ámbar; fallo = rojo con halo. El texto del globo sube de contraste cuando está encendido. */
 .instr.on { fill: color-mix(in srgb, var(--ok) 45%, var(--panel)); stroke: var(--ok); stroke-width: 3; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--ok) 80%, transparent)); }
-#c-LSH-101.on, #c-LSH-301.on { fill: color-mix(in srgb, var(--aviso) 50%, var(--panel)); stroke: var(--aviso); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--aviso) 80%, transparent)); }
+#c-LSH-101.on, #c-LSH-201.on { fill: color-mix(in srgb, var(--aviso) 50%, var(--panel)); stroke: var(--aviso); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--aviso) 80%, transparent)); }
 .instr.alarma { fill: color-mix(in srgb, var(--error) 55%, var(--panel)); stroke: var(--error); stroke-width: 3.5; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--error) 85%, transparent)); }
 g[data-tag]:has(> .instr.on) text.ht-mini, g[data-tag]:has(> .instr.alarma) text.ht-mini { fill: var(--texto); }
 .manual.alarma { stroke: var(--error); stroke-width: 3; }
@@ -93,7 +93,7 @@ g[data-tag]:has(> .instr.on) text.ht-mini, g[data-tag]:has(> .instr.alarma) text
 .tubo.cip.activo { stroke: var(--aviso); }
 .resis { fill: none; stroke: var(--tubo); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
 .resis.on { stroke: var(--caliente); stroke-width: 5; filter: drop-shadow(0 0 4px var(--caliente)); }
-#g-HW-101.bloqueado .resis { stroke: var(--error); stroke-dasharray: 5 4; filter: none; }
+#g-HW-201.bloqueado .resis { stroke: var(--error); stroke-dasharray: 5 4; filter: none; }
 .vastago { fill: none; stroke: var(--tubo); stroke-width: 2; }
 .hit { fill: none; stroke: transparent; stroke-width: 26; pointer-events: stroke; }
 .panel-fondo { fill: var(--panel); stroke: var(--borde); stroke-width: 1.5; }
@@ -117,6 +117,9 @@ g[data-tag]:has(> .instr.on) text.ht-mini, g[data-tag]:has(> .instr.alarma) text
 .led.fallo .led-x { display: inline; }
 .led .instr.alarma { stroke-width: 4; }
 svg g[data-tag] { cursor: pointer; }
+/* Pulsar un equipo se nota en todo su cuadro, no solo en el trazo: el interior de las cajas y del líquido cuenta, y las tuberías dejan pasar el clic */
+svg g[data-tag] > rect.caja, svg g[data-tag] > rect.liquido { pointer-events: all; }
+svg .tubo { pointer-events: none; }
 svg g[data-tag]:hover .instr, svg g[data-tag]:hover .caja, svg g[data-tag]:hover .manual, svg g[data-tag]:hover .valvula { stroke: var(--foco); stroke-width: 3; }
 svg g[data-tag]:focus { outline: none; }
 svg g[data-tag]:focus-visible { outline: 3px solid var(--foco); outline-offset: 3px; }

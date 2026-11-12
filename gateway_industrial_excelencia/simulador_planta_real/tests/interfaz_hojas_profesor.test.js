@@ -10,7 +10,7 @@ const { crearSimulacion } = require('../js/modelo/simulacion.js');
 test('el registro numera, guarda el tiempo y exporta CSV con ; y comillas escapadas', () => {
   let t = 12.34;
   const r = hojas.crearRegistro(() => t);
-  r.anotar('medida', 'F-201:SALIDA = 0 V', { v: 0 });
+  r.anotar('medida', 'F-001:SALIDA = 0 V', { v: 0 });
   t = 30; r.anotar('diagnostico', 'Dice "fusible"; fundido', {});
   const e = r.entradas();
   assert.deepEqual(e.map(x => x.n), [1, 2]);
@@ -59,13 +59,13 @@ test('diagnóstico con el motor real: la acción correcta en el equipo correcto 
   const id = sim.averias.inyectar('AV-FUSIBLE-F201');
   assert.ok(id);
   assert.match(hojas.aplicarSolucion(sim, { accion: 'sustituir', tag: 'TT-103' }).mensaje, /No se detecta ninguna avería en TT-103/);
-  const mala = hojas.aplicarSolucion(sim, { accion: 'limpiar', tag: 'F-201' });
+  const mala = hojas.aplicarSolucion(sim, { accion: 'limpiar', tag: 'F-001' });
   assert.equal(mala.resuelta, false); assert.equal(mala.intentadas, 1);
   assert.equal(sim.averias.activas()[0].intentos, 1);                                   // el intento queda anotado en el motor
-  const buena = hojas.aplicarSolucion(sim, { accion: 'sustituir', tag: 'F-201' });
+  const buena = hojas.aplicarSolucion(sim, { accion: 'sustituir', tag: 'F-001' });
   assert.equal(buena.resuelta, true);
   assert.equal(sim.averias.activas().length, 0);
-  assert.match(hojas.aplicarSolucion({}, { accion: 'sustituir', tag: 'F-201' }).mensaje, /no está cargado/);
+  assert.match(hojas.aplicarSolucion({}, { accion: 'sustituir', tag: 'F-001' }).mensaje, /no está cargado/);
 });
 
 test('el panel del profesor: solo con la marca del aula, o ?profesor=1 únicamente en local', () => {

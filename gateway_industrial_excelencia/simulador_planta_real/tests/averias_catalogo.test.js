@@ -70,7 +70,7 @@ const ESCENARIOS = {
       assert.ok(Math.abs(media(mA) - 14.6) < 2.5, 'la media del multímetro parece normal');
     },
     curada(s) { s.paso(10); assert.ok(Math.abs(ai(s, 'FT-101').mA - 14.6) < 0.5); assert.equal(conCodigo(s, 'A102'), false); } },
-  'AV-FUSIBLE-F201': { desde: 'produccion', parametros: {}, espera: 5, solucion: { accion: 'sustituir', tag: 'F-201' }, rearme: true,
+  'AV-FUSIBLE-F201': { desde: 'produccion', parametros: {}, espera: 5, solucion: { accion: 'sustituir', tag: 'F-001' }, rearme: true,
     sintomas(s) { for (const t of ['TT-101', 'TT-103', 'FT-101']) assert.equal(ai(s, t).mA, 0); assert.ok(conCodigo(s, 'A140')); assert.equal(s.estado().plc.paro, true); assert.equal(fdv(s), 'DESVIO'); },
     curada(s) { assert.ok(ai(s, 'TT-103').mA > 4); assert.equal(conCodigo(s, 'A140'), false); assert.equal(s.estado().plc.paro, false); } },
   'AV-FUENTE-24V': { desde: 'produccion', parametros: {}, espera: 5, solucion: { accion: 'sustituir', tag: 'PS-001' }, rearme: true,
@@ -82,20 +82,20 @@ const ESCENARIOS = {
       const e = s.estado(), t0 = e.proceso.temperaturas.aguaCaliente;
       assert.equal(e.salidasPLC.DO['KM-201'], 0); assert.equal(e.equipos['KM-201'].cerrado, true); assert.ok(conCodigo(s, 'A130', 'KM-201'));
       s.paso(300); assert.ok(s.estado().proceso.temperaturas.aguaCaliente > t0 + 10, 'la temperatura sube sin control');
-      s.paso(600); assert.equal(s.estado().equipos['TSH-101'].abierto, true); assert.ok(conCodigo(s, 'A170'));
+      s.paso(600); assert.equal(s.estado().equipos['TSH-201'].abierto, true); assert.ok(conCodigo(s, 'A170'));
     },
     curada(s) { s.paso(5); assert.equal(s.estado().equipos['KM-201'].cerrado, false); assert.equal(conCodigo(s, 'A130'), false); } },
-  'AV-KM-NO-CIERRA': { desde: 'inicio', parametros: { tag: 'KM-102' }, espera: 120, solucion: { accion: 'sustituir', tag: 'KM-102' },
-    sintomas(s) { assert.ok(conCodigo(s, 'A130', 'KM-102')); assert.equal(s.estado().equipos['P-102'].marcha, false); assert.ok(s.estado().proceso.temperaturas.aguaCaliente < 30, 'la temperatura no sube'); },
-    curada(s) { s.paso(60); assert.equal(s.estado().equipos['P-102'].marcha, true); assert.equal(conCodigo(s, 'A130'), false); } },
+  'AV-KM-NO-CIERRA': { desde: 'inicio', parametros: { tag: 'KM-203' }, espera: 120, solucion: { accion: 'sustituir', tag: 'KM-203' },
+    sintomas(s) { assert.ok(conCodigo(s, 'A130', 'KM-203')); assert.equal(s.estado().equipos['P-201'].marcha, false); assert.ok(s.estado().proceso.temperaturas.aguaCaliente < 30, 'la temperatura no sube'); },
+    curada(s) { s.paso(60); assert.equal(s.estado().equipos['P-201'].marcha, true); assert.equal(conCodigo(s, 'A130'), false); } },
   'AV-BOBINA-ABIERTA': { desde: 'produccion', parametros: {}, espera: 60, solucion: { accion: 'sustituir', tag: 'SV-101' }, rearme: true, rearrancar: true,
     sintomas(s) { assert.ok(conCodigo(s, 'A120', 'FDV-101')); assert.equal(s.estado().plc.paro, true); assert.notEqual(fdv(s), 'AVANCE'); assert.equal(s.estado().equipos['SV-101'].bobinaOhm, Infinity); },
     curada(s) { s.paso(180); assert.equal(conCodigo(s, 'A120'), false); assert.equal(fdv(s), 'AVANCE'); } },
   'AV-FDV-ATASCADA': { desde: 'inicio-antes', parametros: {}, espera: 10, solucion: { accion: 'reparar', tag: 'FDV-101' }, rearme: true,
     sintomas(s) { s.ordenes.arrancar(); s.paso(10); assert.ok(conCodigo(s, 'A120', 'FDV-101')); assert.equal(s.estado().plc.paro, true); assert.equal(s.estado().salidasPLC.DO['P-101'], 0); assert.equal(fdv(s), 'AVANCE'); },
     curada(s) { s.paso(5); assert.equal(conCodigo(s, 'A120'), false); assert.equal(s.estado().plc.paro, false); } },
-  'AV-AIRE-BAJO': { desde: 'inicio', parametros: {}, espera: 120, solucion: { accion: 'reparar', tag: 'FRL-101' },
-    sintomas(s) { assert.ok(conCodigo(s, 'A160', 'PSL-201')); assert.equal(s.senales().DI['PSL-201'], 0); assert.equal(fdv(s), 'DESVIO'); assert.equal(s.estado().salidasPLC.DO['SV-101'], 0); assert.notEqual(s.estado().modo, 'PRODUCCION'); },
+  'AV-AIRE-BAJO': { desde: 'inicio', parametros: {}, espera: 120, solucion: { accion: 'reparar', tag: 'FRL-501' },
+    sintomas(s) { assert.ok(conCodigo(s, 'A160', 'PSL-501')); assert.equal(s.senales().DI['PSL-501'], 0); assert.equal(fdv(s), 'DESVIO'); assert.equal(s.estado().salidasPLC.DO['SV-101'], 0); assert.notEqual(s.estado().modo, 'PRODUCCION'); },
     curada(s) { s.paso(5); assert.equal(conCodigo(s, 'A160'), false); for (let t = 0; t < 3000 && s.estado().modo !== 'PRODUCCION'; t += 10) s.paso(10); s.paso(30); assert.equal(s.estado().modo, 'PRODUCCION'); assert.equal(fdv(s), 'AVANCE'); } },
   'AV-VFD-SOBRETEMP': { desde: 'inicio', parametros: {}, espera: 400, solucion: { accion: 'limpiar', tag: 'VFD-101' }, rearme: true, esperaRearme: 400,
     sintomas(s) { const e = s.estado(); assert.ok(conCodigo(s, 'A150', 'VFD-101')); assert.equal(e.equipos['P-101'].fallo, true); assert.ok(e.equipos['P-101'].temperaturaDisipadorC >= 80); assert.ok(e.proceso.caudalLh < 5); },
@@ -106,8 +106,8 @@ const ESCENARIOS = {
   'AV-FILTRO-OBSTRUIDO': { desde: 'inicio', parametros: {}, espera: 60, solucion: { accion: 'limpiar', tag: 'FLT-101' },
     sintomas(s) { const e = s.estado(); assert.ok(e.proceso.caudalLh < 1300, `${e.proceso.caudalLh.toFixed(0)} L/h`); assert.ok(e.equipos['P-101'].velocidadPct > 70); assert.ok(e.proceso.presiones.crudoBar < 1.1); },
     curada(s) { s.paso(30); assert.ok(s.estado().proceso.caudalLh > 1900); } },
-  'AV-TSH-DISPARADO': { desde: 'inicio', parametros: {}, espera: 30, solucion: { accion: 'sustituir', tag: 'TSH-101' }, rearme: true,
-    sintomas(s) { assert.ok(conCodigo(s, 'A170', 'TSH-101')); assert.equal(s.estado().plc.paro, true); s.paso(60); assert.ok(s.estado().proceso.temperaturas.aguaCaliente < 21); assert.equal(s.estado().equipos['TSH-101'].abierto, true); },
+  'AV-TSH-DISPARADO': { desde: 'inicio', parametros: {}, espera: 30, solucion: { accion: 'sustituir', tag: 'TSH-201' }, rearme: true,
+    sintomas(s) { assert.ok(conCodigo(s, 'A170', 'TSH-201')); assert.equal(s.estado().plc.paro, true); s.paso(60); assert.ok(s.estado().proceso.temperaturas.aguaCaliente < 21); assert.equal(s.estado().equipos['TSH-201'].abierto, true); },
     curada(s) { assert.equal(conCodigo(s, 'A170'), false); assert.equal(s.estado().plc.paro, false); } },
 };
 

@@ -11,7 +11,7 @@
   const OPACIDAD_CARCASA = 0.28;
   /** Equipos con vista interior y qué piezas (por la clave de material con que se construyeron) pasan a ser semitransparentes al abrirlos. */
   const CARCASAS = {
-    'TK-101': ['inox'], 'HW-101': ['gris'], 'P-101': ['inox'], 'P-102': ['inox'], 'HX-101': ['instanciada'],
+    'TK-101': ['inox'], 'HW-201': ['gris'], 'P-101': ['inox'], 'P-201': ['inox'], 'HX-101': ['instanciada'],
     'FDV-101': ['inox'], 'SV-101': ['laton', 'negro'], 'FLT-101': ['inox'],
   };
   const TAGS_CON_INTERIOR = Object.keys(CARCASAS);
@@ -48,7 +48,7 @@
   /** Velocidades de los puntos de flujo (cm/s) por fluido y paquete, a partir del estado; 0 = parado. El producto sube y el otro fluido baja (contracorriente). */
   function velocidadesHX(estado) {
     const caudal = K.caudalLh(estado), v = caudal > 0 ? 6 + 16 * limitar(caudal / 2000, 0, 1.5) : 0;
-    const p102 = !!K.equipoDe(estado, 'P-102').marcha, avance = K.aperturaFDV(estado) > 0.5, frio = K.valvulaAbierta(estado, 'XV-301');
+    const p102 = !!K.equipoDe(estado, 'P-201').marcha, avance = K.aperturaFDV(estado) > 0.5, frio = K.valvulaAbierta(estado, 'XV-301');
     return {
       regeneracion: { 0: v, 1: caudal > 0 && avance ? v * 0.9 : 0 },
       calentamiento: { 0: v, 1: p102 ? 14 : 0 },
@@ -117,7 +117,7 @@
       } };
     }
 
-    /* HW-101: agua con su nivel, las dos resistencias y el flotador de nivel bajo */
+    /* HW-201: agua con su nivel, las dos resistencias y el flotador de nivel bajo */
     function calentador(g) {
       const grupo = new THREE.Group(); g.add(grupo);
       const mat = translucido(0x3a8fd0, 0.72);
@@ -126,7 +126,7 @@
       for (const x of [-9, -6.5, -4]) pieza(grupo, kit.cil(0.8, 38, 8), m1, [x, 33, 0]);
       for (const x of [4, 6.5, 9]) pieza(grupo, kit.cil(0.8, 38, 8), m2, [x, 33, 0]);
       pieza(grupo, kit.cil(0.6, 6, 6), m1, [-6.5, 52.4, 0], [0, 0, PI / 2]); pieza(grupo, kit.cil(0.6, 6, 6), m2, [6.5, 52.4, 0], [0, 0, PI / 2]);
-      const Y_LSL = 11.8 + 52.4 * 0.15;                                      // 15 % de nivel: donde actúa LSL-301
+      const Y_LSL = 11.8 + 52.4 * 0.15;                                      // 15 % de nivel: donde actúa LSL-201
       pieza(grupo, kit.toro(16.3, 0.3, PI * 2, 30), basico(0xff3b30), [0, Y_LSL, 0], [PI / 2, 0, 0]);
       pieza(grupo, kit.cil(0.4, 10, 6), kit.mat('inoxMate'), [12, Y_LSL + 3, 0]);
       const matFlot = basico(0x35e06b);
@@ -144,11 +144,11 @@
       } };
     }
 
-    /* P-101 y P-102: rodete con álabes que gira, fluido y flechas de flujo (aspiración axial, descarga tangencial) */
+    /* P-101 y P-201: rodete con álabes que gira, fluido y flechas de flujo (aspiración axial, descarga tangencial) */
     function bomba(tag) {
       return g => {
         const grupo = new THREE.Group(); g.add(grupo);
-        const agua = tag === 'P-102';
+        const agua = tag === 'P-201';
         const mat = translucido(agua ? K.colorAguaCaliente(70) : K.VERDE_PRODUCTO, 0.55);
         pieza(grupo, kit.cil(8.4, 7.2, 22), mat, [-10, 13, 0], [PI / 2, 0, 0], 1);
         const imp = new THREE.Group(); imp.position.set(-10, 13, 0); grupo.add(imp);
@@ -270,7 +270,7 @@
       } };
     }
 
-    const DEFINICIONES = { 'TK-101': tanque, 'HW-101': calentador, 'P-101': bomba('P-101'), 'P-102': bomba('P-102'), 'HX-101': intercambiador,
+    const DEFINICIONES = { 'TK-101': tanque, 'HW-201': calentador, 'P-101': bomba('P-101'), 'P-201': bomba('P-201'), 'HX-101': intercambiador,
       'FDV-101': fdv, 'SV-101': piloto, 'FLT-101': filtro };
 
     function aplicarTransparencia(tag, g) {

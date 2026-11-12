@@ -1,5 +1,5 @@
-// Diagrama de FUERZA (circuito de potencia) de la planta real HTST: acometida de 400 V trifásicos, armario QE-001, magnetotérmico QF-102, contactores KM-102 / KM-201 /
-// KM-202, variador VFD-101, bombas P-101 y P-102, bancos de resistencias del calentador HW-101 y fuente PS-001 con el fusible F-201 que alimenta el mando.
+// Diagrama de FUERZA (circuito de potencia) de la planta real HTST: acometida de 400 V trifásicos, armario QE-001, magnetotérmico QF-201, contactores KM-203 / KM-201 /
+// KM-202, variador VFD-101, bombas P-101 y P-201, bancos de resistencias del calentador HW-201 y fuente PS-001 con el fusible F-001 que alimenta el mando.
 // Dibujo unifilar (una línea = tres fases, con trazos oblicuos). Mismo marco que el SCADA: especificación ['tag', {atributos}, ...hijos] para PCT.canvas.Canvas y
 // `crearObjetos(canvas)` con objetos `actualizar(estado)`. El ESTADO EN VIVO sale de una función pura (`calcularFuerza`), que da a cada elemento un estado (data-e)
 // y, si lleva texto, el texto: el CSS (css/diagramas.css) pinta por data-e y el texto repite el estado, así que no se distingue solo por color.
@@ -21,7 +21,7 @@
 
   /** Fuente de 24 V y fusible: { fuente: 'ok'|'degradada'|'sin'|'sd', v, fundido, barra (¿hay 24 V tras el fusible?), vBarra }. */
   function alimentacion(e) {
-    const f = eq(e, 'F-201'), ps = eq(e, 'PS-001'), hay = !!e;
+    const f = eq(e, 'F-001'), ps = eq(e, 'PS-001'), hay = !!e;
     const v = num(ps.tensionV, ps.ok === false ? 0 : (e && e.alimentacion ? num(e.alimentacion.v24, 24) : 24));
     const fuente = !hay ? 'sd' : v >= 22 ? 'ok' : v > 1 ? 'degradada' : 'sin';
     const fundido = !!f.fundido, barra = hay && fuente !== 'sin' && fuente !== 'sd' && !fundido;
@@ -29,11 +29,11 @@
   }
   /** Seta ES-001 rearmada (el contacto NC está cerrado). */
   const setaRearmada = e => { const s = eq(e, 'ES-001'); return s.rearmado !== undefined ? !!s.rearmado : nivelDI(e, 'ES-001') !== 0; };
-  const magnetoArmado = e => { const q = eq(e, 'QF-102'); return q.armado !== undefined ? !!q.armado : nivelDI(e, 'QF-102') !== 0; };
+  const magnetoArmado = e => { const q = eq(e, 'QF-201'); return q.armado !== undefined ? !!q.armado : nivelDI(e, 'QF-201') !== 0; };
   const contactorCerrado = (e, tag) => { const k = eq(e, tag); return !!(k.cerrado || k.pegado); };
   /** Banco de resistencias n (1 o 2) conectado de verdad: contactor cerrado y magnetotérmico armado. */
   function bancoActivo(e, n) {
-    const hw = eq(e, 'HW-101'), clave = `banco${n}`;
+    const hw = eq(e, 'HW-201'), clave = `banco${n}`;
     return hw[clave] !== undefined ? !!hw[clave] : contactorCerrado(e, `KM-20${n}`) && magnetoArmado(e);
   }
   /** Niveles físicos de los contactos de campo (antes de la alimentación), o null si el estado no es el completo del simulador. */
@@ -112,17 +112,17 @@
     const hay = !!e, a = alimentacion(e), armado = magnetoArmado(e), m = {};
     const cerr = tag => contactorCerrado(e, tag);
     const V = cond => ({ e: vivo(hay, cond) });
-    const p101 = eq(e, 'P-101'), p102 = eq(e, 'P-102'), vfd = eq(e, 'VFD-101');
+    const p101 = eq(e, 'P-101'), p102 = eq(e, 'P-201'), vfd = eq(e, 'VFD-101');
     const fallo = !!(vfd.fallo || p101.fallo), marcha101 = !!p101.marcha && !fallo, marcha102 = !!p102.marcha;
     const si = (cond, a1, b1) => (hay ? (cond ? a1 : b1) : '—');
 
     m['w-acometida'] = V(true); m['w-bus'] = V(true);
     m['f-bus-t'] = { e: vivo(hay, true), t: hay ? 'BARRA 400 V · CON TENSIÓN' : 'BARRA 400 V · SIN DATOS' };
 
-    // QF-102 y sus tres derivaciones
+    // QF-201 y sus tres derivaciones
     m['w-qf-in'] = V(true); m['w-qf-out'] = V(armado); m['w-sub'] = V(armado);
     m['f-qf102'] = { e: hay ? (armado ? 'cerrado' : 'disparado') : 'sd' }; m['f-qf102-t'] = { e: m['f-qf102'].e, t: si(armado, 'ARMADO', 'DISPARADO') };
-    for (const [k, tag] of [['km102', 'KM-102'], ['km201', 'KM-201'], ['km202', 'KM-202']]) {
+    for (const [k, tag] of [['km102', 'KM-203'], ['km201', 'KM-201'], ['km202', 'KM-202']]) {
       const c = cerr(tag);
       m[`w-${k}-in`] = V(armado); m[`w-${k}-out`] = V(armado && c);
       m[`f-${k}`] = { e: hay ? (c ? 'cerrado' : 'abierto') : 'sd' }; m[`f-${k}-t`] = { e: m[`f-${k}`].e, t: si(c, 'CERRADO', 'ABIERTO') };
@@ -133,7 +133,7 @@
     const b1 = bancoActivo(e, 1), b2 = bancoActivo(e, 2), kw = (b1 ? 30 : 0) + (b2 ? 30 : 0);
     m['f-b1'] = { e: hay ? (b1 ? 'on' : 'off') : 'sd' }; m['f-b1-t'] = { e: m['f-b1'].e, t: si(b1, 'CONECTADO', 'DESCONECTADO') };
     m['f-b2'] = { e: hay ? (b2 ? 'on' : 'off') : 'sd' }; m['f-b2-t'] = { e: m['f-b2'].e, t: si(b2, 'CONECTADO', 'DESCONECTADO') };
-    m['f-hw-t'] = { e: hay ? (kw ? 'on' : 'off') : 'sd', t: hay ? `HW-101 · POTENCIA ${kw} kW` : 'HW-101 · —' };
+    m['f-hw-t'] = { e: hay ? (kw ? 'on' : 'off') : 'sd', t: hay ? `HW-201 · POTENCIA ${kw} kW` : 'HW-201 · —' };
 
     // variador y bomba de leche
     m['w-vfd-in'] = V(true); m['w-vfd-out'] = V(marcha101);
@@ -154,10 +154,10 @@
   /** Etiqueta accesible de cada equipo dibujado en Fuerza. */
   function ariaFuerza(e) {
     const m = calcularFuerza(e), t = id => (m[id].t || '').toLowerCase();
-    return { 'QE-001': `QE-001, armario eléctrico, ${t('f-bus-t')}`, 'QF-102': `QF-102, ${t('f-qf102-t')}`, 'KM-102': `KM-102, contactor ${t('f-km102-t')}`,
+    return { 'QE-001': `QE-001, armario eléctrico, ${t('f-bus-t')}`, 'QF-201': `QF-201, ${t('f-qf102-t')}`, 'KM-203': `KM-203, contactor ${t('f-km102-t')}`,
       'KM-201': `KM-201, contactor ${t('f-km201-t')}, banco 1 ${t('f-b1-t')}`, 'KM-202': `KM-202, contactor ${t('f-km202-t')}, banco 2 ${t('f-b2-t')}`,
-      'P-102': `P-102, ${t('f-p102-t')}`, 'P-101': `P-101, ${t('f-p101-t')}`, 'VFD-101': `VFD-101, ${t('f-vfd-t')}`, 'HW-101': t('f-hw-t').replace('hw-101', 'HW-101'),
-      'PS-001': `PS-001, ${t('f-ps-v')}, ${t('f-ps-t')}`, 'F-201': `F-201, ${t('f-f201-t')}` };
+      'P-201': `P-201, ${t('f-p102-t')}`, 'P-101': `P-101, ${t('f-p101-t')}`, 'VFD-101': `VFD-101, ${t('f-vfd-t')}`, 'HW-201': t('f-hw-t').replace('hw-201', 'HW-201'),
+      'PS-001': `PS-001, ${t('f-ps-v')}, ${t('f-ps-t')}`, 'F-001': `F-001, ${t('f-f201-t')}` };
   }
 
   /* ---------- dibujo ---------- */
@@ -190,14 +190,14 @@
         caja(216, 206, 150, 88), txt(291, 234, 'Seccionador', 'dg-t'), txt(291, 254, 'general +', 'dg-t'), txt(291, 274, 'diferencial', 'dg-t'),
         cable('w-acometida', `M20 ${Y_BUS} H216`), cable('w-bus', `M366 ${Y_BUS} H1560`), txv('f-bus-t', 390, 226, '—', 'dg-f', 'start'),
         ['path', { class: 'dg-trazos', d: `M700 ${Y_BUS + 8} l8 -16 M708 ${Y_BUS + 8} l8 -16 M716 ${Y_BUS + 8} l8 -16` }]),
-      // QF-102: magnetotérmico de P-102 y del calentador
-      g('QF-102', cable('w-qf-in', `M520 ${Y_BUS} V322`), dis('f-qf102', caja(496, 304, 48, 76), ['circle', { class: 'dg-borne', cx: 520, cy: 322, r: 3 }], ['circle', { class: 'dg-borne', cx: 520, cy: 362, r: 3 }],
+      // QF-201: magnetotérmico de P-201 y del calentador
+      g('QF-201', cable('w-qf-in', `M520 ${Y_BUS} V322`), dis('f-qf102', caja(496, 304, 48, 76), ['circle', { class: 'dg-borne', cx: 520, cy: 322, r: 3 }], ['circle', { class: 'dg-borne', cx: 520, cy: 362, r: 3 }],
         ['path', { class: 'dg-cuchilla dg-on-only', d: 'M520 322 V362' }], ['path', { class: 'dg-cuchilla dg-off-only', d: 'M520 322 L538 356' }]),
-        cable('w-qf-out', 'M520 362 V420'), txt(556, 332, 'QF-102', 'dg-f', 'start'), txv('f-qf102-t', 556, 352, '—', 'dg-f', 'start'), txt(556, 372, 'P-102 y calentador', 'dg-t', 'start')),
+        cable('w-qf-out', 'M520 362 V420'), txt(556, 332, 'QF-201', 'dg-f', 'start'), txv('f-qf102-t', 556, 352, '—', 'dg-f', 'start'), txt(556, 372, 'P-201 y calentador', 'dg-t', 'start')),
       cable('w-sub', 'M300 420 H640'), nodo(520, 420),
-      g('KM-102', ...contactor('KM-102', 300, 'km102')),
-      motor('P-102', 300, 'p102', 'Bomba agua caliente'),
-      g('HW-101', ['rect', { class: 'dg-armario dg-campo', x: 375, y: 596, width: 370, height: 180, rx: 8 }], txv('f-hw-t', 560, 764, '—')),
+      g('KM-203', ...contactor('KM-203', 300, 'km102')),
+      motor('P-201', 300, 'p102', 'Bomba agua caliente'),
+      g('HW-201', ['rect', { class: 'dg-armario dg-campo', x: 375, y: 596, width: 370, height: 180, rx: 8 }], txv('f-hw-t', 560, 764, '—')),
       g('KM-201', ...contactor('KM-201', 460, 'km201'), ...banco('KM-201', 460, 'b1', 1)),
       g('KM-202', ...contactor('KM-202', 640, 'km202'), ...banco('KM-202', 640, 'b2', 2)),
       // variador VFD-101 con la bomba P-101
@@ -208,9 +208,9 @@
       cable('w-ps-in', `M1230 ${Y_BUS} V300`), txt(1246, 284, '230 V CA (fase + neutro)', 'dg-t', 'start'),
       g('PS-001', dis('f-ps', caja(1160, 300, 140, 100)), txt(1230, 326, 'PS-001', 'dg-f'), txt(1230, 346, 'FUENTE 24 V CC', 'dg-t'), txv('f-ps-v', 1230, 372, '—', 'dg-v'), txv('f-ps-t', 1230, 392)),
       cable('w-ps-out', 'M1230 400 V430'),
-      g('F-201', dis('f-f201', caja(1218, 430, 24, 48), ['path', { class: 'dg-hilo dg-on-only', d: 'M1230 436 V472' }],
+      g('F-001', dis('f-f201', caja(1218, 430, 24, 48), ['path', { class: 'dg-hilo dg-on-only', d: 'M1230 436 V472' }],
         ['path', { class: 'dg-hilo dg-off-only', d: 'M1230 436 V447 M1230 461 V472 M1223 446 L1237 462 M1237 446 L1223 462' }]),
-        txt(1260, 452, 'F-201', 'dg-f', 'start'), txv('f-f201-t', 1260, 472, '—', 'dg-f', 'start'),
+        txt(1260, 452, 'F-001', 'dg-f', 'start'), txv('f-f201-t', 1260, 472, '—', 'dg-f', 'start'),
         cable('w-24v', 'M1230 478 V604'), dis('f-24v', ['path', { class: 'dg-flecha', d: 'M1221 600 L1230 616 L1239 600 Z' }]),
         txt(1230, 640, 'A MANDO (24 V CC)', 'dg-f'), txv('f-24v-t', 1230, 660)),
       txt(1350, 690, 'La seta ES-001 no corta la', 'dg-t', 'start'), txt(1350, 710, 'potencia: abre las bobinas', 'dg-t', 'start'), txt(1350, 730, 'con el relé de seguridad', 'dg-t', 'start'),

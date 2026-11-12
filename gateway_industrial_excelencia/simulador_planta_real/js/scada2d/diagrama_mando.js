@@ -1,4 +1,4 @@
-// Diagrama de MANDO (circuito de control de 24 V CC) de la planta real HTST, en forma de escalera: PS-001 → F-201 → barra de +24 V; a la izquierda, las entradas
+// Diagrama de MANDO (circuito de control de 24 V CC) de la planta real HTST, en forma de escalera: PS-001 → F-001 → barra de +24 V; a la izquierda, las entradas
 // digitales del PLC (seguridad, realimentación de equipos y campo) con su contacto y su dirección DI; el PLC-001 en el centro; a la derecha, las salidas
 // (DO y AO) con lo que mueve cada una (bobinas de contactores, piloto de la FDV, electroválvulas, baliza y orden al variador), la barra de 0 V y el HMI-001.
 // El relé de seguridad KS (ES-001) corta el común de las salidas; la baliza HL-001 no pasa por él. Direcciones tomadas de layout.js (SENALES).
@@ -16,17 +16,17 @@
   /** Entradas digitales en el orden en que se dibujan: [tag, descripción, normalmente cerrado (NC) / el 0 es anormal]. Tres bandas: seguridad, realimentación y proceso. */
   const BANDAS = [{ de: 0, a: 3, titulo: 'SEGURIDAD' }, { de: 4, a: 10, titulo: 'REALIMENTACIÓN' }, { de: 11, a: 16, titulo: 'PROCESO' }];
   const FILAS_DI = [
-    ['ES-001', 'seta emergencia (NC)', true], ['TSH-101', 'termostato agua (NC)', true], ['PSL-201', 'aire presión OK', true], ['PB-001', 'pulsador marcha (NA)', false],
-    ['QF-102', 'protección OK', true], ['PS-001', 'fuente 24 V OK', true], ['VFD-101', 'fallo variador', false], ['P-101', 'marcha variador', false],
-    ['KM-102', 'aux. contactor', false], ['KM-201', 'aux. contactor', false], ['KM-202', 'aux. contactor', false],
+    ['ES-001', 'seta emergencia (NC)', true], ['TSH-201', 'termostato agua (NC)', true], ['PSL-501', 'aire presión OK', true], ['PB-001', 'pulsador marcha (NA)', false],
+    ['QF-201', 'protección OK', true], ['PS-001', 'fuente 24 V OK', true], ['VFD-101', 'fallo variador', false], ['P-101', 'marcha variador', false],
+    ['KM-203', 'aux. contactor', false], ['KM-201', 'aux. contactor', false], ['KM-202', 'aux. contactor', false],
     ['LSH-101', 'nivel alto TK-101', false], ['LSL-101', 'nivel bajo TK-101 (NC)', true], ['ZS-101', 'FDV en avance', false], ['ZS-102', 'FDV en desvío', false],
-    ['LSL-301', 'nivel bajo agua (NC)', true], ['LSH-301', 'nivel alto agua', false],
+    ['LSL-201', 'nivel bajo agua (NC)', true], ['LSH-201', 'nivel alto agua', false],
   ];
   /** Salidas: clave (tag de la señal), tipo, fila, tag del equipo que mueve, texto, clase de carga ('bobina', 'lampara' o 'vfd'). */
   const FILAS_DO = [
     { clave: 'P-101', tipo: 'DO', fila: 0, tag: 'VFD-101', texto: 'DO · orden de marcha (RUN)', carga: 'vfd' },
     { clave: 'VFD-101', tipo: 'AO', fila: 1, tag: 'VFD-101', texto: 'AO · referencia 0-10 V', carga: 'vfd' },
-    { clave: 'P-102', tipo: 'DO', fila: 3, tag: 'KM-102', texto: 'KM-102 · bobina de P-102', carga: 'bobina' },
+    { clave: 'P-201', tipo: 'DO', fila: 3, tag: 'KM-203', texto: 'KM-203 · bobina de P-201', carga: 'bobina' },
     { clave: 'KM-201', tipo: 'DO', fila: 4, tag: 'KM-201', texto: 'KM-201 · bobina banco 1', carga: 'bobina' },
     { clave: 'KM-202', tipo: 'DO', fila: 5, tag: 'KM-202', texto: 'KM-202 · bobina banco 2', carga: 'bobina' },
     { clave: 'SV-101', tipo: 'DO', fila: 6, tag: 'SV-101', texto: 'SV-101 · piloto de la FDV', carga: 'bobina' },
@@ -34,8 +34,8 @@
     { clave: 'XV-401', tipo: 'DO', fila: 8, tag: 'XV-401', texto: 'XV-401 · CIP', carga: 'bobina' },
     { clave: 'XV-101', tipo: 'DO', fila: 9, tag: 'XV-101', texto: 'XV-101 · llenado TK-101', carga: 'bobina' },
     { clave: 'XV-102', tipo: 'DO', fila: 10, tag: 'XV-102', texto: 'XV-102 · vaciado TK-101', carga: 'bobina' },
-    { clave: 'XV-302', tipo: 'DO', fila: 11, tag: 'XV-302', texto: 'XV-302 · llenado agua cal.', carga: 'bobina' },
-    { clave: 'XV-303', tipo: 'DO', fila: 12, tag: 'XV-303', texto: 'XV-303 · vaciado agua cal.', carga: 'bobina' },
+    { clave: 'XV-201', tipo: 'DO', fila: 11, tag: 'XV-201', texto: 'XV-201 · llenado agua cal.', carga: 'bobina' },
+    { clave: 'XV-202', tipo: 'DO', fila: 12, tag: 'XV-202', texto: 'XV-202 · vaciado agua cal.', carga: 'bobina' },
     { clave: 'HL-001', tipo: 'DO', fila: 13, tag: 'HL-001', texto: 'HL-001 · baliza de alarma', carga: 'lampara' },
   ];
   const NC_ANORMAL = new Set(FILAS_DI.filter(f => f[2]).map(f => f[0]));
@@ -101,7 +101,7 @@
   /** Etiqueta accesible de cada equipo dibujado en Mando (un equipo puede salir como entrada y como salida). */
   function ariaMando(e) {
     const m = calcularMando(e), partes = {}, anota = (tag, t) => { (partes[tag] = partes[tag] || []).push(t); };
-    anota('PS-001', `fuente de 24 V, ${m['m-ps-t'].t}`); anota('F-201', `fusible ${m['m-f201-t'].t.toLowerCase()}`);
+    anota('PS-001', `fuente de 24 V, ${m['m-ps-t'].t}`); anota('F-001', `fusible ${m['m-f201-t'].t.toLowerCase()}`);
     for (const [tag, desc] of FILAS_DI) anota(tag, `${desc}, entrada ${canalDe(tag, 'DI')} = ${m[`m-vt-${tag}`].t}`);
     for (const f of FILAS_DO) if (f.carga !== 'vfd') anota(f.tag, `${f.texto.split(' · ')[1] || f.texto}, ${canalDe(f.clave, f.tipo)} = ${m[`m-ovt-${f.clave}`].t}, ${m[`m-lt-${f.clave}`].t.toLowerCase()}`);
     anota('VFD-101', `orden de marcha y referencia, ${m['m-vfd-t'].t.toLowerCase()}`);
@@ -129,11 +129,11 @@
       hijos.push(['rect', { class: 'dg-banda', x: 36, y: ya, width: 476, height: PASO * (b.a - b.de) + 30, rx: 4 }], txt(508, yFila(b.de) - 7, b.titulo, 'dg-z', 'end'));
     }
     hijos.unshift(txt(24, 40, 'MANDO · circuito de control 24 V CC', 'dg-g', 'start'), leyendaSvg(640, 34, 780, 62));
-    // alimentación: PS-001 → F-201 → barra de +24 V
+    // alimentación: PS-001 → F-001 → barra de +24 V
     hijos.push(
       g('PS-001', dis('m-ps', caja(100, 54, 160, 54)), txt(180, 76, 'PS-001 · FUENTE', 'dg-f'), txv('m-ps-t', 180, 98, '—', 'dg-v'), cable('w-m-ps', 'M260 80 H300')),
-      g('F-201', dis('m-f201', caja(300, 70, 40, 20), ['path', { class: 'dg-hilo dg-on-only', d: 'M304 80 H336' }], ['path', { class: 'dg-hilo dg-off-only', d: 'M304 80 H314 M326 80 H336 M313 74 L323 86 M323 74 L313 86' }]),
-        txt(320, 58, 'F-201', 'dg-f'), txv('m-f201-t', 320, 112, '—'), cable('w-m-f', `M340 80 H380 V${Y_BARRA}`)),
+      g('F-001', dis('m-f201', caja(300, 70, 40, 20), ['path', { class: 'dg-hilo dg-on-only', d: 'M304 80 H336' }], ['path', { class: 'dg-hilo dg-off-only', d: 'M304 80 H314 M326 80 H336 M313 74 L323 86 M323 74 L313 86' }]),
+        txt(320, 58, 'F-001', 'dg-f'), txv('m-f201-t', 320, 112, '—'), cable('w-m-f', `M340 80 H380 V${Y_BARRA}`)),
       cable('m-bus', `M${X_RIEL_24} ${Y_BARRA} H1560`), cable('m-rail', `M${X_RIEL_24} ${Y_BARRA} V${yFila(16)}`), nodo(380, Y_BARRA), txv('m-bus-t', 1560, 114, '—', 'dg-f', 'end'),
       txt(72, 148, '+24 V', 'dg-f', 'start'));
     // entradas

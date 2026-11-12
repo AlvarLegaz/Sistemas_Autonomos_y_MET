@@ -48,20 +48,20 @@ test('rechaza averías incoherentes: la misma dos veces, dos de lazo en el mismo
 test('reparar: solo la acción y el equipo correctos quitan la avería; los intentos se anotan', () => {
   const m = crearMotorAverias();
   const id = m.inyectar('AV-FUSIBLE-F201');
-  let r = m.reparar(id, { accion: 'limpiar', tag: 'F-201' });
+  let r = m.reparar(id, { accion: 'limpiar', tag: 'F-001' });
   assert.equal(r.ok, false); assert.match(r.motivo, /no resuelve/);
   r = m.reparar(id, { accion: 'sustituir', tag: 'PS-001' });
   assert.equal(r.ok, false); assert.match(r.motivo, /no es el equipo averiado/);
   assert.equal(m.activas()[0].intentos, 2);
-  r = m.reparar(id, { accion: 'sustituir', tag: 'F-201' });
+  r = m.reparar(id, { accion: 'sustituir', tag: 'F-001' });
   assert.equal(r.ok, true); assert.equal(m.activas().length, 0);
-  assert.equal(m.reparar('I999', { accion: 'sustituir', tag: 'F-201' }).ok, false);
+  assert.equal(m.reparar('I999', { accion: 'sustituir', tag: 'F-001' }).ok, false);
 });
 
 test('reparar una avería con parámetro de equipo pide el equipo concreto averiado', () => {
   const m = crearMotorAverias();
   const id = m.inyectar('AV-KM-NO-CIERRA', { tag: 'KM-201' });
-  assert.equal(m.reparar(id, { accion: 'sustituir', tag: 'KM-102' }).ok, false);
+  assert.equal(m.reparar(id, { accion: 'sustituir', tag: 'KM-203' }).ok, false);
   assert.equal(m.reparar(id, { accion: 'sustituir', tag: 'KM-201' }).ok, true);
 });
 
@@ -88,21 +88,21 @@ test('gancho de instrumentos: lazo abierto, sonda abierta, sonda en corto, deriv
 test('gancho de salidas: contactor pegado conduce siempre, contactor que no cierra no conduce, bobina abierta no energiza', () => {
   const m = crearMotorAverias();
   assert.equal(m.alAccionarSalida('KM-201', 0), 0); assert.equal(m.alAccionarSalida('KM-201', 1), 1);
-  m.inyectar('AV-KM-PEGADO', { tag: 'KM-201' }); m.inyectar('AV-KM-NO-CIERRA', { tag: 'KM-102' }); m.inyectar('AV-BOBINA-ABIERTA');
+  m.inyectar('AV-KM-PEGADO', { tag: 'KM-201' }); m.inyectar('AV-KM-NO-CIERRA', { tag: 'KM-203' }); m.inyectar('AV-BOBINA-ABIERTA');
   assert.equal(m.alAccionarSalida('KM-201', 0), 1);
-  assert.equal(m.alAccionarSalida('KM-102', 1), 0); assert.equal(m.alAccionarSalida('KM-202', 1), 1);
+  assert.equal(m.alAccionarSalida('KM-203', 1), 0); assert.equal(m.alAccionarSalida('KM-202', 1), 1);
   assert.equal(m.alAccionarSalida('SV-101', 1), 0);
 });
 
 test('gancho de proceso: se aplican y se retiran (idempotente) fugas, obstrucción, aire, ventilador, vástago y falso contacto', () => {
   const m = crearMotorAverias(), e = crearEstado();
   m.alCalcularProceso(e);
-  assert.equal(e.equipos['HX-101'].fugaPlaca01, 0); assert.equal(e.equipos['FRL-101'].presionBar, C.aire.presionNominalBar); assert.equal(e.equipos['P-101'].ventiladorOK, true);
+  assert.equal(e.equipos['HX-101'].fugaPlaca01, 0); assert.equal(e.equipos['FRL-501'].presionBar, C.aire.presionNominalBar); assert.equal(e.equipos['P-101'].ventiladorOK, true);
   const ids = ['AV-PLACA-FUGA', 'AV-FILTRO-OBSTRUIDO', 'AV-AIRE-BAJO', 'AV-VFD-SOBRETEMP', 'AV-FDV-ATASCADA', 'AV-TSH-DISPARADO'].map(i => m.inyectar(i));
   m.inyectar('AV-KM-PEGADO', { tag: 'KM-202' });
   m.alCalcularProceso(e);
-  assert.equal(e.equipos['HX-101'].fugaPlaca01, 0.9); assert.equal(e.equipos['FLT-101'].obstruccion01, 0.7); assert.equal(e.equipos['FRL-101'].presionBar, 3.5);
-  assert.equal(e.equipos['P-101'].ventiladorOK, false); assert.equal(e.equipos['FDV-101'].atascada, true); assert.equal(e.equipos['TSH-101'].falsoContacto, true);
+  assert.equal(e.equipos['HX-101'].fugaPlaca01, 0.9); assert.equal(e.equipos['FLT-101'].obstruccion01, 0.7); assert.equal(e.equipos['FRL-501'].presionBar, 3.5);
+  assert.equal(e.equipos['P-101'].ventiladorOK, false); assert.equal(e.equipos['FDV-101'].atascada, true); assert.equal(e.equipos['TSH-201'].falsoContacto, true);
   assert.equal(e.equipos['KM-202'].pegado, true); assert.equal(e.equipos['KM-201'].pegado, false);
   for (const id of ids) m.quitar(id);
   m.alCalcularProceso(e);

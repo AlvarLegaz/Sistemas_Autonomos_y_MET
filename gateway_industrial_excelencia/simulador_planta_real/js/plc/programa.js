@@ -11,10 +11,10 @@
   const { lazoSano } = calidad;
   const limitar = (v, min, max) => Math.max(min, Math.min(max, v));
 
-  const DO_TAGS = ['P-101', 'P-102', 'KM-201', 'KM-202', 'SV-101', 'XV-301', 'XV-401', 'HL-001', 'XV-101', 'XV-102', 'XV-302', 'XV-303'];
+  const DO_TAGS = ['P-101', 'P-201', 'KM-201', 'KM-202', 'SV-101', 'XV-301', 'XV-401', 'HL-001', 'XV-101', 'XV-102', 'XV-201', 'XV-202'];
   // Salidas que el operador puede mandar en modo MANUAL (todas menos la baliza, que es del PLC) y la analógica del variador
   const DO_MANUALES = DO_TAGS.filter(t => t !== 'HL-001');
-  const CONTACTORES = { 'P-102': 'KM-102', 'KM-201': 'KM-201', 'KM-202': 'KM-202' };   // salida DO → entrada DI del contacto auxiliar
+  const CONTACTORES = { 'P-201': 'KM-203', 'KM-201': 'KM-201', 'KM-202': 'KM-202' };   // salida DO → entrada DI del contacto auxiliar
 
   const salidasApagadas = () => ({ DO: Object.fromEntries(DO_TAGS.map(t => [t, 0])), AO: { 'VFD-101': 0 } });
 
@@ -78,10 +78,10 @@
     // 2. Paro de seguridad con enclavamiento: se rearma con el pulsador, y solo si ya no hay motivo
     const motivos = [];
     if (DI['ES-001'] === 0) motivos.push('ES-001');
-    if (DI['TSH-101'] === 0) motivos.push('TSH-101');
+    if (DI['TSH-201'] === 0) motivos.push('TSH-201');
     if (DI['PS-001'] === 0) motivos.push('PS-001');
     if (DI['VFD-101'] === 1) motivos.push('VFD-101');
-    if (DI['QF-102'] === 0) motivos.push('QF-102');
+    if (DI['QF-201'] === 0) motivos.push('QF-201');
     if (mem.fdvFallo) motivos.push('FDV-101');
     // En MANUAL solo el paro de emergencia y la pérdida de los 24 V paran toda la planta: el resto (termostato, variador, nivel…) son cortes locales de cada equipo
     if ((ord.modo || mem.modo) === 'MANUAL') for (let i = motivos.length - 1; i >= 0; i--) if (motivos[i] !== 'ES-001' && motivos[i] !== 'PS-001') motivos.splice(i, 1);
@@ -91,8 +91,8 @@
     aplicarOrdenes(mem, ord);
 
     // 3. Lo que el PLC sabe de la producción
-    const tt103 = AI['TT-103'], ft101 = AI['FT-101'], tt104 = AI['TT-104'], tt105 = AI['TT-105'], pt101 = AI['PT-101'], pt102 = AI['PT-102'];
-    const aire = DI['PSL-201'] === 1;
+    const tt103 = AI['TT-103'], ft101 = AI['FT-101'], tt104 = AI['TT-104'], tt105 = AI['TT-201'], pt101 = AI['PT-101'], pt102 = AI['PT-102'];
+    const aire = DI['PSL-501'] === 1;
     const lazosLegalesSanos = lazoSano(tt103.calidad) && lazoSano(ft101.calidad) && lazoSano(pt101.calidad) && lazoSano(pt102.calidad);
     const tRes = ft101.valor > 50 ? P.volumenTuboResidenciaL / (ft101.valor / 3600) : Infinity;
     const dp = pt102.valor - pt101.valor;
@@ -141,8 +141,8 @@
     const sal = salidasApagadas();
     const enManual = mem.modo === 'MANUAL' && !mem.paro;
     if (activoFinal && !enManual) {
-      const conAgua = !mem.paro && lazoSano(tt105.calidad) && DI['TSH-101'] === 1 && DI['QF-102'] === 1 && DI['KM-102'] === 1 && DI['LSL-301'] !== 0 && tt105.valor < K.limiteAguaC;
-      sal.DO['P-102'] = 1;
+      const conAgua = !mem.paro && lazoSano(tt105.calidad) && DI['TSH-201'] === 1 && DI['QF-201'] === 1 && DI['KM-203'] === 1 && DI['LSL-201'] !== 0 && tt105.valor < K.limiteAguaC;
+      sal.DO['P-201'] = 1;
       sal.DO['P-101'] = (enCIP || DI['LSL-101'] === 1) ? 1 : 0;
       const caudalOrden = ord.consignaCaudalLh != null ? ord.consignaCaudalLh : P.caudalNominalLh;
       sal.AO['VFD-101'] = enCIP ? 60 : limitar(caudalOrden / C.p101.caudalMaximoLh * 100, C.p101.velocidadMinimaPct, 100);
@@ -167,10 +167,10 @@
       const lt = AI['LT-101'];
       if (lt && lazoSano(lt.calidad)) mem.xv101 = lt.valor < C.tanque.reponerDesdePct ? true : (lt.valor >= C.tanque.reponerHastaPct ? false : mem.xv101);
       else mem.xv101 = DI['LSH-101'] !== 1;                         // sin transmisor de nivel se llena hasta el flotador de nivel alto
-      if (DI['LSL-301'] === 0) { mem.xv302 = true; mem.tLlenaAguaS = 0; }
+      if (DI['LSL-201'] === 0) { mem.xv302 = true; mem.tLlenaAguaS = 0; }
       else if (mem.xv302) { mem.tLlenaAguaS += dt; if (mem.tLlenaAguaS >= K.llenadoAguaExtraS) { mem.xv302 = false; mem.tLlenaAguaS = 0; } }
       sal.DO['XV-101'] = mem.xv101 ? 1 : 0;
-      sal.DO['XV-302'] = mem.xv302 ? 1 : 0;
+      sal.DO['XV-201'] = mem.xv302 ? 1 : 0;
     } else if (mem.modo !== 'MANUAL') { mem.xv101 = false; mem.xv302 = false; }
 
     // 8. Mando manual
@@ -180,8 +180,8 @@
       anotarManual(mem, manual);
       for (const tag of DO_MANUALES) sal.DO[tag] = mem.manualCmd.DO[tag] ? 1 : 0;
       sal.AO['VFD-101'] = mem.manualCmd.AO['VFD-101'];
-      const calentarSeguro = DI['TSH-101'] === 1 && DI['QF-102'] === 1 && DI['KM-102'] === 1 && sal.DO['P-102'] === 1 && DI['LSL-301'] !== 0 && lazoSano(tt105.calidad) && tt105.valor < K.limiteAguaC;
-      if (!calentarSeguro) { sal.DO['KM-201'] = 0; sal.DO['KM-202'] = 0; }        // termostato abierto, sin nivel, sin P-102 o agua demasiado caliente: el calentador se corta
+      const calentarSeguro = DI['TSH-201'] === 1 && DI['QF-201'] === 1 && DI['KM-203'] === 1 && sal.DO['P-201'] === 1 && DI['LSL-201'] !== 0 && lazoSano(tt105.calidad) && tt105.valor < K.limiteAguaC;
+      if (!calentarSeguro) { sal.DO['KM-201'] = 0; sal.DO['KM-202'] = 0; }        // termostato abierto, sin nivel, sin P-201 o agua demasiado caliente: el calentador se corta
       if (!aire) sal.DO['SV-101'] = 0;                                            // sin aire la FDV va a desvío (además del muelle)
       if (DI['LSL-101'] !== 1 || DI['VFD-101'] === 1) sal.DO['P-101'] = 0;        // marcha en seco (tanque vacío) o variador en fallo
     } else if (!mem.paro) {
@@ -190,7 +190,7 @@
         if (tag === 'VFD-101') sal.AO['VFD-101'] = limitar(Number(valor) || 0, 0, 100);
         else if (tag in sal.DO && tag !== 'HL-001') sal.DO[tag] = valor ? 1 : 0;
       }
-      const calentarSeguro = DI['TSH-101'] === 1 && DI['QF-102'] === 1 && DI['KM-102'] === 1 && sal.DO['P-102'] === 1 && DI['LSL-301'] !== 0 && lazoSano(tt105.calidad) && tt105.valor < K.limiteAguaC;
+      const calentarSeguro = DI['TSH-201'] === 1 && DI['QF-201'] === 1 && DI['KM-203'] === 1 && sal.DO['P-201'] === 1 && DI['LSL-201'] !== 0 && lazoSano(tt105.calidad) && tt105.valor < K.limiteAguaC;
       if (!calentarSeguro) { sal.DO['KM-201'] = 0; sal.DO['KM-202'] = 0; }
       if (!aire) sal.DO['SV-101'] = 0;
       if (DI['VFD-101'] === 1) sal.DO['P-101'] = 0;

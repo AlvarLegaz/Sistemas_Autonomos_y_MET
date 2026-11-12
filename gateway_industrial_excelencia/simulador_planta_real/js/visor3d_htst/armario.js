@@ -6,17 +6,17 @@
   const B = typeof require !== 'undefined' ? require('./base_equipo.js') : PCT.htstBase;
   const layout = typeof require !== 'undefined' ? require('../layout.js') : PCT.htstLayout;
   const PI = Math.PI;
-  const TAGS = ['QE-001', 'PS-001', 'F-201', 'QF-102', 'VFD-101', 'KM-102', 'KM-201', 'KM-202', 'PLC-001', 'HMI-001', 'HL-001', 'ES-001', 'PB-001'];
+  const TAGS = ['QE-001', 'PS-001', 'F-001', 'QF-201', 'VFD-101', 'KM-203', 'KM-201', 'KM-202', 'PLC-001', 'HMI-001', 'HL-001', 'ES-001', 'PB-001'];
 
   // Cuerpo del armario (cm): centro en la posición del layout. Dispositivos: x centro, y base, ancho, alto, fondo (sobre la placa de montaje).
   const CUERPO = { ancho: 60, fondo: 30, alto: 140, z: -13.5 };
   const DISPOSITIVOS = {
-    'QF-102': { x: -22, y: 118, w: 4, h: 9, d: 6 },
+    'QF-201': { x: -22, y: 118, w: 4, h: 9, d: 6 },
     'PS-001': { x: -8, y: 114, w: 12, h: 14, d: 8 },
-    'F-201': { x: 10, y: 118, w: 3, h: 10, d: 6 },
+    'F-001': { x: 10, y: 118, w: 3, h: 10, d: 6 },
     'PLC-001': { x: 0, y: 90, w: 40, h: 18, d: 8 },
     'VFD-101': { x: -14, y: 40, w: 18, h: 38, d: 14 },
-    'KM-102': { x: 3, y: 60, w: 8, h: 12, d: 8 },
+    'KM-203': { x: 3, y: 60, w: 8, h: 12, d: 8 },
     'KM-201': { x: 3, y: 42, w: 8, h: 12, d: 8 }, 'KM-202': { x: 13, y: 42, w: 8, h: 12, d: 8 },
   };
   const PUERTA = { giroRad: 1.75, bisagraX: 29 };      // puerta abierta unos 100°, con la bisagra a la derecha: la cara exterior mira a la cámara
@@ -91,16 +91,16 @@
       });
     })();
 
-    /* ---------- QF-102 magnetotérmico ---------- */
+    /* ---------- QF-201 magnetotérmico ---------- */
     (function () {
-      const { g, d } = dispositivo('QF-102'), e = kit.ensamble();
+      const { g, d } = dispositivo('QF-201'), e = kit.ensamble();
       e.add(kit.caja(d.w, d.h, d.d), 'blanco', [0, d.h / 2, 0]); e.add(kit.caja(2.4, 1.2, 1.2), 'negro', [0, d.h - 1.2, d.d / 2]);
-      e.construir(g, 'QF-102');
-      const palanca = kit.malla(kit.caja(2, 3.5, 1.2), kit.mat('negro'), g, 'QF-102', [0, d.h - 3, d.d / 2 + 0.4]);
-      base.registrar('QF-102', g, [d.w + 2, d.h, d.d + 2], d.y + d.h + 10);
+      e.construir(g, 'QF-201');
+      const palanca = kit.malla(kit.caja(2, 3.5, 1.2), kit.mat('negro'), g, 'QF-201', [0, d.h - 3, d.d / 2 + 0.4]);
+      base.registrar('QF-201', g, [d.w + 2, d.h, d.d + 2], d.y + d.h + 10);
       let ultimo = null;
       base.alActualizar(estado => {
-        const armado = K.instrumentoDe(estado, 'QF-102').nivel !== 0;
+        const armado = K.instrumentoDe(estado, 'QF-201').nivel !== 0;
         if (armado !== ultimo) { palanca.rotation.x = armado ? 0 : 0.7; ultimo = armado; }
       });
     })();
@@ -122,19 +122,19 @@
       base.registrar('PS-001', g, [d.w + 2, d.h, d.d + 2], d.y + d.h + 8);
     })();
 
-    /* ---------- F-201 fusible de 24 V ---------- */
+    /* ---------- F-001 fusible de 24 V ---------- */
     (function () {
-      const { g, d } = dispositivo('F-201'), e = kit.ensamble();
+      const { g, d } = dispositivo('F-001'), e = kit.ensamble();
       e.add(kit.caja(d.w, d.h, d.d), 'gris', [0, d.h / 2, 0]); e.add(kit.cil(1, 3, 8), 'amarillo', [0, d.h - 1.5, d.d / 2 + 0.5], [PI / 2, 0, 0]);
-      e.construir(g, 'F-201');
-      const led = kit.matLed(0x35e06b); kit.malla(kit.esfera(0.55, 6), led, g, 'F-201', [0, 2, d.d / 2 + 0.5]);
+      e.construir(g, 'F-001');
+      const led = kit.matLed(0x35e06b); kit.malla(kit.esfera(0.55, 6), led, g, 'F-001', [0, 2, d.d / 2 + 0.5]);
       let apagado = false, ultimo = -1;
-      base.alCambiarEfectos('F-201', ef => { apagado = ef.has('led_apagado'); ultimo = -1; });
+      base.alCambiarEfectos('F-001', ef => { apagado = ef.has('led_apagado'); ultimo = -1; });
       base.alActualizar(estado => {
-        const hex = apagado || K.equipoDe(estado, 'F-201').fundido ? 0x333333 : 0x35e06b;    // el LED indica que hay 24 V después del fusible
+        const hex = apagado || K.equipoDe(estado, 'F-001').fundido ? 0x333333 : 0x35e06b;    // el LED indica que hay 24 V después del fusible
         if (hex !== ultimo) { led.color.setHex(hex); ultimo = hex; }
       });
-      base.registrar('F-201', g, [d.w + 3, d.h, d.d + 2], d.y + d.h + 8);
+      base.registrar('F-001', g, [d.w + 3, d.h, d.d + 2], d.y + d.h + 8);
     })();
 
     /* ---------- PLC-001 ---------- */
@@ -179,7 +179,7 @@
       base.registrar('VFD-101', g, [d.w + 2, d.h + 4, d.d + 2], d.y + d.h + 10);
     })();
 
-    /* ---------- KM-102, KM-201, KM-202 contactores ---------- */
+    /* ---------- KM-203, KM-201, KM-202 contactores ---------- */
     function contactor(tag) {
       const { g, d } = dispositivo(tag), e = kit.ensamble();
       e.add(kit.caja(d.w, d.h, d.d), 'negro', [0, d.h / 2, 0]); e.add(kit.caja(d.w - 1.5, 2, 1), 'grisOscuro', [0, d.h - 3, d.d / 2 + 0.4]);
@@ -199,7 +199,7 @@
       });
       base.registrar(tag, g, [d.w + 2, d.h, d.d + 2], d.y + d.h + 8);
     }
-    for (const tag of ['KM-102', 'KM-201', 'KM-202']) contactor(tag);
+    for (const tag of ['KM-203', 'KM-201', 'KM-202']) contactor(tag);
 
     /* ---------- HL-001 baliza de alarma, sobre el armario ---------- */
     (function () {

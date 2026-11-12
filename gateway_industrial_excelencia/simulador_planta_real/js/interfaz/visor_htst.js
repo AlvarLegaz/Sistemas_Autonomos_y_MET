@@ -9,8 +9,8 @@
   const nivel = () => (niveles ? niveles.nivelActual() : 3);
 
   // Etiquetas que se ven sobre la planta (las demás piezas se eligen en la lista del panel o con un clic): así no se amontonan 40 rótulos.
-  const CON_ETIQUETA = new Set(['TK-101', 'P-101', 'P-102', 'HX-101', 'HT-101', 'FDV-101', 'SV-101', 'HW-101', 'TT-101', 'TT-102', 'TT-103', 'TT-104', 'TT-105', 'TT-106',
-    'FT-101', 'PT-101', 'PT-102', 'LT-101', 'F-201', 'PS-001', 'VFD-101', 'QE-001', 'FRL-101']);
+  const CON_ETIQUETA = new Set(['TK-101', 'P-101', 'P-201', 'HX-101', 'HT-101', 'FDV-101', 'SV-101', 'HW-201', 'TT-101', 'TT-102', 'TT-103', 'TT-104', 'TT-201', 'TT-106',
+    'FT-101', 'PT-101', 'PT-102', 'LT-101', 'F-001', 'PS-001', 'VFD-101', 'QE-001', 'FRL-501']);
   const sinEtiqueta = id => id.startsWith('TUBO_') || !CON_ETIQUETA.has(id) || (nivel() === 1 && !niveles.visibleEnNivel(id, 1));
   const nombreEtiqueta = id => (nivel() === 1 && niveles.nombreSencillo(id)) || id;
   const visibleEnLista = id => nivel() !== 1 || niveles.visibleEnNivel(id, 1);
@@ -29,10 +29,10 @@
         sensores[s.tag] = { valor: typeof i.valorPLC === 'number' ? i.valorPLC : 0, texto: mal ? `⚠ ${i.calidad}` : typeof i.valorPLC === 'number' ? `${decimal(i.valorPLC, s.unidad === 'L/h' ? 0 : 1)} ${s.unidad}` : '—', alarma: mal };
       }
       const q = tag => (estado.equipos && estado.equipos[tag]) || {};
-      for (const tag of ['P-101', 'P-102']) sensores[tag] = { activo: !!q(tag).marcha, texto: q(tag).marcha ? '●' : '○' };
+      for (const tag of ['P-101', 'P-201']) sensores[tag] = { activo: !!q(tag).marcha, texto: q(tag).marcha ? '●' : '○' };
       const fdv = q('FDV-101').posicion;
       sensores['FDV-101'] = { valor: fdv === 'AVANCE' ? 1 : 0, activo: fdv === 'AVANCE', alarma: false, texto: fdv === 'AVANCE' ? 'AVANCE' : fdv === 'MOVIENDO' ? '…' : 'DESVÍO' };
-      sensores['F-201'] = { valor: q('F-201').fundido ? 0 : 1, activo: !q('F-201').fundido, alarma: !!q('F-201').fundido, texto: q('F-201').fundido ? 'FUNDIDO' : 'OK' };
+      sensores['F-001'] = { valor: q('F-001').fundido ? 0 : 1, activo: !q('F-001').fundido, alarma: !!q('F-001').fundido, texto: q('F-001').fundido ? 'FUNDIDO' : 'OK' };
       sensores['PS-001'] = { valor: q('PS-001').ok === false ? 0 : 1, activo: q('PS-001').ok !== false, alarma: q('PS-001').ok === false, texto: q('PS-001').ok === false ? 'FALLO' : '24 V' };
     }
     return { fraccion: 0, alturaLiquidoCm: 0, volumenMl: 0, presionFondoPa: 0, temperaturaAguaC: null, sensores };

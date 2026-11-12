@@ -21,10 +21,10 @@ test('manual: cada actuador del contrato se manda desde una sola fila, agrupado 
 
 test('manual: la orden (salida del PLC) y el estado real se leen por separado', () => {
   const sim = enManual();
-  assert.equal(manual.ordenDe(sim.estado(), 'P-102'), false);
-  sim.ordenes.manual('P-102', 1); sim.paso(2);
-  assert.equal(manual.ordenDe(sim.estado(), 'P-102'), true);
-  assert.equal(manual.textoReal(sim.estado(), 'P-102'), 'en marcha');
+  assert.equal(manual.ordenDe(sim.estado(), 'P-201'), false);
+  sim.ordenes.manual('P-201', 1); sim.paso(2);
+  assert.equal(manual.ordenDe(sim.estado(), 'P-201'), true);
+  assert.equal(manual.textoReal(sim.estado(), 'P-201'), 'en marcha');
   sim.ordenes.manual('VFD-101', 40); sim.ordenes.manual('P-101', 1); sim.paso(5);
   assert.equal(manual.ordenDe(sim.estado(), 'VFD-101'), 40);
   assert.match(manual.textoReal(sim.estado(), 'VFD-101'), /% de velocidad real/);
@@ -32,10 +32,10 @@ test('manual: la orden (salida del PLC) y el estado real se leen por separado', 
 
 test('manual: una orden que no se cumple (contactor pegado o bobina abierta) se avisa como fallo', () => {
   const sim = enManual();
-  sim.ordenes.manual('P-102', 1); sim.paso(2);
-  assert.equal(manual.discrepancia(sim.estado(), 'P-102'), null);
-  sim.averias.inyectar('AV-KM-NO-CIERRA', { tag: 'KM-102' }); sim.paso(3);          // el contactor de P-102 no cierra
-  const d = manual.discrepancia(sim.estado(), 'P-102');
+  sim.ordenes.manual('P-201', 1); sim.paso(2);
+  assert.equal(manual.discrepancia(sim.estado(), 'P-201'), null);
+  sim.averias.inyectar('AV-KM-NO-CIERRA', { tag: 'KM-203' }); sim.paso(3);          // el contactor de P-201 no cierra
+  const d = manual.discrepancia(sim.estado(), 'P-201');
   assert.match(d || '', /Posible avería/);
   assert.match(d || '', /no se cumple/);
   assert.match(d || '', /multímetro/);
@@ -43,12 +43,12 @@ test('manual: una orden que no se cumple (contactor pegado o bobina abierta) se 
 
 test('manual: enclavamientos con su motivo (nivel bajo, sin circulación, termostato, aire, seta, tanque vacío)', () => {
   const sim = enManual(), e = () => sim.estado();
-  assert.match(manual.bloqueo(e(), 'KM-201'), /sin circulación/);                         // P-102 parada: los bancos no se pueden conectar
-  assert.equal(manual.bloqueo(e(), 'P-102'), null);
-  sim.ordenes.manual('P-102', 1); sim.paso(2);
+  assert.match(manual.bloqueo(e(), 'KM-201'), /sin circulación/);                         // P-201 parada: los bancos no se pueden conectar
+  assert.equal(manual.bloqueo(e(), 'P-201'), null);
+  sim.ordenes.manual('P-201', 1); sim.paso(2);
   assert.equal(manual.bloqueo(e(), 'KM-201'), null);
-  sim.ordenes.manual('XV-303', 1); sim.paso(700);                                         // depósito vacío
-  assert.match(manual.bloqueo(e(), 'KM-202'), /LSL-301/);
+  sim.ordenes.manual('XV-202', 1); sim.paso(700);                                         // depósito vacío
+  assert.match(manual.bloqueo(e(), 'KM-202'), /LSL-201/);
   sim.ordenes.manual('XV-102', 1); sim.ordenes.manual('P-101', 0); sim.paso(900);        // tanque de balance vacío
   assert.match(manual.bloqueo(e(), 'P-101'), /LSL-101/);
   sim.ordenes.paroEmergencia(true); sim.paso(1);
@@ -59,7 +59,7 @@ test('manual: acciones peligrosas con su consecuencia (bancos, vaciados, FDV sin
   const sim = enManual();
   assert.match(manual.peligro(sim.estado(), 'KM-201'), /30 kW/);
   assert.match(manual.peligro(sim.estado(), 'XV-102'), /vaciar el tanque/);
-  assert.match(manual.peligro(sim.estado(), 'XV-303'), /vaciar el depósito/);
+  assert.match(manual.peligro(sim.estado(), 'XV-202'), /vaciar el depósito/);
   assert.match(manual.peligro(sim.estado(), 'SV-101'), /NO CONFORME/);
   assert.equal(manual.peligro(sim.estado(), 'XV-301'), null);
 });
@@ -78,13 +78,13 @@ test('manual: confirmación en dos pasos con plazo (el primer pulsado arma, el s
 
 test('manual: «todo a parada segura» apaga bombas y calentador, deja la FDV en desvío y cierra todas las válvulas', () => {
   const sim = enManual();
-  for (const tag of ['P-101', 'P-102', 'XV-301', 'XV-101', 'XV-302']) sim.ordenes.manual(tag, 1);
+  for (const tag of ['P-101', 'P-201', 'XV-301', 'XV-101', 'XV-201']) sim.ordenes.manual(tag, 1);
   sim.ordenes.manual('VFD-101', 60); sim.paso(3);
   for (const [tag, valor] of manual.PARADA_SEGURA) sim.ordenes.manual(tag, valor);
   sim.paso(5);
   const e = sim.estado();
-  for (const tag of ['P-101', 'P-102']) assert.equal(manual.ordenDe(e, tag), false, tag);
-  for (const tag of ['XV-301', 'XV-101', 'XV-302', 'XV-102', 'XV-303', 'XV-401', 'KM-201', 'KM-202', 'SV-101']) assert.equal(manual.ordenDe(e, tag), false, tag);
+  for (const tag of ['P-101', 'P-201']) assert.equal(manual.ordenDe(e, tag), false, tag);
+  for (const tag of ['XV-301', 'XV-101', 'XV-201', 'XV-102', 'XV-202', 'XV-401', 'KM-201', 'KM-202', 'SV-101']) assert.equal(manual.ordenDe(e, tag), false, tag);
   assert.equal(manual.ordenDe(e, 'VFD-101'), 0);
   assert.equal(e.equipos['FDV-101'].posicion, 'DESVIO');
   assert.equal(e.modo, 'MANUAL');                                                           // sigue en manual: solo se paró todo
@@ -92,16 +92,16 @@ test('manual: «todo a parada segura» apaga bombas y calentador, deja la FDV en
 
 test('manual: el panel recoge las protecciones que siguen activas', () => {
   assert.ok(manual.PROTECCIONES.length >= 6);
-  for (const palabra of ['ES-001', '24 V', 'TSH-101', 'PSL-201', 'LSL-301', 'LSL-101']) assert.ok(manual.PROTECCIONES.some(p => p.includes(palabra)), palabra);
+  for (const palabra of ['ES-001', '24 V', 'TSH-201', 'PSL-501', 'LSL-201', 'LSL-101']) assert.ok(manual.PROTECCIONES.some(p => p.includes(palabra)), palabra);
 });
 
 test('franja de alarmas: orden por gravedad y antigüedad, contador sin las de «estado», formas por nivel', () => {
   const alarmas = [
     { codigo: 'A190', tag: 'P-101', nivel: 'aviso', texto: 'a', desdeS: 5 },
-    { codigo: 'A140', tag: 'F-201', nivel: 'critica', texto: 'b', desdeS: 30 },
-    { codigo: 'A170', tag: 'TSH-101', nivel: 'critica', texto: 'c', desdeS: 10 },
+    { codigo: 'A140', tag: 'F-001', nivel: 'critica', texto: 'b', desdeS: 30 },
+    { codigo: 'A170', tag: 'TSH-201', nivel: 'critica', texto: 'c', desdeS: 10 },
     { codigo: 'M100', tag: 'PLC-001', nivel: 'estado', texto: 'manual', desdeS: 0 },
-    { codigo: 'A230', tag: 'LSL-301', nivel: 'alarma', texto: 'd', desdeS: 1 },
+    { codigo: 'A230', tag: 'LSL-201', nivel: 'alarma', texto: 'd', desdeS: 1 },
   ];
   const orden = franja.ordenarAlarmas(alarmas);
   assert.deepEqual(orden.map(a => a.codigo), ['A170', 'A140', 'A230', 'A190', 'M100']);        // críticas (la más antigua primero), alarma, aviso, estado
@@ -132,12 +132,12 @@ test('manual: protección frente a avería frente a paro frente a falta de 24 V 
   assert.equal(c1.clase, 'proteccion');
   assert.match(manual.bloqueo(seco.estado(), 'P-101'), /^Protegida: tanque de balance vacío \(LSL-101\)/);
   assert.equal(manual.discrepancia(seco.estado(), 'P-101'), null);                         // y por tanto «Es un fallo» ya no sale
-  // Fusible F-201 fundido: es falta de 24 V, no un paro de emergencia, aunque las entradas (también la seta) lean 0.
+  // Fusible F-001 fundido: es falta de 24 V, no un paro de emergencia, aunque las entradas (también la seta) lean 0.
   const sin24 = enManual();
   sin24.averias.inyectar('AV-FUSIBLE-F201'); sin24.paso(3);
   const c2 = manual.causaBloqueo(sin24.estado(), 'XV-301');
   assert.equal(c2.clase, 'sin24v');
-  assert.match(manual.bloqueo(sin24.estado(), 'XV-301'), /^Sin 24 V \(F-201\)/);
+  assert.match(manual.bloqueo(sin24.estado(), 'XV-301'), /^Sin 24 V \(F-001\)/);
   assert.doesNotMatch(manual.bloqueo(sin24.estado(), 'XV-301'), /Paro de emergencia/);
   // Seta pulsada: paro de emergencia.
   const paro = enManual();
@@ -146,17 +146,17 @@ test('manual: protección frente a avería frente a paro frente a falta de 24 V 
   assert.match(manual.bloqueo(paro.estado(), 'XV-301'), /^Paro de emergencia \(ES-001\)/);
   // Avería de verdad: contactor que no cierra y ninguna protección lo explica.
   const averia = enManual();
-  averia.ordenes.manual('P-102', 1); averia.paso(2);
-  averia.averias.inyectar('AV-KM-NO-CIERRA', { tag: 'KM-102' }); averia.paso(3);
-  assert.equal(manual.causaBloqueo(averia.estado(), 'P-102'), null);
-  assert.match(manual.discrepancia(averia.estado(), 'P-102') || '', /Posible avería/);
+  averia.ordenes.manual('P-201', 1); averia.paso(2);
+  averia.averias.inyectar('AV-KM-NO-CIERRA', { tag: 'KM-203' }); averia.paso(3);
+  assert.equal(manual.causaBloqueo(averia.estado(), 'P-201'), null);
+  assert.match(manual.discrepancia(averia.estado(), 'P-201') || '', /Posible avería/);
 });
 
 test('franja: el resumen separa la más grave del resto y cuenta por nivel (el «y N más» es un desplegable)', () => {
   const alarmas = [
-    { codigo: 'A170', tag: 'TSH-101', texto: 'disparado', desdeS: 5, nivel: 'critica' },
-    { codigo: 'A140', tag: 'P-102', texto: 'x', desdeS: 6, nivel: 'alarma' }, { codigo: 'A141', tag: 'P-101', texto: 'x', desdeS: 7, nivel: 'alarma' },
-    { codigo: 'A230', tag: 'HW-101', texto: 'x', desdeS: 8, nivel: 'aviso' }, { codigo: 'M100', tag: 'PLC-001', texto: 'x', desdeS: 9, nivel: 'estado' },
+    { codigo: 'A170', tag: 'TSH-201', texto: 'disparado', desdeS: 5, nivel: 'critica' },
+    { codigo: 'A140', tag: 'P-201', texto: 'x', desdeS: 6, nivel: 'alarma' }, { codigo: 'A141', tag: 'P-101', texto: 'x', desdeS: 7, nivel: 'alarma' },
+    { codigo: 'A230', tag: 'HW-201', texto: 'x', desdeS: 8, nivel: 'aviso' }, { codigo: 'M100', tag: 'PLC-001', texto: 'x', desdeS: 9, nivel: 'estado' },
   ];
   const r = franja.resumenFranja(franja.ordenarAlarmas(alarmas), new Set());
   assert.equal(r.principal.codigo, 'A170');

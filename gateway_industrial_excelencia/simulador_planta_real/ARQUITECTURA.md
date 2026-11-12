@@ -27,8 +27,8 @@ Fuera (de momento): fluidodinámica real, dosificación de CIP con conductividad
         → HX-101/calentamiento (agua caliente) → HT-101 (tubo de residencia) → TT-103
         → FDV-101 ─┬─ AVANCE → HX-101/regeneración (lado pasteurizado, enfría al crudo) → HX-101/enfriamiento (agua fría) → TT-104 → SALIDA
                    └─ DESVÍO → vuelve a TK-101 (leche que no llegó a temperatura)
- Agua caliente: HW-101 (2 bancos de resistencias) + P-102 → HX-101/calentamiento   (TT-105, TSH-101)
- Agua fría: XV-301 → HX-101/enfriamiento.   CIP: XV-401 + agua caliente.   Aire: FRL-101 → SV-101 → FDV-101 (PSL-201).
+ Agua caliente: HW-201 (2 bancos de resistencias) + P-201 → HX-101/calentamiento   (TT-201, TSH-201)
+ Agua fría: XV-301 → HX-101/enfriamiento.   CIP: XV-401 + agua caliente.   Aire: FRL-501 → SV-101 → FDV-101 (PSL-501).
 ```
 
 Valores de ejemplo (ilustrativos): leche cruda a 4 °C; tras la regeneración ≈ 66 °C; tras el calentamiento ≈ 73,5 °C (consigna de TT-103); tras la regeneración del lado pasteurizado ≈ 11 °C; salida a ≈ 4 °C con agua fría. Caudal nominal 2000 L/h, máximo 2500 L/h. El tubo de residencia HT-101 tiene **10,5 L**, que a 2500 L/h da **15,1 s** (`PROCESO` en `layout.js`).
@@ -40,23 +40,23 @@ Los 45 equipos con su tag ISA, nombre, tipo y zona están en `EQUIPOS` de `layou
 | Grupo | Tags |
 |---|---|
 | Proceso | TK-101 tanque de balance · FLT-101 filtro de aspiración · P-101 bomba centrífuga de alimentación (con variador) · HX-101 intercambiador de placas (regeneración, calentamiento, enfriamiento) · HT-101 tubo de residencia · FDV-101 válvula de desvío neumática de 3 vías |
-| Neumática | SV-101 electroválvula piloto (24 V CC, muelle a desvío) · FRL-101 unidad de aire |
-| Agua caliente y fría | HW-101 calentador de agua con dos bancos (con nivel de agua) · P-102 bomba del agua caliente · XV-301 agua fría · XV-401 CIP |
-| Llenados y vaciados | XV-101 llenado y XV-102 vaciado del tanque de balance · XV-302 llenado y XV-303 vaciado del depósito de agua caliente · LSL-301 flotador de nivel bajo del agua caliente (protege las resistencias) |
-| Temperatura | TT-101 entrada · TT-102 tras la regeneración (lado crudo) · TT-103 salida del tubo (**termómetro legal**) · TT-104 salida · TT-105 agua caliente · TSH-101 termostato de seguridad (NC) |
+| Neumática | SV-101 electroválvula piloto (24 V CC, muelle a desvío) · FRL-501 unidad de aire |
+| Agua caliente y fría | HW-201 calentador de agua con dos bancos (con nivel de agua) · P-201 bomba del agua caliente · XV-301 agua fría · XV-401 CIP |
+| Llenados y vaciados | XV-101 llenado y XV-102 vaciado del tanque de balance · XV-201 llenado y XV-202 vaciado del depósito de agua caliente · LSL-201 flotador de nivel bajo del agua caliente (protege las resistencias) |
+| Temperatura | TT-101 entrada · TT-102 tras la regeneración (lado crudo) · TT-103 salida del tubo (**termómetro legal**) · TT-104 salida · TT-201 agua caliente · TSH-201 termostato de seguridad (NC) |
 | Caudal, presión, nivel | FT-101 caudalímetro electromagnético · PT-101 y PT-102 presiones (crudo y pasteurizado) · LT-101 nivel · LSH-101 y LSL-101 flotadores |
-| Posición y aire | ZS-101 y ZS-102 finales de carrera de la FDV · PSL-201 presostato de aire |
-| Eléctrico y control | QE-001 armario · PS-001 fuente 24 V CC · F-201 fusible de 24 V · QF-102 magnetotérmico de P-102 y calentador · VFD-101 variador · KM-102, KM-201, KM-202 contactores · ES-001 paro de emergencia · PB-001 pulsador · PLC-001 · HMI-001 · HL-001 baliza |
+| Posición y aire | ZS-101 y ZS-102 finales de carrera de la FDV · PSL-501 presostato de aire |
+| Eléctrico y control | QE-001 armario · PS-001 fuente 24 V CC · F-001 fusible de 24 V · QF-201 magnetotérmico de P-201 y calentador · VFD-101 variador · KM-203, KM-201, KM-202 contactores · ES-001 paro de emergencia · PB-001 pulsador · PLC-001 · HMI-001 · HL-001 baliza |
 
 ### 2.3 Control y enclavamientos (lo que hace el PLC)
 
 - **Modos** (`MODOS`, con su texto en `MODOS_INFO`): `PARADA`, `MANUAL`, `RECIRCULACION_AGUA` (se calienta con agua hasta estabilizar), `PRODUCCION` y `CIP`.
-- **Modo MANUAL:** el operador manda cada actuador con `ordenes.manual(tag, valor)`: P-101, P-102, KM-201, KM-202 (los dos bancos del calentador, 30 kW cada uno), SV-101 (FDV: 1 = avance, 0 = desvío), XV-301, XV-401, XV-101, XV-102, XV-302, XV-303 (todo: 0/1 o true/false) y `VFD-101` (velocidad 0–100 %). El PLC no automatiza nada: ni consigna de temperatura, ni caudal, ni FDV, ni reposición de niveles. Solo mantiene las **protecciones cableadas**: paro de emergencia ES-001 y pérdida de 24 V (paran toda la planta); termostato TSH-101 abierto, calentador sin nivel (LSL-301), sin P-102 en marcha o con TT-105 ≥ 88 °C (cortan el calentador); aire bajo PSL-201 (FDV a desvío); tanque de balance vacío (LSL-101) o fallo del variador (paran P-101). Al pasar a MANUAL cada actuador conserva lo que hacía (transferencia sin saltos); al volver a un modo automático (o a PARADA) se sueltan las órdenes manuales. Si se fuerza la FDV en avance sin cumplir las condiciones, el producto cuenta como **no conforme** y sale la alarma A220; la alarma de estado M100 («modo manual activo») no enciende la baliza.
-- **Llenados y vaciados:** XV-101 llena el tanque de balance (2600 L/h) y XV-102 lo vacía (2400 L/h); XV-302 llena el depósito de agua caliente con agua de red a 15 °C (1500 L/h, enfría el agua) y XV-303 lo vacía (1800 L/h). Ambos depósitos tienen rebosadero (no pasan del 100 %). La masa de agua condiciona la inercia térmica del agua caliente. En los modos automáticos el PLC repone el tanque de balance con XV-101 (histéresis 85–95 % con LT-101) y el depósito de agua con XV-302 (al perderse LSL-301 llena hasta recuperarlo y 330 s más).
-- **Calentamiento:** los bancos de HW-101 se conectan por todo/nada con histéresis sobre TT-105 y el banco 2 se ajusta en cascada con TT-103. Solo con P-102 en marcha y TSH-101 normal.
+- **Modo MANUAL:** el operador manda cada actuador con `ordenes.manual(tag, valor)`: P-101, P-201, KM-201, KM-202 (los dos bancos del calentador, 30 kW cada uno), SV-101 (FDV: 1 = avance, 0 = desvío), XV-301, XV-401, XV-101, XV-102, XV-201, XV-202 (todo: 0/1 o true/false) y `VFD-101` (velocidad 0–100 %). El PLC no automatiza nada: ni consigna de temperatura, ni caudal, ni FDV, ni reposición de niveles. Solo mantiene las **protecciones cableadas**: paro de emergencia ES-001 y pérdida de 24 V (paran toda la planta); termostato TSH-201 abierto, calentador sin nivel (LSL-201), sin P-201 en marcha o con TT-201 ≥ 88 °C (cortan el calentador); aire bajo PSL-501 (FDV a desvío); tanque de balance vacío (LSL-101) o fallo del variador (paran P-101). Al pasar a MANUAL cada actuador conserva lo que hacía (transferencia sin saltos); al volver a un modo automático (o a PARADA) se sueltan las órdenes manuales. Si se fuerza la FDV en avance sin cumplir las condiciones, el producto cuenta como **no conforme** y sale la alarma A220; la alarma de estado M100 («modo manual activo») no enciende la baliza.
+- **Llenados y vaciados:** XV-101 llena el tanque de balance (2600 L/h) y XV-102 lo vacía (2400 L/h); XV-201 llena el depósito de agua caliente con agua de red a 15 °C (1500 L/h, enfría el agua) y XV-202 lo vacía (1800 L/h). Ambos depósitos tienen rebosadero (no pasan del 100 %). La masa de agua condiciona la inercia térmica del agua caliente. En los modos automáticos el PLC repone el tanque de balance con XV-101 (histéresis 85–95 % con LT-101) y el depósito de agua con XV-201 (al perderse LSL-201 llena hasta recuperarlo y 330 s más).
+- **Calentamiento:** los bancos de HW-201 se conectan por todo/nada con histéresis sobre TT-201 y el banco 2 se ajusta en cascada con TT-103. Solo con P-201 en marcha y TSH-201 normal.
 - **FDV (seguridad positiva):** SV-101 energizada = avance; sin tensión o sin aire el muelle la deja en **desvío**. Solo se pasa a avance si TT-103 ≥ 72 °C **y** el tiempo de residencia (volumen del tubo / caudal de FT-101) ≥ 15 s **y** ΔP de regeneración ≥ 0,07 bar **y** el aire está bien **y** TT-103 y FT-101 tienen lazo sano. Cualquier fallo de TT-103 o de FT-101 pasa a desvío.
-- **Regeneración:** el lado pasteurizado debe estar a más presión que el crudo (PT-102 − PT-101 ≥ 0,07 bar). **Decisión de diseño: se prescinde de la bomba booster (P-103) y de su contactor KM-103.** Una planta real suele llevar una booster en el lado pasteurizado para asegurar ese diferencial; esta planta didáctica la omite para quedarse con dos bombas: P-101 (leche, por variador VFD-101, porque hay que regular el caudal) y P-102 (agua caliente, por contactor KM-102, marcha-paro). El diferencial se modela solo con el caudal, la posición de la FDV, el ensuciamiento y la avería de fuga de placa (`fisica_hidraulica.presiones`), no con una bomba; los transmisores PT-101 y PT-102 y la condición de la FDV (ΔP ≥ 0,07 bar) se mantienen.
-- **Paro de seguridad:** ES-001 abierto, TSH-101 abierto, fuente 24 V caída o fallo del variador → desvío, bancos fuera, bombas paradas, baliza (en MANUAL solo ES-001 y los 24 V paran toda la planta; el resto son cortes locales, ver arriba).
+- **Regeneración:** el lado pasteurizado debe estar a más presión que el crudo (PT-102 − PT-101 ≥ 0,07 bar). **Decisión de diseño: se prescinde de la bomba booster (P-103) y de su contactor KM-103.** Una planta real suele llevar una booster en el lado pasteurizado para asegurar ese diferencial; esta planta didáctica la omite para quedarse con dos bombas: P-101 (leche, por variador VFD-101, porque hay que regular el caudal) y P-201 (agua caliente, por contactor KM-203, marcha-paro). El diferencial se modela solo con el caudal, la posición de la FDV, el ensuciamiento y la avería de fuga de placa (`fisica_hidraulica.presiones`), no con una bomba; los transmisores PT-101 y PT-102 y la condición de la FDV (ΔP ≥ 0,07 bar) se mantienen.
+- **Paro de seguridad:** ES-001 abierto, TSH-201 abierto, fuente 24 V caída o fallo del variador → desvío, bancos fuera, bombas paradas, baliza (en MANUAL solo ES-001 y los 24 V paran toda la planta; el resto son cortes locales, ver arriba).
 - **Lazos 4–20 mA:** < 3,6 mA = hilo roto; > 21 mA = sobreescala/cortocircuito (`LIMITES_LAZO_MA`, criterio NAMUR NE43). El PLC marca la **calidad** de cada AI y no se fía de un valor con lazo en fallo.
 - **Discrepancias:** orden del PLC ≠ realimentación (DO de un contactor frente a su auxiliar, SV-101 frente a ZS-101/102) durante más de 3 s → alarma.
 - **CIP básico:** secuencia por tiempos (enjuague → sosa caliente → enjuague → ácido → enjuague) con XV-401, agua caliente y FDV en avance, sin modelar la dosificación ni la conductividad.
@@ -68,11 +68,11 @@ El mapa completo está en `SENALES` de `layout.js` (38 señales: 9 AI, 16 DI, 12
 
 | Tarjeta | Canales | Señal |
 |---|---|---|
-| AI-1 | AI1.01–AI1.08: TT-101…TT-105, FT-101, PT-101, PT-102 | 4–20 mA (lazos de 2 hilos a 24 V) |
+| AI-1 | AI1.01–AI1.08: TT-101…TT-201, FT-101, PT-101, PT-102 | 4–20 mA (lazos de 2 hilos a 24 V) |
 | AI-2 | AI2.01: LT-101 | 4–20 mA |
-| DI-2 | DI2.01: LSL-301 nivel bajo del agua caliente (NC) | 24 V CC |
-| DI-1 | DI1.01–DI1.16: ES-001, TSH-101, LSH-101, LSL-101, ZS-101, ZS-102, PSL-201, P-101 marcha, KM-102, KM-201, KM-202, VFD-101 fallo, QF-102, PS-001, PB-001 (+ DI1.10 libre; el contactor KM-103 de la booster se quitó y los demás canales no se renumeran; LSL-301 va en DI2.01) | 24 V CC; los de seguridad son NC: **0 = fallo o hilo roto** |
-| DO-1 | DO1.01–DO1.13 (DO1.03 libre, antes P-103): P-101, P-102, KM-201, KM-202, SV-101, XV-301, XV-401, HL-001, XV-101, XV-102, XV-302, XV-303 | relé, 24 V |
+| DI-2 | DI2.01: LSL-201 nivel bajo del agua caliente (NC) | 24 V CC |
+| DI-1 | DI1.01–DI1.16: ES-001, TSH-201, LSH-101, LSL-101, ZS-101, ZS-102, PSL-501, P-101 marcha, KM-203, KM-201, KM-202, VFD-101 fallo, QF-201, PS-001, PB-001 (+ DI1.10 libre; el contactor KM-103 de la booster se quitó y los demás canales no se renumeran; LSL-201 va en DI2.01) | 24 V CC; los de seguridad son NC: **0 = fallo o hilo roto** |
+| DO-1 | DO1.01–DO1.13 (DO1.03 libre, antes P-103): P-101, P-201, KM-201, KM-202, SV-101, XV-301, XV-401, HL-001, XV-101, XV-102, XV-201, XV-202 | relé, 24 V |
 | AO-1 | AO1.01: referencia del variador | 0–10 V |
 
 **Diferencia con la maqueta PCT23:** allí las señales son 0–3,3 V y 10 mV/°C; aquí son industriales. Hay que dejarlo claro a los alumnos.
@@ -98,7 +98,7 @@ estado = {
     'P-101': { marcha, velocidadPct, caudalLh, corrienteA, temperaturaDisipadorC, fallo },
     'FDV-101': { posicion, apertura01, aireOK }, // posicion ∈ POSICIONES_FDV
     'SV-101': { energizada, bobinaOhm },
-    'HW-101': { banco1, banco2, potenciaKW, temperaturaC },
+    'HW-201': { banco1, banco2, potenciaKW, temperaturaC },
     'KM-201': { cerrado, pegado },               // pegado = avería
     'HX-101': { regeneracion: {...}, calentamiento: {...}, enfriamiento: {...}, fugaPlaca01 },
     'FLT-101': { obstruccion01 },                // …y el resto de tags
@@ -110,8 +110,8 @@ estado = {
   salidasPLC: { DO: {…}, AO: {…} },
   alarmas: [{ codigo, tag, nivel, desdeS, texto }],
   contadores: { producidoL, desviadoL, energiaKWh, noConformeL },
-  aguaCaliente: { nivelPct, volumenL, temperaturaC },     // depósito de HW-101; también equipos['HW-101'].nivelPct/volumenL
-  // equipos['TK-101'].desbordando = true si se llena con rebosadero; equipos['XV-101'|'XV-102'|'XV-302'|'XV-303'].abierta; equipos['LSL-301'].contactoCerrado
+  aguaCaliente: { nivelPct, volumenL, temperaturaC },     // depósito de HW-201; también equipos['HW-201'].nivelPct/volumenL
+  // equipos['TK-101'].desbordando = true si se llena con rebosadero; equipos['XV-101'|'XV-102'|'XV-201'|'XV-202'].abierta; equipos['LSL-201'].contactoCerrado
   averiasActivas: [{ instancia, id, tags }],
 }
 ```
@@ -160,7 +160,7 @@ simulador_planta_real/
 {
   id: 'AV-FUSIBLE-F201', nombre: 'Fusible de 24 V fundido',
   capa: 'sensor' | 'lazo' | 'alimentacion' | 'actuador' | 'potencia' | 'neumatica' | 'proceso' | 'comunicaciones',
-  equipos: ['F-201'],                       // tags afectados (existen en EQUIPOS)
+  equipos: ['F-001'],                       // tags afectados (existen en EQUIPOS)
   dificultad: 1 | 2 | 3,
   parametros: { magnitud: { tipo: 'numero', min, max, defecto, unidad } },     // p. ej. el offset de una deriva
   efectos: [{ gancho: 'instrumento' | 'salida' | 'proceso' | 'alimentacion', tag, modificacion }],
@@ -194,7 +194,7 @@ crearMotorAverias(catalogo) → {
 
 ### 6.3 Medidas (`js/modelo/medidas.js`, propiedad del modelo, porque dependen de las averías)
 
-Hay **puntos de medida** con identificador (`QE-001:X1.3`, `TT-103:+`, `F-201:ENTRADA`…) y una función pura `medir(instrumento, puntoA, puntoB, modo, estado)` que devuelve: para el multímetro, tensión, corriente (en serie), resistencia o continuidad; para el osciloscopio, una **forma de onda** (24 V CC con rizado, ruido en un 4–20 mA, PWM, etc.). Es lo que permite diagnosticar de verdad (medir 0 mA, medir 24 V antes y después del fusible, medir la bobina). La interfaz (`multimetro.js`, `osciloscopio.js`) solo la dibuja.
+Hay **puntos de medida** con identificador (`QE-001:X1.3`, `TT-103:+`, `F-001:ENTRADA`…) y una función pura `medir(instrumento, puntoA, puntoB, modo, estado)` que devuelve: para el multímetro, tensión, corriente (en serie), resistencia o continuidad; para el osciloscopio, una **forma de onda** (24 V CC con rizado, ruido en un 4–20 mA, PWM, etc.). Es lo que permite diagnosticar de verdad (medir 0 mA, medir 24 V antes y después del fusible, medir la bobina). La interfaz (`multimetro.js`, `osciloscopio.js`) solo la dibuja.
 
 ### 6.4 Catálogo inicial (16 averías)
 
@@ -205,19 +205,19 @@ Hay **puntos de medida** con identificador (`QE-001:X1.3`, `TT-103:+`, `F-201:EN
 | AV-PT100-CORTO | TT-10x | Pt100 en corto | lectura muy baja (≈ 3,6 mA), A102 | sonda en rojo | Resistencia ≈ 0 Ω | Sustituir la sonda |
 | AV-DERIVA-TT103 | TT-103 | Deriva de calibración (parámetro: ±°C) | Sin alarma; si lee alto, el producto sale sin pasteurizar y solo el balance de temperaturas lo delata | sin cambio visible | Comparar con un termómetro patrón en baño y con TT-102/TT-104 | Recalibrar o sustituir (no se anula) |
 | AV-RUIDO-4-20 | FT-101 (o cualquier AI) | Interferencia del variador: ruido de ± x mA | Lectura inestable, alarmas A102 intermitentes | cable sin apantallar junto al variador | Osciloscopio sobre el lazo: picos a la frecuencia del variador; malla sin tierra | Cable apantallado, malla a tierra en un extremo, separar de la potencia |
-| AV-FUSIBLE-F201 | F-201 | Fusible de 24 V de instrumentos fundido | A140 y todos los lazos a 0 mA a la vez; desvío y paro | fusible con LED apagado | 24 V antes del fusible sí, después no | Buscar la causa del cortocircuito y sustituirlo |
+| AV-FUSIBLE-F201 | F-001 | Fusible de 24 V de instrumentos fundido | A140 y todos los lazos a 0 mA a la vez; desvío y paro | fusible con LED apagado | 24 V antes del fusible sí, después no | Buscar la causa del cortocircuito y sustituirlo |
 | AV-FUENTE-24V | PS-001 | Fuente que baja a 18 V con rizado | Lazos saturados, A140, el PLC a veces se reinicia | LED de la fuente apagado o parpadeante | Multímetro: < 24 V; osciloscopio: rizado | Sustituir la fuente |
-| AV-KM-PEGADO | KM-201 | Contactos soldados: el banco sigue calentando con orden 0 | A130 (DO = 0 y auxiliar = 1), T sube sin control, puede saltar TSH-101 | contactor con los contactos cerrados | Tensión en la carga con la orden a 0; resistencia de contactos | Sustituir el contactor y revisar la causa (arco o sobrecorriente) |
-| AV-KM-NO-CIERRA | KM-102, KM-201, KM-202 | Contactos quemados o bobina sin fuerza | A130 (DO = 1 y auxiliar = 0), P-102 parada, T no sube | contactor abierto | Tensión en bobina (24 V) y en bornas de la carga (0) | Sustituir el contactor |
+| AV-KM-PEGADO | KM-201 | Contactos soldados: el banco sigue calentando con orden 0 | A130 (DO = 0 y auxiliar = 1), T sube sin control, puede saltar TSH-201 | contactor con los contactos cerrados | Tensión en la carga con la orden a 0; resistencia de contactos | Sustituir el contactor y revisar la causa (arco o sobrecorriente) |
+| AV-KM-NO-CIERRA | KM-203, KM-201, KM-202 | Contactos quemados o bobina sin fuerza | A130 (DO = 1 y auxiliar = 0), P-201 parada, T no sube | contactor abierto | Tensión en bobina (24 V) y en bornas de la carga (0) | Sustituir el contactor |
 | AV-BOBINA-ABIERTA | SV-101 | Bobina del piloto abierta | A120, la FDV nunca llega a avance (ZS-101 = 0), no hay producción | piloto sin brillo | 24 V en bornas del piloto con la orden; la bobina da ∞ Ω | Sustituir la bobina |
 | AV-FDV-ATASCADA | FDV-101 | Vástago atascado en avance | A120: al pedir desvío, ZS-102 no llega; el PLC debe parar la bomba | FDV con vástago fuera | ZS-102 y presión de aire; accionar el piloto manual | Desmontar y reparar la válvula |
-| AV-AIRE-BAJO | FRL-101 | Fuga o regulador mal ajustado | A160 (PSL-201 = 0), FDV lenta, conmutación a desvío | manómetro en rojo | Manómetro y presostato; buscar la fuga | Reparar la fuga y ajustar el regulador |
+| AV-AIRE-BAJO | FRL-501 | Fuga o regulador mal ajustado | A160 (PSL-501 = 0), FDV lenta, conmutación a desvío | manómetro en rojo | Manómetro y presostato; buscar la fuga | Reparar la fuga y ajustar el regulador |
 | AV-VFD-SOBRETEMP | VFD-101 | Disipador a más de 80 °C por ventilador parado o filtro sucio | A150, P-101 para, caudal 0 | variador en rojo | Temperatura del disipador, ventilador, filtro | Limpiar o sustituir el ventilador |
 | AV-PLACA-FUGA | HX-101 | Placa perforada en la regeneración | A110: PT-102 − PT-101 por debajo de 0,07 bar o invertido | goteo en el bastidor | Comparar PT-101 y PT-102; prueba de presión | Localizar la placa y sustituirla (juntas incluidas) |
 | AV-FILTRO-OBSTRUIDO | FLT-101 | Colador atascado | FT-101 y la presión de aspiración caen, P-101 con ruido y corriente baja | colador oscuro | Presión antes y después; caudal con velocidad constante | Limpiar el colador |
-| AV-TSH-DISPARADO | TSH-101 | Disparo real o falso contacto del termostato | A170, calentador fuera, rearme manual | termostato en rojo | Continuidad del contacto NC en frío; temperatura real de TT-105 | Rearmar tras encontrar la causa; sustituir si no cierra en frío |
+| AV-TSH-DISPARADO | TSH-201 | Disparo real o falso contacto del termostato | A170, calentador fuera, rearme manual | termostato en rojo | Continuidad del contacto NC en frío; temperatura real de TT-201 | Rearmar tras encontrar la causa; sustituir si no cierra en frío |
 
-Quedan fuera de la primera versión (por si hace falta ampliar): fallo de comunicación SCADA–PLC (calidad CONGELADO), magnetotérmico QF-102 disparado, electrodos del FT-101 sucios o tubería no llena. Están ya previstos en `CALIDAD_SENAL` y `QF-102`.
+Quedan fuera de la primera versión (por si hace falta ampliar): fallo de comunicación SCADA–PLC (calidad CONGELADO), magnetotérmico QF-201 disparado, electrodos del FT-101 sucios o tubería no llena. Están ya previstos en `CALIDAD_SENAL` y `QF-201`.
 
 ## 7. Reutilización de `simulador_pct23` y servicio desde el aula
 
@@ -332,3 +332,21 @@ Regla: **cada archivo tiene un solo dueño**; quien necesite un cambio en un arc
 - Nombre del fluido en cada entrada, por fuera de la caja; avisos bajo la caja.
 
 **Los tres bloques.** Cada bloque es una instancia del mismo widget; solo cambian los fluidos. `conectoresEntreBloques(izq, der)` devuelve los tubos rectos entre una salida y una entrada enfrentadas, a la misma altura y **del mismo fluido** (nunca une agua con leche). La galería los une como en la planta: enfriamiento, regeneración y calentamiento en fila; la leche cruda entra por abajo en la regeneración, pasa al calentamiento, vuelve por el tubo de retención a la regeneración por arriba y sale por el enfriamiento. El esquema de la planta no lo usa todavía.
+
+## Numeración de los equipos
+
+Los tags siguen ISA-5.1: las **letras** dicen qué es (P bomba, TT transmisor de temperatura, LSL interruptor de nivel bajo, XV electroválvula, KM contactor…) y la **centena** del número dice a qué
+**circuito** pertenece. Un instrumento lleva el número del equipo en el que está (LSL-201 y LSH-201 son los interruptores de nivel de HW-201). La tabla está en `CIRCUITOS` de `layout.js` y la
+comprueba `tests/layout_numeracion.test.js`.
+
+| Centena | Circuito | Equipos |
+| --- | --- | --- |
+| 0xx | Control y seguridad | QE-001, PS-001, F-001 (fusible de 24 V), PB-001, ES-001, PLC-001, HMI-001, HL-001 |
+| 1xx | Circuito de leche | TK-101 (con LT-101, LSH-101, LSL-101), FLT-101, P-101 y su variador VFD-101, HX-101, HT-101, FDV-101 con SV-101, XV-101, XV-102, TT-101…TT-104 y TT-106, FT-101, PT-101, PT-102, ZS-101, ZS-102 |
+| 2xx | Agua caliente | HW-201 (con LSL-201, LSH-201), P-201, XV-201 (llenado), XV-202 (vaciado), TT-201, TSH-201, contactores KM-201 y KM-202 (bancos) y KM-203 (bomba), QF-201 |
+| 3xx | Agua fría | XV-301 |
+| 4xx | Limpieza CIP | XV-401 |
+| 5xx | Aire comprimido | FRL-501, PSL-501 |
+
+Antes de esta numeración el calentador y su bomba eran HW-101 y P-102 pero sus sensores de nivel y válvulas eran de la serie 300; los equipos renumerados son HW-101→HW-201, P-102→P-201,
+TT-105→TT-201, TSH-101→TSH-201, LSL-301→LSL-201, LSH-301→LSH-201, XV-302→XV-201, XV-303→XV-202, KM-102→KM-203, QF-102→QF-201, F-201→F-001, PSL-201→PSL-501 y FRL-101→FRL-501.
