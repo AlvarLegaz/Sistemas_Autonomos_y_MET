@@ -6,12 +6,17 @@
 //   fila de proceso (y = 240): TK-101 → FLT-101 → P-101 → FT-101 → TT-101 → regeneración → P-103 → calentamiento → tubo de residencia → FDV-101
 //   retorno pasteurizado (y = 360 → 290 → 470): de la FDV por el lado «pasteurizado» de la regeneración, el enfriamiento y la salida
 //   banda inferior: agua fría (XV-301), desagües y limpieza CIP (XV-401); a la derecha, el armario con los LEDs agrupados por función.
+// Niveles de dificultad: cada elemento lleva data-n="2" si no aparece en el nivel 1 (CSS: body[data-nivel="1"] [data-n="2"] { display: none }); los textos con data-t1
+// cambian a su nombre sencillo en el nivel 1 (pagina.js los intercambia) y lo marcado data-solo-n1 solo se ve en el nivel 1 (tarjetas de valores y pista).
 // Convención de color (pedida por el usuario): leche = verde, agua fría = azul, agua caliente = naranja, y solo en lo que está activo.
 // La parte pura (qué tubos están activos, qué lectura va en cada sitio, qué LEDs, textos de accesibilidad) se exporta para probarla sin navegador.
 (function () {
   const layout = typeof require !== 'undefined' ? require('../layout.js') : PCT.htstLayout;
   const compartido = nombre => (typeof require !== 'undefined' ? null : PCT[nombre]);   // en Node solo se usa la parte pura
   const leyenda = typeof require !== 'undefined' ? require('./leyenda.js') : PCT.htstLeyenda;   // la leyenda se dibuja dentro del esquema
+  const niveles = typeof require !== 'undefined' ? require('../interfaz/niveles.js') : PCT.htstNiveles;
+  /** Nivel en que está la página (data-nivel del body); sin página (Node, banco de pruebas) se comporta como el nivel 3. */
+  const nivelPagina = () => (typeof document !== 'undefined' && document.body && Number(document.body.dataset.nivel)) || 3;
 
   /* ---------- lectura del estado (pura) ---------- */
   const equipo = (e, tag) => (e && e.equipos && e.equipos[tag]) || {};
@@ -117,8 +122,9 @@
     if ('fundido' in eq) return eq.fundido ? 'fundido' : 'normal';
     return 'normal';
   }
-  /** Etiqueta accesible de un equipo: «TT-103, 73,2 °C, normal». */
-  function etiquetaAria(e, tag) {
+  /** Etiqueta accesible de un equipo: «TT-103, 73,2 °C, normal». En el nivel 1 usa el nombre sencillo: «Bomba de leche, encendida». */
+  function etiquetaAria(e, tag, nivel = 3) {
+    if (nivel === 1 && niveles.nombreSencillo(tag)) return `${niveles.nombreSencillo(tag)}, ${niveles.estadoVivoNivel1(tag, e)}`;
     const partes = [tag];
     if (layout.senal(tag).some(s => s.tipo === 'AI')) partes.push(textoInstrumento(e, tag).replace('⚠ ', 'fallo '));
     const estado = estadoEquipo(e, tag);
@@ -127,10 +133,14 @@
   }
 
   /* ---------- esquema ---------- */
-  const g = (tag, ...hijos) => ['g', { id: `g-${tag}`, 'data-tag': tag, tabindex: 0, role: 'button', 'aria-label': tag }, ...hijos];
+  const g = (tag, ...hijos) => ['g', Object.assign({ id: `g-${tag}`, 'data-tag': tag, tabindex: 0, role: 'button', 'aria-label': tag }, niveles.nivelMinimoDeTag(tag) > 1 ? { 'data-n': 2 } : {}), ...hijos];
+  /** Atributos de un texto que en el nivel 1 se cambia por su nombre sencillo (líneas separadas por «|»; x e y opcionales para recolocarlo). */
+  const n1 = (texto, x, y) => { const o = { 'data-t1': texto }; if (x !== undefined) o['data-x1'] = x; if (y !== undefined) o['data-y1'] = y; return o; };
+  const solo2 = { 'data-n': 2 };
   const txt = (x, y, t, clase = 'ht-tag', extra = {}) => ['text', Object.assign({ x, y, class: clase }, extra), t];
   const izq = { style: 'text-anchor:start' }, der = { style: 'text-anchor:end' };       // en línea: gana a la clase .ht-tag (centrada)
-  const ruta = (clase, destino, d) => ['path', { class: `tubo ${clase}`.trim(), 'data-ruta': destino, d }];
+  const RUTAS_NIVEL_2 = ['llenado', 'vaciado', 'llenadoHw', 'vaciadoHw', 'cip'];       // tuberías que no se ven en el nivel 1
+  const ruta = (clase, destino, d) => ['path', Object.assign({ class: `tubo ${clase}`.trim(), 'data-ruta': destino, d }, RUTAS_NIVEL_2.includes(destino) ? solo2 : {})];
 
   /** Burbuja de instrumento al estilo ISA: letras arriba y número abajo, valor en negrita encima. */
   const burbuja = (tag, x, y, valor = true, r = 18, lado = 'encima') => {
@@ -138,8 +148,8 @@
     const donde = lado === 'derecha' ? txt(x + r + 8, y + 5, '—', 'ht-valor', { id: `v-${tag}`, style: 'text-anchor:start' }) : txt(x, y - r - 8, '—', 'ht-valor', { id: `v-${tag}` });
     return g(tag, ['circle', { class: 'instr', cx: x, cy: y, r, id: `c-${tag}` }], txt(x, y - 1, letras), txt(x, y + 12, numero), ...(valor ? [donde] : []));
   };
-  const bomba = (tag, x, y, fluido) => g(tag, ['circle', { class: `instr bomba ${fluido}`, cx: x, cy: y, r: 20, id: `c-${tag}` }],
-    ['path', { d: `M${x - 7} ${y - 10} L${x + 10} ${y} L${x - 7} ${y + 10} Z`, class: 'bomba-flecha' }], txt(x, y + 38, tag));
+  const bomba = (tag, x, y, fluido, nombre1) => g(tag, ['circle', { class: `instr bomba ${fluido}`, cx: x, cy: y, r: 20, id: `c-${tag}` }],
+    ['path', { d: `M${x - 7} ${y - 10} L${x + 10} ${y} L${x - 7} ${y + 10} Z`, class: 'bomba-flecha' }], txt(x, y + 38, tag, 'ht-tag', nombre1 ? n1(...nombre1) : {}));
   /** Válvula de dos vías: horizontal (en un tubo horizontal) o vertical. etiqueta: [líneas] encima, debajo o a la derecha. */
   const valvula = (tag, x, y, fluido, lineas, donde = 'debajo', vertical = false) => {
     const d = vertical ? `M${x - 10} ${y - 11} L${x} ${y} L${x + 10} ${y - 11} Z M${x - 10} ${y + 11} L${x} ${y} L${x + 10} ${y + 11} Z`
@@ -150,16 +160,16 @@
     });
     return g(tag, ['path', { class: `valvula ${fluido}`, d, id: `s-${tag}` }], ...textos);
   };
-  const led = (tag, texto, x, y) => ['g', { id: `g-led-${tag}`, 'data-tag': tag, tabindex: 0, role: 'button', 'aria-label': tag, class: 'led' },
+  const led = (tag, texto, x, y) => ['g', { id: `g-led-${tag}`, 'data-tag': tag, tabindex: 0, role: 'button', 'aria-label': tag, class: 'led', 'data-n': 2 },
     ['circle', { class: 'instr', cx: x, cy: y, r: 9, id: `c-led-${tag}` }], ['path', { class: 'led-x', d: `M${x - 4} ${y - 4} L${x + 4} ${y + 4} M${x + 4} ${y - 4} L${x - 4} ${y + 4}` }], txt(x, y + 24, texto)];
 
   const X_ARMARIO = { caja: 1105, ancho: 110, columnas: [1135, 1190] };
   function armario() {
-    const hijos = [['rect', { class: 'caja', x: X_ARMARIO.caja, y: 14, width: X_ARMARIO.ancho, height: 596, rx: 6 }],
+    const hijos = [['rect', { class: 'caja', x: X_ARMARIO.caja, y: 14, width: X_ARMARIO.ancho, height: 596, rx: 6, 'data-n': 2 }],
       g('QE-001', txt(1160, 38, 'ARMARIO QE-001', 'ht-tag ht-fuerte'), txt(1160, 54, 'estado del PLC-001'))];
     let y = 92;
     for (const grupo of GRUPOS_LEDS) {
-      hijos.push(txt(1115, y, grupo.titulo, 'ht-zona', izq));
+      hijos.push(txt(1115, y, grupo.titulo, 'ht-zona', Object.assign({ 'data-n': 2 }, izq)));
       grupo.tags.forEach((tag, i) => {
         const [, texto] = LEDS.find(l => l[0] === tag);
         hijos.push(led(tag, texto, X_ARMARIO.columnas[i % 2], y + 24 + Math.floor(i / 2) * 52));
@@ -186,61 +196,67 @@
       // --- zona 1: entrada (tanque de balance) ---
       ['rect', { class: 'caja', x: 90, y: 120, width: 80, height: 178, rx: 4 }],
       ['rect', { class: 'liquido producto', id: 'nivel-TK-101', x: 92, y: 250, width: 76, height: 46 }],
-      g('TK-101', txt(130, 142, 'TK-101', 'ht-tag ht-fuerte'), txt(130, 214, '—', 'ht-valor', { id: 'v-LT-101' }),
+      g('TK-101', txt(130, 142, 'TK-101', 'ht-tag ht-fuerte', n1('Tanque|de leche', 130, 140)), txt(130, 214, '—', 'ht-valor', { id: 'v-LT-101' }),
         ['rect', { class: 'banner-alarma', id: 'banner-TK', x: 94, y: 158, width: 72, height: 18, rx: 3 }], txt(130, 171, 'REBOSA', 'ht-tag ht-banner', { id: 't-banner-TK' })),
       g('LSH-101', ['circle', { class: 'instr', cx: 195, cy: 150, r: 12, id: 'c-LSH-101' }], txt(195, 154, 'H')),
       g('LT-101', ['rect', { class: 'manual', x: 183, y: 188, width: 24, height: 24, id: 'c-LT-101' }], txt(195, 204, 'LT')),
       g('LSL-101', ['circle', { class: 'instr', cx: 195, cy: 270, r: 12, id: 'c-LSL-101' }], txt(195, 274, 'L')),
       valvula('XV-101', 60, 90, 'fl-producto', ['XV-101', 'llenado'], 'encima'),
       valvula('XV-102', 130, 335, 'fl-producto', ['XV-102', 'vaciado'], 'derecha', true),
-      txt(130, 396, 'A DESAGÜE ↓'),
+      txt(130, 396, 'A DESAGÜE ↓', 'ht-tag', solo2),
       // --- zona 2: filtro, bomba de alimentación, caudal y regeneración ---
       g('FLT-101', ['rect', { class: 'manual', x: 223, y: 228, width: 24, height: 24 }], ['path', { d: 'M223 252 L247 228', class: 'filtro-raya' }], txt(235, 218, 'FLT-101')),
-      bomba('P-101', 300, 240, 'bomba-producto'),
+      bomba('P-101', 300, 240, 'bomba-producto', ['Bomba de leche']),
       burbuja('FT-101', 355, 240), burbuja('TT-101', 430, 240),
       ['rect', { class: 'caja', x: 455, y: 200, width: 120, height: 120, rx: 4 }],
-      g('HX-101', ['rect', { class: 'caja', x: 455, y: 200, width: 120, height: 120, rx: 4 }], txt(515, 216, 'REGENERACIÓN', 'ht-tag ht-fuerte'), txt(515, 230, 'HX-101'),
-        ['rect', { class: 'caja', x: 705, y: 200, width: 120, height: 120, rx: 4 }], txt(765, 216, 'CALENTAMIENTO', 'ht-tag ht-fuerte'), txt(765, 230, 'HX-101'),
-        ['rect', { class: 'caja', x: 455, y: 420, width: 120, height: 100, rx: 4 }], txt(515, 438, 'ENFRIAMIENTO', 'ht-tag ht-fuerte'), txt(515, 452, 'HX-101')),
+      g('HX-101', ['rect', { class: 'caja', x: 455, y: 200, width: 120, height: 120, rx: 4 }], txt(515, 216, 'REGENERACIÓN', 'ht-tag ht-fuerte', n1('PRECALIENTA')), txt(515, 230, 'HX-101', 'ht-tag', n1('recupera calor')),
+        ['rect', { class: 'caja', x: 705, y: 200, width: 120, height: 120, rx: 4 }], txt(765, 216, 'CALENTAMIENTO', 'ht-tag ht-fuerte', n1('CALIENTA')), txt(765, 230, 'HX-101', 'ht-tag', n1('agua caliente')),
+        ['rect', { class: 'caja', x: 455, y: 420, width: 120, height: 100, rx: 4 }], txt(515, 438, 'ENFRIAMIENTO', 'ht-tag ht-fuerte', n1('ENFRÍA')), txt(515, 452, 'HX-101', 'ht-tag', n1('agua fría'))),
       ['path', { class: 'tubo', d: 'M455 240 H575 M455 290 H575 M705 240 H825 M455 470 H575 M455 500 H575' }],
-      burbuja('PT-101', 420, 156), ['path', { class: 'enlace', d: 'M438 156 H460 V200' }],
+      burbuja('PT-101', 420, 156), ['path', { class: 'enlace', 'data-n': 2, d: 'M438 156 H460 V200' }],
       burbuja('TT-102', 610, 240),
-      burbuja('PT-102', 515, 372), ['path', { class: 'enlace', d: 'M515 320 V354' }],
+      burbuja('PT-102', 515, 372), ['path', { class: 'enlace', 'data-n': 2, d: 'M515 320 V354' }],
       bomba('P-103', 665, 240, 'bomba-producto'),
       // --- zona 3: agua caliente (HW-101) sobre el calentamiento ---
       ['rect', { class: 'caja', x: 630, y: 44, width: 190, height: 106, rx: 4 }],
       ['rect', { class: 'liquido caliente', id: 'nivel-HW-101', x: 632, y: 100, width: 186, height: 48 }],
-      g('HW-101', txt(725, 62, 'HW-101 · agua caliente', 'ht-tag ht-fuerte'), txt(725, 78, '—', 'ht-valor', { id: 'v-HW-nivel' }),
+      g('HW-101', txt(725, 62, 'HW-101 · agua caliente', 'ht-tag ht-fuerte', n1('Calentador de agua')), txt(725, 78, '—', 'ht-valor', { id: 'v-HW-nivel' }),
         txt(725, 94, '—', 'ht-tag', { id: 'v-HW-bancos' }),
         ['rect', { class: 'banner-alarma', id: 'banner-HW', x: 650, y: 83, width: 150, height: 16, rx: 3 }], txt(725, 95, 'NIVEL BAJO: BLOQUEADO', 'ht-tag ht-banner', { id: 't-banner-HW' }),
-        ['path', { class: 'resis', id: 'res-1', d: 'M650 126 L658 106 L666 126 L674 106 L682 126 L690 106 L698 126' }], txt(675, 144, 'B1 · KM-201'),
-        ['path', { class: 'resis', id: 'res-2', d: 'M750 126 L758 106 L766 126 L774 106 L782 126 L790 106 L798 126' }], txt(775, 144, 'B2 · KM-202')),
+        ['path', { class: 'resis', id: 'res-1', d: 'M650 126 L658 106 L666 126 L674 106 L682 126 L690 106 L698 126' }], txt(675, 144, 'B1 · KM-201', 'ht-tag', n1('Resistencia 1')),
+        ['path', { class: 'resis', id: 'res-2', d: 'M750 126 L758 106 L766 126 L774 106 L782 126 L790 106 L798 126' }], txt(775, 144, 'B2 · KM-202', 'ht-tag', n1('Resistencia 2'))),
       burbuja('TSH-101', 655, 176, false), burbuja('LSL-301', 695, 176, false),
-      ['path', { class: 'enlace', d: 'M655 158 V150 M695 158 V150' }],
-      bomba('P-102', 860, 97, 'bomba-caliente'),
+      ['path', { class: 'enlace', 'data-n': 2, d: 'M655 158 V150 M695 158 V150' }],
+      bomba('P-102', 860, 97, 'bomba-caliente', ['Bomba de agua|caliente', 852, 132]),
       burbuja('TT-105', 900, 150, true, 18, 'derecha'),
-      valvula('XV-302', 585, 90, 'fl-agua', ['XV-302', 'llenado'], 'encima'), txt(538, 94, 'AGUA DE RED', 'ht-tag', der),
-      valvula('XV-303', 585, 140, 'fl-caliente', ['XV-303', 'vaciado'], 'debajo'), txt(538, 144, 'A DESAGÜE', 'ht-tag', der),
+      valvula('XV-302', 585, 90, 'fl-agua', ['XV-302', 'llenado'], 'encima'), txt(538, 94, 'AGUA DE RED', 'ht-tag', Object.assign({ 'data-n': 2 }, der)),
+      valvula('XV-303', 585, 140, 'fl-caliente', ['XV-303', 'vaciado'], 'debajo'), txt(538, 144, 'A DESAGÜE', 'ht-tag', Object.assign({ 'data-n': 2 }, der)),
       // --- zonas 4 y 5: tubo de residencia, FDV y su piloto ---
-      g('HT-101', ['path', { class: 'tubo', d: 'M850 240 C860 240 860 218 885 218 H935 C960 218 960 240 967 240' }], txt(880, 206, 'HT-101 · residencia')),
+      g('HT-101', ['path', { class: 'tubo', d: 'M850 240 C860 240 860 218 885 218 H935 C960 218 960 240 967 240' }], txt(880, 206, 'HT-101 · residencia', 'ht-tag', n1('Tubo de residencia'))),
       burbuja('TT-103', 985, 240),
       g('FDV-101', ['path', { class: 'valvula fl-producto', id: 's-FDV-101', d: 'M1024 230 L1035 240 L1024 250 Z M1046 230 L1035 240 L1046 250 Z M1026 222 L1035 240 L1044 222 Z' }],
-        txt(1046, 300, 'FDV-101', 'ht-tag ht-fuerte', izq), txt(1046, 316, '—', 'ht-tag ht-fuerte', { id: 't-FDV-estado', style: 'text-anchor:start' })),
+        txt(1046, 300, 'FDV-101', 'ht-tag ht-fuerte', Object.assign(n1('Válvula de desvío'), izq)), txt(1046, 316, '—', 'ht-tag ht-fuerte', { id: 't-FDV-estado', style: 'text-anchor:start' })),
       g('SV-101', ['circle', { class: 'instr', cx: 1078, cy: 262, r: 14, id: 'c-SV-101' }], txt(1078, 261, 'SV'), txt(1078, 274, '101')),
       g('FRL-101', ['rect', { class: 'manual', x: 1062, y: 190, width: 32, height: 32 }], txt(1078, 205, 'FRL'), txt(1078, 218, '101')),
-      ['path', { class: 'enlace', d: 'M1078 222 V248 M1064 262 H1046' }],
+      ['path', { class: 'enlace', 'data-n': 2, d: 'M1078 222 V248 M1064 262 H1046' }],
       g('ZS-101', ['circle', { class: 'instr', cx: 1005, cy: 300, r: 14, id: 'c-ZS-101' }], txt(1005, 299, 'ZS'), txt(1005, 312, '101')),
       g('ZS-102', ['circle', { class: 'instr', cx: 965, cy: 300, r: 14, id: 'c-ZS-102' }], txt(965, 299, 'ZS'), txt(965, 312, '102')),
-      txt(590, 16, '← DESVÍO A TK-101', 'ht-tag ht-fuerte'),
+      txt(590, 16, '← DESVÍO A TK-101', 'ht-tag ht-fuerte', n1('DESVÍO: la leche rechazada vuelve al tanque')),
       // --- salida, agua fría y limpieza ---
       burbuja('TT-104', 640, 470),
-      txt(1090, 462, 'LECHE PASTEURIZADA →', 'ht-tag ht-fuerte', der),
-      txt(20, 440, 'AGUA FRÍA Y LIMPIEZA CIP', 'ht-zona', izq), txt(20, 484, 'AGUA FRÍA →', 'ht-tag ht-fuerte', izq),
+      txt(1090, 462, 'LECHE PASTEURIZADA →', 'ht-tag ht-fuerte', Object.assign(n1('Salida de leche pasteurizada →'), der)),
+      txt(20, 440, 'AGUA FRÍA Y LIMPIEZA CIP', 'ht-zona', Object.assign({ 'data-n': 2 }, izq)), txt(20, 484, 'AGUA FRÍA →', 'ht-tag ht-fuerte', izq),
       valvula('XV-301', 230, 500, 'fl-agua', ['XV-301', 'agua fría'], 'debajo'),
-      txt(610, 562, 'A DESAGÜE ↓'),
-      txt(20, 564, 'SOLUCIÓN CIP →', 'ht-tag ht-fuerte', izq),
-      valvula('XV-401', 140, 580, 'fl-neutro', ['XV-401', 'CIP'], 'debajo'), txt(268, 584, '→ al circuito de limpieza', 'ht-tag', izq),
-      ...leyenda.leyendaSvg(660, 512),
+      txt(610, 562, 'A DESAGÜE ↓', 'ht-tag', solo2),
+      txt(20, 564, 'SOLUCIÓN CIP →', 'ht-tag ht-fuerte', Object.assign({ 'data-n': 2 }, izq)),
+      valvula('XV-401', 140, 580, 'fl-neutro', ['XV-401', 'CIP'], 'debajo'), txt(268, 584, '→ al circuito de limpieza', 'ht-tag', Object.assign({ 'data-n': 2 }, izq)),
+      ['g', solo2, ...leyenda.leyendaSvg(660, 512)],
+      // --- solo en el nivel 1: tres tarjetas de valores en palabras y una pista de lo que se verá en el nivel 2 ---
+      ['g', { id: 'n1-tarjetas', 'data-solo-n1': 1, 'aria-live': 'off' },
+        ...[['n1-temp', 348], ['n1-caudal', 394], ['n1-nivel', 440]].map(([id, y]) => ['g', { id: `${id}-g` },
+          txt(20, y, '—', 'ht-valor', { id: `${id}-linea`, style: 'text-anchor:start' }), txt(20, y + 16, '—', 'ht-tag', { id: `${id}-estado`, style: 'text-anchor:start' })]),
+        txt(640, 556, 'Hay más equipos: sensores, válvulas de llenado, limpieza y armario eléctrico.', 'ht-tag', izq),
+        txt(640, 572, 'Se irán viendo al subir al nivel 2.', 'ht-tag', izq)],
       ...armario(),
     ];
     return ['svg', { viewBox: '0 0 1220 660', role: 'group', 'aria-label': 'Esquema de la planta real HTST de pasteurización de leche. Cada equipo se puede abrir con Intro.' }, ...hijos];
@@ -286,7 +302,21 @@
       if (s.tag !== 'LT-101') objetos.push(new Etiqueta(canvas, `v-${s.tag}`, e => textoInstrumentoCorto(e, s.tag)));
       objetos.push(new Sensor(canvas, `c-${s.tag}`, s.tag));
     }
-    poner({ actualizar(e) { const t = canvas.buscar('t-FDV-estado'); if (t) t.textContent = posicionFdv(e) === 'AVANCE' ? 'AVANCE' : posicionFdv(e) === 'DESVIO' ? 'DESVÍO' : '…'; } });
+    poner({ actualizar(e) {
+      const t = canvas.buscar('t-FDV-estado'); if (!t) return;
+      const avance = posicionFdv(e) === 'AVANCE', desvio = posicionFdv(e) === 'DESVIO';
+      t.textContent = nivelPagina() === 1 ? niveles.textoFdvNivel1(e) : (avance ? 'AVANCE' : desvio ? 'DESVÍO' : '…');
+    } });
+    // Nivel 1: tarjetas de valores en palabras (temperatura al salir del tubo, caudal y nivel del tanque), con símbolo y texto de «normal / atención»
+    poner({ actualizar(e) {
+      if (nivelPagina() !== 1) return;
+      for (const c of niveles.tarjetasNivel1(e)) {
+        const l = canvas.buscar(`${c.id}-linea`), s = canvas.buscar(`${c.id}-estado`); if (!l || !s) continue;
+        const linea = `${c.titulo} ${c.valor}`, estado = `${c.simbolo} ${c.estado}`;
+        if (l.textContent !== linea) l.textContent = linea; if (s.textContent !== estado) s.textContent = estado;
+        s.classList.toggle('n1-ok', c.clase === 'ok'); s.classList.toggle('n1-atencion', c.clase === 'atencion');
+      }
+    } });
 
     // Niveles
     const nivel = (id, tope, pct) => { const el = canvas.buscar(id); const p = Math.max(0, Math.min(100, pct)); el.setAttribute('height', String(tope.max * p / 100)); el.setAttribute('y', String(tope.y0 - tope.max * p / 100)); };
@@ -301,8 +331,8 @@
       const h = estadoCalentador(e);
       nivel('nivel-HW-101', ALTO_HW, h.nivelPct);
       canvas.buscar('res-1').classList.toggle('on', h.banco1); canvas.buscar('res-2').classList.toggle('on', h.banco2);
-      canvas.buscar('v-HW-nivel').textContent = h.textoNivel;
-      const bancos = canvas.buscar('v-HW-bancos'); bancos.textContent = h.textoBancos; bancos.style.display = h.sinNivel ? 'none' : '';
+      canvas.buscar('v-HW-nivel').textContent = nivelPagina() === 1 ? `Nivel ${Math.round(h.nivelPct)} %` : h.textoNivel;
+      const bancos = canvas.buscar('v-HW-bancos'); bancos.textContent = nivelPagina() === 1 ? `${h.bancos} de 2 resistencias` : h.textoBancos; bancos.style.display = h.sinNivel ? 'none' : '';
       canvas.buscar('banner-HW').style.display = h.sinNivel ? '' : 'none'; canvas.buscar('t-banner-HW').style.display = h.sinNivel ? '' : 'none';
       canvas.buscar('g-HW-101').classList.toggle('bloqueado', h.sinNivel);
     } });
@@ -315,7 +345,7 @@
 
     // Accesibilidad: cada equipo lleva su estado en el aria-label (solo se reescribe si cambia)
     const grupos = canvas.buscarTodos('g[data-tag]').map(el => ({ el, tag: el.dataset.tag, texto: '' }));
-    poner({ actualizar(e) { for (const o of grupos) { const t = etiquetaAria(e, o.tag); if (t !== o.texto) { o.texto = t; o.el.setAttribute('aria-label', t); } } } });
+    poner({ actualizar(e) { const nivel = nivelPagina(); for (const o of grupos) { const t = etiquetaAria(e, o.tag, nivel); if (t !== o.texto) { o.texto = t; o.el.setAttribute('aria-label', t); } } } });
     return objetos;
   }
 

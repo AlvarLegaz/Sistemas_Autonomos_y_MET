@@ -191,18 +191,26 @@ test('etiqueta accesible de cada equipo: «TAG, valor, estado»', () => {
 });
 
 /* --- criterio de aceptación 1: ningún texto se solapa con otro texto ni con un símbolo (estimación sobre la especificación del esquema) --- */
-function cajasDelEsquema(peorCaso = {}) {
+// nivel 1: solo lo que se ve en ese nivel (sin data-n) y los textos con su nombre sencillo (data-t1, varias líneas separadas por «|»); en los demás, sin lo marcado data-solo-n1.
+function cajasDelEsquema(peorCaso = {}, nivel = 3) {
   const cajas = [];
   const numeros = d => (d.match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
   (function recorrer(nodo, padre) {
     if (!Array.isArray(nodo)) return;
     const a = nodo[1] && typeof nodo[1] === 'object' && !Array.isArray(nodo[1]) ? nodo[1] : {};
     const tag = nodo[0], clase = a.class || '';
+    if (nivel === 1 && a['data-n']) return;                 // oculto en el nivel 1 (también todo lo que contiene)
+    if (nivel !== 1 && a['data-solo-n1']) return;           // solo del nivel 1
     if (tag === 'text') {
-      const texto = (a.id && peorCaso[a.id]) || nodo.slice(2).filter(x => typeof x === 'string').join(''), ancho = /ht-valor/.test(clase) ? 8.0 : /ht-fuerte/.test(clase) ? 7.4 : 6.9;
-      const px = /ht-valor/.test(clase) ? 14 : 12, w = texto.length * ancho * (px / 12) * 0.95, estilo = a.style || '', x = a.x;
-      const x0 = /text-anchor:start/.test(estilo) ? x : /text-anchor:end/.test(estilo) ? x - w : x - w / 2;
-      cajas.push({ tipo: 'texto', texto, x0, x1: x0 + w, y0: a.y - px * 0.78, y1: a.y + px * 0.22, id: a.id, grupo: padre });
+      const original = (a.id && peorCaso[a.id]) || nodo.slice(2).filter(x => typeof x === 'string').join('');
+      const lineas = (nivel === 1 && a['data-t1'] ? a['data-t1'] : original).split('|');
+      const ancho = /ht-valor/.test(clase) ? 8.0 : /ht-fuerte/.test(clase) ? 7.4 : 6.9, px = /ht-valor/.test(clase) ? 14 : 12;
+      const estilo = a.style || '', xBase = nivel === 1 && a['data-x1'] !== undefined ? a['data-x1'] : a.x, yBase = nivel === 1 && a['data-y1'] !== undefined ? a['data-y1'] : a.y;
+      lineas.forEach((texto, i) => {
+        const w = texto.length * ancho * (px / 12) * 0.95, y = yBase + i * 13;
+        const x0 = /text-anchor:start/.test(estilo) ? xBase : /text-anchor:end/.test(estilo) ? xBase - w : xBase - w / 2;
+        cajas.push({ tipo: 'texto', texto, x0, x1: x0 + w, y0: y - px * 0.78, y1: y + px * 0.22, id: a.id, grupo: padre });
+      });
     } else if (tag === 'circle' && /instr/.test(clase)) cajas.push({ tipo: 'simbolo', texto: clase, x0: a.cx - a.r, x1: a.cx + a.r, y0: a.cy - a.r, y1: a.cy + a.r, grupo: padre });
     else if (tag === 'rect' && /manual/.test(clase)) cajas.push({ tipo: 'simbolo', texto: clase, x0: a.x, x1: a.x + a.width, y0: a.y, y1: a.y + a.height, grupo: padre });
     else if (tag === 'path' && /valvula|resis/.test(clase) && a.d) { const n = numeros(a.d), xs = n.filter((_, i) => i % 2 === 0), ys = n.filter((_, i) => i % 2 === 1); cajas.push({ tipo: 'simbolo', texto: clase, x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), grupo: padre }); }
@@ -271,4 +279,24 @@ test('rebosadero: el aviso derivado aparece con TK-101 desbordando, conserva su 
   assert.equal(pagina.alarmasDerivadas({ tiempoS: 140, alarmas: [], equipos: { 'TK-101': { desbordando: false } } }, memoria).length, 0);
   assert.equal(memoria.size, 0);
   assert.equal(pagina.listaAlarmas(estado(100), new Map())[0].codigo, 'R010');            // y entra en la lista y en la franja como cualquier otra
+});
+
+/* --- niveles: el nivel 1 no solapa nada con sus nombres sencillos y las tarjetas de valores (también con los valores más largos posibles) --- */
+test('esquema nivel 1: nombres sencillos y tarjetas de valores sin solapes, incluso con los textos más largos', () => {
+  const peor = { 'n1-temp-linea': 'Temperatura al salir del tubo: 100,0 °C', 'n1-caudal-linea': 'Caudal de leche: 2000 litros por hora', 'n1-nivel-linea': 'Tanque de leche: 100 % lleno',
+    'n1-temp-estado': '⚠ Atención: aún no llega a 72 °C', 'n1-caudal-estado': '⚠ Atención: no circula leche', 'n1-nivel-estado': '⚠ Atención: casi vacío',
+    't-FDV-estado': 'Deja pasar la leche', 'v-HW-nivel': 'Nivel 100 %', 'v-HW-bancos': '2 de 2 resistencias', 'v-LT-101': '100,0 %' };
+  const cajas = cajasDelEsquema(peor, 1), textos = cajas.filter(c => c.tipo === 'texto'), simbolos = cajas.filter(c => c.tipo === 'simbolo'), choques = [];
+  assert.ok(textos.some(x => x.texto === 'Tanque') && textos.some(x => x.texto === 'Tubo de residencia') && textos.some(x => x.texto === 'Válvula de desvío'), 'nombres sencillos');
+  for (let i = 0; i < textos.length; i++) {
+    for (let j = i + 1; j < textos.length; j++) {
+      const alt = ['v-HW-bancos', 't-banner-HW']; if (alt.includes(textos[i].id) && alt.includes(textos[j].id)) continue;
+      if (chocan(textos[i], textos[j])) choques.push(`«${textos[i].texto}» × «${textos[j].texto}»`);
+    }
+    for (const s of simbolos) {
+      const dentro = s.grupo && textos[i].grupo === s.grupo && s.x0 <= textos[i].x0 + 1 && s.x1 >= textos[i].x1 - 1 && s.y0 <= textos[i].y0 + 2 && s.y1 >= textos[i].y1 - 2;
+      if (!dentro && chocan(textos[i], s)) choques.push(`«${textos[i].texto}» × símbolo ${s.texto}`);
+    }
+  }
+  assert.deepEqual(choques, []);
 });

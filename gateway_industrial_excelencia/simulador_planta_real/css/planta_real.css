@@ -245,3 +245,47 @@ body[data-estado="alarma"] .barra { box-shadow: inset 0 -4px 0 var(--error); }
   .manual-fila .mando-celda { grid-column: 2 / 3; grid-row: 1 / 3; }
 }
 
+
+/* ---------- niveles de dificultad ---------- */
+/* nivel 1: solo el recorrido de la leche (lo marcado data-n="2" se oculta); fuera del nivel 1 no se ven las tarjetas de valores (data-solo-n1) */
+body[data-nivel="1"] [data-n="2"], body[data-nivel="1"] [data-n="3"], body[data-nivel="2"] [data-n="3"] { display: none; }
+body:not([data-nivel="1"]) [data-solo-n1] { display: none; }
+/* piezas de la página (no del esquema): n-min2 se ve desde el nivel 2; n-min3, solo en el 3; solo-n2, solo en el 2 */
+body[data-nivel="1"] .n-min2, body[data-nivel="1"] .n-min3, body[data-nivel="2"] .n-min3 { display: none !important; }
+body:not([data-nivel="2"]) .solo-n2 { display: none !important; }
+.pestanas [hidden] { display: none !important; }
+body[data-nivel="1"] #banda-manual { display: none; }
+
+.selector-nivel { display: inline-flex; gap: 6px; margin-left: auto; }
+.selector-nivel button { display: grid; gap: 0; text-align: left; min-height: 44px; padding: 3px 14px; border: 1px solid var(--borde); border-radius: 8px; background: var(--panel); color: var(--texto); cursor: pointer; font: inherit; }
+.selector-nivel button b { font-size: 14px; }
+.selector-nivel button span { font-size: 12px; color: var(--tenue); }
+.selector-nivel button[aria-pressed="true"] { border: 2px solid var(--acento); background: color-mix(in srgb, var(--acento) 14%, var(--panel)); }
+.selector-nivel button[aria-pressed="true"] span { color: var(--texto); }
+.selector-nivel button:disabled { cursor: not-allowed; opacity: .75; }
+.selector-nivel + #boton-planta3d { margin-left: 12px; }
+.nivel-info { margin: 0; padding: 4px 20px; font-size: 13px; color: var(--tenue); border-bottom: 1px solid var(--borde); }
+
+/* nivel 1: franja de estado en lenguaje claro (símbolo + texto, no solo color) */
+.franja-simple { display: none; align-items: center; gap: 12px; padding: 8px 20px; min-height: 52px; border-bottom: 1px solid var(--borde); border-left: 8px solid var(--apagado); background: var(--panel); font-size: 17px; font-weight: 600; }
+body[data-nivel="1"] .franja-simple { display: flex; }
+.franja-simple .simbolo { font-size: 24px; line-height: 1; width: 1.2em; text-align: center; }
+.franja-simple[data-estado="ok"] { border-left-color: var(--ok); }
+.franja-simple[data-estado="atencion"] { border-left-color: var(--caliente); background: color-mix(in srgb, var(--aviso) 20%, var(--panel)); }
+
+/* nivel 1: valores en palabras dentro del esquema y chip con el código del equipo */
+.n1-atencion { font-weight: 700; }
+.n1-ok { font-weight: 700; }
+#chip-tag { position: fixed; z-index: 10030; transform: translateX(-50%); padding: 2px 9px; border: 1px solid var(--borde); border-radius: 999px; background: var(--panel); color: var(--texto); font: 700 12px ui-monospace, Consolas, monospace; pointer-events: none; box-shadow: 0 2px 8px rgba(0, 0, 0, .35); }
+#chip-tag[hidden] { display: none; }
+
+/* nivel 2: lecturas de los instrumentos en solo lectura */
+#lecturas h2 { margin: 0 0 6px; font-size: 16px; }
+.nota-lecturas { margin: 0 0 8px; font-size: 12.5px; color: var(--tenue); }
+.tabla-lecturas { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.tabla-lecturas th, .tabla-lecturas td { padding: 6px 8px; text-align: left; border-top: 1px solid var(--borde); vertical-align: top; }
+.tabla-lecturas thead th { border-top: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--tenue); }
+.tabla-lecturas tbody th small { display: block; font-weight: 400; color: var(--tenue); font-size: 12px; }
+.tabla-lecturas td.valor { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.tabla-lecturas tr.alarma { background: color-mix(in srgb, var(--error) 12%, transparent); }
+body[data-nivel="1"] #franja-alarmas { display: none !important; }          /* el módulo de la franja cambia la clase del contenedor: por eso se oculta por su identificador */

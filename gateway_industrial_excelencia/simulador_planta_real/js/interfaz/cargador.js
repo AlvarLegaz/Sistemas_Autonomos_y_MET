@@ -18,9 +18,9 @@
     'js/visor3d_htst/tuberias.js', 'js/visor3d_htst/instrumentos.js', 'js/visor3d_htst/armario.js', 'js/visor3d_htst/cargador_modelos.js', 'js/visor3d_htst/como_funciona.js', 'js/visor3d_htst/interiores.js', 'js/visor3d_htst/escena_planta.js',
   ];
   const INTERFAZ = [    // PROGRAMADOR-INTERFAZ
-    'js/interfaz/textos_ayuda.js', 'js/interfaz/puntos_medida.js', 'js/interfaz/multimetro.js', 'js/interfaz/osciloscopio.js', 'js/interfaz/hoja_registro.js',
+    'js/interfaz/niveles.js', 'js/interfaz/textos_ayuda.js', 'js/interfaz/puntos_medida.js', 'js/interfaz/multimetro.js', 'js/interfaz/osciloscopio.js', 'js/interfaz/hoja_registro.js',
     'js/interfaz/panel_profesor.js', 'js/interfaz/grafica_htst.js', 'js/scada2d/leyenda.js', 'js/scada2d/esquema_htst.js', 'js/interfaz/visor_htst.js', 'js/interfaz/ayuda_htst.js',
-    'js/interfaz/franja_alarmas.js', 'js/interfaz/panel_manual.js',
+    'js/interfaz/franja_alarmas.js', 'js/interfaz/panel_manual.js', 'js/interfaz/panel_lecturas.js',
   ];
 
   function cargarScript(ruta) {
@@ -44,7 +44,7 @@
     await cargarLista(COMPARTIDO, faltan);
     await cargarLista(MODELO, faltan);
     await cargarLista(DISENO, faltan);
-    await cargarLista(conInterfaz ? INTERFAZ : ['js/interfaz/textos_ayuda.js', 'js/interfaz/visor_htst.js'], faltan);
+    await cargarLista(conInterfaz ? INTERFAZ : ['js/interfaz/niveles.js', 'js/interfaz/textos_ayuda.js', 'js/interfaz/visor_htst.js'], faltan);
     return { faltan };
   }
 

@@ -120,7 +120,7 @@
   function construirPanelPlanta(panel, modelo, seleccion) {
     const ayudas = modelo.ayudas || ELEMENTOS_AYUDA();
     if (!seleccion) {
-      const ids = Object.keys(sesion.escena.elementos).filter(id => !id.startsWith('TUBO_'));
+      const ids = Object.keys(sesion.escena.elementos).filter(id => !id.startsWith('TUBO_') && (!modelo.visibleEnLista || modelo.visibleEnLista(id)));
       panel.innerHTML = `<h4>${modelo.titulo}</h4><p>${modelo.resumen}</p><h4>Piezas</h4><ul class="v3d-lista">` +
         ids.map(id => `<li><button type="button" data-id="${id}">${(ayudas[sesion.escena.elementos[id].ayuda] || {}).titulo || id}</button></li>`).join('') +
         '</ul><p class="v3d-nota">Modelo ilustrativo: el manual no da las distancias entre equipos; la disposición sigue el diagrama.</p>';
@@ -155,14 +155,14 @@
   }
 
   /* ---------- etiquetas sobre el modelo ---------- */
-  function etiquetaCorta(e) { const [corta, resto] = e.nombre.split(' · '); return resto || e.nombre.length <= 14 ? corta : e.id; }
+  function etiquetaCorta(e) { if (e.corta) return e.corta; const [corta, resto] = e.nombre.split(' · '); return resto || e.nombre.length <= 14 ? corta : e.id; }
 
   function crearEtiquetas(clave, escena) {
     const contenedor = modal.querySelector('.v3d-etiquetas');
     contenedor.innerHTML = '';
     const etiquetas = {};
     const modelo = MODELOS[clave];
-    const piezas = esPanelPlanta(modelo) ? Object.keys(escena.elementos).filter(id => !(modelo.sinEtiqueta || PIEZAS_SIN_ETIQUETA)(id)).map(id => ({ id, nombre: id })) : [...modelo.captadores, ...modelo.conexiones];
+    const piezas = esPanelPlanta(modelo) ? Object.keys(escena.elementos).filter(id => !(modelo.sinEtiqueta || PIEZAS_SIN_ETIQUETA)(id)).map(id => ({ id, nombre: id, corta: modelo.nombreEtiqueta ? modelo.nombreEtiqueta(id) : undefined })) : [...modelo.captadores, ...modelo.conexiones];
     for (const e of piezas) {
       const boton = document.createElement('button');
       boton.type = 'button'; boton.className = 'v3d-etq'; boton.dataset.id = e.id;
@@ -224,7 +224,8 @@
     sesion.rayo.setFromCamera(sesion.raton, sesion.camara);
     const golpes = sesion.rayo.intersectObjects(sesion.seleccionables, false);
     const golpe = golpes.find(g => !g.object.userData.fondo) || golpes[0];
-    seleccionar(golpe ? golpe.object.userData.id : null);
+    const idGolpe = golpe ? golpe.object.userData.id : null, modeloActual = MODELOS[sesion.clave];
+    seleccionar(idGolpe && (!modeloActual.visibleEnLista || modeloActual.visibleEnLista(idGolpe)) ? idGolpe : null);     // una pieza que el nivel no muestra no se selecciona
   }
 
   /* ---------- bucle de dibujo ---------- */

@@ -4,11 +4,16 @@
   const layout = typeof require !== 'undefined' ? require('../layout.js') : PCT.htstLayout;
   const textos = typeof require !== 'undefined' ? require('./textos_ayuda.js') : PCT.htstTextosAyuda;
   const comoFunciona = typeof require !== 'undefined' ? require('../visor3d_htst/como_funciona.js') : PCT.htstComoFunciona;
+  const niveles = typeof require !== 'undefined' ? require('./niveles.js') : PCT.htstNiveles;
+  /** Nivel de la página (o de la ventana aparte): el nivel 1 reduce las etiquetas y la lista de piezas a los 7 equipos del recorrido de la leche, con nombres sencillos. */
+  const nivel = () => (niveles ? niveles.nivelActual() : 3);
 
   // Etiquetas que se ven sobre la planta (las demás piezas se eligen en la lista del panel o con un clic): así no se amontonan 40 rótulos.
   const CON_ETIQUETA = new Set(['TK-101', 'P-101', 'P-102', 'P-103', 'HX-101', 'HT-101', 'FDV-101', 'SV-101', 'HW-101', 'TT-101', 'TT-102', 'TT-103', 'TT-104', 'TT-105',
     'FT-101', 'PT-101', 'PT-102', 'LT-101', 'F-201', 'PS-001', 'VFD-101', 'QE-001', 'FRL-101']);
-  const sinEtiqueta = id => id.startsWith('TUBO_') || !CON_ETIQUETA.has(id);
+  const sinEtiqueta = id => id.startsWith('TUBO_') || !CON_ETIQUETA.has(id) || (nivel() === 1 && !niveles.visibleEnNivel(id, 1));
+  const nombreEtiqueta = id => (nivel() === 1 && niveles.nombreSencillo(id)) || id;
+  const visibleEnLista = id => nivel() !== 1 || niveles.visibleEnNivel(id, 1);
 
   const decimal = (v, c = 1) => v.toFixed(c).replace('.', ',');
 
@@ -65,20 +70,32 @@
     return ayudas;
   }
 
+  /** Fichas del nivel 1 en el formato del panel del visor: título sencillo, qué es y qué hace. */
+  function ayudasNivel1() {
+    const ayudas = {};
+    for (const tag of niveles.EQUIPOS_NIVEL_1) { const f = niveles.fichaSencilla(tag); ayudas[tag] = { titulo: f.nombre, etiqueta: `Código: ${tag}`, queEs: f.queEs, enSimulador: f.queHace }; }
+    return ayudas;
+  }
+
+  const RESUMEN = 'Pasteurizador HTST completo sobre su patín, con el armario eléctrico. Sigue el estado del SCADA y muestra las averías que el profesor provoque. Pulsa una pieza para ver qué es; las medidas y los tamaños son típicos e ilustrativos.';
+  const RESUMEN_NIVEL_1 = 'La leche va del tanque al intercambiador, espera en el tubo y la válvula de desvío decide si sale o vuelve al tanque. Pulsa una pieza para saber qué es y qué hace.';
+
   /** Registra el modelo y la escena en el visor de simulador_pct23. Devuelve false si el visor o la escena del diseñador no están cargados. */
   function registrar() {
     if (!PCT.visor3dEspecificaciones) return false;
     PCT.visor3dRutaThree = '/simulador/js/vendor/three.js';       // Three.js es el de simulador_pct23 (misma ruta en local y en el aula)
     PCT.visor3dEspecificaciones.MODELOS.HTST = {
       escena: 'htst', panel: 'planta', pesada: true, titulo: 'Planta real HTST de leche',
-      resumen: 'Pasteurizador HTST completo sobre su patín, con el armario eléctrico. Sigue el estado del SCADA y muestra las averías que el profesor provoque. Pulsa una pieza para ver qué es; las medidas y los tamaños son típicos e ilustrativos.',
-      captadores: [], conexiones: [], ayudas: ayudasConComoFunciona(), lecturas: lecturasHtst, observaciones: () => ({}), sinEtiqueta,
+      captadores: [], conexiones: [], lecturas: lecturasHtst, observaciones: () => ({}), sinEtiqueta, nombreEtiqueta, visibleEnLista,
     };
+    // Lo que depende del nivel se calcula al pedirlo (el nivel puede cambiar con el visor ya registrado)
+    Object.defineProperty(PCT.visor3dEspecificaciones.MODELOS.HTST, 'ayudas', { enumerable: true, get: () => (nivel() === 1 ? ayudasNivel1() : ayudasConComoFunciona()) });
+    Object.defineProperty(PCT.visor3dEspecificaciones.MODELOS.HTST, 'resumen', { enumerable: true, get: () => (nivel() === 1 ? RESUMEN_NIVEL_1 : RESUMEN) });
     PCT.visor3dEscenas = PCT.visor3dEscenas || {};
     if (PCT.htstEscenaPlanta) { PCT.visor3dEscenas.htst = adaptarEscena(PCT.htstEscenaPlanta); return true; }
     return false;
   }
 
-  const api = { CON_ETIQUETA, sinEtiqueta, lecturasHtst, adaptarEscena, registrar };
+  const api = { CON_ETIQUETA, sinEtiqueta, nombreEtiqueta, visibleEnLista, ayudasNivel1, lecturasHtst, adaptarEscena, registrar };
   if (typeof module !== 'undefined') module.exports = api; else PCT.htstVisor = api;
 })();

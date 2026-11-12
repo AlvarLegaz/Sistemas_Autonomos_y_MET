@@ -11,7 +11,7 @@
     return null;
   }
 
-  /** Activa las fichas sobre `svg`. contexto: { sim(), alVer3d(tag), alMedir(tag), mandoFicha(tag) → { nodo, actualizar(estado) } | null }. */
+  /** Activa las fichas sobre `svg`. contexto: { sim(), alVer3d(tag), alMedir(tag), mandoFicha(tag) → { nodo, actualizar(estado) } | null, nivel(), niveles }. */
   function iniciarAyuda(svg, contexto) {
     const ELEMENTOS = textos.construirElementos();
     const ventana = document.createElement('div');
@@ -21,10 +21,12 @@
       '<div class="ficha-botones"><button type="button" class="ficha-3d">Ver en 3D ▸</button><button type="button" class="ficha-medir">Medir ▸</button></div>';
     document.body.appendChild(ventana);
     let actual = null, temporizador = null, origen = null, mando = null;
+    const nivelActual = () => (contexto.nivel ? contexto.nivel() : 3);
+    const sencilla = tag => (nivelActual() === 1 && contexto.niveles ? contexto.niveles.fichaSencilla(tag) : null);     // nivel 1: ficha en lenguaje de alumno nuevo
     const vivo = () => {
       if (!actual || ventana.hidden) return;
       const estado = contexto.sim().estado();
-      ventana.querySelector('.ficha-vivo').textContent = textos.estadoVivo(actual, estado) || '—';
+      ventana.querySelector('.ficha-vivo').textContent = (sencilla(actual) ? contexto.niveles.estadoVivoNivel1(actual, estado) : textos.estadoVivo(actual, estado)) || '—';
       if (mando) mando.actualizar(estado);
     };
     function cerrar() {
@@ -35,11 +37,14 @@
     }
     function abrir(tag, desde) {
       const e = ELEMENTOS[tag]; if (!e) return;
+      const simple = sencilla(tag);
+      if (nivelActual() === 1 && !simple) return;           // un equipo que no está en el nivel 1 no se abre
       if (ventana.hidden) origen = desde || document.activeElement;
       actual = tag;
-      ventana.querySelector('h3').textContent = e.titulo; ventana.querySelector('.etiqueta-ficha').textContent = e.etiqueta;
-      ventana.querySelector('.ficha-que').textContent = e.queEs; ventana.querySelector('.ficha-sim').textContent = e.enSimulador || '—';
-      ventana.querySelector('.ficha-medir').hidden = puntos.puntosDeEquipo(tag).length === 0;
+      ventana.querySelector('h3').textContent = simple ? simple.nombre : e.titulo; ventana.querySelector('.etiqueta-ficha').textContent = simple ? `Código: ${tag}` : e.etiqueta;
+      ventana.querySelector('.ficha-que').textContent = simple ? simple.queEs : e.queEs; ventana.querySelector('.ficha-sim').textContent = (simple ? simple.queHace : e.enSimulador) || '—';
+      ventana.querySelector('h4').textContent = simple ? 'Qué hace' : 'En el simulador';
+      ventana.querySelector('.ficha-medir').hidden = nivelActual() < 3 || puntos.puntosDeEquipo(tag).length === 0;       // el multímetro es del nivel 3
       // En modo MANUAL, si el equipo se manda a mano, la ficha lleva su mando (con las mismas reglas que el panel).
       const cont = ventana.querySelector('.ficha-mando'); cont.replaceChildren(); mando = null;
       const estado = contexto.sim().estado();
