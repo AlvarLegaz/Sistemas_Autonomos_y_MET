@@ -77,24 +77,39 @@
   const textoOrden = (e, tag) => { const m = mandoDe(tag), o = ordenDe(e, tag); return m.tipo === 'numerico' ? `${Math.round(o)} %` : (o ? textoOn(m) : textoOff(m)); };
 
   /**
-   * Motivo por el que un mando NO se puede activar ahora (enclavamiento) o null si se puede. Solo mira las protecciones cableadas o esenciales
-   * del modo MANUAL (ver PROTECCIONES); es lo que el PLC aplica de todos modos, aquí se avisa antes de intentarlo.
+   * Causa que impide o explica un mando, distinguiendo lo que enseña el mantenimiento: { clase, etiqueta, texto } o null.
+   *   clase 'sin24v'     → falta tensión (fusible F-201 o fuente PS-001): TODAS las entradas digitales leen 0, también la seta;
+   *   clase 'paro'       → la seta ES-001 está pulsada (o el paro sigue enclavado hasta rearmar);
+   *   clase 'proteccion' → una protección cableada o esencial actúa (no es una avería: es el sistema haciendo su trabajo).
+   * Se lee del estado REAL de los equipos (F-201, PS-001, ES-001), no de las entradas digitales: sin 24 V la seta «lee» 0 aunque nadie la haya pulsado.
    */
-  function bloqueo(e, tag) {
+  function causaBloqueo(e, tag) {
     if (!e) return null;
-    if (nivelDI(e, 'ES-001') === 0 || (e.plc && e.plc.paro)) return 'Paro de emergencia (ES-001) pulsado: nada arranca hasta rearmar.';
-    if (nivelDI(e, 'PS-001') === 0) return 'Sin 24 V (fuente PS-001 o fusible F-201): las salidas del PLC no tienen tensión.';
-    if (tag === 'P-101' && nivelDI(e, 'LSL-101') === 0) return 'Tanque de balance vacío (LSL-101): P-101 se pararía por marcha en seco. Llénalo con XV-101.';
-    if ((tag === 'P-101' || tag === 'VFD-101') && eq(e, 'VFD-101').fallo) return 'Variador VFD-101 en fallo.';
-    if (tag === 'KM-201' || tag === 'KM-202') {
-      if (nivelDI(e, 'TSH-101') === 0) return 'Termostato de seguridad TSH-101 disparado: el calentador no se puede conectar.';
-      if (nivelDI(e, 'LSL-301') === 0) return 'Nivel bajo en el depósito de agua caliente (LSL-301): las resistencias no deben trabajar sin agua. Llénalo con XV-302.';
-      if (!eq(e, 'P-102').marcha) return 'Sin circulación: P-102 está parada y los bancos se cortarían. Arranca P-102 primero.';
-      if (typeof valorAI(e, 'TT-105') === 'number' && valorAI(e, 'TT-105') >= 88) return 'Agua a 88 °C o más (TT-105): protección por sobretemperatura.';
+    const f201 = eq(e, 'F-201'), ps = eq(e, 'PS-001'), es = eq(e, 'ES-001');
+    const fusible = !!f201.fundido, fuente = ps.ok === false || (ps.ok === undefined && nivelDI(e, 'PS-001') === 0);
+    if (fusible || fuente) {
+      return { clase: 'sin24v', etiqueta: fusible ? 'Sin 24 V (F-201)' : 'Sin 24 V (PS-001)',
+        texto: `${fusible ? 'el fusible F-201 está fundido' : 'la fuente PS-001 no da tensión'}: las salidas y las entradas del PLC no tienen alimentación. Mide F-201 y PS-001.` };
     }
-    if (tag === 'SV-101' && nivelDI(e, 'PSL-201') === 0) return 'Sin aire comprimido (PSL-201): la FDV queda en desvío por el muelle.';
+    const seta = es.rearmado === false || (es.rearmado === undefined && nivelDI(e, 'ES-001') === 0);
+    if (seta) return { clase: 'paro', etiqueta: 'Paro de emergencia (ES-001)', texto: 'seta pulsada: nada arranca hasta rearmar.' };
+    if (e.plc && e.plc.paro) return { clase: 'paro', etiqueta: 'Paro de emergencia enclavado', texto: 'la seta ya está liberada, pero hay que rearmar con «Rearmar» (PB-001).' };
+    const proteccion = texto => ({ clase: 'proteccion', etiqueta: 'Protegida', texto });
+    if (tag === 'P-101' && nivelDI(e, 'LSL-101') === 0) return proteccion('tanque de balance vacío (LSL-101): P-101 se para por marcha en seco. Llénalo con XV-101.');
+    if ((tag === 'P-101' || tag === 'VFD-101') && eq(e, 'VFD-101').fallo) return proteccion('variador VFD-101 en fallo.');
+    if (tag === 'KM-201' || tag === 'KM-202') {
+      if (nivelDI(e, 'TSH-101') === 0) return proteccion('termostato de seguridad TSH-101 disparado: el calentador no se puede conectar.');
+      if (nivelDI(e, 'LSL-301') === 0) return proteccion('nivel bajo en el depósito de agua caliente (LSL-301): las resistencias no deben trabajar sin agua. Llénalo con XV-302.');
+      if (!eq(e, 'P-102').marcha) return proteccion('sin circulación: P-102 está parada y los bancos se cortarían. Arranca P-102 primero.');
+      if (typeof valorAI(e, 'TT-105') === 'number' && valorAI(e, 'TT-105') >= 88) return proteccion('agua a 88 °C o más (TT-105): protección por sobretemperatura.');
+    }
+    if (tag === 'SV-101' && nivelDI(e, 'PSL-201') === 0) return proteccion('sin aire comprimido (PSL-201): la FDV queda en desvío por el muelle.');
     return null;
   }
+  const textoCausa = c => (c ? `${c.etiqueta}: ${c.texto}` : null);
+
+  /** Motivo (texto) por el que un mando NO se puede activar ahora (enclavamiento) o null si se puede. Ver causaBloqueo. */
+  function bloqueo(e, tag) { return textoCausa(causaBloqueo(e, tag)); }
 
   /** Consecuencia de ACTIVAR un mando peligroso (pide confirmación en dos pasos) o null si no lo es. */
   function peligro(e, tag) {
@@ -116,7 +131,8 @@
     if (tag === 'SV-101' && eq(e, 'FDV-101').posicion === 'MOVIENDO') return null;     // la FDV tarda ~1,5 s en moverse
     const real = realActivo(e, tag), orden = ordenDe(e, tag);
     if (real === null || real === orden) return null;
-    return `La orden (${orden ? textoOn(m) : textoOff(m)}) no se cumple: ${textoReal(e, tag)}. Es un fallo: mide las bornas de la salida y de la bobina con el multímetro.`;
+    if (causaBloqueo(e, tag)) return null;                      // una protección, el paro o la falta de 24 V lo explican: no es una avería
+    return `Posible avería: la orden (${orden ? textoOn(m) : textoOff(m)}) no se cumple (${textoReal(e, tag)}) y ninguna protección lo explica. Mide las bornas de la salida y de la bobina con el multímetro.`;
   }
 
   /** Lista de órdenes que llevan toda la planta a una parada segura (bombas y calentador apagados, FDV en desvío, válvulas cerradas, variador a 0). */
@@ -158,9 +174,11 @@
         '<button type="button" class="mando mando-aplicar">Aplicar</button></span>';
       campo = nodo.querySelector('input'); boton = nodo.querySelector('button');
       const aplicar = () => {
-        const v = Math.max(def.min, Math.min(def.max, Number(campo.value) || 0)); campo.value = String(v);
+        const n = Number(campo.value);
+        if (campo.value.trim() === '' || !Number.isFinite(n)) { campo.value = String(Math.round(ordenDe(contexto.sim().estado(), def.tag))); return; }   // entrada no numérica: se ignora
+        const v = Math.max(def.min, Math.min(def.max, n)); campo.value = String(v);
         if (boton.getAttribute('aria-disabled') === 'true') return;
-        contexto.sim().ordenes.manual(def.tag, v); registrar(`Manual: ${def.tag} → ${v} ${def.unidad}`);
+        contexto.sim().ordenes.manual(def.tag, v); if (contexto.alOrden) contexto.alOrden(); registrar(`Manual: ${def.tag} → ${v} ${def.unidad}`);
       };
       boton.addEventListener('click', aplicar);
       campo.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); aplicar(); } });
@@ -174,7 +192,7 @@
         const riesgo = nuevo ? peligro(e, def.tag) : null;
         if (riesgo && contexto.dosPasos.pulsar(def.tag) === 'armada') return;            // primer pulsado: se arma y se muestra la consecuencia
         contexto.dosPasos.cancelar();
-        contexto.sim().ordenes.manual(def.tag, nuevo ? 1 : 0);
+        contexto.sim().ordenes.manual(def.tag, nuevo ? 1 : 0); if (contexto.alOrden) contexto.alOrden();
         registrar(`Manual: ${def.tag} → ${nuevo ? textoOn(def) : textoOff(def)}`);
       });
     }
@@ -208,6 +226,7 @@
   function crearPanelManual(contenedor, contexto) {
     const dosPasos = crearDosPasos({ alCambiar: () => refrescar() });
     const ctx = Object.assign({ dosPasos }, contexto);
+    const pausada = () => !!(contexto.enMarcha && !contexto.enMarcha());
     contenedor.innerHTML = '<p class="manual-aviso"><b>Modo MANUAL:</b> el PLC no automatiza nada. Tú mandas cada actuador; cada fila muestra la <b>orden</b> que pides y el <b>estado real</b> del equipo, y por qué un mando está bloqueado cuando lo está.</p>' +
       '<div class="manual-acciones"><button type="button" id="manual-auto">Volver a AUTO (recirculación de agua)</button><button type="button" id="manual-parada">Todo a parada segura</button></div>';
     const filas = [];
@@ -236,6 +255,7 @@
     contenedor.querySelector('#manual-auto').addEventListener('click', () => { if (contexto.alVolverAAuto) contexto.alVolverAAuto(); });
     contenedor.querySelector('#manual-parada').addEventListener('click', () => {
       for (const [tag, valor] of PARADA_SEGURA) contexto.sim().ordenes.manual(tag, valor);
+      if (contexto.alOrden) contexto.alOrden();
       if (contexto.registro) contexto.registro.anotar('accion', 'Manual: todo a parada segura (bombas, calentador, FDV en desvío, válvulas cerradas, variador a 0)');
     });
 
@@ -246,11 +266,11 @@
       for (const f of filas) {
         const r = f.mando.actualizar(e), orden = ordenDe(e, f.def.tag);
         f.real.textContent = textoReal(e, f.def.tag); f.orden.textContent = textoOrden(e, f.def.tag);
-        const disc = discrepancia(e, f.def.tag);
+        const disc = pausada() ? null : discrepancia(e, f.def.tag);          // con la simulación parada el equipo no ha tenido tiempo de seguir la orden
         let texto = '', clase = '';
         if (r.armada && r.riesgo) { texto = `⚠ ${r.riesgo} Pulsa «Confirmar» en 5 s para seguir.`; clase = 'peligro'; }
-        else if (r.bloqueo && (orden === false || orden === 0)) { texto = `🔒 Bloqueado: ${r.bloqueo}`; clase = 'bloqueo'; }
-        else if (r.bloqueo && orden) { texto = `🔒 Protección activa: ${r.bloqueo}`; clase = 'bloqueo'; }
+        else if (r.bloqueo && (orden === false || orden === 0)) { texto = `🔒 Bloqueado · ${r.bloqueo}`; clase = 'bloqueo'; }
+        else if (r.bloqueo && orden) { texto = `🛡 ${r.bloqueo}`; clase = 'bloqueo'; }
         else if (disc) { texto = `⚠ ${disc}`; clase = 'discrepancia'; }
         f.motivo.hidden = !texto; f.motivo.className = `motivo ${clase}`.trim(); if (f.motivo.textContent !== texto) f.motivo.textContent = texto;
         f.fila.classList.toggle('bloqueada', !!r.bloqueo && !orden);
@@ -270,14 +290,14 @@
       caja.innerHTML = `<h4>Mando manual</h4><p class="motivo" id="${mando.idMotivo}" hidden></p>`;
       caja.insertBefore(mando.nodo, caja.querySelector('.motivo'));
       return { nodo: caja, actualizar(e) {
-        const r = mando.actualizar(e), disc = discrepancia(e, tag), orden = ordenDe(e, tag), m = caja.querySelector('.motivo');
-        const texto = r.armada && r.riesgo ? `⚠ ${r.riesgo} Pulsa «Confirmar» en 5 s.` : r.bloqueo ? `🔒 ${orden ? 'Protección activa' : 'Bloqueado'}: ${r.bloqueo}` : disc ? `⚠ ${disc}` : '';
+        const r = mando.actualizar(e), disc = pausada() ? null : discrepancia(e, tag), orden = ordenDe(e, tag), m = caja.querySelector('.motivo');
+        const texto = r.armada && r.riesgo ? `⚠ ${r.riesgo} Pulsa «Confirmar» en 5 s.` : r.bloqueo ? (orden ? `🛡 ${r.bloqueo}` : `🔒 Bloqueado · ${r.bloqueo}`) : disc ? `⚠ ${disc}` : '';
         m.hidden = !texto; if (m.textContent !== texto) m.textContent = texto;
       } };
     }
     return { actualizar, crearMandoFicha };
   }
 
-  const api = { ZONAS, MANDOS, PROTECCIONES, PARADA_SEGURA, mandoDe, ordenDe, realActivo, textoReal, textoOrden, bloqueo, peligro, discrepancia, crearDosPasos, crearMando, crearPanelManual };
+  const api = { ZONAS, MANDOS, PROTECCIONES, PARADA_SEGURA, mandoDe, ordenDe, realActivo, textoReal, textoOrden, causaBloqueo, bloqueo, peligro, discrepancia, crearDosPasos, crearMando, crearPanelManual };
   if (typeof module !== 'undefined') module.exports = api; else PCT.htstPanelManual = api;
 })();

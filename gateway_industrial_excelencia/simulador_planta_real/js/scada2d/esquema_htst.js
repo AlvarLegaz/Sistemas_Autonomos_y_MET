@@ -186,7 +186,8 @@
       // --- zona 1: entrada (tanque de balance) ---
       ['rect', { class: 'caja', x: 90, y: 120, width: 80, height: 178, rx: 4 }],
       ['rect', { class: 'liquido producto', id: 'nivel-TK-101', x: 92, y: 250, width: 76, height: 46 }],
-      g('TK-101', txt(130, 142, 'TK-101', 'ht-tag ht-fuerte'), txt(130, 214, '—', 'ht-valor', { id: 'v-LT-101' })),
+      g('TK-101', txt(130, 142, 'TK-101', 'ht-tag ht-fuerte'), txt(130, 214, '—', 'ht-valor', { id: 'v-LT-101' }),
+        ['rect', { class: 'banner-alarma', id: 'banner-TK', x: 94, y: 158, width: 72, height: 18, rx: 3 }], txt(130, 171, 'REBOSA', 'ht-tag ht-banner', { id: 't-banner-TK' })),
       g('LSH-101', ['circle', { class: 'instr', cx: 195, cy: 150, r: 12, id: 'c-LSH-101' }], txt(195, 154, 'H')),
       g('LT-101', ['rect', { class: 'manual', x: 183, y: 188, width: 24, height: 24, id: 'c-LT-101' }], txt(195, 204, 'LT')),
       g('LSL-101', ['circle', { class: 'instr', cx: 195, cy: 270, r: 12, id: 'c-LSL-101' }], txt(195, 274, 'L')),
@@ -289,7 +290,11 @@
 
     // Niveles
     const nivel = (id, tope, pct) => { const el = canvas.buscar(id); const p = Math.max(0, Math.min(100, pct)); el.setAttribute('height', String(tope.max * p / 100)); el.setAttribute('y', String(tope.y0 - tope.max * p / 100)); };
-    poner({ actualizar(e) { nivel('nivel-TK-101', ALTO_TK, (e.tanque && e.tanque.nivelPct) || 0); } });
+    poner({ actualizar(e) {
+      nivel('nivel-TK-101', ALTO_TK, (e.tanque && e.tanque.nivelPct) || 0);
+      const rebosa = !!(e.equipos && e.equipos['TK-101'] && e.equipos['TK-101'].desbordando);       // aviso de rebosadero: XV-101 abierta con el tanque lleno
+      canvas.buscar('banner-TK').style.display = rebosa ? '' : 'none'; canvas.buscar('t-banner-TK').style.display = rebosa ? '' : 'none';
+    } });
 
     // Calentador HW-101: depósito con nivel, resistencias R1/R2 y aviso de nivel bajo
     poner({ actualizar(e) {

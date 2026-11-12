@@ -3,6 +3,7 @@
 (function () {
   const layout = typeof require !== 'undefined' ? require('../layout.js') : PCT.htstLayout;
   const textos = typeof require !== 'undefined' ? require('./textos_ayuda.js') : PCT.htstTextosAyuda;
+  const comoFunciona = typeof require !== 'undefined' ? require('../visor3d_htst/como_funciona.js') : PCT.htstComoFunciona;
 
   // Etiquetas que se ven sobre la planta (las demás piezas se eligen en la lista del panel o con un clic): así no se amontonan 40 rótulos.
   const CON_ETIQUETA = new Set(['TK-101', 'P-101', 'P-102', 'P-103', 'HX-101', 'HT-101', 'FDV-101', 'SV-101', 'HW-101', 'TT-101', 'TT-102', 'TT-103', 'TT-104', 'TT-105',
@@ -57,6 +58,13 @@
     };
   }
 
+  /** Fichas de ayuda del panel con el texto «Cómo funciona» añadido a los equipos que se abren por dentro (al pulsarlos en el 3D). */
+  function ayudasConComoFunciona() {
+    const ayudas = textos.construirElementos();
+    if (comoFunciona) for (const tag of comoFunciona.TAGS_CON_INTERIOR) if (ayudas[tag]) ayudas[tag].queEs = `${ayudas[tag].queEs} Cómo funciona (se abre por dentro al pulsarlo): ${comoFunciona.textoComoFunciona(tag)}`;
+    return ayudas;
+  }
+
   /** Registra el modelo y la escena en el visor de simulador_pct23. Devuelve false si el visor o la escena del diseñador no están cargados. */
   function registrar() {
     if (!PCT.visor3dEspecificaciones) return false;
@@ -64,7 +72,7 @@
     PCT.visor3dEspecificaciones.MODELOS.HTST = {
       escena: 'htst', panel: 'planta', pesada: true, titulo: 'Planta real HTST de leche',
       resumen: 'Pasteurizador HTST completo sobre su patín, con el armario eléctrico. Sigue el estado del SCADA y muestra las averías que el profesor provoque. Pulsa una pieza para ver qué es; las medidas y los tamaños son típicos e ilustrativos.',
-      captadores: [], conexiones: [], ayudas: textos.construirElementos(), lecturas: lecturasHtst, observaciones: () => ({}), sinEtiqueta,
+      captadores: [], conexiones: [], ayudas: ayudasConComoFunciona(), lecturas: lecturasHtst, observaciones: () => ({}), sinEtiqueta,
     };
     PCT.visor3dEscenas = PCT.visor3dEscenas || {};
     if (PCT.htstEscenaPlanta) { PCT.visor3dEscenas.htst = adaptarEscena(PCT.htstEscenaPlanta); return true; }

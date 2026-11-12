@@ -79,7 +79,7 @@
       e.add(kit.toro(5.6, 0.7), 'inoxMate', [0, 22, 0], [PI / 2, 0, 0]);          // abrazadera tri-clamp
       e.add(kit.cil(4, 2, 12), 'inoxMate', [0, 11, 0]);
       const matTapa = kit.matDinamico(0xc3cbd3);
-      kit.malla(kit.cono(5, 3, 3, 14), matTapa, g, 'FLT-101', [0, 24, 0]);
+      kit.malla(kit.cono(5, 3, 3, 14), matTapa, g, 'FLT-101', [0, 24, 0]).userData.clave = 'inox';
       e.construir(g, 'FLT-101');
       base.registrar('FLT-101', g, [14, 28, 26], 34);
       let oscuro = false;
@@ -144,7 +144,7 @@
       const total = PLACAS.regeneracion + PLACAS.calentamiento + PLACAS.enfriamiento;
       const matPlaca = kit.matDinamico(0xffffff);
       const placas = new THREE.InstancedMesh(kit.registrar(kit.caja(0.55, 62, 50)), matPlaca, total);
-      placas.userData.id = 'HX-101'; placas.frustumCulled = false;
+      placas.userData.id = 'HX-101'; placas.userData.clave = 'instanciada'; placas.frustumCulled = false;
       const m = new THREE.Matrix4(), color = new THREE.Color();
       const rangos = { regeneracion: [0, PLACAS.regeneracion], calentamiento: [PLACAS.regeneracion, PLACAS.regeneracion + PLACAS.calentamiento], enfriamiento: [PLACAS.regeneracion + PLACAS.calentamiento, total] };
       for (const paquete of Object.keys(rangos)) pos[paquete].forEach((x, i) => { m.setPosition(x, 41, 0); placas.setMatrixAt(rangos[paquete][0] + i, m); });
@@ -278,7 +278,7 @@
       lamparaNivel.visible = false;
       const matBanco1 = kit.matLed(0x555555), matBanco2 = kit.matLed(0x555555);
       kit.malla(kit.esfera(1.1, 8), matBanco1, g, 'HW-101', [VX - 3.8, 67.4, VZ + 0.6]); kit.malla(kit.esfera(1.1, 8), matBanco2, g, 'HW-101', [VX + 3.8, 67.4, VZ + 0.6]);   // pilotos B1 y B2 sobre el visor
-      const matJacket = kit.matDinamico(0xd9dcde); const camisa = kit.malla(kit.cil(17.2, 8, 22), matJacket, g, 'HW-101', [0, 56, 0]);
+      const matJacket = kit.matDinamico(0xd9dcde); const camisa = kit.malla(kit.cil(17.2, 8, 22), matJacket, g, 'HW-101', [0, 56, 0]); camisa.userData.clave = 'gris';
       base.registrar('HW-101', g, [40, 78, 40], 84);
       let u1 = -1, u2 = -1, u3 = -1, u4 = -1, u5 = -1, u6 = null;
       base.alActualizar(estado => {

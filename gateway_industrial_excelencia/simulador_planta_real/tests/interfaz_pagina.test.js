@@ -260,3 +260,15 @@ test('esquema: tampoco se solapa nada con las lecturas más largas posibles (200
     assert.deepEqual(choques, []);
   }
 });
+
+test('rebosadero: el aviso derivado aparece con TK-101 desbordando, conserva su hora y se retira al cerrar XV-101', () => {
+  const memoria = new Map();
+  const estado = tiempoS => ({ tiempoS, alarmas: [], equipos: { 'TK-101': { desbordando: true } } });
+  const a = pagina.alarmasDerivadas(estado(100), memoria);
+  assert.equal(a.length, 1);
+  assert.equal(a[0].codigo, 'R010'); assert.equal(a[0].nivel, 'aviso'); assert.equal(a[0].desdeS, 100);
+  assert.equal(pagina.alarmasDerivadas(estado(130), memoria)[0].desdeS, 100);              // la hora de inicio no cambia en cada refresco
+  assert.equal(pagina.alarmasDerivadas({ tiempoS: 140, alarmas: [], equipos: { 'TK-101': { desbordando: false } } }, memoria).length, 0);
+  assert.equal(memoria.size, 0);
+  assert.equal(pagina.listaAlarmas(estado(100), new Map())[0].codigo, 'R010');            // y entra en la lista y en la franja como cualquier otra
+});

@@ -55,9 +55,27 @@
   function descripcionModo(modo) { const m = MODOS_INFO()[modo]; return m ? `${m.descripcion} El PLC automatiza: ${m.automatiza}` : ''; }
 
   /** Alarmas ordenadas: la más grave primero y, a igual gravedad, la más antigua. Cada una: { clave, texto, desdeS, nivel }. */
-  function listaAlarmas(estado) {
+  /**
+   * Avisos que el PLC no genera pero que salen del estado de la planta (hoy, el rebosadero del tanque de balance). `memoria` guarda desde cuándo está activo cada uno
+   * (Map clave → segundos) para que su hora no cambie en cada refresco.
+   */
+  function alarmasDerivadas(estado, memoria = new Map()) {
+    const lista = [];
+    const tk = estado && estado.equipos && estado.equipos['TK-101'];
+    const activas = new Set();
+    if (tk && tk.desbordando) {
+      activas.add('R010');
+      if (!memoria.has('R010')) memoria.set('R010', (estado && estado.tiempoS) || 0);
+      lista.push({ codigo: 'R010', tag: 'TK-101', texto: 'Rebosando: el tanque de balance está lleno con XV-101 abierta. Cierra XV-101.', nivel: 'aviso', desdeS: memoria.get('R010') });
+    }
+    for (const clave of [...memoria.keys()]) if (!activas.has(clave)) memoria.delete(clave);
+    return lista;
+  }
+
+  function listaAlarmas(estado, memoria) {
     const f = franja || (typeof window !== 'undefined' && window.PCT && PCT.htstFranjaAlarmas);
-    return f ? f.ordenarAlarmas(estado && estado.alarmas) : ((estado && estado.alarmas) || []).map(a => ({ clave: `${a.codigo}:${a.tag}`, texto: `${a.codigo} · ${a.tag} · ${a.texto}`, desdeS: a.desdeS, nivel: a.nivel }));
+    const todas = ((estado && estado.alarmas) || []).concat(alarmasDerivadas(estado, memoria));
+    return f ? f.ordenarAlarmas(todas) : todas.map(a => ({ clave: `${a.codigo}:${a.tag}`, texto: `${a.codigo} · ${a.tag} · ${a.texto}`, desdeS: a.desdeS, nivel: a.nivel }));
   }
 
   /* ---------- parte con DOM ---------- */
@@ -108,7 +126,9 @@
         <div id="franja-alarmas" role="region" aria-label="Alarmas"></div>
         <p class="banda-manual" id="banda-manual" hidden role="status"></p>
       </div>
-      <div class="cuerpo"><main class="escena"><div class="lienzo" id="esquema"></div><div id="leyenda"></div>
+      <div class="cuerpo"><main class="escena"><div class="barra-esquema"><div id="leyenda"></div>
+            <div class="zoom-esquema" role="group" aria-label="Tamaño del esquema"><button type="button" data-z="-" aria-label="Reducir el esquema">A−</button><button type="button" data-z="legible" aria-pressed="false">Legible</button><button type="button" data-z="ajustar" aria-pressed="false">Ver todo</button><button type="button" data-z="+" aria-label="Ampliar el esquema">A+</button></div></div>
+          <div class="lienzo" id="esquema"></div>
           <p class="pie-sim">Pulsa (o tabula y pulsa Intro) cualquier equipo del esquema para ver su ficha. Valores numéricos típicos e ilustrativos.</p></main>
         <aside class="lateral" aria-label="Alarmas, mandos manuales, gráficas, instrumentos y hojas">
           <div class="pestanas" role="tablist" aria-label="Paneles"><button type="button" role="tab" id="t-alarmas" aria-controls="p-alarmas" data-p="p-alarmas" aria-selected="true" tabindex="0">Alarmas</button>
@@ -138,12 +158,35 @@
     const objetos = PCT.htstEsquema.crearObjetos(canvas);
     PCT.htstLeyenda.crearLeyenda($('leyenda'));
 
+    // Tamaño del esquema. «Legible» (por defecto): ocupa el ancho del marco pero nunca baja de 1160 px (escala ≥ 0,95: el texto de 12 unidades mide ≥ 11 px y los
+    // valores de 14, ≥ 13 px); si no cabe se desplaza dentro del marco (la página nunca tiene scroll horizontal). «Ver todo»: se ajusta al marco (texto pequeño).
+    // A− y A+ fijan un ancho propio y lo cambian de 15 en 15 %.
+    const ANCHO_LEGIBLE = 1160;
+    let tamano = { modo: 'legible', ancho: 0 };
+    try { const g = JSON.parse(localStorage.getItem('htst-tamano-esquema') || 'null'); if (g && ['legible', 'ajustar', 'fijo'].includes(g.modo)) tamano = { modo: g.modo, ancho: Number(g.ancho) || 0 }; } catch (error) { /* sin almacenamiento: tamaño legible */ }
+    if (tamano.modo === 'fijo' && !(tamano.ancho >= 500)) tamano = { modo: 'legible', ancho: 0 };
+    function aplicarTamano() {
+      const s = canvas.svg.style;
+      if (tamano.modo === 'fijo') { s.width = `${tamano.ancho}px`; s.minWidth = '0'; }
+      else { s.width = '100%'; s.minWidth = tamano.modo === 'legible' ? `${ANCHO_LEGIBLE}px` : '0'; }
+      for (const m of ['legible', 'ajustar']) document.querySelector(`.zoom-esquema [data-z="${m}"]`).setAttribute('aria-pressed', String(tamano.modo === m));
+      try { localStorage.setItem('htst-tamano-esquema', JSON.stringify(tamano)); } catch (error) { /* no pasa nada */ }
+    }
+    document.querySelector('.zoom-esquema').addEventListener('click', ev => {
+      const b = ev.target.closest('button'); if (!b) return;
+      if (b.dataset.z === 'legible') tamano = { modo: 'legible', ancho: 0 };
+      else if (b.dataset.z === 'ajustar') tamano = { modo: 'ajustar', ancho: 0 };
+      else { const actual = canvas.svg.getBoundingClientRect().width; tamano = { modo: 'fijo', ancho: Math.round(Math.max(500, Math.min(3200, b.dataset.z === '+' ? actual * 1.15 : actual / 1.15))) }; }
+      aplicarTamano();
+    });
+    aplicarTamano();
+
     // Franja de alarmas y panel MANUAL
     const barraAlarmas = PCT.htstFranjaAlarmas.crearFranja($('franja-alarmas'), {
       alVerLista: () => { seleccionarPestana('p-alarmas'); $('p-alarmas').scrollIntoView({ block: 'nearest' }); },
       alReconocer: claves => registro.anotar('alarma', `Alarmas reconocidas: ${claves.join(', ')}`),
     });
-    const panelManual = PCT.htstPanelManual.crearPanelManual($('p-manual'), { sim: () => sim, registro, alVolverAAuto: () => ponerModo('RECIRCULACION_AGUA') });
+    const panelManual = PCT.htstPanelManual.crearPanelManual($('p-manual'), { sim: () => sim, registro, alVolverAAuto: () => ponerModo('RECIRCULACION_AGUA'), alOrden: () => aplicarAhora(), enMarcha: () => corriendo });
     const ficha = PCT.htstAyuda.iniciarAyuda(canvas.svg, { sim: () => sim, alVer3d: tag => PCT.visor3d.abrirEnVentana('HTST', () => sim.estado(), tag), alMedir: tag => irAMedir(tag), mandoFicha: tag => panelManual.crearMandoFicha(tag) });
 
     // Instrumentos, hojas, gráficas, profesor
@@ -181,7 +224,10 @@
     // Mando
     let corriendo = false, velocidad = 1, modoAnterior = null;
     const actualizarBotones = () => { $('sim-play').disabled = corriendo; $('sim-pause').disabled = !corriendo; };
-    function ponerModo(modo) { sim.ordenes.modo(modo); $('sim-modo').value = modo; registro.anotar('accion', `Modo ${nombreModo(modo)}`); refrescar(); }
+    // El PLC solo aplica las órdenes dentro de un paso de la simulación. Con la simulación parada o en pausa se da dos pasos mínimos (0,2 s) para que el modo y
+    // las órdenes manuales se reflejen al instante (banda, pestaña Manual, mandos, estado real); los niveles y las temperaturas solo cambian al correr el reloj.
+    function aplicarAhora() { if (!corriendo) sim.paso(0.2); }      // dos ticks: el PLC aplica la orden en el primero y el equipo la sigue en el segundo
+    function ponerModo(modo) { sim.ordenes.modo(modo); aplicarAhora(); $('sim-modo').value = modo; registro.anotar('accion', `Modo ${nombreModo(modo)}`); refrescar(); }
     $('sim-play').addEventListener('click', () => { if (sim.estado().modo === 'PARADA') { sim.ordenes.arrancar(); } corriendo = true; actualizarBotones(); registro.anotar('accion', 'Iniciar la simulación'); refrescar(); });
     $('sim-pause').addEventListener('click', () => { corriendo = false; actualizarBotones(); registro.anotar('accion', 'Pausar la simulación'); refrescar(); });
     $('sim-reset').addEventListener('click', async () => {
@@ -190,7 +236,7 @@
       if (!si) return;
       sim.reiniciar(); historial.limpiar(); corriendo = false; actualizarBotones(); $('sim-modo').value = 'PARADA'; registro.anotar('accion', 'Reiniciar la planta'); refrescar();
     });
-    $('sim-modo').addEventListener('change', () => { sim.ordenes.modo($('sim-modo').value); registro.anotar('accion', `Modo ${nombreModo($('sim-modo').value)}`); refrescar(); });
+    $('sim-modo').addEventListener('change', () => { sim.ordenes.modo($('sim-modo').value); aplicarAhora(); registro.anotar('accion', `Modo ${nombreModo($('sim-modo').value)}`); refrescar(); });
     $('sim-consigna').addEventListener('change', () => { sim.ordenes.consignaTemperaturaC(Number($('sim-consigna').value)); registro.anotar('accion', `Consigna de TT-103: ${$('sim-consigna').value} °C`); });
     // Seta ES-001: el modelo real la mueve con paroEmergencia(true/false); PB-001 es el pulsador local de rearme del PLC. (La demostración solo conoce pulsador.)
     $('sim-es').addEventListener('click', () => { if (sim.ordenes.paroEmergencia) sim.ordenes.paroEmergencia(true); else sim.ordenes.pulsador('ES-001'); registro.anotar('accion', 'Se pulsa el paro de emergencia ES-001'); refrescar(); });
@@ -209,6 +255,7 @@
 
     // Bucle
     let alarmasVistas = new Set(), firmaLista = '', ultimoChips = {};
+    const memoriaDerivadas = new Map();
     function pintarChips(e) {
       const cont = $('chips');
       for (const c of datosChips(e)) {
@@ -231,7 +278,7 @@
       if (document.activeElement !== sel && sel.value !== e.modo) sel.value = e.modo;
       const info = descripcionModo(e.modo); if ($('modo-info').textContent !== info) $('modo-info').textContent = info;
       const manual = e.modo === 'MANUAL', banda = $('banda-manual');
-      const textoBanda = manual ? `⚠ MODO MANUAL: el PLC no automatiza. Tú mandas cada actuador; solo siguen las protecciones cableadas.${corriendo ? '' : ' La simulación está en pausa: pulsa Iniciar para que se cumplan tus órdenes.'}` : '';
+      const textoBanda = manual ? `⚠ MODO MANUAL: el PLC no automatiza. Tú mandas cada actuador; solo siguen las protecciones cableadas.${corriendo ? '' : ' La simulación está parada: tus órdenes ya están dadas; pulsa Iniciar para que pase el tiempo (niveles, temperaturas).'}` : '';
       banda.hidden = !manual; if (banda.textContent !== textoBanda) banda.textContent = textoBanda;
       const tabManual = $('t-manual');
       tabManual.setAttribute('aria-disabled', String(!manual)); tabManual.title = manual ? '' : 'Solo en modo MANUAL';
@@ -241,8 +288,8 @@
       if (manual) panelManual.actualizar(e);
 
       // alarmas: franja siempre visible y lista lateral (solo se reescribe si cambia el conjunto)
-      barraAlarmas.actualizar(e.alarmas);
-      const alarmas = listaAlarmas(e), reconocidas = barraAlarmas.reconocidas();
+      barraAlarmas.actualizar((e.alarmas || []).concat(alarmasDerivadas(e, memoriaDerivadas)));
+      const alarmas = listaAlarmas(e, memoriaDerivadas), reconocidas = barraAlarmas.reconocidas();
       const firma = alarmas.map(a => `${a.clave}${reconocidas.has(a.clave) ? '*' : ''}`).join('|');
       if (firma !== firmaLista) {
         firmaLista = firma;
@@ -268,7 +315,7 @@
     PCT.htstApp = { estadoActual: () => sim.estado(), sim, registro, enDemostracion, ponerModo, seleccionarPestana };
   }
 
-  const api = { localizarSimulacion, resumenEstado, datosChips, descripcionModo, listaAlarmas, formatoReloj, nombresModo, nombreModo, iniciar };
+  const api = { localizarSimulacion, resumenEstado, datosChips, descripcionModo, listaAlarmas, alarmasDerivadas, formatoReloj, nombresModo, nombreModo, iniciar };
   // Fuera de PCT: modulos.js (de simulador_pct23) hace `var PCT = {}` al cargarse y borraría lo que hubiera antes.
   if (typeof module !== 'undefined') module.exports = api;
   else { window.HTST_PAGINA = api; if (document.getElementById('app')) iniciar().catch(error => { console.error(error); document.getElementById('app').innerHTML = `<p class="aviso-planta">No se pudo iniciar la planta: ${escapar(error.message || error)}</p>`; }); }

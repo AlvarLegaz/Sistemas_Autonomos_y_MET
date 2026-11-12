@@ -26,8 +26,10 @@
     const lista = Array.isArray(alarmas) && alarmas.length && alarmas[0].clave ? alarmas : ordenarAlarmas(alarmas);
     const reales = lista.filter(a => a.nivel !== 'estado');
     const principal = reales[0] || lista[0] || null;
+    const porNivel = { critica: 0, alarma: 0, aviso: 0 };
+    for (const a of reales) if (porNivel[a.nivel] !== undefined) porNivel[a.nivel] += 1;
     return {
-      nivel: principal ? principal.nivel : 'ok', contador: reales.length, principal,
+      nivel: principal ? principal.nivel : 'ok', contador: reales.length, principal, resto: reales.slice(1), porNivel,
       sinReconocer: reales.some(a => !reconocidas.has(a.clave)),
       texto: !principal ? 'Sin alarmas' : reales.length > 1 ? `${principal.texto}  (y ${reales.length - 1} más)` : principal.texto,
       anuncio: !principal ? '' : `${NIVELES[principal.nivel].nombre}: ${principal.texto}`,
@@ -43,16 +45,23 @@
   function crearFranja(contenedor, opciones = {}) {
     contenedor.className = 'franja'; contenedor.setAttribute('data-nivel', 'ok');
     contenedor.innerHTML = '<span class="simbolo" aria-hidden="true">✔</span><span class="contador"></span><span class="texto"></span><span class="hora"></span>' +
-      '<button type="button" class="franja-reconocer">Reconocer</button><button type="button" class="franja-lista">Ver alarmas</button>';
+      '<button type="button" class="franja-mas" aria-expanded="false" hidden></button><button type="button" class="franja-reconocer">Reconocer</button><button type="button" class="franja-lista">Ver alarmas</button>';
+    // Desplegable con el resto de alarmas (la más grave sigue en la franja): así 16 alarmas no se convierten en un «y 15 más» inservible.
+    const desplegable = document.createElement('ul'); desplegable.className = 'franja-desplegable'; desplegable.hidden = true; desplegable.setAttribute('aria-label', 'Resto de alarmas activas');
     // Un solo anuncio para lectores de pantalla, fuera del flujo visual; solo cambia cuando aparece una alarma nueva.
     const anuncio = document.createElement('div'); anuncio.className = 'solo-lectores'; anuncio.setAttribute('aria-live', 'polite'); anuncio.setAttribute('role', 'status');
     const anuncioCritico = document.createElement('div'); anuncioCritico.className = 'solo-lectores'; anuncioCritico.setAttribute('role', 'alert');
-    contenedor.append(anuncio, anuncioCritico);
+    contenedor.append(anuncio, anuncioCritico, desplegable);
     const q = s => contenedor.querySelector(s);
     const botonRec = q('.franja-reconocer');
     let reconocidas = new Set(), vistas = new Set(), actual = [], firma = '';
     botonRec.addEventListener('click', () => { reconocidas = new Set(actual.filter(a => a.nivel !== 'estado').map(a => a.clave)); if (opciones.alReconocer) opciones.alReconocer([...reconocidas]); pintar(); });
     q('.franja-lista').addEventListener('click', () => { if (opciones.alVerLista) opciones.alVerLista(); });
+    const botonMas = q('.franja-mas');
+    const cerrarDesplegable = () => { desplegable.hidden = true; botonMas.setAttribute('aria-expanded', 'false'); };
+    botonMas.addEventListener('click', () => { const abrir = desplegable.hidden; desplegable.hidden = !abrir; botonMas.setAttribute('aria-expanded', String(abrir)); });
+    contenedor.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !desplegable.hidden) { ev.stopPropagation(); cerrarDesplegable(); botonMas.focus(); } });
+    document.addEventListener('click', ev => { if (!desplegable.hidden && !contenedor.contains(ev.target)) cerrarDesplegable(); });
 
     function pintar() {
       const r = resumenFranja(actual, reconocidas);
@@ -60,7 +69,13 @@
       contenedor.classList.toggle('sin-reconocer', r.sinReconocer);
       q('.simbolo').textContent = r.principal ? r.principal.simbolo : '✔';
       q('.contador').textContent = r.contador ? `${r.contador} ${r.contador === 1 ? 'ALARMA' : 'ALARMAS'}` : 'SIN ALARMAS';
-      q('.texto').textContent = r.principal ? r.texto : 'La planta funciona sin alarmas.';
+      q('.texto').textContent = r.principal ? r.principal.texto : 'La planta funciona sin alarmas.';
+      const resto = r.resto || [];
+      botonMas.hidden = resto.length === 0;
+      botonMas.textContent = `+${resto.length} más ▾`;
+      botonMas.title = `▲ ${r.porNivel.critica} críticas · ◆ ${r.porNivel.alarma} alarmas · ● ${r.porNivel.aviso} avisos`;
+      desplegable.innerHTML = resto.map(a => `<li class="nivel-${a.nivel}"><span class="simbolo" aria-hidden="true">${a.simbolo}</span><span class="texto-alarma">${escapar(a.texto)}</span><span class="hora">desde ${a.hora}</span></li>`).join('');
+      if (!resto.length) cerrarDesplegable();
       q('.hora').textContent = r.principal ? `desde ${r.principal.hora}` : '';
       botonRec.hidden = !r.sinReconocer; botonRec.disabled = !r.sinReconocer;
     }

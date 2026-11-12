@@ -7,6 +7,7 @@
   const modulos = () => (typeof require !== 'undefined'
     ? [require('./equipos_proceso.js'), require('./tuberias.js'), require('./instrumentos.js'), require('./armario.js')]
     : [PCT.htstEquiposProceso, PCT.htstTuberias, PCT.htstInstrumentos3d, PCT.htstArmario]);
+  const INTERIORES = typeof require !== 'undefined' ? require('./interiores.js') : PCT.htstInteriores;
   const { SKID } = layout;
 
   function crearEscena(THREE) {
@@ -39,15 +40,21 @@
     const elementos = {};
     for (const parte of partes) { raiz.add(parte.grupo); Object.assign(elementos, parte.elementos); }
     raiz.updateMatrixWorld(true);
+    // Vista interior: al seleccionar un equipo (resaltar) se abre por dentro; con otro o con nada se cierra. Por defecto todo se ve sólido.
+    const interiores = INTERIORES.crear(THREE, elementos);
+    let ultimoAhora = null;
 
     function actualizar(lecturas, estado) {
       if (!estado) return;
       for (const parte of partes) parte.actualizar(estado, lecturas);
+      const ahora = performance.now(), dt = ultimoAhora === null ? 0 : Math.min((ahora - ultimoAhora) / 1000, 0.1); ultimoAhora = ahora;
+      interiores.actualizar(estado, dt);
     }
 
     let contorno = null;
     function resaltar(id) {
       if (contorno) { raiz.remove(contorno); contorno.geometry.dispose(); contorno = null; }
+      interiores.abrir(id && elementos[id] ? id : null);
       if (!id || !elementos[id]) return;
       raiz.updateMatrixWorld(true);
       contorno = new THREE.Box3Helper(new THREE.Box3().setFromObject(elementos[id].grupo).expandByScalar(0.8), 0xf68b11);
@@ -60,6 +67,7 @@
       return lista;
     }
     function liberar() {
+      interiores.liberar();
       for (const parte of partes) parte.liberar();
       for (const r of recursos) if (r && r.dispose) r.dispose();
       if (contorno) contorno.geometry.dispose();

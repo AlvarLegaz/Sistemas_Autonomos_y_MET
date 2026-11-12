@@ -1,7 +1,9 @@
 """Servidor local de pruebas con las mismas rutas que el aula: /simulador/ (simulador_pct23) y /planta-real/ (esta carpeta).
 
 Así las páginas de la planta real cargan el código compartido con /simulador/js/... tanto aquí como en el aula, sin cambiar rutas.
-Uso:  python simulador_planta_real/servir_local.py [PUERTO]        y abrir  http://localhost:8091/planta-real/
+Uso:  python simulador_planta_real/servir_local.py [PUERTO] [ESCUCHAR]        y abrir  http://localhost:8091/planta-real/
+Para verlo desde otro dispositivo de la misma red (p. ej. el móvil): ESCUCHAR = 0.0.0.0 y abrir http://<IP-del-PC>:PUERTO/planta-real/
+(sin contraseña y solo mientras lo necesites: sirve las carpetas de los dos simuladores a cualquiera de tu red)
 No guarda copias en el navegador (como deploy/servidor_sin_cache.py).
 """
 import http.server
@@ -40,5 +42,8 @@ class Manejador(http.server.SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     puerto = int(sys.argv[1]) if len(sys.argv) > 1 else 8091
+    escuchar = sys.argv[2] if len(sys.argv) > 2 else "127.0.0.1"      # por defecto solo este PC
     print(f"Planta real: http://localhost:{puerto}/planta-real/   (simulador de siempre: http://localhost:{puerto}/simulador/)")
-    http.server.ThreadingHTTPServer(("127.0.0.1", puerto), Manejador).serve_forever()
+    if escuchar != "127.0.0.1":
+        print(f"Abierto a la red ({escuchar}): sin contraseña. Ciérralo (Ctrl+C) cuando termines.")
+    http.server.ThreadingHTTPServer((escuchar, puerto), Manejador).serve_forever()

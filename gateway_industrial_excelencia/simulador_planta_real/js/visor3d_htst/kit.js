@@ -127,7 +127,7 @@
         for (const [clave, lista] of this.porMaterial) {
           const geometria = registrar(fusionar(lista));
           const m = new THREE.Mesh(geometria, typeof clave === 'object' ? clave : mat(clave));
-          m.userData.id = id; padre.add(m); mallas.push(m);
+          m.userData.id = id; m.userData.clave = typeof clave === 'object' ? 'dinamico' : clave; padre.add(m); mallas.push(m);
         }
         this.porMaterial.clear();
         return mallas;
