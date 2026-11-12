@@ -16,7 +16,7 @@ test('manual: cada actuador del contrato se manda desde una sola fila, agrupado 
   for (const tag of DO) assert.ok(tags.includes(tag), `falta el mando de ${tag}`);
   assert.ok(tags.includes('VFD-101'));
   for (const m of manual.MANDOS) assert.ok(layout.equipo(m.tag), m.tag);
-  assert.deepEqual(manual.ZONAS.map(z => z.id), ['entrada', 'regeneracion', 'agua_caliente', 'salida', 'agua_fria', 'cip', 'llenado']);
+  assert.deepEqual(manual.ZONAS.map(z => z.id), ['entrada', 'agua_caliente', 'salida', 'agua_fria', 'cip', 'llenado']);
 });
 
 test('manual: la orden (salida del PLC) y el estado real se leen por separado', () => {
@@ -62,7 +62,6 @@ test('manual: acciones peligrosas con su consecuencia (bancos, vaciados, FDV sin
   assert.match(manual.peligro(sim.estado(), 'XV-303'), /vaciar el depósito/);
   assert.match(manual.peligro(sim.estado(), 'SV-101'), /NO CONFORME/);
   assert.equal(manual.peligro(sim.estado(), 'XV-301'), null);
-  assert.equal(manual.peligro(sim.estado(), 'P-103'), null);
 });
 
 test('manual: confirmación en dos pasos con plazo (el primer pulsado arma, el segundo confirma, y se desarma si pasa el tiempo)', () => {
@@ -79,12 +78,12 @@ test('manual: confirmación en dos pasos con plazo (el primer pulsado arma, el s
 
 test('manual: «todo a parada segura» apaga bombas y calentador, deja la FDV en desvío y cierra todas las válvulas', () => {
   const sim = enManual();
-  for (const tag of ['P-101', 'P-102', 'P-103', 'XV-301', 'XV-101', 'XV-302']) sim.ordenes.manual(tag, 1);
+  for (const tag of ['P-101', 'P-102', 'XV-301', 'XV-101', 'XV-302']) sim.ordenes.manual(tag, 1);
   sim.ordenes.manual('VFD-101', 60); sim.paso(3);
   for (const [tag, valor] of manual.PARADA_SEGURA) sim.ordenes.manual(tag, valor);
   sim.paso(5);
   const e = sim.estado();
-  for (const tag of ['P-101', 'P-102', 'P-103']) assert.equal(manual.ordenDe(e, tag), false, tag);
+  for (const tag of ['P-101', 'P-102']) assert.equal(manual.ordenDe(e, tag), false, tag);
   for (const tag of ['XV-301', 'XV-101', 'XV-302', 'XV-102', 'XV-303', 'XV-401', 'KM-201', 'KM-202', 'SV-101']) assert.equal(manual.ordenDe(e, tag), false, tag);
   assert.equal(manual.ordenDe(e, 'VFD-101'), 0);
   assert.equal(e.equipos['FDV-101'].posicion, 'DESVIO');
@@ -156,7 +155,7 @@ test('manual: protección frente a avería frente a paro frente a falta de 24 V 
 test('franja: el resumen separa la más grave del resto y cuenta por nivel (el «y N más» es un desplegable)', () => {
   const alarmas = [
     { codigo: 'A170', tag: 'TSH-101', texto: 'disparado', desdeS: 5, nivel: 'critica' },
-    { codigo: 'A140', tag: 'P-102', texto: 'x', desdeS: 6, nivel: 'alarma' }, { codigo: 'A141', tag: 'P-103', texto: 'x', desdeS: 7, nivel: 'alarma' },
+    { codigo: 'A140', tag: 'P-102', texto: 'x', desdeS: 6, nivel: 'alarma' }, { codigo: 'A141', tag: 'P-101', texto: 'x', desdeS: 7, nivel: 'alarma' },
     { codigo: 'A230', tag: 'HW-101', texto: 'x', desdeS: 8, nivel: 'aviso' }, { codigo: 'M100', tag: 'PLC-001', texto: 'x', desdeS: 9, nivel: 'estado' },
   ];
   const r = franja.resumenFranja(franja.ordenarAlarmas(alarmas), new Set());

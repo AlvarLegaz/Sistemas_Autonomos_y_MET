@@ -20,7 +20,6 @@
     for (const e of layout.EQUIPOS) equipos[e.tag] = {};
     Object.assign(equipos['P-101'], { marcha: caudal > 0, velocidadPct: caudal > 0 ? Math.min(100, caudal / 25) : 0, caudalLh: caudal, corrienteA: caudal > 0 ? 6.5 : 0, temperaturaDisipadorC: 45, fallo: false });
     Object.assign(equipos['P-102'], { marcha, velocidadPct: 100 });
-    Object.assign(equipos['P-103'], { marcha: produce && !desvio, velocidadPct: 100 });
     Object.assign(equipos['FDV-101'], { posicion: desvio ? 'DESVIO' : 'AVANCE', apertura01: desvio ? 0 : 1, aireOK: true });
     Object.assign(equipos['SV-101'], { energizada: !desvio && produce, bobinaOhm: 480 });
     Object.assign(equipos['HW-101'], { banco1: marcha, banco2: produce, potenciaKW: produce ? 18 : 9, temperaturaC: aguaC });
@@ -35,7 +34,7 @@
     Object.assign(equipos['LSL-301'], { contactoCerrado: !opciones.bajoNivelAgua });
     Object.assign(equipos['TK-101'], { desbordando: !!opciones.desbordando });
     Object.assign(equipos['HW-101'], { nivelPct: nivelAgua, volumenL: 150 * nivelAgua / 100 });
-    for (const km of ['KM-102', 'KM-103', 'KM-201', 'KM-202']) equipos[km] = { cerrado: marcha, pegado: false };
+    for (const km of ['KM-102', 'KM-201', 'KM-202']) equipos[km] = { cerrado: marcha, pegado: false };
     Object.assign(equipos['HX-101'], { fugaPlaca01: 0 });
     Object.assign(equipos['FLT-101'], { obstruccion01: 0 });
     Object.assign(equipos['VFD-101'], { marcha: caudal > 0, fallo: false, temperaturaDisipadorC: 45 });
@@ -46,13 +45,15 @@
     Object.assign(equipos['HL-001'], { encendida: false });
     const instrumentos = {};
     for (const s of layout.SENALES) if (s.tipo === 'AI' || s.tipo === 'DI') instrumentos[s.tag] = { valorProceso: 0, mA: 12, valorPLC: 0, calidad: 'OK', nivel: 1 };
+    if (instrumentos['LSH-301']) instrumentos['LSH-301'].nivel = nivelAgua >= 90 ? 1 : 0;           // flotador de nivel alto del agua caliente
+    if (instrumentos['LSL-301']) instrumentos['LSL-301'].nivel = opciones.bajoNivelAgua ? 0 : 1;
     return {
       version: 1, tiempoS: 0, modo,
       tanque: { nivelPct: opciones.nivelPct !== undefined ? opciones.nivelPct : 65, volumenL: 650, temperaturaC: 4, desbordando: !!opciones.desbordando },
       aguaCaliente: { nivelPct: nivelAgua, volumenL: 150 * nivelAgua / 100, temperaturaC: aguaC },
       proceso: {
         caudalLh: caudal,
-        temperaturas: { entrada: 4, trasRegeneracion: produce ? 66 : 20, trasCalentamiento: t103, salidaTubo: t103, salidaFinal: produce ? 5 : 20, aguaCaliente: aguaC },
+        temperaturas: { entrada: 4, trasRegeneracion: produce ? 66 : 20, trasRegeneracionPas: produce ? 12 : 20, trasCalentamiento: t103, salidaTubo: t103, salidaFinal: produce ? 5 : 20, aguaCaliente: aguaC },
         presiones: { crudoBar: produce ? 2.2 : 0.1, pasteurizadoBar: produce ? 2.45 : 0.1 }, tiempoResidenciaS: caudal > 0 ? 10.5 / (caudal / 3600) : 0,
       },
       equipos, instrumentos, salidasPLC: { DO: {}, AO: {} }, alarmas: [],

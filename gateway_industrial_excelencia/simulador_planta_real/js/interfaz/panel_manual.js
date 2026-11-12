@@ -13,7 +13,6 @@
     { id: 'entrada', titulo: 'Entrada', mandos: [
       { tag: 'P-101', nombre: 'Bomba de alimentación', tipo: 'onoff' },
       { tag: 'VFD-101', nombre: 'Velocidad de P-101 (variador)', tipo: 'numerico', unidad: '%', min: 0, max: 100 }] },
-    { id: 'regeneracion', titulo: 'Regeneración y calentamiento', mandos: [{ tag: 'P-103', nombre: 'Bomba booster del lado crudo', tipo: 'onoff' }] },
     { id: 'agua_caliente', titulo: 'Agua caliente', mandos: [
       { tag: 'P-102', nombre: 'Bomba del agua caliente', tipo: 'onoff' },
       { tag: 'KM-201', nombre: 'Banco 1 del calentador (30 kW)', tipo: 'onoff' },

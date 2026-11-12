@@ -35,7 +35,7 @@ test('calibración: un lazo correcto, uno con deriva, hilo roto, sobreescala y f
 
 test('se pueden calibrar los lazos analógicos del contrato, con su rango', () => {
   const lazos = hojas.lazosCalibrables(layout);
-  assert.equal(lazos.length, 9);
+  assert.equal(lazos.length, 10);                                                          // 9 de la AI-1 + LT-101 y TT-106 en la AI-2
   assert.ok(lazos.every(l => Array.isArray(l.rango) && l.unidad));
 });
 

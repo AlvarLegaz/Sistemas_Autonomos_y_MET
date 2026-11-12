@@ -7,7 +7,7 @@
   const P = typeof require !== 'undefined' ? require('./puertos.js') : PCT.htstPuertos;
   const layout = typeof require !== 'undefined' ? require('../layout.js') : PCT.htstLayout;
   const PI = Math.PI;
-  const TAGS = ['TK-101', 'FLT-101', 'P-101', 'P-102', 'P-103', 'HX-101', 'HT-101', 'FDV-101', 'SV-101', 'FRL-101', 'HW-101', 'XV-301', 'XV-401', 'XV-101', 'XV-102', 'XV-302', 'XV-303'];
+  const TAGS = ['TK-101', 'FLT-101', 'P-101', 'P-102', 'HX-101', 'HT-101', 'FDV-101', 'SV-101', 'FRL-101', 'HW-101', 'XV-301', 'XV-401', 'XV-101', 'XV-102', 'XV-302', 'XV-303'];
 
   // Distribución de las placas del intercambiador: tres paquetes (regeneración, calentamiento, enfriamiento) separados por placas de bastidor.
   const PLACAS = { regeneracion: 22, calentamiento: 16, enfriamiento: 14, paso: 1.5, inicio: -45, separador: 3 };
@@ -90,7 +90,7 @@
       });
     })();
 
-    /* ---------- bombas centrífugas P-101, P-103 y P-102 ---------- */
+    /* ---------- bombas centrífugas P-101 y P-102 ---------- */
     function bomba(tag) {
       const g = base.nuevoGrupo(tag), e = kit.ensamble();
       const ent = local(tag, 'ent', g), sal = local(tag, 'sal', g);
@@ -117,7 +117,7 @@
         if (led !== ultimoLed) { matLed.color.setHex(led); ultimoLed = led; }
       });
     }
-    bomba('P-101'); bomba('P-103'); bomba('P-102');
+    bomba('P-101'); bomba('P-102');
 
     /* ---------- HX-101 intercambiador de placas ---------- */
     (function () {
@@ -131,7 +131,7 @@
       for (const [y, z] of [[14, -24], [14, 24], [66, -24], [66, 24]]) e.add(kit.cil(0.8, 96, 8), 'inox', [0, y, z], [0, 0, PI / 2]);   // tirantes
       for (const x of [-48, pos.x1 + 1.5]) e.add(kit.caja(6, 4, 52), 'inoxMate', [x, 2, 0]);                                                // patas
       // toberas de la parte superior: los puertos de tubería
-      for (const nombre of ['raw_in', 'past_in', 'cal_out', 'fin_out', 'hot_in', 'hot_out', 'cold_in', 'cold_out']) {
+      for (const nombre of ['raw_in', 'past_in', 'cal_out', 'fin_out', 'hot_in', 'hot_out', 'cold_in', 'cold_out', 'reg_out', 'enf_in']) {
         const p = local('HX-101', nombre, g);
         e.add(kit.cil(1.9, 10, 10), 'inox', [p[0], p[1] - 4, p[2]]); e.add(kit.toro(2.6, 0.5), 'inoxMate', [p[0], p[1] - 0.2, p[2]], [PI / 2, 0, 0]);
       }
@@ -268,6 +268,7 @@
       const VX = -3, VZ = 17.6, VY0 = 11.8, VALTO = 52.4, MARCA_LSL = VY0 + VALTO * 0.15;
       e.add(kit.caja(11, 54, 1.4), 'negro', [VX, 38, VZ]);
       e.add(kit.caja(11.4, 0.7, 0.4), 'rojo', [VX, MARCA_LSL, VZ + 1.3]);
+      e.add(kit.caja(11.4, 0.7, 0.4), 'azul', [VX, VY0 + VALTO * 0.9, VZ + 1.3]);      // marca del nivel alto (90 %), donde actúa LSH-301
       const resB1 = kit.matLed(0x6a6f75), resB2 = kit.matLed(0x6a6f75), eb1 = kit.ensamble(), eb2 = kit.ensamble();
       for (const dx of [-3.4, -2.0, -0.6]) eb1.add(kit.cil(0.5, 7, 6), resB1, [VX + dx, 15.5, VZ + 2.0]);
       for (const dx of [0.6, 2.0, 3.4]) eb2.add(kit.cil(0.5, 7, 6), resB2, [VX + dx, 15.5, VZ + 2.0]);

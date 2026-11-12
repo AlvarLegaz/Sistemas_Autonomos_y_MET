@@ -22,7 +22,6 @@
     { tag: 'TK-101', nombre: 'Tanque de balance', tipo: 'tanque', zona: 'entrada' },
     { tag: 'FLT-101', nombre: 'Filtro de aspiración (colador)', tipo: 'filtro', zona: 'entrada' },
     { tag: 'P-101', nombre: 'Bomba centrífuga de alimentación (con variador)', tipo: 'bomba', zona: 'entrada' },
-    { tag: 'P-103', nombre: 'Bomba booster del lado crudo', tipo: 'bomba', zona: 'regeneracion' },
     { tag: 'HX-101', nombre: 'Intercambiador de placas (regeneración, calentamiento y enfriamiento)', tipo: 'intercambiador', zona: 'intercambio' },
     { tag: 'HT-101', nombre: 'Tubo de residencia', tipo: 'tubo_residencia', zona: 'residencia' },
     { tag: 'FDV-101', nombre: 'Válvula de desvío de flujo neumática (3 vías)', tipo: 'valvula_neumatica', zona: 'salida' },
@@ -44,8 +43,10 @@
     { tag: 'TT-103', nombre: 'Pt100 + transmisor: salida del tubo de residencia (termómetro legal)', tipo: 'sonda_temperatura', zona: 'residencia' },
     { tag: 'TT-104', nombre: 'Pt100 + transmisor: producto a la salida', tipo: 'sonda_temperatura', zona: 'salida' },
     { tag: 'TT-105', nombre: 'Pt100 + transmisor: agua caliente', tipo: 'sonda_temperatura', zona: 'agua_caliente' },
+    { tag: 'TT-106', nombre: 'Pt100 + transmisor: leche pasteurizada tras la regeneración (antes del enfriamiento)', tipo: 'sonda_temperatura', zona: 'regeneracion' },
     { tag: 'TSH-101', nombre: 'Termostato de seguridad del agua caliente (contacto NC)', tipo: 'termostato', zona: 'agua_caliente' },
     { tag: 'LSL-301', nombre: 'Interruptor de nivel bajo del depósito de agua caliente (flotador, NC): protege las resistencias', tipo: 'flotador', zona: 'agua_caliente' },
+    { tag: 'LSH-301', nombre: 'Interruptor de nivel alto del depósito de agua caliente (flotador)', tipo: 'flotador', zona: 'agua_caliente' },
     { tag: 'FT-101', nombre: 'Caudalímetro electromagnético', tipo: 'caudalimetro', zona: 'entrada' },
     { tag: 'PT-101', nombre: 'Transmisor de presión: lado crudo', tipo: 'presion', zona: 'regeneracion' },
     { tag: 'PT-102', nombre: 'Transmisor de presión: lado pasteurizado', tipo: 'presion', zona: 'regeneracion' },
@@ -61,7 +62,6 @@
     { tag: 'F-201', nombre: 'Fusible general de los 24 V de instrumentos', tipo: 'fusible', zona: 'control' },
     { tag: 'VFD-101', nombre: 'Variador de frecuencia de P-101', tipo: 'variador', zona: 'control' },
     { tag: 'KM-102', nombre: 'Contactor de P-102', tipo: 'contactor', zona: 'control' },
-    { tag: 'KM-103', nombre: 'Contactor de P-103', tipo: 'contactor', zona: 'control' },
     { tag: 'KM-201', nombre: 'Contactor del banco 1 del calentador', tipo: 'contactor', zona: 'control' },
     { tag: 'KM-202', nombre: 'Contactor del banco 2 del calentador', tipo: 'contactor', zona: 'control' },
     { tag: 'QF-102', nombre: 'Magnetotérmico de P-102 y del calentador', tipo: 'magnetotermico', zona: 'control' },
@@ -78,7 +78,6 @@
     'FLT-101': { x: -105, z: -5, ancho: 12, fondo: 12, alto: 20 },
     'P-101': { x: -100, z: 35, ancho: 40, fondo: 25, alto: 30 },
     'FT-101': { x: -68, z: 35, ancho: 18, fondo: 18, alto: 25 },
-    'P-103': { x: -45, z: 35, ancho: 38, fondo: 25, alto: 28 },
     'HX-101': { x: 0, z: -35, ancho: 100, fondo: 60, alto: 80 },
     'HT-101': { x: 72, z: -40, ancho: 90, fondo: 40, alto: 60 },
     'FDV-101': { x: 118, z: -5, ancho: 20, fondo: 20, alto: 45 },
@@ -90,7 +89,7 @@
     'XV-401': { x: 100, z: 40, ancho: 12, fondo: 12, alto: 20 },
     'XV-101': { x: -90, z: -62, ancho: 12, fondo: 12, alto: 20 }, 'XV-102': { x: -140, z: 12, ancho: 12, fondo: 12, alto: 20 },
     'XV-302': { x: 52, z: 62, ancho: 12, fondo: 12, alto: 20 }, 'XV-303': { x: 20, z: 72, ancho: 12, fondo: 12, alto: 20 },
-    'LSL-301': { x: 6, z: 48 },
+    'LSL-301': { x: 6, z: 48 }, 'LSH-301': { x: 6, z: 55 }, 'TT-106': { x: 3, z: -35 },
     'TT-101': { x: -120, z: 0 }, 'TT-102': { x: -28, z: -5 }, 'TT-103': { x: 104, z: -35 }, 'TT-104': { x: 150, z: 30 }, 'TT-105': { x: 5, z: 40 },
     'TSH-101': { x: 28, z: 45 },
     'PT-101': { x: -22, z: 5 }, 'PT-102': { x: 4, z: 5 },
@@ -117,6 +116,7 @@
     s('AI', 'PT-102', 'Presión lado pasteurizado de la regeneración', '4-20mA', 'AI1.08', { rango: [0, 6], unidad: 'bar' }),
     // Tarjeta AI-2
     s('AI', 'LT-101', 'Nivel del tanque de balance', '4-20mA', 'AI2.01', { rango: [0, 100], unidad: '%' }),
+    s('AI', 'TT-106', 'Temperatura de la leche pasteurizada antes del enfriamiento', '4-20mA', 'AI2.02', { rango: [0, 100], unidad: '°C' }),
     // Entradas digitales, tarjeta DI-1 (16 canales, 24 V CC)
     s('DI', 'ES-001', 'Paro de emergencia', '24V', 'DI1.01', { logica: '1 = rearmado (contacto NC cerrado); 0 = pulsado o hilo roto' }),
     s('DI', 'TSH-101', 'Termostato de seguridad del agua caliente', '24V', 'DI1.02', { logica: '1 = normal (NC cerrado); 0 = sobretemperatura o hilo roto' }),
@@ -127,7 +127,7 @@
     s('DI', 'PSL-201', 'Presión de aire suficiente', '24V', 'DI1.07', { logica: '1 = aire OK; 0 = presión baja' }),
     s('DI', 'P-101', 'P-101 en marcha (relé de marcha del variador)', '24V', 'DI1.08', { logica: '1 = en marcha' }),
     s('DI', 'KM-102', 'Contactor de P-102 cerrado (aux.)', '24V', 'DI1.09', { logica: '1 = cerrado' }),
-    s('DI', 'KM-103', 'Contactor de P-103 cerrado (aux.)', '24V', 'DI1.10', { logica: '1 = cerrado' }),
+    // DI1.10 libre (era el contactor KM-103 de la booster P-103, que se quitó; el resto de canales no se renumeran)
     s('DI', 'KM-201', 'Contactor del banco 1 cerrado (aux.)', '24V', 'DI1.11', { logica: '1 = cerrado' }),
     s('DI', 'KM-202', 'Contactor del banco 2 cerrado (aux.)', '24V', 'DI1.12', { logica: '1 = cerrado' }),
     s('DI', 'VFD-101', 'Fallo del variador', '24V', 'DI1.13', { logica: '1 = fallo' }),
@@ -136,10 +136,11 @@
     s('DI', 'PB-001', 'Pulsador de marcha / reset local', '24V', 'DI1.16', { logica: '1 = pulsado' }),
     // Tarjeta DI-2
     s('DI', 'LSL-301', 'Nivel bajo del depósito de agua caliente', '24V', 'DI2.01', { logica: '1 = hay agua sobre el nivel bajo (NC); 0 = nivel bajo o hilo roto' }),
+    s('DI', 'LSH-301', 'Nivel alto del depósito de agua caliente', '24V', 'DI2.02', { logica: '1 = nivel alto alcanzado' }),
     // Salidas digitales, tarjeta DO-1 (16 canales, relé)
     s('DO', 'P-101', 'Orden de marcha de P-101 (al variador)', '24V', 'DO1.01', { logica: '1 = marcha' }),
     s('DO', 'P-102', 'Orden de marcha de P-102 (KM-102)', '24V', 'DO1.02', { logica: '1 = marcha' }),
-    s('DO', 'P-103', 'Orden de marcha de P-103 (KM-103)', '24V', 'DO1.03', { logica: '1 = marcha' }),
+    // DO1.03 libre (era la orden de marcha de la booster P-103, que se quitó; el resto de canales no se renumeran)
     s('DO', 'KM-201', 'Banco 1 del calentador (bobina de KM-201)', '24V', 'DO1.04', { logica: '1 = conecta' }),
     s('DO', 'KM-202', 'Banco 2 del calentador (bobina de KM-202)', '24V', 'DO1.05', { logica: '1 = conecta' }),
     s('DO', 'SV-101', 'Piloto de la FDV', '24V', 'DO1.06', { logica: '1 = avance (con aire); 0 = desvío (muelle, seguridad positiva)' }),

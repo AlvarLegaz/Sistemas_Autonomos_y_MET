@@ -27,7 +27,7 @@
       const sano = !hay('AV-FUSIBLE-F201');
       const deriva = (activas.find(a => a.id === 'AV-DERIVA-TT103') || { params: { deriva: 0 } }).params.deriva || 0;
       const lazo = tag => {
-        const q = { 'TT-101': 4, 'TT-102': s.tt102, 'TT-103': s.tt103, 'TT-104': caudal ? 4.5 : 20, 'TT-105': s.aguaC, 'FT-101': caudal, 'PT-101': caudal ? 1.2 : 0.1, 'PT-102': caudal ? 1.4 : 0.1, 'LT-101': s.nivel }[tag];
+        const q = { 'TT-101': 4, 'TT-102': s.tt102, 'TT-103': s.tt103, 'TT-104': caudal ? 4.5 : 20, 'TT-105': s.aguaC, 'TT-106': caudal ? 12 : 20, 'FT-101': caudal, 'PT-101': caudal ? 1.2 : 0.1, 'PT-102': caudal ? 1.4 : 0.1, 'LT-101': s.nivel }[tag];
         const r = SAL.find(x => x.tipo === 'AI' && x.tag === tag).rango;
         let valorLeido = tag === 'TT-103' ? q + deriva : q, mA = layout.aMilisamperios(valorLeido, r[0], r[1]), calidad = 'OK';
         if (!sano) { mA = 0; calidad = 'ABIERTO'; }
@@ -44,15 +44,15 @@
       for (const [tag, i] of Object.entries(instrumentos)) { if (i.calidad === 'ABIERTO') alarmas.push({ codigo: 'A101', tag, nivel: 'alta', desdeS: s.tiempoS, texto: `Hilo roto en ${tag}` }); if (i.calidad === 'CORTO') alarmas.push({ codigo: 'A102', tag, nivel: 'alta', desdeS: s.tiempoS, texto: `Sobreescala en ${tag}` }); }
       const marcha = s.modo !== 'PARADA' && sano;
       const equipos = {
-        'P-101': { marcha: produciendo, velocidadPct: 70, caudalLh: caudal }, 'P-102': { marcha }, 'P-103': { marcha: avance },
+        'P-101': { marcha: produciendo, velocidadPct: 70, caudalLh: caudal }, 'P-102': { marcha },
         'FDV-101': { posicion: avance ? 'AVANCE' : 'DESVIO', aireOK: true }, 'SV-101': { energizada: avance }, 'XV-301': { abierta: produciendo },
         'HW-101': { banco1: marcha && s.aguaC < 78, banco2: marcha && s.aguaC < 76 }, 'F-201': { fundido: !sano }, 'PS-001': { ok: true }, 'VFD-101': { fallo: false },
-        'KM-102': { cerrado: marcha }, 'KM-103': { cerrado: avance }, 'KM-201': { cerrado: marcha && s.aguaC < 78 }, 'KM-202': { cerrado: marcha && s.aguaC < 76 },
+        'KM-102': { cerrado: marcha }, 'KM-201': { cerrado: marcha && s.aguaC < 78 }, 'KM-202': { cerrado: marcha && s.aguaC < 76 },
       };
-      const di = { 'PS-001': 1, 'ES-001': 1, 'TSH-101': 1, 'QF-102': 1, 'PSL-201': 1, 'PB-001': 0, 'ZS-101': avance ? 1 : 0, 'ZS-102': avance ? 0 : 1, 'LSH-101': 0, 'LSL-101': 1 };
+      const di = { 'PS-001': 1, 'ES-001': 1, 'TSH-101': 1, 'QF-102': 1, 'PSL-201': 1, 'PB-001': 0, 'ZS-101': avance ? 1 : 0, 'ZS-102': avance ? 0 : 1, 'LSH-101': 0, 'LSL-101': 1, 'LSL-301': 1, 'LSH-301': 1 };
       for (const [tag, nivel] of Object.entries(di)) instrumentos[tag] = { nivel };
       return { version: 1, tiempoS: s.tiempoS, modo: s.modo, tanque: { nivelPct: s.nivel }, proceso: { caudalLh: caudal, tiempoResidenciaS: caudal ? 15.1 : 0,
-        temperaturas: { entrada: 4, trasRegeneracion: s.tt102, trasCalentamiento: s.tt103, salidaTubo: s.tt103, salidaFinal: caudal ? 4.5 : 20, aguaCaliente: s.aguaC }, presiones: { crudoBar: 1.2, pasteurizadoBar: 1.4 } },
+        temperaturas: { entrada: 4, trasRegeneracion: s.tt102, trasRegeneracionPas: caudal ? 12 : 20, trasCalentamiento: s.tt103, salidaTubo: s.tt103, salidaFinal: caudal ? 4.5 : 20, aguaCaliente: s.aguaC }, presiones: { crudoBar: 1.2, pasteurizadoBar: 1.4 } },
         equipos, instrumentos, salidasPLC: { DO: { 'HL-001': alarmas.length > 0 }, AO: {} }, alarmas, contadores: { producidoL: s.producidoL, desviadoL: s.desviadoL, energiaKWh: 0 },
         averiasActivas: activas.map(a => ({ instancia: a.instancia, id: a.id, tags: a.tags })) };
     }

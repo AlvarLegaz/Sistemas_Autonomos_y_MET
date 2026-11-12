@@ -166,13 +166,16 @@
     // SCADA 2D
     const { Canvas } = PCT.canvas, canvas = new Canvas(PCT.htstEsquema.ESQUEMA_HTST);
     $('esquema').replaceChildren(canvas.svg);
-    const objetos = PCT.htstEsquema.crearObjetos(canvas);
+    // Consignas del panel de mando del esquema (caudal y TT-103): las guarda la página y se las da al PLC
+    const PROC = PCT.htstLayout.PROCESO;
+    const consignasPanel = { caudalLh: PROC.caudalNominalLh, tt103C: PROC.consignaTT103C };
+    const objetos = PCT.htstEsquema.crearObjetos(canvas, { consignas: () => consignasPanel });
     PCT.htstLeyenda.crearLeyenda($('leyenda'));
 
     // Tamaño del esquema. «Legible» (por defecto): ocupa el ancho del marco pero nunca baja de 1160 px (escala ≥ 0,95: el texto de 12 unidades mide ≥ 11 px y los
     // valores de 14, ≥ 13 px); si no cabe se desplaza dentro del marco (la página nunca tiene scroll horizontal). «Ver todo»: se ajusta al marco (texto pequeño).
     // A− y A+ fijan un ancho propio y lo cambian de 15 en 15 %.
-    const ANCHO_LEGIBLE = 1160;
+    const ANCHO_LEGIBLE = Math.round(0.95 * (canvas.svg.viewBox.baseVal.width || 1220));   // escala 0,95 sea cual sea el ancho del dibujo
     let tamano = { modo: 'legible', ancho: 0 };
     try { const g = JSON.parse(localStorage.getItem('htst-tamano-esquema') || 'null'); if (g && ['legible', 'ajustar', 'fijo'].includes(g.modo)) tamano = { modo: g.modo, ancho: Number(g.ancho) || 0 }; } catch (error) { /* sin almacenamiento: tamaño legible */ }
     if (tamano.modo === 'fijo' && !(tamano.ancho >= 500)) tamano = { modo: 'legible', ancho: 0 };
@@ -255,7 +258,33 @@
       else { sim.ordenes.modo(v); registro.anotar('accion', `Modo ${nombreModo(v)}`); }
       aplicarAhora(); refrescar();
     });
-    $('sim-consigna').addEventListener('change', () => { sim.ordenes.consignaTemperaturaC(Number($('sim-consigna').value)); registro.anotar('accion', `Consigna de TT-103: ${$('sim-consigna').value} °C`); });
+    $('sim-consigna').addEventListener('change', () => { sim.ordenes.consignaTemperaturaC(Number($('sim-consigna').value)); consignasPanel.tt103C = Math.min(85, Math.max(60, Number($('sim-consigna').value) || consignasPanel.tt103C)); registro.anotar('accion', `Consigna de TT-103: ${$('sim-consigna').value} °C`); refrescar(); });
+    // Panel de mando dentro del esquema: caudal (o velocidad en MANUAL), consigna de TT-103, marcha, paro y rearme
+    const accionesPanel = {
+      'caudal-menos': () => cambiarCaudal(-1), 'caudal-mas': () => cambiarCaudal(1),
+      'tt103-menos': () => cambiarTT103(-0.5), 'tt103-mas': () => cambiarTT103(0.5),
+      marcha: () => { sim.ordenes.arrancar(); registro.anotar('accion', 'Panel: MARCHA'); },
+      paro: () => { sim.ordenes.parar(); registro.anotar('accion', 'Panel: PARO'); },
+      rearme: () => { if (sim.ordenes.paroEmergencia) sim.ordenes.paroEmergencia(false); sim.ordenes.pulsador('PB-001'); sim.ordenes.pulsador('TSH-101'); registro.anotar('accion', 'Panel: REARME (seta liberada, PB-001 y TSH-101)'); },
+    };
+    function cambiarCaudal(signo) {
+      if (sim.estado().modo === 'MANUAL') {
+        const v = Math.min(100, Math.max(0, Math.round(((sim.estado().salidasPLC.AO || {})['VFD-101'] || 0) + 10 * signo)));
+        sim.ordenes.manual('VFD-101', v); registro.anotar('accion', `Panel: velocidad de P-101 ${v} %`);
+      } else {
+        consignasPanel.caudalLh = Math.min(PROC.caudalMaximoLh, Math.max(500, consignasPanel.caudalLh + 250 * signo));
+        sim.ordenes.consignaCaudalLh(consignasPanel.caudalLh); registro.anotar('accion', `Panel: consigna de caudal ${consignasPanel.caudalLh} L/h`);
+      }
+    }
+    function cambiarTT103(paso) {
+      if (sim.estado().modo === 'MANUAL') return;                       // en MANUAL el PLC no regula: la consigna no hace nada
+      consignasPanel.tt103C = Math.min(85, Math.max(60, Math.round((consignasPanel.tt103C + paso) * 10) / 10));
+      sim.ordenes.consignaTemperaturaC(consignasPanel.tt103C); $('sim-consigna').value = consignasPanel.tt103C;
+      registro.anotar('accion', `Panel: consigna de TT-103 ${String(consignasPanel.tt103C).replace('.', ',')} °C`);
+    }
+    const pulsarPanel = boton => { const f = accionesPanel[boton.dataset.accion]; if (!f) return; f(); aplicarAhora(); refrescar(); };
+    canvas.svg.addEventListener('click', ev => { const b = ev.target.closest('.panel-boton'); if (b) { ev.stopPropagation(); pulsarPanel(b); } }, true);
+    canvas.svg.addEventListener('keydown', ev => { const b = ev.target.closest('.panel-boton'); if (b && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); ev.stopPropagation(); pulsarPanel(b); } }, true);
     // Seta ES-001: el modelo real la mueve con paroEmergencia(true/false); PB-001 es el pulsador local de rearme del PLC. (La demostración solo conoce pulsador.)
     $('sim-es').addEventListener('click', () => { if (sim.ordenes.paroEmergencia) sim.ordenes.paroEmergencia(true); else sim.ordenes.pulsador('ES-001'); registro.anotar('accion', 'Se pulsa el paro de emergencia ES-001'); refrescar(); });
     $('sim-rearme').addEventListener('click', () => { if (sim.ordenes.paroEmergencia) sim.ordenes.paroEmergencia(false); sim.ordenes.pulsador('PB-001'); registro.anotar('accion', 'Se rearma: seta ES-001 liberada y pulsador PB-001'); refrescar(); });

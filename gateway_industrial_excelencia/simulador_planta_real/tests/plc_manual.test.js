@@ -13,7 +13,7 @@ function sanas(cambios = {}) {
     const val = (cambios.valores || {})[s.tag] != null ? cambios.valores[s.tag] : v[s.tag];
     AI[s.tag] = { valor: val, mA: layout.aMilisamperios(val, s.rango[0], s.rango[1]), calidad: 'OK' };
   }
-  const DI = { 'ES-001': 1, 'TSH-101': 1, 'LSH-101': 0, 'LSL-101': 1, 'LSL-301': 1, 'ZS-101': 0, 'ZS-102': 1, 'PSL-201': 1, 'P-101': 0, 'KM-102': 0, 'KM-103': 0, 'KM-201': 0, 'KM-202': 0, 'VFD-101': 0, 'QF-102': 1, 'PS-001': 1, 'PB-001': 0 };
+  const DI = { 'ES-001': 1, 'TSH-101': 1, 'LSH-101': 0, 'LSL-101': 1, 'LSL-301': 1, 'ZS-101': 0, 'ZS-102': 1, 'PSL-201': 1, 'P-101': 0, 'KM-102': 0, 'KM-201': 0, 'KM-202': 0, 'VFD-101': 0, 'QF-102': 1, 'PS-001': 1, 'PB-001': 0 };
   Object.assign(DI, cambios.DI || {});
   return { AI, DI, fijas: cambios.DI || {} };
 }
@@ -22,7 +22,7 @@ function correr(mem, ent, ord, n, dt = 0.1, siempre = true) {
   let r;
   for (let i = 0; i < n; i++) {
     const d = mem.ultimas.DO;
-    Object.assign(ent.DI, { 'KM-102': d['P-102'], 'KM-103': d['P-103'], 'KM-201': d['KM-201'], 'KM-202': d['KM-202'], 'P-101': d['P-101'], 'ZS-101': d['SV-101'], 'ZS-102': 1 - d['SV-101'] }, ent.fijas);
+    Object.assign(ent.DI, { 'KM-102': d['P-102'], 'KM-201': d['KM-201'], 'KM-202': d['KM-202'], 'P-101': d['P-101'], 'ZS-101': d['SV-101'], 'ZS-102': 1 - d['SV-101'] }, ent.fijas);
     r = ejecutarPLC(ent, mem, i === 0 || siempre ? ord : {}, dt);
   }
   return r;
@@ -44,7 +44,7 @@ test('en MANUAL el PLC no automatiza nada: sin órdenes todo queda apagado y el 
   for (const tag of DO_MANUALES) assert.equal(r.DO[tag], 0, tag);
   assert.equal(r.AO['VFD-101'], 0);
   for (const tag of DO_MANUALES) {
-    if (['KM-201', 'KM-202', 'SV-101', 'P-101', 'P-103'].includes(tag)) continue;        // estas tienen protecciones propias (se prueban aparte)
+    if (['KM-201', 'KM-202', 'SV-101', 'P-101'].includes(tag)) continue;        // estas tienen protecciones propias (se prueban aparte)
     const ent = sanas(); const mem = crearMemoria(); correr(mem, ent, { modo: 'MANUAL' }, 3, 0.1, false);
     assert.equal(manual(mem, ent, { [tag]: 1 }).DO[tag], 1, `${tag} manual`);
   }

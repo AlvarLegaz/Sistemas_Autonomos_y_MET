@@ -150,7 +150,7 @@ test('esquema: los 5 equipos nuevos están, y el svg ya no es role=img (los equi
   const tags = esquema.tagsDelEsquema();
   for (const tag of ['XV-101', 'XV-102', 'XV-302', 'XV-303', 'LSL-301']) assert.ok(tags.has(tag), tag);
   assert.equal(esquema.ESQUEMA_HTST[1].role, 'group');
-  assert.match(esquema.ESQUEMA_HTST[1].viewBox, /^0 0 1220 660$/);
+  assert.match(esquema.ESQUEMA_HTST[1].viewBox, /^0 0 1600 800$/);
   const grupos = [];
   (function r(nodo) { if (!Array.isArray(nodo)) return; const a = nodo[1] && typeof nodo[1] === 'object' && !Array.isArray(nodo[1]) ? nodo[1] : null; if (a && a['data-tag']) grupos.push(a); nodo.forEach(r); })(esquema.ESQUEMA_HTST);
   assert.ok(grupos.length >= 47);

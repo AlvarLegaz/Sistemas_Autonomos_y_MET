@@ -11,7 +11,7 @@
   const OPACIDAD_CARCASA = 0.28;
   /** Equipos con vista interior y qué piezas (por la clave de material con que se construyeron) pasan a ser semitransparentes al abrirlos. */
   const CARCASAS = {
-    'TK-101': ['inox'], 'HW-101': ['gris'], 'P-101': ['inox'], 'P-102': ['inox'], 'P-103': ['inox'], 'HX-101': ['instanciada'],
+    'TK-101': ['inox'], 'HW-101': ['gris'], 'P-101': ['inox'], 'P-102': ['inox'], 'HX-101': ['instanciada'],
     'FDV-101': ['inox'], 'SV-101': ['laton', 'negro'], 'FLT-101': ['inox'],
   };
   const TAGS_CON_INTERIOR = Object.keys(CARCASAS);
@@ -48,9 +48,9 @@
   /** Velocidades de los puntos de flujo (cm/s) por fluido y paquete, a partir del estado; 0 = parado. El producto sube y el otro fluido baja (contracorriente). */
   function velocidadesHX(estado) {
     const caudal = K.caudalLh(estado), v = caudal > 0 ? 6 + 16 * limitar(caudal / 2000, 0, 1.5) : 0;
-    const p102 = !!K.equipoDe(estado, 'P-102').marcha, p103 = !!K.equipoDe(estado, 'P-103').marcha, frio = K.valvulaAbierta(estado, 'XV-301');
+    const p102 = !!K.equipoDe(estado, 'P-102').marcha, avance = K.aperturaFDV(estado) > 0.5, frio = K.valvulaAbierta(estado, 'XV-301');
     return {
-      regeneracion: { 0: v, 1: caudal > 0 && p103 ? v * 0.9 : 0 },
+      regeneracion: { 0: v, 1: caudal > 0 && avance ? v * 0.9 : 0 },
       calentamiento: { 0: v, 1: p102 ? 14 : 0 },
       enfriamiento: { 0: v, 1: frio ? 10 : 0 },
     };
@@ -144,7 +144,7 @@
       } };
     }
 
-    /* P-101, P-102 y P-103: rodete con álabes que gira, fluido y flechas de flujo (aspiración axial, descarga tangencial) */
+    /* P-101 y P-102: rodete con álabes que gira, fluido y flechas de flujo (aspiración axial, descarga tangencial) */
     function bomba(tag) {
       return g => {
         const grupo = new THREE.Group(); g.add(grupo);
@@ -270,7 +270,7 @@
       } };
     }
 
-    const DEFINICIONES = { 'TK-101': tanque, 'HW-101': calentador, 'P-101': bomba('P-101'), 'P-102': bomba('P-102'), 'P-103': bomba('P-103'), 'HX-101': intercambiador,
+    const DEFINICIONES = { 'TK-101': tanque, 'HW-101': calentador, 'P-101': bomba('P-101'), 'P-102': bomba('P-102'), 'HX-101': intercambiador,
       'FDV-101': fdv, 'SV-101': piloto, 'FLT-101': filtro };
 
     function aplicarTransparencia(tag, g) {

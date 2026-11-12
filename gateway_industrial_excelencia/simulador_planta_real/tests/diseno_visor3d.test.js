@@ -156,6 +156,40 @@ test('los instrumentos tienen sitio de montaje y los de ruta quedan sobre su tub
   assert.ok(INS.montaje('LSH-101')[1] > INS.montaje('LSL-101')[1], 'el flotador de nivel alto va más arriba que el bajo');
 });
 
+test('TT-106 va en el puente regeneración → enfriamiento y LSH-301 encima de LSL-301 en el calentador', () => {
+  const puente = T.rutaPorId('LECHE_REG_ENF'), p = EQ.posicionesPlacas();
+  assert.ok(puente && puente.fluido === 'leche' && puente.anclas === 'TT-106');
+  assert.ok(Math.abs(puente.de[0] - p.separadores[0]) < 0.5 && Math.abs(puente.a[0] - p.separadores[1]) < 0.5, 'las bocas están en las placas intermedias');
+  const tt106 = INS.montaje('TT-106');
+  assert.ok(puente.puntos.some((q, i) => i && q[1] === tt106[1]) && tt106[0] > puente.de[0] && tt106[0] < puente.a[0], 'TT-106 sobre el puente');
+  const lsh = INS.montaje('LSH-301'), lsl = INS.montaje('LSL-301');
+  assert.ok(lsh[1] > lsl[1] + 30 && lsh[0] === lsl[0] && lsh[2] === lsl[2]);
+  const prod = T.estadoRutas(estadoDemo({ modo: 'PRODUCCION' })), desv = T.estadoRutas(estadoDemo({ modo: 'PRODUCCION', desvio: true }));
+  assert.equal(prod.LECHE_REG_ENF.activo, true); assert.equal(desv.LECHE_REG_ENF.activo, false);
+  assert.equal(estadoDemo({ nivelAguaPct: 95 }).instrumentos['LSH-301'].nivel, 1);
+  assert.equal(estadoDemo({ nivelAguaPct: 50 }).instrumentos['LSH-301'].nivel, 0);
+});
+
+test('soportes de tubería: hay varios, en la bancada, sin atravesar equipos ni otros tubos', () => {
+  const ESC = require('../js/visor3d_htst/escena_planta.js');
+  const s = ESC.soportesTuberia();
+  assert.ok(s.length >= 4, `solo ${s.length} soportes`);
+  for (const q of s) {
+    assert.ok(Math.abs(q.x) <= layout.SKID.ancho / 2 && Math.abs(q.z) <= layout.SKID.fondo / 2, `${q.ruta} fuera del patín`);
+    assert.ok(q.y >= 60);
+    for (const e of layout.EQUIPOS) {
+      const p = layout.posicion(e.tag); if (!p || !p.ancho || p.fueraDelPatin) continue;
+      assert.ok(!(Math.abs(q.x - p.x) < p.ancho / 2 && Math.abs(q.z - p.z) < p.fondo / 2), `soporte de ${q.ruta} dentro de ${e.tag}`);
+    }
+  }
+  const porticos = ESC.porticosTuberia();
+  assert.ok(porticos.length >= 1 && porticos.every(p => p.colgantes.length >= 1));
+  for (const p of porticos) for (const c of p.colgantes) {
+    assert.ok(c.y < ESC.ALTO_PORTICO - 4, 'el tubo cuelga por debajo de la viga');
+    assert.ok(!p.colgantes.some(o => o !== c && Math.abs(o.z - c.z) < 5 && o.y > c.y), 'ninguna varilla atraviesa otro tubo');
+  }
+});
+
 test('las placas del intercambiador caben en el bastidor y están ordenadas', () => {
   const p = EQ.posicionesPlacas();
   const total = p.regeneracion.length + p.calentamiento.length + p.enfriamiento.length;

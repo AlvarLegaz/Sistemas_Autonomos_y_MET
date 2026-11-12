@@ -90,6 +90,21 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .resis { fill: none; stroke: var(--tubo); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
 .resis.on { stroke: var(--caliente); stroke-width: 5; filter: drop-shadow(0 0 4px var(--caliente)); }
 #g-HW-101.bloqueado .resis { stroke: var(--error); stroke-dasharray: 5 4; filter: none; }
+.vastago { fill: none; stroke: var(--tubo); stroke-width: 2; }
+.hit { fill: none; stroke: transparent; stroke-width: 26; pointer-events: stroke; }
+.panel-fondo { fill: var(--panel); stroke: var(--borde); stroke-width: 1.5; }
+.panel-boton { cursor: pointer; }
+.panel-boton rect { fill: var(--fondo); stroke: var(--borde); stroke-width: 1.5; }
+.panel-boton:hover rect, .panel-boton:focus-visible rect { stroke: var(--foco); stroke-width: 3; }
+.panel-boton:focus { outline: none; }
+.panel-boton.activo rect { fill: var(--ok); stroke: var(--ok); }
+.panel-boton.activo text { fill: #fff; }
+.panel-boton[data-accion="paro"].activo rect { fill: var(--error); stroke: var(--error); }
+.panel-boton.alarma rect { fill: var(--aviso); stroke: var(--aviso); animation: panel-parpadeo 1s steps(2) infinite; }
+.panel-boton.alarma text { fill: #111; }
+.panel-boton.inactivo { opacity: .4; }
+@keyframes panel-parpadeo { 50% { opacity: .5; } }
+@media (prefers-reduced-motion: reduce) { .panel-boton.alarma rect { animation: none; } }
 .enlace { fill: none; stroke: var(--tubo); stroke-width: 1.5; stroke-dasharray: 3 3; }
 .filtro-raya { stroke: var(--tubo); stroke-width: 1.5; }
 .led .led-x { display: none; fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; pointer-events: none; }
@@ -289,3 +304,101 @@ body[data-nivel="1"] .franja-simple { display: flex; }
 .tabla-lecturas td.valor { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
 .tabla-lecturas tr.alarma { background: color-mix(in srgb, var(--error) 12%, transparent); }
 body[data-nivel="1"] #franja-alarmas { display: none !important; }          /* el módulo de la franja cambia la clase del contenedor: por eso se oculta por su identificador */
+
+/* ---------- widget «Intercambiador básico» (js/scada2d/componentes/intercambiador_basico.js) y su galería (componentes.html) ---------- */
+.ic { cursor: pointer; }
+.ic:focus { outline: none; }
+.ic-caja { fill: var(--panel); stroke: var(--tubo); stroke-width: 2.5; }
+.ic:hover .ic-caja { stroke: var(--foco); }
+.ic:focus-visible .ic-caja { stroke: var(--foco); stroke-width: 4; }
+.ic-circuito { fill: none; stroke: var(--tubo); stroke-width: 6; stroke-linejoin: round; stroke-linecap: butt; opacity: .45; }
+.ic-circuito.activo { opacity: 1; }
+.ic-circuito[data-fluido="leche"], .ic-flecha[data-fluido="leche"] { stroke: var(--producto); fill: var(--producto); }
+.ic-circuito[data-fluido="agua_caliente"], .ic-flecha[data-fluido="agua_caliente"] { stroke: var(--caliente); fill: var(--caliente); }
+.ic-circuito[data-fluido="agua_fria"], .ic-flecha[data-fluido="agua_fria"] { stroke: var(--agua); fill: var(--agua); }
+.ic-circuito[data-fluido] { fill: none; }
+.ic-flecha { stroke: none !important; }
+.ic-ensuciado .ic-circuito { stroke-width: 3.5; stroke-dasharray: 10 6; }
+.ic .flujo { stroke-width: 3; }
+.ic-titulo { font: 800 14px var(--fuente); fill: var(--texto); }
+.ic-temp { font: 700 14px var(--fuente); fill: var(--texto); font-variant-numeric: tabular-nums; }
+.ic-temp.alarma { fill: var(--error); }
+.ic-fluido { font: 600 12px var(--fuente); fill: var(--tenue); }
+.ic-fluido-texto { font: 700 13px var(--fuente); fill: var(--texto); }
+.ic-aviso { font: 700 13px var(--fuente); fill: var(--aviso); }
+.ic[data-estado="fuga"] .ic-aviso { fill: var(--error); }
+.ic-fuga { display: none; }
+.ic-fuga.on { display: inline; }
+.ic-fuga-marca { fill: none; stroke: var(--error); stroke-width: 4; stroke-linecap: round; }
+.boceto-cuerpo { fill: var(--panel); stroke: var(--tubo); stroke-width: 2.5; }
+.boceto-nivel { opacity: .55; }
+.boceto-nivel[data-fluido="leche"] { fill: var(--producto); }
+.boceto-nivel[data-fluido="agua_caliente"] { fill: var(--caliente); }
+.boceto-nivel[data-fluido="agua_fria"] { fill: var(--agua); }
+.boceto-tag { font: 800 14px var(--fuente); fill: var(--texto); }
+.boceto-valvula polygon { fill: var(--panel); stroke: var(--texto); stroke-width: 2; stroke-linejoin: round; }
+.boceto-valvula line, .boceto-sonda line { stroke: var(--texto); stroke-width: 2; }
+.boceto-valvula { cursor: pointer; }
+.boceto-solenoide { fill: var(--panel); stroke: var(--texto); stroke-width: 2; }
+.boceto-solenoide-texto, .boceto-sonda text { font: 800 11px var(--fuente); fill: var(--texto); }
+.boceto-sonda circle { fill: var(--panel); stroke: var(--texto); stroke-width: 2; }
+.boceto-bomba { cursor: pointer; }
+.boceto-bomba circle { fill: var(--panel); stroke: var(--texto); stroke-width: 2.5; }
+.boceto-bomba polygon { fill: var(--texto); }
+.boceto-xv { cursor: pointer; }
+.boceto-xv polygon { fill: var(--panel); stroke: var(--texto); stroke-width: 2; stroke-linejoin: round; }
+.boceto-xv line { stroke: var(--texto); stroke-width: 2; }
+.boceto-xv.abierta polygon { fill: var(--ok); }
+.boceto-xv.abierta .boceto-solenoide { fill: var(--acento); }
+.boceto-sonda.activa circle { fill: var(--aviso); }
+.boceto-nivel-texto { font: 800 15px var(--fuente); fill: var(--texto); font-variant-numeric: tabular-nums; }
+.boceto-resistencia path { fill: none; stroke: var(--texto); stroke-width: 3; stroke-linejoin: round; }
+.boceto-resistencia.on path { stroke: var(--error); filter: drop-shadow(0 0 4px var(--error)); }
+.boceto-valor { font: 700 13px var(--fuente); fill: var(--texto); font-variant-numeric: tabular-nums; }
+.boceto-valor.alarma { fill: var(--error); }
+.boceto-panel-fondo { fill: var(--panel); stroke: var(--borde); stroke-width: 1.5; }
+.boceto-panel-titulo { font: 700 15px var(--fuente); fill: var(--texto); }
+.boceto-panel-etiqueta { font: 700 13px var(--fuente); fill: var(--texto); }
+.boceto-panel-sub { font: 400 12px var(--fuente); fill: var(--texto); opacity: .75; font-variant-numeric: tabular-nums; }
+.boceto-boton { cursor: pointer; }
+.boceto-boton rect { fill: var(--fondo, #1b1d21); stroke: var(--borde); stroke-width: 1.5; }
+.boceto-boton text { font: 700 14px var(--fuente); fill: var(--texto); pointer-events: none; }
+.boceto-boton:hover rect, .boceto-boton:focus-visible rect { stroke: var(--acento); }
+.boceto-boton:focus { outline: none; }
+.boceto-boton.activo rect { fill: var(--ok); stroke: var(--ok); }
+.boceto-boton.activo text { fill: #fff; }
+#boton-paro.activo rect { fill: var(--error); stroke: var(--error); }
+.boceto-boton.alarma rect { fill: var(--aviso); stroke: var(--aviso); animation: boceto-parpadeo 1s steps(2) infinite; }
+.boceto-boton.alarma text { fill: #111; }
+@keyframes boceto-parpadeo { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .boceto-boton.alarma rect { animation: none; } }
+.ic-flecha.apagada { opacity: .35; }
+.boceto-controles { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+.boceto-controles button { min-height: 44px; padding: 0 14px; font: 700 14px var(--fuente); border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); color: var(--texto); cursor: pointer; }
+.boceto-controles button[aria-pressed="true"] { background: var(--ok); border-color: var(--ok); color: #fff; }
+.boceto-controles p { flex-basis: 100%; margin: 4px 0 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.galeria { max-width: 1180px; margin: 0 auto; padding: 16px 20px 40px; }
+.galeria h1 { font-size: 22px; margin: 6px 0 4px; } .galeria h2 { font-size: 17px; margin: 28px 0 8px; } .galeria p { max-width: 74ch; }
+.galeria-rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 14px; }
+.galeria figure { margin: 0; padding: 10px; border: 1px solid var(--borde); border-radius: 8px; background: var(--fondo); }
+.galeria figure svg { display: block; width: 100%; height: auto; }
+.galeria figcaption { margin-top: 6px; font-size: 13.5px; color: var(--tenue); }
+.galeria-vivo { display: grid; grid-template-columns: minmax(320px, 1.2fr) minmax(260px, 1fr); gap: 16px; align-items: start; }
+.galeria-controles { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--borde); border-radius: 8px; background: var(--panel); }
+.galeria-controles label { display: grid; grid-template-columns: 150px 1fr 64px; gap: 8px; align-items: center; font-size: 14px; }
+.galeria-controles output { font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; }
+.galeria-controles input[type=range] { width: 100%; min-height: 28px; }
+.galeria-controles select { min-height: 44px; padding: 0 8px; font: inherit; }
+.galeria-ficha { margin: 10px 0 0; padding: 10px 12px; border-left: 5px solid var(--foco); background: var(--panel); border-radius: 4px; min-height: 3.2em; }
+.galeria-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 18px; }
+.galeria-info section { padding: 10px 14px; border: 1px solid var(--borde); border-radius: 8px; background: var(--panel); }
+.galeria-info h3 { margin: 0 0 8px; font-size: 15px; }
+.galeria-info p { margin: 0; font-size: 14px; }
+.galeria-leyenda { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; font-size: 14px; }
+.galeria-leyenda li { display: flex; align-items: center; gap: 10px; }
+.galeria-leyenda .muestra { flex: none; width: 34px; height: 12px; border-radius: 6px; }
+.galeria-variables { border-collapse: collapse; font-size: 13.5px; width: 100%; }
+.galeria-variables th { text-align: left; padding: 4px 8px 4px 0; white-space: nowrap; }
+.galeria-variables td { padding: 4px 0; color: var(--tenue); }
+.galeria-variables tr + tr { border-top: 1px solid var(--borde); }
+@media (max-width: 760px) { .galeria-vivo { grid-template-columns: 1fr; } .galeria-controles label { grid-template-columns: 1fr 64px; } .galeria-controles label span { grid-column: 1 / -1; } }

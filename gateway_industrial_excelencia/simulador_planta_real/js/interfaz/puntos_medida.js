@@ -4,7 +4,7 @@
   const layout = typeof require !== 'undefined' ? require('../layout.js') : PCT.htstLayout;
 
   const MODO_POR_TIPO = { tension: 'V', lazo: 'mA', resistencia: 'ohm', temperatura: 'temperatura', presion: 'presion' };
-  const CONTACTORES = ['KM-102', 'KM-103', 'KM-201', 'KM-202'];
+  const CONTACTORES = ['KM-102', 'KM-201', 'KM-202'];
 
   /** Lista de puntos de prueba derivada del contrato (layout.js). Cada punto: { id, equipo, nombre, tipo } con id «TAG:BORNA». */
   function puntosDeMedida(lay = layout) {

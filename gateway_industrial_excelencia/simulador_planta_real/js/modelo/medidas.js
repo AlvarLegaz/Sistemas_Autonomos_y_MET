@@ -8,7 +8,7 @@
 
   const TAGS_AI = layout.SENALES.filter(s => s.tipo === 'AI').map(s => s.tag);
   const TAGS_TT = TAGS_AI.filter(t => t.startsWith('TT-'));
-  const CONTACTORES = { 'KM-102': 'P-102', 'KM-103': 'P-103', 'KM-201': 'KM-201', 'KM-202': 'KM-202' };   // contactor → salida DO que lo manda
+  const CONTACTORES = { 'KM-102': 'P-102', 'KM-201': 'KM-201', 'KM-202': 'KM-202' };   // contactor → salida DO que lo manda
 
   /** Lista de puntos de medida con su modo natural, para que la interfaz los muestre. */
   const PUNTOS = [];

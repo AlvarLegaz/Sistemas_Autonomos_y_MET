@@ -7,10 +7,11 @@
     'FLT-101': { ent: [-105, 12, -11], sal: [-105, 12, 1] },
     'P-101': { ent: [-110, 13, 23], sal: [-110, 26, 35] },
     'FT-101': { ent: [-77, 25, 35], sal: [-59, 25, 35] },
-    'P-103': { ent: [-55, 13, 23], sal: [-55, 26, 35] },
     'HX-101': {
       raw_in: [-40, 80, -18], past_in: [-24, 80, -52], cal_out: [8, 80, -52], fin_out: [40, 80, -52],
       hot_in: [6, 80, -18], hot_out: [-6, 80, -18], cold_in: [36, 80, -18], cold_out: [26, 80, -18],
+      // bocas de las placas intermedias: la leche pasteurizada sale de la regeneración y pasa al enfriamiento por un puente exterior (con TT-106)
+      reg_out: [-10.7, 80, -35], enf_in: [16.3, 80, -35],
     },
     'HT-101': { ent: [24, 20, -40], sal: [120, 48, -40] },
     'FDV-101': { com: [118, 14, -15], avance: [128, 14, -5], desvio: [108, 14, -5], aire: [123, 36, -5] },

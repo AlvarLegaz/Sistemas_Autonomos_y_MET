@@ -1,12 +1,12 @@
 // Armario eléctrico QE-001 en 3D (DISEÑADOR), con la puerta abierta para ver el interior: magnetotérmico, fuente de 24 V, fusible, PLC con módulos,
-// variador, cuatro contactores y bornas; en la puerta, el HMI, la seta de emergencia y el pulsador; encima, la baliza. Cada pieza lleva su tag.
+// variador, tres contactores (bomba de agua caliente y los dos bancos del calentador) y bornas; en la puerta, el HMI, la seta de emergencia y el pulsador; encima, la baliza. Cada pieza lleva su tag.
 // LED y estados salen de `estado` (ver ARQUITECTURA.md §4); las averías mueven los LED y los contactos (led_apagado, contactos_cerrados…).
 (function () {
   const K = typeof require !== 'undefined' ? require('./kit.js') : PCT.htstKit;
   const B = typeof require !== 'undefined' ? require('./base_equipo.js') : PCT.htstBase;
   const layout = typeof require !== 'undefined' ? require('../layout.js') : PCT.htstLayout;
   const PI = Math.PI;
-  const TAGS = ['QE-001', 'PS-001', 'F-201', 'QF-102', 'VFD-101', 'KM-102', 'KM-103', 'KM-201', 'KM-202', 'PLC-001', 'HMI-001', 'HL-001', 'ES-001', 'PB-001'];
+  const TAGS = ['QE-001', 'PS-001', 'F-201', 'QF-102', 'VFD-101', 'KM-102', 'KM-201', 'KM-202', 'PLC-001', 'HMI-001', 'HL-001', 'ES-001', 'PB-001'];
 
   // Cuerpo del armario (cm): centro en la posición del layout. Dispositivos: x centro, y base, ancho, alto, fondo (sobre la placa de montaje).
   const CUERPO = { ancho: 60, fondo: 30, alto: 140, z: -13.5 };
@@ -16,7 +16,7 @@
     'F-201': { x: 10, y: 118, w: 3, h: 10, d: 6 },
     'PLC-001': { x: 0, y: 90, w: 40, h: 18, d: 8 },
     'VFD-101': { x: -14, y: 40, w: 18, h: 38, d: 14 },
-    'KM-102': { x: 3, y: 60, w: 8, h: 12, d: 8 }, 'KM-103': { x: 13, y: 60, w: 8, h: 12, d: 8 },
+    'KM-102': { x: 3, y: 60, w: 8, h: 12, d: 8 },
     'KM-201': { x: 3, y: 42, w: 8, h: 12, d: 8 }, 'KM-202': { x: 13, y: 42, w: 8, h: 12, d: 8 },
   };
   const PUERTA = { giroRad: 1.75, bisagraX: 29 };      // puerta abierta unos 100°, con la bisagra a la derecha: la cara exterior mira a la cámara
@@ -179,7 +179,7 @@
       base.registrar('VFD-101', g, [d.w + 2, d.h + 4, d.d + 2], d.y + d.h + 10);
     })();
 
-    /* ---------- KM-102, KM-103, KM-201, KM-202 contactores ---------- */
+    /* ---------- KM-102, KM-201, KM-202 contactores ---------- */
     function contactor(tag) {
       const { g, d } = dispositivo(tag), e = kit.ensamble();
       e.add(kit.caja(d.w, d.h, d.d), 'negro', [0, d.h / 2, 0]); e.add(kit.caja(d.w - 1.5, 2, 1), 'grisOscuro', [0, d.h - 3, d.d / 2 + 0.4]);
@@ -199,7 +199,7 @@
       });
       base.registrar(tag, g, [d.w + 2, d.h, d.d + 2], d.y + d.h + 8);
     }
-    for (const tag of ['KM-102', 'KM-103', 'KM-201', 'KM-202']) contactor(tag);
+    for (const tag of ['KM-102', 'KM-201', 'KM-202']) contactor(tag);
 
     /* ---------- HL-001 baliza de alarma, sobre el armario ---------- */
     (function () {

@@ -17,6 +17,7 @@
       case 'TT-103': return T.salidaTubo;
       case 'TT-104': return T.salidaFinal;
       case 'TT-105': return T.aguaCaliente;
+      case 'TT-106': return T.trasRegeneracionPas;
       case 'FT-101': return estado.proceso.caudalLh;
       case 'PT-101': return P.crudoBar;
       case 'PT-102': return P.pasteurizadoBar;
@@ -52,11 +53,12 @@
       'LSH-101': nivel >= T.nivelAltoPct ? 1 : 0,
       'LSL-101': nivel > T.nivelBajoPct ? 1 : 0,
       'LSL-301': (estado.aguaCaliente ? estado.aguaCaliente.nivelPct : 100) > C.aguaCaliente.nivelBajoPct ? 1 : 0,
+      'LSH-301': (estado.aguaCaliente ? estado.aguaCaliente.nivelPct : 100) >= C.aguaCaliente.nivelAltoPct ? 1 : 0,
       'ZS-101': eq['FDV-101'].posicion === 'AVANCE' ? 1 : 0,
       'ZS-102': eq['FDV-101'].posicion === 'DESVIO' ? 1 : 0,
       'PSL-201': eq['PSL-201'].contactoCerrado ? 1 : 0,
       'P-101': eq['P-101'].marcha ? 1 : 0,
-      'KM-102': eq['KM-102'].cerrado ? 1 : 0, 'KM-103': eq['KM-103'].cerrado ? 1 : 0,
+      'KM-102': eq['KM-102'].cerrado ? 1 : 0,
       'KM-201': eq['KM-201'].cerrado ? 1 : 0, 'KM-202': eq['KM-202'].cerrado ? 1 : 0,
       'VFD-101': eq['P-101'].fallo ? 1 : 0,
       'QF-102': eq['QF-102'].armado ? 1 : 0,

@@ -13,7 +13,6 @@
       'FLT-101': { obstruccion01: 0 },
       'P-101': { marcha: false, velocidadPct: 0, caudalLh: 0, corrienteA: 0, temperaturaDisipadorC: C.variador.ambienteC, fallo: false, ventiladorOK: true },
       'P-102': { marcha: false, corrienteA: 0 },
-      'P-103': { marcha: false },
       'HX-101': { regeneracion: { tempC: ent }, calentamiento: { tempC: ent }, enfriamiento: { tempC: ent }, fugaPlaca01: 0 },
       'HT-101': { volumenL: C.proceso.volumenTuboResidenciaL, tiempoResidenciaS: Infinity },
       'FDV-101': { posicion: 'DESVIO', apertura01: 0, aireOK: true, atascada: false },
@@ -28,7 +27,7 @@
       'ES-001': { rearmado: true }, 'QF-102': { armado: true },
       'PS-001': { tensionV: C.electrico.tension24V, ok: true }, 'F-201': { fundido: false },
       'VFD-101': { fallo: false },
-      'KM-102': { cerrado: false, pegado: false }, 'KM-103': { cerrado: false, pegado: false },
+      'KM-102': { cerrado: false, pegado: false },
       'KM-201': { cerrado: false, pegado: false }, 'KM-202': { cerrado: false, pegado: false },
       'PB-001': { pulsado: false }, 'HL-001': { encendida: false },
     });
@@ -38,7 +37,7 @@
       aguaCaliente: { nivelPct: equipos['HW-101'].nivelPct, volumenL: equipos['HW-101'].volumenL, temperaturaC: amb },
       proceso: {
         caudalLh: 0,
-        temperaturas: { entrada: ent, trasRegeneracion: ent, trasCalentamiento: ent, salidaTubo: ent, salidaFinal: ent, aguaCaliente: amb },
+        temperaturas: { entrada: ent, trasRegeneracion: ent, trasRegeneracionPas: ent, trasCalentamiento: ent, salidaTubo: ent, salidaFinal: ent, aguaCaliente: amb },
         presiones: { crudoBar: 0.3, pasteurizadoBar: 0.3 }, tiempoResidenciaS: Infinity, pasteurizadoReal: false,
       },
       equipos, instrumentos: {}, salidasPLC: { DO: {}, AO: {} }, alarmas: [],

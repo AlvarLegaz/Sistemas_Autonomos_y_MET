@@ -10,7 +10,7 @@ const { estadoDemo } = require('../js/visor3d_htst/estado_demo.js');
 const cerca = (a, b, e = 1e-9) => Math.abs(a - b) <= e;
 
 test('los equipos con interior son los que se pidieron y todos existen en el layout', () => {
-  assert.deepEqual([...I.TAGS_CON_INTERIOR].sort(), ['FDV-101', 'FLT-101', 'HW-101', 'HX-101', 'P-101', 'P-102', 'P-103', 'SV-101', 'TK-101']);
+  assert.deepEqual([...I.TAGS_CON_INTERIOR].sort(), ['FDV-101', 'FLT-101', 'HW-101', 'HX-101', 'P-101', 'P-102', 'SV-101', 'TK-101']);
   const tags = new Set(layout.EQUIPOS.map(e => e.tag));
   for (const tag of I.TAGS_CON_INTERIOR) assert.ok(tags.has(tag), tag);
   assert.equal(I.tieneInterior('HT-101'), false);

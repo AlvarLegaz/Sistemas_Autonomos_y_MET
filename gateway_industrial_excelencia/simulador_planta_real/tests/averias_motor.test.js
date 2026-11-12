@@ -60,9 +60,9 @@ test('reparar: solo la acción y el equipo correctos quitan la avería; los inte
 
 test('reparar una avería con parámetro de equipo pide el equipo concreto averiado', () => {
   const m = crearMotorAverias();
-  const id = m.inyectar('AV-KM-NO-CIERRA', { tag: 'KM-103' });
+  const id = m.inyectar('AV-KM-NO-CIERRA', { tag: 'KM-201' });
   assert.equal(m.reparar(id, { accion: 'sustituir', tag: 'KM-102' }).ok, false);
-  assert.equal(m.reparar(id, { accion: 'sustituir', tag: 'KM-103' }).ok, true);
+  assert.equal(m.reparar(id, { accion: 'sustituir', tag: 'KM-201' }).ok, true);
 });
 
 test('gancho de instrumentos: lazo abierto, sonda abierta, sonda en corto, deriva y ruido', () => {
@@ -90,7 +90,7 @@ test('gancho de salidas: contactor pegado conduce siempre, contactor que no cier
   assert.equal(m.alAccionarSalida('KM-201', 0), 0); assert.equal(m.alAccionarSalida('KM-201', 1), 1);
   m.inyectar('AV-KM-PEGADO', { tag: 'KM-201' }); m.inyectar('AV-KM-NO-CIERRA', { tag: 'KM-102' }); m.inyectar('AV-BOBINA-ABIERTA');
   assert.equal(m.alAccionarSalida('KM-201', 0), 1);
-  assert.equal(m.alAccionarSalida('KM-102', 1), 0); assert.equal(m.alAccionarSalida('KM-103', 1), 1);
+  assert.equal(m.alAccionarSalida('KM-102', 1), 0); assert.equal(m.alAccionarSalida('KM-202', 1), 1);
   assert.equal(m.alAccionarSalida('SV-101', 1), 0);
 });
 

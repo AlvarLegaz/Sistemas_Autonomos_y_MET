@@ -11,10 +11,10 @@
   const { lazoSano } = calidad;
   const limitar = (v, min, max) => Math.max(min, Math.min(max, v));
 
-  const DO_TAGS = ['P-101', 'P-102', 'P-103', 'KM-201', 'KM-202', 'SV-101', 'XV-301', 'XV-401', 'HL-001', 'XV-101', 'XV-102', 'XV-302', 'XV-303'];
+  const DO_TAGS = ['P-101', 'P-102', 'KM-201', 'KM-202', 'SV-101', 'XV-301', 'XV-401', 'HL-001', 'XV-101', 'XV-102', 'XV-302', 'XV-303'];
   // Salidas que el operador puede mandar en modo MANUAL (todas menos la baliza, que es del PLC) y la analógica del variador
   const DO_MANUALES = DO_TAGS.filter(t => t !== 'HL-001');
-  const CONTACTORES = { 'P-102': 'KM-102', 'P-103': 'KM-103', 'KM-201': 'KM-201', 'KM-202': 'KM-202' };   // salida DO → entrada DI del contacto auxiliar
+  const CONTACTORES = { 'P-102': 'KM-102', 'KM-201': 'KM-201', 'KM-202': 'KM-202' };   // salida DO → entrada DI del contacto auxiliar
 
   const salidasApagadas = () => ({ DO: Object.fromEntries(DO_TAGS.map(t => [t, 0])), AO: { 'VFD-101': 0 } });
 
@@ -154,7 +154,6 @@
       const avance = mem.modo === 'PRODUCCION' ? cumple
         : (mem.modo === 'CIP' ? aire : (aire && dpOK && lazoSano(tt103.calidad) && lazoSano(ft101.calidad)));
       sal.DO['SV-101'] = avance ? 1 : 0;
-      sal.DO['P-103'] = (sal.DO['P-101'] === 1 && DI['P-101'] === 1 && DI['ZS-101'] === 1 && dpOK && mem.modo !== 'CIP') ? 1 : 0;
       // Agua fría: si TT-104 no es fiable, se abre (enfriar es lo seguro)
       mem.xv301 = !lazoSano(tt104.calidad) ? true : (tt104.valor > K.xv301.abrirPorEncimaC || (mem.xv301 && tt104.valor > K.xv301.cerrarPorDebajoC));
       sal.DO['XV-301'] = enCIP ? 0 : (mem.xv301 ? 1 : 0);

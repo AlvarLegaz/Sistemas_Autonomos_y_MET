@@ -10,11 +10,11 @@ function sanas(cambios = {}) {
   const v = { 'TT-101': 4, 'TT-102': 64.5, 'TT-103': 73.5, 'TT-104': 5, 'TT-105': 76, 'FT-101': 2000, 'PT-101': 1.3, 'PT-102': 1.8, 'LT-101': 60 };
   const AI = {};
   for (const s of layout.SENALES.filter(x => x.tipo === 'AI')) { const val = (cambios.valores || {})[s.tag] != null ? cambios.valores[s.tag] : v[s.tag]; AI[s.tag] = { valor: val, mA: layout.aMilisamperios(val, s.rango[0], s.rango[1]), calidad: (cambios.calidad || {})[s.tag] || 'OK' }; }
-  const DI = { 'ES-001': 1, 'TSH-101': 1, 'LSH-101': 0, 'LSL-101': 1, 'ZS-101': 1, 'ZS-102': 0, 'PSL-201': 1, 'P-101': 1, 'KM-102': 1, 'KM-103': 1, 'KM-201': 1, 'KM-202': 0, 'VFD-101': 0, 'QF-102': 1, 'PS-001': 1, 'PB-001': 0 };
+  const DI = { 'ES-001': 1, 'TSH-101': 1, 'LSH-101': 0, 'LSL-101': 1, 'ZS-101': 1, 'ZS-102': 0, 'PSL-201': 1, 'P-101': 1, 'KM-102': 1, 'KM-201': 1, 'KM-202': 0, 'VFD-101': 0, 'QF-102': 1, 'PS-001': 1, 'PB-001': 0 };
   Object.assign(DI, cambios.DI || {});
   return { AI, DI, fijas: Object.keys(cambios.DI || {}) };      // fijas: entradas que la prueba fuerza (no siguen a las órdenes)
 }
-const REALIMENTACION = { 'ZS-101': d => d['SV-101'], 'ZS-102': d => 1 - d['SV-101'], 'KM-102': d => d['P-102'], 'KM-103': d => d['P-103'], 'KM-201': d => d['KM-201'], 'KM-202': d => d['KM-202'], 'P-101': d => d['P-101'] };
+const REALIMENTACION = { 'ZS-101': d => d['SV-101'], 'ZS-102': d => 1 - d['SV-101'], 'KM-102': d => d['P-102'], 'KM-201': d => d['KM-201'], 'KM-202': d => d['KM-202'], 'P-101': d => d['P-101'] };
 /**
  * Ejecuta n ciclos y devuelve el último resultado. Cierra el lazo como la planta real: los finales de carrera de la FDV y los contactos auxiliares
  * siguen a las órdenes del ciclo anterior, salvo las entradas que la prueba fuerza (`fijas`). `siempre`: repite las órdenes en cada ciclo.
@@ -189,11 +189,10 @@ test('alarmas: lazo abierto A101, sobreescala A102, diferencial A110, aire A160 
   assert.ok(nivel.alarmas.some(a => a.codigo === 'A200')); assert.equal(nivel.DO['P-101'], 0);
 });
 
-test('P-103 (booster) solo marcha con P-101, FDV en avance y diferencial correcto', () => {
-  assert.equal(enProduccion().r.DO['P-103'], 1);
-  const { mem } = enProduccion();
-  assert.equal(correr(mem, sanas({ valores: { 'PT-102': 1.31 } }), {}, 1).DO['P-103'], 0);
-  assert.equal(correr(mem, sanas({ DI: { 'ZS-101': 0 } }), {}, 1).DO['P-103'], 0);
+test('la planta no tiene booster: el PLC no genera ninguna salida para P-103', () => {
+  const { r } = enProduccion();
+  assert.equal(r.DO['P-103'], undefined);
+  assert.equal(r.DO['P-101'], 1); assert.equal(r.DO['P-102'], 1);
 });
 
 test('las alarmas conservan el instante en que aparecieron', () => {

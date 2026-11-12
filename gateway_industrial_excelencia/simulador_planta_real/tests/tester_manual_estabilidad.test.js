@@ -8,7 +8,7 @@ const layout = require('../js/layout.js');
 // Generador pseudoaleatorio determinista (no usa Math.random para que el fallo se pueda reproducir).
 function azar(semilla) { let s = semilla >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 
-const ACTUADORES = ['P-101', 'P-102', 'P-103', 'KM-201', 'KM-202', 'SV-101', 'XV-301', 'XV-401', 'XV-101', 'XV-102', 'XV-302', 'XV-303'];
+const ACTUADORES = ['P-101', 'P-102', 'KM-201', 'KM-202', 'SV-101', 'XV-301', 'XV-401', 'XV-101', 'XV-102', 'XV-302', 'XV-303'];
 
 function sinNoFinitos(obj, ruta = 'estado') {
   const malos = [];
@@ -100,7 +100,7 @@ test('MANUAL: el paro de emergencia apaga todo y se mantiene hasta rearmar', () 
   sim.paso(5);
   const DO = sim.estado().salidasPLC && sim.estado().salidasPLC.DO;
   assert.ok(DO, 'falta estado.salidasPLC.DO');
-  for (const t of ['P-101', 'P-102', 'P-103', 'KM-201', 'KM-202']) assert.ok(!DO[t], `${t} sigue activo tras el paro`);
+  for (const t of ['P-101', 'P-102', 'KM-201', 'KM-202']) assert.ok(!DO[t], `${t} sigue activo tras el paro`);
   sim.paso(120);
   for (const t of ['P-101', 'P-102', 'KM-201']) assert.ok(!sim.estado().salidasPLC.DO[t], `${t} se reactivó solo`);
 });

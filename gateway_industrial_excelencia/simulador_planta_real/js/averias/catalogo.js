@@ -86,10 +86,10 @@
       solucion: { texto: 'Cortar la alimentación, sustituir el contactor y revisar la causa (arco o sobrecorriente).', accion: 'sustituir', tag: null },
       alarmasEsperadas: ['A130'], pistas: ['¿Está el calentador alimentado aunque el PLC no lo pida?', 'Mide la tensión en la carga con la orden a 0.'] },
 
-    { id: 'AV-KM-NO-CIERRA', nombre: 'Contactor que no cierra (contactos quemados o bobina sin fuerza)', capa: 'potencia', equipos: ['KM-102'], dificultad: 2,
-      parametros: { tag: opcion(['KM-102', 'KM-103'], 'KM-102', 'Contactor que no cierra') },
+    { id: 'AV-KM-NO-CIERRA', nombre: 'Contactor que no cierra (contactos quemados o bobina sin fuerza)', capa: 'potencia', equipos: ['KM-102', 'KM-201', 'KM-202'], dificultad: 2,
+      parametros: { tag: opcion(['KM-102', 'KM-201', 'KM-202'], 'KM-102', 'Contactor que no cierra') },
       efectos: [{ gancho: 'salida', tag: '{tag}', modificacion: 'la salida física queda a 0 con la orden a 1' }],
-      sintomasScada: ['Alarma A130 (orden 1 y contacto auxiliar 0)', 'Con KM-102 la bomba P-102 se para y la temperatura no sube'],
+      sintomasScada: ['Alarma A130 (orden 1 y contacto auxiliar 0)', 'Con KM-102 la bomba P-102 se para y la temperatura no sube; con KM-201 o KM-202 un banco del calentador no conecta y el agua calienta más despacio'],
       sintomas3d: [{ tag: '{tag}', efecto: 'resaltar_rojo' }],
       diagnostico: [paso(1, 'multimetro', '{tag}:BOBINA', '24 V con la orden a 1', '24 V (la bobina recibe orden)', 'V'), paso(2, 'multimetro', '{tag}:CARGA', '400 V en la carga', '0 V en bornas de la carga', 'V'),
         paso(3, 'multimetro', '{tag}:BOBINA-R', 'Unos 650 Ω', 'Valor normal o abierta según el fallo', 'ohm')],

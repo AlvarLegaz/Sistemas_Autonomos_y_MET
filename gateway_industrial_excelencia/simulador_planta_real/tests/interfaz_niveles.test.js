@@ -44,7 +44,7 @@ test('nivel 1: como mucho 12 elementos con tag visibles, todos con nombre sencil
 
 test('el resto de equipos del esquema (sensores, válvulas XV, armario, CIP) solo se ven desde el nivel 2', () => {
   const resto = nodosDelEsquema().filter(x => x.a['data-tag'] && !niveles.EQUIPOS_NIVEL_1.includes(x.a['data-tag']));
-  assert.ok(resto.length >= 40);
+  assert.ok(resto.length >= 38, `solo ${resto.length} equipos fuera del nivel 1`);
   for (const x of resto) assert.equal(String(x.a['data-n']), '2', x.a['data-tag']);
   for (const tag of niveles.EQUIPOS_NIVEL_1) assert.ok(layout.equipo(tag), tag);
   for (const tag of ['TT-103', 'XV-101', 'KM-201', 'QE-001', 'FLT-101']) { assert.equal(niveles.visibleEnNivel(tag, 1), false, tag); assert.equal(niveles.visibleEnNivel(tag, 2), true, tag); }

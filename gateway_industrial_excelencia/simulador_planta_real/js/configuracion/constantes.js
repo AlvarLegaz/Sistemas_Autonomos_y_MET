@@ -24,7 +24,7 @@
       volumenL: 150, ambienteC: 20, perdidasWK: 60, bancoKW: 30, calorEspecificoKJkgK: 4.186,
       tshDisparoC: 90, tshRearmeC: 80, maximoFisicoC: 99,
       // Nivel del depósito: el llenado (XV-302) entra agua de red fría y el vaciado (XV-303) la saca; el depósito tiene rebosadero (no pasa del 100 %).
-      capacidadL: 150, nivelInicialPct: 100, nivelBajoPct: 15, llenadoXV302Lh: 1500, vaciadoXV303Lh: 1800, temperaturaRedC: 15, volumenMinimoInerciaL: 5,
+      capacidadL: 150, nivelInicialPct: 100, nivelBajoPct: 15, nivelAltoPct: 90, llenadoXV302Lh: 1500, vaciadoXV303Lh: 1800, temperaturaRedC: 15, volumenMinimoInerciaL: 5,
     },
 
     // Bombas

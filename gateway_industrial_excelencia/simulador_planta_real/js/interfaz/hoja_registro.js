@@ -67,7 +67,7 @@
   const equipoDe = (estado, tag) => (estado.equipos && estado.equipos[tag]) || {};
   const fdvEnDesvio = estado => equipoDe(estado, 'FDV-101').posicion === 'DESVIO';
   const bancosFuera = estado => !equipoDe(estado, 'HW-101').banco1 && !equipoDe(estado, 'HW-101').banco2;
-  const bombasParadas = estado => ['P-101', 'P-102', 'P-103'].every(tag => !equipoDe(estado, tag).marcha);
+  const bombasParadas = estado => ['P-101', 'P-102'].every(tag => !equipoDe(estado, tag).marcha);
 
   /**
    * Pruebas de enclavamientos: el alumno provoca la condición (pulsar la seta, pedir una avería al profesor...) y pulsa «Comprobar»:

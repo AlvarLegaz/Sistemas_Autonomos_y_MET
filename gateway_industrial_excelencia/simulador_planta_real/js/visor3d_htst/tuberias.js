@@ -65,11 +65,12 @@
     { id: 'LECHE_CRUDA_1', ayuda: 'TK-101', fluido: 'leche', de: p('TK-101', 'sal'), a: p('FLT-101', 'ent'), carril: 40, anclas: 'TT-101' },
     { id: 'LECHE_CRUDA_2', ayuda: 'FLT-101', fluido: 'leche', de: p('FLT-101', 'sal'), a: p('P-101', 'ent'), carril: 36 },
     { id: 'LECHE_CRUDA_3', ayuda: 'P-101', fluido: 'leche', de: p('P-101', 'sal'), a: p('FT-101', 'ent'), carril: 44 },
-    { id: 'LECHE_CRUDA_4', ayuda: 'FT-101', fluido: 'leche', de: p('FT-101', 'sal'), a: p('P-103', 'ent'), carril: 48 },
-    { id: 'LECHE_CRUDA_5', ayuda: 'P-103', fluido: 'leche', de: p('P-103', 'sal'), a: p('HX-101', 'raw_in'), carril: 90, anclas: 'PT-101' },
+    { id: 'LECHE_CRUDA_4', ayuda: 'FT-101', fluido: 'leche', de: p('FT-101', 'sal'), a: p('HX-101', 'raw_in'), carril: 90, anclas: 'PT-101' },
     { id: 'LECHE_CALIENTE', ayuda: 'HX-101', fluido: 'leche', de: p('HX-101', 'cal_out'), a: p('HT-101', 'ent'), carril: 92 },
     { id: 'LECHE_TRAS_TUBO', ayuda: 'HT-101', fluido: 'leche', de: p('HT-101', 'sal'), a: p('FDV-101', 'com'), carril: 60, anclas: 'TT-103' },
     { id: 'LECHE_AVANCE', ayuda: 'FDV-101', fluido: 'leche', de: p('FDV-101', 'avance'), a: p('HX-101', 'past_in'), carril: 100, anclas: 'PT-102' },
+    // puente exterior entre las placas intermedias: leche pasteurizada de la regeneración al enfriamiento (lleva TT-106)
+    { id: 'LECHE_REG_ENF', ayuda: 'HX-101', fluido: 'leche', de: p('HX-101', 'reg_out'), a: p('HX-101', 'enf_in'), carril: 86, anclas: 'TT-106' },
     { id: 'LECHE_SALIDA', ayuda: 'HX-101', fluido: 'leche', de: p('HX-101', 'fin_out'), a: SALIDA, carril: 96, anclas: 'TT-104' },
     { id: 'LECHE_DESVIO', ayuda: 'FDV-101', fluido: 'leche', de: p('FDV-101', 'desvio'), a: p('TK-101', 'ret'), carril: 106 },
     { id: 'AGUA_CALIENTE_1', ayuda: 'HW-101', fluido: 'agua_caliente', de: p('HW-101', 'sal'), a: p('P-102', 'ent'), carril: 30 },
@@ -118,8 +119,9 @@
     const bomba102 = !!K.equipoDe(estado, 'P-102').marcha, frio = !!K.equipoDe(estado, 'XV-301').abierta, cip = !!K.equipoDe(estado, 'XV-401').abierta;
     const r = {};
     for (const t of RUTAS) r[t.id] = { activo: false, velocidadCmS: 0 };
-    for (const id of ['LECHE_CRUDA_1', 'LECHE_CRUDA_2', 'LECHE_CRUDA_3', 'LECHE_CRUDA_4', 'LECHE_CRUDA_5', 'LECHE_CALIENTE', 'LECHE_TRAS_TUBO']) r[id] = { activo: leche, velocidadCmS: vl };
+    for (const id of ['LECHE_CRUDA_1', 'LECHE_CRUDA_2', 'LECHE_CRUDA_3', 'LECHE_CRUDA_4', 'LECHE_CALIENTE', 'LECHE_TRAS_TUBO']) r[id] = { activo: leche, velocidadCmS: vl };
     r.LECHE_AVANCE = { activo: leche && a > 0.5, velocidadCmS: vl }; r.LECHE_SALIDA = { activo: leche && a > 0.5, velocidadCmS: vl };
+    r.LECHE_REG_ENF = { activo: leche && a > 0.5, velocidadCmS: vl };
     r.LECHE_DESVIO = { activo: leche && a < 0.5, velocidadCmS: vl };
     for (const id of ['AGUA_CALIENTE_1', 'AGUA_CALIENTE_2', 'AGUA_CALIENTE_RETORNO']) r[id] = { activo: bomba102, velocidadCmS: VELOCIDAD_AGUA_CM_S };
     for (const id of ['AGUA_FRIA_1', 'AGUA_FRIA_2', 'AGUA_FRIA_DESAGUE']) r[id] = { activo: frio, velocidadCmS: VELOCIDAD_AGUA_CM_S };

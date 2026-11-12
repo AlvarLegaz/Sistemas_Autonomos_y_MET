@@ -33,14 +33,13 @@
       const es = eq['ES-001'].rearmado;
       const cierra = (tag, orden) => motor.alAccionarSalida(tag, es && orden ? 1 : 0) === 1;
       const armado = eq['QF-102'].armado;
-      eq['KM-102'].cerrado = cierra('KM-102', DO['P-102']); eq['KM-103'].cerrado = cierra('KM-103', DO['P-103']);
+      eq['KM-102'].cerrado = cierra('KM-102', DO['P-102']);
       eq['KM-201'].cerrado = cierra('KM-201', DO['KM-201']); eq['KM-202'].cerrado = cierra('KM-202', DO['KM-202']);
       eq['SV-101'].energizada = cierra('SV-101', DO['SV-101']);
       eq['SV-101'].bobinaOhm = motor.hay('AV-BOBINA-ABIERTA') ? Infinity : C.electrico.resistenciaBobinaSV101Ohm;
       eq['XV-301'].abierta = es && DO['XV-301'] === 1; eq['XV-401'].abierta = es && DO['XV-401'] === 1;
       for (const v of ['XV-101', 'XV-102', 'XV-302', 'XV-303']) eq[v].abierta = es && DO[v] === 1;
       eq['P-102'].marcha = eq['KM-102'].cerrado && armado;
-      eq['P-103'].marcha = eq['KM-103'].cerrado;
       const hw = eq['HW-101'];
       hw.banco1 = eq['KM-201'].cerrado && armado; hw.banco2 = eq['KM-202'].cerrado && armado;
       hw.potenciaKW = ((hw.banco1 ? 1 : 0) + (hw.banco2 ? 1 : 0)) * C.aguaCaliente.bancoKW;
@@ -72,6 +71,7 @@
       T.trasCalentamiento = termica.acercar(T.trasCalentamiento, obj.tCalentamiento, dt, tau);
       const tRes = hidraulica.tiempoResidenciaS(caudal);
       T.salidaTubo = termica.acercar(T.salidaTubo, T.trasCalentamiento, dt, Number.isFinite(tRes) ? limitar(tRes, 2, 60) : 120);   // el tubo retrasa la temperatura
+      T.trasRegeneracionPas = termica.acercar(T.trasRegeneracionPas, obj.tTrasRegeneracionPas, dt, tau);   // TT-106: entrada al enfriamiento
       T.salidaFinal = termica.acercar(T.salidaFinal, obj.t104, dt, tau);
       // Sin agua en el depósito P-102 no tiene qué mover y no hay intercambio con la leche
       const perdidaLecheKW = eq['P-102'].marcha && caudal > 1 && hw.nivelPct > C.aguaCaliente.nivelBajoPct ? termica.potenciaALeche(caudal, T.trasRegeneracion, T.trasCalentamiento) : 0;
