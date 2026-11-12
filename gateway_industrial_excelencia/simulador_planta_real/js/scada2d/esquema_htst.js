@@ -64,9 +64,12 @@
     const hw = equipo(e, 'HW-101'), nivel = typeof hw.nivelPct === 'number' ? hw.nivelPct : (e && e.aguaCaliente && e.aguaCaliente.nivelPct) || 0;
     const banco1 = !!equipo(e, 'KM-201').cerrado, banco2 = !!equipo(e, 'KM-202').cerrado;
     const potenciaKW = (banco1 ? 1 : 0) * 30 + (banco2 ? 1 : 0) * 30;
-    const sinNivel = digital(e, 'LSL-301') === 0;
-    return { banco1, banco2, bancos: (banco1 ? 1 : 0) + (banco2 ? 1 : 0), potenciaKW, nivelPct: Math.max(0, Math.min(100, nivel)), sinNivel,
-      tshDisparado: digital(e, 'TSH-101') === 0, textoBancos: `${(banco1 ? 1 : 0) + (banco2 ? 1 : 0)}/2 bancos · ${potenciaKW} kW`, textoNivel: `NIVEL ${Math.round(nivel)} %` };
+    // El depósito de agua caliente solo tiene dos interruptores de nivel (LSL-301, nivel bajo, y LSH-301, nivel alto): no mide porcentaje. El nivel solo puede ser bajo, normal o alto.
+    const sinNivel = digital(e, 'LSL-301') === 0, alto = digital(e, 'LSH-301') === 1;
+    const estadoNivel = sinNivel ? 'BAJO' : alto ? 'ALTO' : 'NORMAL';
+    return { banco1, banco2, bancos: (banco1 ? 1 : 0) + (banco2 ? 1 : 0), potenciaKW, nivelPct: Math.max(0, Math.min(100, nivel)), sinNivel, estadoNivel,
+      nivelDibujo: sinNivel ? 12 : alto ? 92 : 55,                                  // lo único que se sabe del nivel: el dibujo solo marca bajo, normal o alto
+      tshDisparado: digital(e, 'TSH-101') === 0, textoBancos: `${(banco1 ? 1 : 0) + (banco2 ? 1 : 0)}/2 bancos · ${potenciaKW} kW`, textoNivel: `NIVEL ${estadoNivel}` };
   }
 
   /**
@@ -297,7 +300,7 @@
       // --- agua caliente: depósito HW-101 con dos bancos de resistencias, bajo el calentamiento ---
       ['rect', { class: 'caja', x: HW.x, y: HW.y, width: HW.ancho, height: HW.alto, rx: 10 }],
       ['rect', { class: 'liquido caliente', id: 'nivel-HW-101', x: HW.x + 2, y: HW.y + HW.alto - 50, width: HW.ancho - 4, height: 48 }],
-      g('HW-101', txt(1050, HW.y + HW.alto + 20, 'HW-101 · agua caliente', 'ht-tag ht-fuerte', n1('Calentador de agua')), txt(1050, HW.y + 24, '—', 'ht-valor', { id: 'v-HW-nivel' }),
+      g('HW-101', txt(1050, HW.y + HW.alto + 20, 'agua caliente', 'ht-tag ht-fuerte', n1('Calentador de agua')), txt(1050, HW.y - 8, 'HW-101', 'ht-tag ht-fuerte'), txt(1050, HW.y + 24, '—', 'ht-valor', { id: 'v-HW-nivel' }),
         txt(1050, HW.y + 42, '—', 'ht-tag', { id: 'v-HW-bancos' }),
         ['rect', { class: 'banner-alarma', id: 'banner-HW', x: HW.x + 15, y: HW.y + 30, width: 150, height: 16, rx: 3 }], txt(1050, HW.y + 42, 'NIVEL BAJO: BLOQUEADO', 'ht-tag ht-banner', { id: 't-banner-HW' }),
         ['path', { class: 'resis', id: 'res-1', d: 'M981 108 L989 88 L997 108 L1005 88 L1013 108 L1021 88 L1029 108'.replace(/(\d+) (\d+)/g, (m, x, y) => `${x} ${Number(y) + 370}`) }], txt(1005, 500, 'B1 · KM-201', 'ht-tag', n1('Resistencia 1')),
@@ -429,9 +432,9 @@
     // Calentador HW-101: depósito con nivel, resistencias R1/R2 y aviso de nivel bajo
     poner({ actualizar(e) {
       const h = estadoCalentador(e);
-      nivel('nivel-HW-101', ALTO_HW, h.nivelPct);
+      nivel('nivel-HW-101', ALTO_HW, h.nivelDibujo);
       canvas.buscar('res-1').classList.toggle('on', h.banco1); canvas.buscar('res-2').classList.toggle('on', h.banco2);
-      canvas.buscar('v-HW-nivel').textContent = nivelPagina() === 1 ? `Nivel ${Math.round(h.nivelPct)} %` : h.textoNivel;
+      canvas.buscar('v-HW-nivel').textContent = nivelPagina() === 1 ? `Nivel ${h.estadoNivel.toLowerCase()}` : h.textoNivel;
       const bancos = canvas.buscar('v-HW-bancos'); bancos.textContent = nivelPagina() === 1 ? `${h.bancos} de 2 resistencias` : h.textoBancos; bancos.style.display = h.sinNivel ? 'none' : '';
       canvas.buscar('banner-HW').style.display = h.sinNivel ? '' : 'none'; canvas.buscar('t-banner-HW').style.display = h.sinNivel ? '' : 'none';
       canvas.buscar('g-HW-101').classList.toggle('bloqueado', h.sinNivel);

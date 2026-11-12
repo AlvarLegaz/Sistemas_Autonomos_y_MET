@@ -79,3 +79,5 @@ svg g[data-tag].dg-equipo:focus-visible { outline: 3px solid var(--dg-foco); out
 .dg-leg-x { fill: none; stroke: var(--error); stroke-width: 2.4; stroke-linecap: round; }
 
 @media (prefers-reduced-motion: reduce) { .dg-dis .dg-res { filter: none; } }
+
+.pie-copyright { margin: 0; padding: 6px 12px 10px; text-align: center; font-size: 12px; color: var(--tenue); }

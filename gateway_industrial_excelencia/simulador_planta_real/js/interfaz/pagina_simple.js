@@ -45,11 +45,13 @@
    */
   function planLlenado(estado, enManual) {
     const e = estado || {};
-    const niveles = [['XV-101', e.tanque && e.tanque.nivelPct], ['XV-302', e.aguaCaliente && e.aguaCaliente.nivelPct]];
+    // El tanque de balance mide porcentaje (LT-101); el depósito de agua caliente solo tiene los interruptores LSL-301 y LSH-301: se da por lleno cuando salta el de nivel alto.
+    const I = e.instrumentos || {};
+    const aguaLlena = I['LSH-301'] && typeof I['LSH-301'].nivel === 'number' ? I['LSH-301'].nivel === 1 : typeof (e.aguaCaliente && e.aguaCaliente.nivelPct) === 'number' && e.aguaCaliente.nivelPct >= LLENO_PCT;
+    const niveles = [['XV-101', typeof (e.tanque && e.tanque.nivelPct) === 'number' && e.tanque.nivelPct >= LLENO_PCT], ['XV-302', aguaLlena]];
     const paro = !!(e.plc && e.plc.paro);
     let pendientes = 0;
-    const ordenes = niveles.map(([tag, nivel]) => {
-      const lleno = typeof nivel === 'number' && nivel >= LLENO_PCT;
+    const ordenes = niveles.map(([tag, lleno]) => {
       if (lleno || paro) return [tag, 0];                          // las electroválvulas son manuales: al terminar se cierran, y el PLC no las vuelve a abrir
       pendientes++; return [tag, 1];
     });
@@ -99,6 +101,14 @@
     return { accion: 'encender', ordenes: [['P-102', 1], ['KM-201', 1], ['KM-202', 1]], peligro: pm.peligro(e, 'KM-201') };
   }
 
+  /** Nivel del depósito de agua caliente según sus dos interruptores (LSL-301 abre en nivel bajo, LSH-301 cierra en nivel alto): 'bajo', 'normal' o 'alto'. Sin porcentaje. */
+  function nivelAgua(estado) {
+    const I = (estado && estado.instrumentos) || {};
+    if (I['LSL-301'] && I['LSL-301'].nivel === 0) return 'bajo';
+    if (I['LSH-301'] && I['LSH-301'].nivel === 1) return 'alto';
+    return 'normal';
+  }
+
   const dec = (v, c = 0) => (typeof v === 'number' ? v.toFixed(c).replace('.', ',') : '—');
   const formatoReloj = s => { const t = Math.floor(s || 0); return [Math.floor(t / 3600), Math.floor(t / 60) % 60, t % 60].map(n => String(n).padStart(2, '0')).join(':'); };
   const nombresModos = () => (layout && layout.PLANTA && layout.PLANTA.modos) || { normal: 'Normal', manual: 'Revisión' };
@@ -110,7 +120,7 @@
     if (e.plc && e.plc.paro) return 'PARO DE EMERGENCIA: la planta está parada. Pulsa REARME en el panel del esquema.';
     const activas = (e.alarmas || []).filter(a => a.nivel !== 'estado');
     const M = nombresModos(), modo = e.modo === 'MANUAL' ? `${M.manual} (modo manual)` : `${M.normal} · ${nombreModo(e.modo)}`;
-    const base = `${modo} · ${corriendo ? 'en marcha' : 'detenida'} · tanque ${dec(e.tanque && e.tanque.nivelPct)} % · agua caliente ${dec(e.aguaCaliente && e.aguaCaliente.nivelPct)} %`;
+    const base = `${modo} · ${corriendo ? 'en marcha' : 'detenida'} · tanque ${dec(e.tanque && e.tanque.nivelPct)} % · agua caliente: nivel ${nivelAgua(e)}`;
     if (!activas.length) return `${base} · sin alarmas`;
     const a = activas[0];
     return `${base} · ${activas.length} ${activas.length === 1 ? 'alarma' : 'alarmas'}: ${a.tag ? a.tag + ' ' : ''}${a.texto || a.codigo || ''}`;
@@ -151,7 +161,7 @@
     layout = PCT.htstLayout;
     const sim = crear.crearSimulacion({ semilla: 1, valvulasManuales: true });       // las electroválvulas XV-* no las gobierna el PLC: se accionan a mano con el clic
     // Nivel de partida de cada modo: en Normal los dos depósitos llenos; en Revisión los dos vacíos, para llenarlos tú. Se aplica al abrir la página, al Restablecer y al cambiar de modo si la planta aún no ha arrancado.
-    const nivelesIniciales = modo => { if (sim.ordenes.nivelDeposito) for (const [cual, pct] of Object.entries(NIVELES_INICIALES[modo])) sim.ordenes.nivelDeposito(cual, pct); };
+    const nivelesIniciales = modo => { if (sim.ordenes.nivelDeposito) { for (const [cual, pct] of Object.entries(NIVELES_INICIALES[modo])) sim.ordenes.nivelDeposito(cual, pct); sim.paso(0.2); } };    // el paso corto deja los interruptores de nivel al día
     nivelesIniciales('normal');
     const escena3dOk = PCT.htstVisor.registrar();
     const N = PCT.htstNiveles; N.fijarNivel(3);
@@ -186,14 +196,15 @@
               <h2>AJUSTES · ${escapar(layout.PLANTA.modos.manual.toUpperCase())}</h2>
               <label><span>Velocidad de P-101</span><output id="o-vel-p101">0 %</output><input type="range" id="vel-p101" min="0" max="100" step="1" value="0"></label>
               <label><span>Tanque de balance</span><output id="o-nivel-tanque">100 %</output><input type="range" id="nivel-tanque" min="0" max="100" step="1" value="100"></label>
-              <label><span>Agua caliente</span><output id="o-nivel-agua">100 %</output><input type="range" id="nivel-agua" min="0" max="100" step="1" value="100"></label>
+              <label><span>Agua caliente</span><output id="o-nivel-agua">nivel alto</output><input type="range" id="nivel-agua" min="0" max="100" step="1" value="100"></label>
               <span class="botones-manual"><button type="button" id="m-caldera">Encender caldera</button><button type="button" id="m-llenar">Llenar los dos depósitos</button><button type="button" id="m-rearme">Rearme</button></span></div></div>
           <div class="panel-pestana" id="p-lecturas" role="tabpanel" aria-labelledby="t-lecturas" hidden>
             <section class="condiciones" aria-label="Condiciones de la FDV"><h2 id="cond-titulo">LA FDV…</h2><ul id="lista-condiciones"></ul></section>
             <section class="contadores" aria-label="Contadores"><h2>CONTADORES</h2><dl id="lista-contadores"></dl></section>
             <div id="lecturas"></div></div>
         </aside>
-      </div>`;
+      </div>
+      <footer class="pie-copyright">© 2026 Álvar Legaz Aparicio. Todos los derechos reservados.</footer>`;
     const $ = id => document.getElementById(id);
     const avisos = [];
     if (enDemostracion) avisos.push('Modelo de demostración: el modelo real de la planta todavía no está cargado.');
@@ -312,7 +323,7 @@
 
     // Ajustes del modo Manual: velocidad de P-101 y nivel de los depósitos por barra (el nivel sirve de nivel inicial); sin tocarlas, las barras siguen el valor real
     for (const [id, cual] of [['nivel-tanque', 'tanque'], ['nivel-agua', 'aguaCaliente']]) {
-      $(id).addEventListener('input', () => { if (sim.ordenes.nivelDeposito) sim.ordenes.nivelDeposito(cual, $(id).value); $(`o-${id}`).textContent = `${$(id).value} %`; aplicarAhora(); refrescar(); });
+      $(id).addEventListener('input', () => { if (sim.ordenes.nivelDeposito) sim.ordenes.nivelDeposito(cual, $(id).value); aplicarAhora(); refrescar(); });
     }
     $('vel-p101').addEventListener('input', () => { sim.ordenes.manual('VFD-101', Number($('vel-p101').value)); $('o-vel-p101').textContent = `${$('vel-p101').value} %`; aplicarAhora(); refrescar(); });
     $('m-llenar').addEventListener('click', () => { alternarLlenado(); aplicarAhora(); refrescar(); });
@@ -364,8 +375,11 @@
       $('m-caldera').classList.toggle('activo', calderaOn);
       const textoLlenar = llenando ? 'Llenando… (cancelar)' : 'Llenar los dos depósitos'; if ($('m-llenar').textContent !== textoLlenar) $('m-llenar').textContent = textoLlenar;
       for (const [id, nivel] of [['vel-p101', e.salidasPLC && e.salidasPLC.AO && e.salidasPLC.AO['VFD-101']], ['nivel-tanque', e.tanque && e.tanque.nivelPct], ['nivel-agua', e.aguaCaliente && e.aguaCaliente.nivelPct]]) {
-        if (typeof nivel !== 'number' || document.activeElement === $(id)) continue;
-        const v = String(Math.round(nivel)); if ($(id).value !== v) $(id).value = v; $(`o-${id}`).textContent = `${v} %`;
+        if (typeof nivel !== 'number') continue;
+        const arrastrando = document.activeElement === $(id), v = String(Math.round(nivel));
+        if (!arrastrando && $(id).value !== v) $(id).value = v;
+        const texto = id === 'nivel-agua' ? `nivel ${nivelAgua(e)}` : `${arrastrando ? $(id).value : v} %`;      // el depósito de agua solo tiene dos interruptores de nivel: no da porcentaje
+        if ($(`o-${id}`).textContent !== texto) $(`o-${id}`).textContent = texto;
       }
       // Mando de Normal (panel lateral)
       const poner = (id, t) => { const el = $(id); if (el.textContent !== t) el.textContent = t; };
@@ -404,7 +418,7 @@
     PCT.htstApp = { estadoActual: () => sim.estado(), sim, enDemostracion, nivel: () => 3, ponerModo, accionarEquipo: accionar, llenarDepositos: alternarLlenado };
   }
 
-  const api = { ALIAS, LLENO_PCT, NIVELES_INICIALES, decidirClic, planLlenado, planCaldera, condicionesFdv, estadosDigitales, textoEstado, formatoReloj, nombreModo, iniciar };
+  const api = { ALIAS, LLENO_PCT, NIVELES_INICIALES, decidirClic, planLlenado, planCaldera, condicionesFdv, estadosDigitales, nivelAgua, textoEstado, formatoReloj, nombreModo, iniciar };
   if (typeof module !== 'undefined') module.exports = api;
   else { window.HTST_PAGINA_SIMPLE = api; if (document.getElementById('app')) iniciar().catch(error => { console.error(error); document.getElementById('app').innerHTML = `<p class="aviso-planta">No se pudo iniciar la planta: ${escapar(error.message || error)}</p>`; }); }
 })();

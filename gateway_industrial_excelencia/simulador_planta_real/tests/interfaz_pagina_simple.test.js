@@ -81,7 +81,8 @@ test('llenado con la simulación real en Manual: los dos depósitos suben hasta 
   assert.equal(llenarConLaSimulacion(sim, 600), true);
   for (let i = 0; i < 4; i++) sim.paso(0.5);
   const e = sim.estado();
-  assert.ok(e.tanque.nivelPct >= simple.LLENO_PCT && e.aguaCaliente.nivelPct >= simple.LLENO_PCT, `niveles ${e.tanque.nivelPct} / ${e.aguaCaliente.nivelPct}`);
+  assert.ok(e.tanque.nivelPct >= simple.LLENO_PCT, `tanque ${e.tanque.nivelPct}`);
+  assert.equal(simple.nivelAgua(e), 'alto', `agua caliente ${e.aguaCaliente.nivelPct}`);                 // el depósito de agua se da por lleno cuando salta LSH-301
   assert.equal(e.equipos['XV-101'].abierta, false); assert.equal(e.equipos['XV-302'].abierta, false);
   assert.equal(!!e.equipos['TK-101'].desbordando, false);                          // se cerró antes de rebosar
 });
@@ -90,12 +91,12 @@ test('llenado con la simulación real en automático: cierra el forzado al llega
   const sim = crearSimulacion({ semilla: 1 }); sim.paso(0.5);
   sim.ordenes.manual('XV-303', 1); for (let i = 0; i < 40; i++) sim.paso(0.5); sim.ordenes.manual('XV-303', null);
   assert.equal(llenarConLaSimulacion(sim, 900), true);
-  const e = sim.estado(); assert.ok(e.aguaCaliente.nivelPct >= simple.LLENO_PCT);
+  const e = sim.estado(); assert.equal(simple.nivelAgua(e), 'alto');
 });
 
 test('texto de estado: modo, niveles y la alarma más grave; el paro de emergencia manda sobre todo', () => {
   const e = { modo: 'MANUAL', tanque: { nivelPct: 60.2 }, aguaCaliente: { nivelPct: 100 }, alarmas: [], plc: {} };
-  assert.match(simple.textoEstado(e, true), /Revisión \(modo manual\) · en marcha · tanque 60 % · agua caliente 100 % · sin alarmas/);
+  assert.match(simple.textoEstado(e, true), /Revisión \(modo manual\) · en marcha · tanque 60 % · agua caliente: nivel normal · sin alarmas/);
   const a = Object.assign({}, e, { alarmas: [{ nivel: 'alarma', tag: 'TT-103', texto: 'Temperatura baja' }] });
   assert.match(simple.textoEstado(a, false), /detenida .* 1 alarma: TT-103 Temperatura baja/);
   assert.match(simple.textoEstado(Object.assign({}, e, { plc: { paro: true } }), true), /PARO DE EMERGENCIA/);
@@ -161,6 +162,14 @@ test('estados todo/nada para el cronograma: motores, bancos, FDV y electroválvu
   const d = simple.estadosDigitales(sim.estado());
   assert.equal(d['P-102'], 1); assert.equal(d['XV-301'], 1); assert.equal(d['P-101'], 0); assert.equal(d['FDV-101'], 0);
   for (const g of require('../js/interfaz/grafica_htst.js').GRUPO_MOTORES.series) assert.ok(g[0] in d, `falta ${g[0]}`);
+});
+
+test('el depósito de agua caliente no da porcentaje: solo bajo, normal o alto según LSL-301 y LSH-301', () => {
+  const sim = enManual();
+  sim.ordenes.nivelDeposito('aguaCaliente', 5); sim.paso(1); assert.equal(simple.nivelAgua(sim.estado()), 'bajo');
+  sim.ordenes.nivelDeposito('aguaCaliente', 55); sim.paso(1); assert.equal(simple.nivelAgua(sim.estado()), 'normal');
+  sim.ordenes.nivelDeposito('aguaCaliente', 95); sim.paso(1); assert.equal(simple.nivelAgua(sim.estado()), 'alto');
+  assert.doesNotMatch(simple.textoEstado(sim.estado(), true), /agua caliente[^·]*%/);
 });
 
 test('reloj con horas, minutos y segundos', () => { assert.equal(simple.formatoReloj(3725.9), '01:02:05'); assert.equal(simple.formatoReloj(), '00:00:00'); });

@@ -160,7 +160,7 @@ test('esquema: los 5 equipos nuevos están, y el svg ya no es role=img (los equi
 test('HW-101: bancos, potencia, nivel y bloqueo por nivel bajo salen del estado', () => {
   const sim = crearSimulacion({ semilla: 1 });
   let h = esquema.estadoCalentador(sim.estado());
-  assert.equal(h.bancos, 0); assert.equal(h.potenciaKW, 0); assert.equal(h.sinNivel, false); assert.equal(h.textoNivel, 'NIVEL 100 %');
+  assert.equal(h.bancos, 0); assert.equal(h.potenciaKW, 0); assert.equal(h.sinNivel, false); assert.equal(h.textoNivel, 'NIVEL NORMAL');       // el depósito de agua solo tiene dos interruptores de nivel: bajo, normal o alto, sin porcentaje
   sim.ordenes.modo('MANUAL'); sim.ordenes.manual('P-102', 1); sim.ordenes.manual('KM-201', 1); sim.ordenes.manual('KM-202', 1);
   sim.paso(5);
   h = esquema.estadoCalentador(sim.estado());
