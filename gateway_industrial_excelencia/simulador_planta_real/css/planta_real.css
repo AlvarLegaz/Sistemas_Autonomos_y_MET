@@ -73,8 +73,11 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .ht-banner { fill: #fff; font-weight: 800; }
 .banner-alarma { fill: var(--error); }
 .instr { fill: var(--panel); stroke: var(--tubo); stroke-width: 2; }
-.instr.on { fill: color-mix(in srgb, var(--led-activo) 42%, var(--panel)); stroke: var(--led-activo); }
-.instr.alarma { fill: color-mix(in srgb, var(--error) 55%, var(--panel)); stroke: var(--error); stroke-width: 3.5; }
+/* Estados con color y brillo (no gris): activo = verde con halo; nivel alto alcanzado = ámbar; fallo = rojo con halo. El texto del globo sube de contraste cuando está encendido. */
+.instr.on { fill: color-mix(in srgb, var(--ok) 45%, var(--panel)); stroke: var(--ok); stroke-width: 3; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--ok) 80%, transparent)); }
+#c-LSH-101.on, #c-LSH-301.on { fill: color-mix(in srgb, var(--aviso) 50%, var(--panel)); stroke: var(--aviso); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--aviso) 80%, transparent)); }
+.instr.alarma { fill: color-mix(in srgb, var(--error) 55%, var(--panel)); stroke: var(--error); stroke-width: 3.5; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--error) 85%, transparent)); }
+g[data-tag]:has(> .instr.on) text.ht-mini, g[data-tag]:has(> .instr.alarma) text.ht-mini { fill: var(--texto); }
 .manual.alarma { stroke: var(--error); stroke-width: 3; }
 .bomba { fill: var(--panel); }
 .bomba-flecha { fill: var(--tubo); }

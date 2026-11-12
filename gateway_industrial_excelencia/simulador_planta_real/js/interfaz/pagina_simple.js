@@ -24,7 +24,7 @@
     if (PULSADORES.includes(tag)) return { tipo: 'pulsador', tag };
     const mando = ALIAS[tag] || tag, pm = PM(), def = pm.mandoDe(mando);
     if (!def) return { tipo: 'info', texto: `${tag} no se acciona. Con el botón derecho ves su ficha.` };
-    if (e.modo !== 'MANUAL') return { tipo: 'aviso', texto: `Para accionar ${mando} pasa a Manual. Con el botón derecho ves su ficha.` };
+    if (e.modo !== 'MANUAL') return { tipo: 'aviso', texto: `Para accionar ${mando} pasa a ${nombresModos().manual} (modo manual). Con el botón derecho ves su ficha.` };
     if (def.tipo === 'numerico') return { tipo: 'aviso', texto: 'La velocidad de P-101 se cambia en el panel de mando (− y +).' };
     const nuevo = !pm.ordenDe(e, mando);
     if (nuevo) {
@@ -56,6 +56,7 @@
 
   const dec = (v, c = 0) => (typeof v === 'number' ? v.toFixed(c).replace('.', ',') : '—');
   const formatoReloj = s => { const t = Math.floor(s || 0); return [Math.floor(t / 3600), Math.floor(t / 60) % 60, t % 60].map(n => String(n).padStart(2, '0')).join(':'); };
+  const nombresModos = () => (layout && layout.PLANTA && layout.PLANTA.modos) || { normal: 'Normal', manual: 'Revisión' };
   const nombreModo = modo => { const m = layout && layout.MODOS_INFO && layout.MODOS_INFO[modo]; return m ? m.nombre : (modo || '—'); };
 
   /** Texto de la línea de estado de la barra: planta (modo y marcha), niveles y la alarma más grave. */
@@ -63,7 +64,8 @@
     if (!e) return '—';
     if (e.plc && e.plc.paro) return 'PARO DE EMERGENCIA: la planta está parada. Pulsa REARME en el panel del esquema.';
     const activas = (e.alarmas || []).filter(a => a.nivel !== 'estado');
-    const base = `${nombreModo(e.modo)} · ${corriendo ? 'en marcha' : 'detenida'} · tanque ${dec(e.tanque && e.tanque.nivelPct)} % · agua caliente ${dec(e.aguaCaliente && e.aguaCaliente.nivelPct)} %`;
+    const M = nombresModos(), modo = e.modo === 'MANUAL' ? `${M.manual} (modo manual)` : `${M.normal} · ${nombreModo(e.modo)}`;
+    const base = `${modo} · ${corriendo ? 'en marcha' : 'detenida'} · tanque ${dec(e.tanque && e.tanque.nivelPct)} % · agua caliente ${dec(e.aguaCaliente && e.aguaCaliente.nivelPct)} %`;
     if (!activas.length) return `${base} · sin alarmas`;
     const a = activas[0];
     return `${base} · ${activas.length} ${activas.length === 1 ? 'alarma' : 'alarmas'}: ${a.tag ? a.tag + ' ' : ''}${a.texto || a.codigo || ''}`;
@@ -73,12 +75,12 @@
   const escapar = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const VENTANA = 'popup=yes,width=1180,height=780';
 
-  const GUIA = [
+  const guia = () => { const M = nombresModos(); return [
     ['Cómo se maneja', '<p><b>Clic izquierdo</b> sobre un equipo lo acciona (bombas, válvulas, contactores y la seta). <b>Clic derecho</b> abre su ficha: qué es, qué hace, su estado y «Ver en 3D», que abre solo ese equipo.</p>'],
-    ['Manual y Automático', '<p>En <b>Manual</b> mandas tú cada actuador con el clic izquierdo; el PLC solo mantiene las protecciones. En <b>Automático</b> el PLC lleva la planta: pulsa Iniciar y pasa de recirculación de agua a producción cuando se cumplen las condiciones.</p>'],
-    ['Panel del esquema', '<p>Abajo a la izquierda: caudal (o velocidad de la bomba en Manual), consigna de pasteurización TT-103, MARCHA, PARO, REARME y <b>LLENAR LOS DOS DEPÓSITOS</b>, que abre las válvulas de llenado hasta que el tanque de balance y el depósito de agua caliente estén llenos.</p>'],
+    [`${M.manual} (modo manual)`, '<p>Mandas tú cada actuador con el clic izquierdo; el PLC solo mantiene las protecciones. <b>No hay Iniciar</b>: el reloj corre siempre y lo que haces ocurre al momento. Con <b>Restablecer</b> vuelves al estado inicial. Debajo del reloj tienes las barras de la <b>velocidad de P-101</b> y del <b>nivel de los dos depósitos</b> (sirven también de nivel inicial), y los botones <b>Llenar los dos depósitos</b> y <b>Rearme</b>.</p>'],
+    [`${M.normal}`, '<p>El PLC lleva la planta. Pulsa <b>Iniciar</b> y pasa de recirculación de agua a producción cuando se cumplen las condiciones. En el esquema aparece el panel <b>Mando y consignas</b>: caudal, consigna de pasteurización TT-103, MARCHA, PARO, REARME y <b>LLENAR LOS DOS DEPÓSITOS</b>. Al pasar de un modo a otro se conserva el estado de la planta, niveles incluidos.</p>'],
     ['Ventanas aparte', '<p><b>Fuerza</b> y <b>Mando</b> muestran los planos eléctricos con el estado en vivo; <b>Planta 3D</b> la planta completa. Se siguen moviendo con la planta.</p>'],
-  ];
+  ]; };
 
   /** Diálogo de confirmación accesible. Devuelve una promesa que resuelve true si se confirma. */
   function confirmar({ titulo, mensaje, ok = 'Confirmar' }) {
@@ -109,12 +111,17 @@
 
     raiz.innerHTML = `<header class="cab">
         <h1><img class="logo" src="/simulador/img/logo-politecnico.png" alt="CIFP Politécnico Cartagena" width="166" height="60"><span class="sim">${escapar(P.fabrica.toUpperCase())} · ${escapar(P.corto)}<small>${escapar(P.estacion)} · HTST de leche</small></span></h1>
-        <nav class="modos" aria-label="Modo de funcionamiento"><button type="button" id="modo-manual">Manual</button><button type="button" id="modo-auto">Automático</button></nav>
+        <nav class="modos" aria-label="Modo de funcionamiento"><button type="button" id="modo-auto" title="El PLC lleva la planta">${escapar(layout.PLANTA.modos.normal)}</button><button type="button" id="modo-manual" title="Modo manual: mandas tú cada actuador">${escapar(layout.PLANTA.modos.manual)}</button></nav>
         <div class="ventanas" role="group" aria-label="Ventanas aparte"><button type="button" id="v-fuerza">Fuerza</button><button type="button" id="v-mando">Mando</button><button type="button" id="v-3d">Planta 3D</button><button type="button" id="v-ayuda">? Ayuda</button></div>
       </header>
       <div class="barra" role="region" aria-label="Operación de la planta">
-        <div class="acciones"><button id="sim-play" type="button">Iniciar</button><button id="sim-pause" type="button" disabled>Pausar</button><button id="sim-reset" type="button">Reiniciar</button><button id="sim-parar" type="button" class="paro-todo">Parar todo</button></div>
-        <div class="pista"><p class="estado-manual" aria-live="polite"><b id="sim-time">00:00:00</b><span id="sim-status">—</span></p></div>
+        <div class="acciones"><button id="sim-play" type="button">Iniciar</button><button id="sim-pause" type="button" disabled>Pausar</button><button id="sim-reset" type="button">Restablecer</button><button id="sim-parar" type="button" class="paro-todo">Parar todo</button></div>
+        <div class="pista"><p class="estado-manual" aria-live="polite"><b id="sim-time">00:00:00</b><span id="sim-status">—</span></p>
+          <div class="ajustes-manual" role="group" aria-label="Ajustes del modo manual (solo en ${escapar(layout.PLANTA.modos.manual)})">
+            <label>Velocidad de P-101 <input type="range" id="vel-p101" min="0" max="100" step="1" value="0"><output id="o-vel-p101">0 %</output></label>
+            <label>Tanque de balance <input type="range" id="nivel-tanque" min="0" max="100" step="1" value="60"><output id="o-nivel-tanque">60 %</output></label>
+            <label>Agua caliente <input type="range" id="nivel-agua" min="0" max="100" step="1" value="100"><output id="o-nivel-agua">100 %</output></label>
+            <span class="botones-manual"><button type="button" id="m-llenar">Llenar los dos depósitos</button><button type="button" id="m-rearme">Rearme</button></span></div></div>
         <div class="derecha"><div class="velocidad" role="group" aria-label="Velocidad de simulación"><button type="button" data-v="1" aria-pressed="true">1×</button><button type="button" data-v="5" aria-pressed="false">5×</button><button type="button" data-v="20" aria-pressed="false">20×</button></div></div>
       </div>
       <div id="avisos"></div><p id="aviso-clic" class="aviso-clic" role="status" hidden></p>
@@ -207,18 +214,31 @@
     $('sim-play').addEventListener('click', () => { if (sim.estado().modo === 'PARADA') sim.ordenes.arrancar(); corriendo = true; actualizarBotones(); refrescar(); });
     $('sim-pause').addEventListener('click', () => { corriendo = false; actualizarBotones(); refrescar(); });
     $('sim-reset').addEventListener('click', async () => {
-      const si = await confirmar({ titulo: '¿Reiniciar la planta?', mensaje: 'Se perderá el estado de la planta. No se puede deshacer.', ok: 'Reiniciar' });
+      const si = await confirmar({ titulo: '¿Restablecer la planta?', mensaje: 'Vuelve al estado inicial: depósitos en su nivel de partida, todo parado. No se puede deshacer.', ok: 'Restablecer' });
       if (!si) return;
-      sim.reiniciar(); corriendo = false; llenando = false; consignasPanel.llenando = false; actualizarBotones(); refrescar();
+      const eraManual = enManual();
+      sim.reiniciar(); llenando = false; consignasPanel.llenando = false;
+      if (eraManual) { corriendo = true; actualizarBotones(); ponerModo('MANUAL'); }          // en Manual sigue en Manual y con el reloj en marcha
+      else { corriendo = false; actualizarBotones(); refrescar(); }
     });
     $('sim-parar').addEventListener('click', () => {
       llenando = false; consignasPanel.llenando = false;
       if (enManual()) { for (const [tag, valor] of PCT.htstPanelManual.PARADA_SEGURA) sim.ordenes.manual(tag, valor); } else sim.ordenes.parar();
       aplicarAhora(); refrescar();
     });
-    $('modo-manual').addEventListener('click', () => { llenando = false; consignasPanel.llenando = false; ponerModo('MANUAL'); });
-    $('modo-auto').addEventListener('click', () => { if (enManual()) { llenando = false; consignasPanel.llenando = false; ponerModo('RECIRCULACION_AGUA'); } });
+    // Manual: el reloj corre siempre (no hay «Iniciar»: lo que mandas ocurre al momento, como en una planta de verdad) y se restablece con «Restablecer».
+    // Automático: el PLC lleva la planta; se pasa a parada y se arranca con «Iniciar» (el estado, niveles incluidos, se conserva).
+    $('modo-manual').addEventListener('click', () => { if (enManual()) return; llenando = false; consignasPanel.llenando = false; corriendo = true; actualizarBotones(); ponerModo('MANUAL'); });
+    $('modo-auto').addEventListener('click', () => { if (!enManual()) return; llenando = false; consignasPanel.llenando = false; corriendo = false; actualizarBotones(); ponerModo('PARADA'); });
     document.querySelector('.velocidad').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; velocidad = Number(b.dataset.v); document.querySelectorAll('.velocidad button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
+
+    // Ajustes del modo Manual: velocidad de P-101 y nivel de los depósitos por barra (el nivel sirve de nivel inicial); sin tocarlas, las barras siguen el valor real
+    for (const [id, cual] of [['nivel-tanque', 'tanque'], ['nivel-agua', 'aguaCaliente']]) {
+      $(id).addEventListener('input', () => { if (sim.ordenes.nivelDeposito) sim.ordenes.nivelDeposito(cual, $(id).value); $(`o-${id}`).textContent = `${$(id).value} %`; aplicarAhora(); refrescar(); });
+    }
+    $('vel-p101').addEventListener('input', () => { sim.ordenes.manual('VFD-101', Number($('vel-p101').value)); $('o-vel-p101').textContent = `${$('vel-p101').value} %`; aplicarAhora(); refrescar(); });
+    $('m-llenar').addEventListener('click', () => { alternarLlenado(); aplicarAhora(); refrescar(); });
+    $('m-rearme').addEventListener('click', () => { accionesPanel.rearme(); aplicarAhora(); refrescar(); });
 
     // Ventanas aparte (se siguen moviendo con la planta: leen su estado de esta ventana)
     $('v-3d').addEventListener('click', () => PCT.visor3d.abrirEnVentana('HTST', () => sim.estado()));
@@ -235,7 +255,7 @@
         g.addEventListener('click', e => { if (e.target.closest('button')) { g.hidden = true; if (g.origen && g.origen.focus) g.origen.focus(); } });
         document.addEventListener('keydown', e => { if (e.key === 'Escape' && !g.hidden) { g.hidden = true; if (g.origen && g.origen.focus) g.origen.focus(); } }); }
       g.origen = document.activeElement;
-      g.innerHTML = `<header><h3 id="guia-titulo">Ayuda · ${escapar(P.estacion)}</h3><button type="button" aria-label="Cerrar (Esc)">×</button></header><div class="cuerpo">${GUIA.map(([t, h]) => `<h4>${t}</h4>${h}`).join('')}</div>`; g.hidden = false;
+      g.innerHTML = `<header><h3 id="guia-titulo">Ayuda · ${escapar(P.estacion)}</h3><button type="button" aria-label="Cerrar (Esc)">×</button></header><div class="cuerpo">${guia().map(([t, h]) => `<h4>${t}</h4>${h}`).join('')}</div>`; g.hidden = false;
       g.querySelector('button').focus();
     });
 
@@ -247,6 +267,12 @@
       const texto = textoEstado(e, corriendo); if ($('sim-status').textContent !== texto) $('sim-status').textContent = texto;
       if (manual) $('modo-manual').setAttribute('aria-current', 'page'); else $('modo-manual').removeAttribute('aria-current');
       if (!manual) $('modo-auto').setAttribute('aria-current', 'page'); else $('modo-auto').removeAttribute('aria-current');
+      document.body.dataset.modo = manual ? 'manual' : 'auto';
+      const textoLlenar = llenando ? 'Llenando… (cancelar)' : 'Llenar los dos depósitos'; if ($('m-llenar').textContent !== textoLlenar) $('m-llenar').textContent = textoLlenar;
+      for (const [id, nivel] of [['vel-p101', e.salidasPLC && e.salidasPLC.AO && e.salidasPLC.AO['VFD-101']], ['nivel-tanque', e.tanque && e.tanque.nivelPct], ['nivel-agua', e.aguaCaliente && e.aguaCaliente.nivelPct]]) {
+        if (typeof nivel !== 'number' || document.activeElement === $(id)) continue;
+        const v = String(Math.round(nivel)); if ($(id).value !== v) $(id).value = v; $(`o-${id}`).textContent = `${v} %`;
+      }
       document.body.dataset.estado = e.alarmas && e.alarmas.some(a => a.nivel !== 'estado') ? 'alarma' : corriendo ? 'marcha' : 'reposo';
     }
     setInterval(() => { if (corriendo) sim.paso(0.25 * velocidad); if (llenando) pasoLlenado(); refrescar(); }, 250);

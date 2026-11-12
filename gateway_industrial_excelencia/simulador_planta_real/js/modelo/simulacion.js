@@ -151,6 +151,16 @@
       },
       manual(tag, valor) { if (valor === null || valor === undefined) delete ord.manual[tag]; else ord.manual[tag] = valor; },
       paroEmergencia(activo) { estado.equipos['ES-001'].rearmado = !activo; },
+      /** Fija el nivel (0-100 %) de un depósito: 'tanque' (TK-101) o 'aguaCaliente' (HW-101). Sirve de nivel inicial y también para corregirlo con la planta en marcha. */
+      nivelDeposito(cual, pct) {
+        if (pct === null || pct === '' || !Number.isFinite(Number(pct))) return;
+        const n = limitar(Number(pct), 0, 100);
+        if (cual === 'tanque') { const tk = estado.equipos['TK-101']; tk.volumenL = C.tanque.capacidadL * n / 100; tk.nivelPct = n; tk.desbordando = false; estado.tanque.volumenL = tk.volumenL; estado.tanque.nivelPct = n; }
+        else if (cual === 'aguaCaliente') {
+          const hw = estado.equipos['HW-101']; hw.volumenL = C.aguaCaliente.capacidadL * n / 100; hw.nivelPct = n;
+          estado.aguaCaliente.volumenL = hw.volumenL; estado.aguaCaliente.nivelPct = n; estado.equipos['LSL-301'].contactoCerrado = n > C.aguaCaliente.nivelBajoPct;
+        }
+      },
     };
 
     const senales = () => {

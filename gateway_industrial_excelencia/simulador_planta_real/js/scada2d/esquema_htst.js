@@ -197,7 +197,7 @@
   const X_ARMARIO = { caja: ARMARIO.x, ancho: ARMARIO.ancho, columnas: [ARMARIO.x + 28, ARMARIO.x + 84] };
   function armario() {
     const c = ARMARIO.x + ARMARIO.ancho / 2;
-    const hijos = [['rect', { class: 'caja', x: X_ARMARIO.caja, y: 14, width: X_ARMARIO.ancho, height: 596, rx: 6, 'data-n': 2 }],
+    const hijos = [['rect', { class: 'caja', x: X_ARMARIO.caja, y: 14, width: X_ARMARIO.ancho, height: 626, rx: 6, 'data-n': 2 }],
       g('QE-001', txt(c, 38, 'ARMARIO', 'ht-tag ht-fuerte'), txt(c, 54, 'QE-001 · PLC-001'))];
     let y = 92;
     for (const grupo of GRUPOS_LEDS) {

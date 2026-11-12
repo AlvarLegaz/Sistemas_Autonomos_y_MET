@@ -16,7 +16,7 @@ test('el nombre de la fábrica y de la estación está en el contrato', () => {
 test('clic izquierdo: en automático un actuador no se acciona y avisa de pasar a Manual', () => {
   const sim = crearSimulacion({ semilla: 1 }); sim.paso(0.5);
   const d = simple.decidirClic('P-102', sim.estado());
-  assert.equal(d.tipo, 'aviso'); assert.match(d.texto, /Manual/);
+  assert.equal(d.tipo, 'aviso'); assert.match(d.texto, /Revisión \(modo manual\)/);
 });
 
 test('clic izquierdo: en Manual alterna la orden de una bomba y la válvula de desvío se acciona por su piloto SV-101', () => {
@@ -95,10 +95,26 @@ test('llenado con la simulación real en automático: cierra el forzado al llega
 
 test('texto de estado: modo, niveles y la alarma más grave; el paro de emergencia manda sobre todo', () => {
   const e = { modo: 'MANUAL', tanque: { nivelPct: 60.2 }, aguaCaliente: { nivelPct: 100 }, alarmas: [], plc: {} };
-  assert.match(simple.textoEstado(e, true), /Manual · en marcha · tanque 60 % · agua caliente 100 % · sin alarmas/);
+  assert.match(simple.textoEstado(e, true), /Revisión \(modo manual\) · en marcha · tanque 60 % · agua caliente 100 % · sin alarmas/);
   const a = Object.assign({}, e, { alarmas: [{ nivel: 'alarma', tag: 'TT-103', texto: 'Temperatura baja' }] });
   assert.match(simple.textoEstado(a, false), /detenida .* 1 alarma: TT-103 Temperatura baja/);
   assert.match(simple.textoEstado(Object.assign({}, e, { plc: { paro: true } }), true), /PARO DE EMERGENCIA/);
+});
+
+test('nivelDeposito fija el nivel de cada depósito, lo reflejan los instrumentos y el valor no válido se ignora', () => {
+  const sim = crearSimulacion({ semilla: 1 }); sim.paso(0.5);
+  sim.ordenes.nivelDeposito('tanque', 30); sim.ordenes.nivelDeposito('aguaCaliente', 5); sim.paso(0.5); sim.paso(0.5);
+  const e = sim.estado();
+  assert.ok(Math.abs(e.tanque.nivelPct - 30) < 2, `tanque ${e.tanque.nivelPct}`);
+  assert.ok(e.aguaCaliente.nivelPct < 15, `agua ${e.aguaCaliente.nivelPct}`);
+  assert.equal(e.instrumentos['LSL-301'].nivel, 0);                                // por debajo del nivel bajo: el interruptor abre
+  sim.ordenes.nivelDeposito('tanque', 'mucho'); sim.ordenes.nivelDeposito('tanque', 250); sim.paso(0.5);
+  assert.ok(sim.estado().tanque.nivelPct <= 100);
+});
+
+test('los dos modos de la pantalla se llaman Normal y Revisión (en el contrato, para cambiarlos en un sitio)', () => {
+  assert.deepEqual(layout.PLANTA.modos, { normal: 'Normal', manual: 'Revisión' });
+  assert.match(simple.textoEstado({ modo: 'PRODUCCION', tanque: { nivelPct: 80 }, aguaCaliente: { nivelPct: 90 }, alarmas: [], plc: {} }, true), /^Normal · Producción · en marcha/);
 });
 
 test('reloj con horas, minutos y segundos', () => { assert.equal(simple.formatoReloj(3725.9), '01:02:05'); assert.equal(simple.formatoReloj(), '00:00:00'); });

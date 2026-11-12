@@ -4,7 +4,8 @@
 // El origen es el centro del patín; el suelo del patín está en Y = 0. Valores típicos de la literatura: ilustrativos, no de una instalación concreta.
 (function () {
   // Nombre de la fábrica y de la estación (ficticios, para el aula): salen en la cabecera, los títulos de las ventanas y el rótulo del 3D.
-  const PLANTA = { fabrica: 'Lácteos Politécnico', estacion: 'Estación de pasteurización EP-01', corto: 'EP-01' };
+  // `modos`: nombres de los dos modos de la pantalla sencilla (Normal = el PLC lleva la planta; el segundo es el modo manual del PLC). Se cambian aquí (p. ej. «Inspección»).
+  const PLANTA = { fabrica: 'Lácteos Politécnico', estacion: 'Estación de pasteurización EP-01', corto: 'EP-01', modos: { normal: 'Normal', manual: 'Revisión' } };
   const SKID = { ancho: 320, fondo: 150, alto: 20 };       // bancada de acero inoxidable sobre la que va todo menos el armario
   const ALTURA_TUBO_CM = 55;                               // eje de las tuberías sobre el suelo del patín
   const DIAMETRO_TUBO_CM = 3.8;                            // tubo sanitario de 1,5" (DN40), con abrazaderas tri-clamp

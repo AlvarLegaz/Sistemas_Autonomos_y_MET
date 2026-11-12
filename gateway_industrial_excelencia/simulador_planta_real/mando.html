@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="author" content="Álvar Legaz Aparicio">
+<meta name="copyright" content="© 2026 Álvar Legaz Aparicio. Todos los derechos reservados.">
+<title>Planta real HTST · Mando</title>
+<link rel="icon" type="image/png" href="/simulador/img/favicon.png">
+<link rel="stylesheet" href="/simulador/css/interfaz.css">
+<link rel="stylesheet" href="css/planta_real.css">
+<link rel="stylesheet" href="css/diagramas.css">
+</head>
+<body class="dg-ventana" data-vista="mando">
+<header class="dg-cabecera">
+  <h1 id="dg-titulo">Planta real HTST · Mando</h1>
+  <span class="dg-modo" id="dg-modo" aria-live="off"></span>
+  <a class="dg-boton" id="dg-otra" href="#">Ver otra vista</a>
+  <button type="button" id="dg-cerrar">Cerrar</button>
+</header>
+<p class="dg-aviso" id="dg-aviso" hidden></p>
+<main class="dg-lienzo" id="dg-lienzo"></main>
+<script src="js/interfaz/cargador.js"></script>
+<script>
+// Ventana aparte del diagrama de mando: lee el estado de la ventana que la abrió (mismo origen), como el 3D.
+(async function () {
+  await HTST_CARGADOR.cargarTodo({ conInterfaz: false });
+  await HTST_CARGADOR.cargarScript('js/interfaz/ventana_diagrama.js');
+  window.HTST_VENTANA = await HTST_VENTANA_DIAGRAMA.iniciar('mando');
+})();
+</script>
+</body>
+</html>
