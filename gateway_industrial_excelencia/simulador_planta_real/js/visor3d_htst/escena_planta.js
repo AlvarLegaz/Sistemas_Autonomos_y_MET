@@ -286,7 +286,10 @@
 
     // La planta mide 420 cm de punta a punta (con el armario): hace falta una cámara con far ≥ 1100. `vistaInicial.far` lo indica; el visor de la maqueta
     // usa far = 500 fijo, así que el programador de interfaz debe leer `escena.vistaInicial.far || 500` al crear la cámara.
-    return { raiz, elementos, actualizar, resaltar, aislar, restaurar, vistaDe, ponerCorte() {}, ponerTapa() {}, mallasSeleccionables, liberar, sombras: false,
+    // «Corte» y «Tapa» del visor: los módulos que las entienden (tuberías: acero translúcido; armario: puerta cerrada y translúcida o quitada) reaccionan.
+    const ponerCorte = v => { for (const parte of partes) if (parte.ponerCorte) parte.ponerCorte(!!v); };
+    const ponerTapa = v => { for (const parte of partes) if (parte.ponerTapa) parte.ponerTapa(!!v); };
+    return { raiz, elementos, actualizar, resaltar, aislar, restaurar, vistaDe, ponerCorte, ponerTapa, mallasSeleccionables, liberar, sombras: false,
       vistaInicial: { azimut: 0.4, elevacion: 0.5, distancia: 470, minimo: 60, maximo: 600, far: 1100, objetivo: { x: 35, y: 35, z: 0 } } };
   }
 

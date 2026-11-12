@@ -97,15 +97,22 @@
       }
     };
 
-    /* TK-101: líquido con su nivel y el agitador */
+    /* TK-101: líquido con su nivel, agitador de tres rodetes de palas inclinadas, bola de limpieza CIP bajo la entrada del retorno y tubo de bajada */
     function tanque(g) {
       const grupo = new THREE.Group(); g.add(grupo);
       const mat = translucido(K.VERDE_PRODUCTO, 0.8);
       const cuerpo = pieza(grupo, kit.cil(31.8, 1, 28), mat, [0, 50, 0], [0, 0, 0], 1);
       const fondo = pieza(grupo, kit.cono(10, 31.8, 6, 24), mat, [0, 19, 0], [0, 0, 0], 1);
       const agit = new THREE.Group(); grupo.add(agit);
-      pieza(agit, kit.cil(0.8, 62, 8), kit.mat('inoxMate'), [0, 58, 0]);
-      for (const y of [32, 52]) pieza(agit, kit.caja(22, 1, 4), kit.mat('inox'), [0, y, 0]);
+      const ag = kit.ensamble();
+      ag.add(kit.cil(0.9, 68, 10), 'inoxMate', [0, 56, 0]);
+      for (const y of [27, 44, 61]) {
+        ag.add(kit.cil(1.7, 1.8, 10), 'inox', [0, y, 0]);
+        for (let i = 0; i < 4; i++) { const a = i * PI / 2 + y * 0.1, pala = kit.caja(9, 0.5, 3.8); pala.rotateX(0.7); pala.translate(6.4, 0, 0); pala.rotateY(-a); ag.add(pala, 'inox', [0, y, 0]); }
+      }
+      ag.construir(agit, null); agit.traverse(o => { o.raycast = ninguno; });
+      pieza(grupo, kit.cil(1, 7, 8), kit.mat('inoxMate'), [14, 82.5, 0]);                       // tubo de bajada del retorno
+      pieza(grupo, kit.esfera(2.2, 12), kit.mat('inox'), [14, 78.6, 0]);                        // bola de limpieza CIP
       let ultimo = -1;
       return { grupo, actualizar(estado, dt) {
         const c = columnaLiquido(K.nivelTanquePct(estado), 22, 56);
@@ -123,9 +130,11 @@
       const mat = translucido(0x3a8fd0, 0.72);
       const agua = pieza(grupo, kit.cil(16.2, 1, 24), mat, [0, 38, 0], [0, 0, 0], 1);
       const m1 = basico(0x6a6f75), m2 = basico(0x6a6f75);
-      for (const x of [-9, -6.5, -4]) pieza(grupo, kit.cil(0.8, 38, 8), m1, [x, 33, 0]);
-      for (const x of [4, 6.5, 9]) pieza(grupo, kit.cil(0.8, 38, 8), m2, [x, 33, 0]);
-      pieza(grupo, kit.cil(0.6, 6, 6), m1, [-6.5, 52.4, 0], [0, 0, PI / 2]); pieza(grupo, kit.cil(0.6, 6, 6), m2, [6.5, 52.4, 0], [0, 0, PI / 2]);
+      // cada banco: tres varillas blindadas horizontales que entran por su brida de la pared trasera (z = -15,7) y se apoyan en un separador de acero
+      for (const [bx, mm] of [[-6.5, m1], [6.5, m2]]) {
+        for (const dx of [-2.2, 0, 2.2]) pieza(grupo, kit.cil(0.75, 23.7, 8), mm, [bx + dx, 16, -3.85], [PI / 2, 0, 0]);
+        pieza(grupo, kit.caja(6.4, 0.5, 0.8), kit.mat('inoxMate'), [bx, 16, 5]);
+      }
       const Y_LSL = 11.8 + 52.4 * 0.15;                                      // 15 % de nivel: donde actúa LSL-201
       pieza(grupo, kit.toro(16.3, 0.3, PI * 2, 30), basico(0xff3b30), [0, Y_LSL, 0], [PI / 2, 0, 0]);
       pieza(grupo, kit.cil(0.4, 10, 6), kit.mat('inoxMate'), [12, Y_LSL + 3, 0]);
@@ -144,31 +153,35 @@
       } };
     }
 
-    /* P-101 y P-201: rodete con álabes que gira, fluido y flechas de flujo (aspiración axial, descarga tangencial) */
+    /* P-101 y P-201: rodete abierto de seis álabes inclinados con su disco trasero y sello mecánico, voluta con fluido y flechas de flujo (aspiración axial por -z,
+       descarga tangencial hacia arriba). El centro de la voluta es EQ.BOMBA. */
     function bomba(tag) {
       return g => {
         const grupo = new THREE.Group(); g.add(grupo);
-        const agua = tag === 'P-201';
+        const agua = tag === 'P-201', C = EQ.BOMBA;
         const mat = translucido(agua ? K.colorAguaCaliente(70) : K.VERDE_PRODUCTO, 0.55);
-        pieza(grupo, kit.cil(8.4, 7.2, 22), mat, [-10, 13, 0], [PI / 2, 0, 0], 1);
-        const imp = new THREE.Group(); imp.position.set(-10, 13, 0); grupo.add(imp);
-        pieza(imp, kit.cil(6.2, 0.8, 22), kit.mat('inox'), [0, 0, -2.4], [PI / 2, 0, 0]);
-        pieza(imp, kit.cil(1.6, 6, 10), kit.mat('inoxMate'), [0, 0, 0], [PI / 2, 0, 0]);
-        for (let i = 0; i < 6; i++) {
-          const a = (i / 6) * PI * 2;
-          pieza(imp, kit.caja(5.2, 0.55, 4.4), kit.mat('inoxMate'), [Math.cos(a) * 3.8, Math.sin(a) * 3.8, 0.4], [0, 0, a + 0.5]);   // álabes inclinados (curvos)
-        }
-        pieza(grupo, kit.cil(1.1, 14, 8), kit.mat('inoxMate'), [-3, 13, 0], [0, 0, PI / 2]);
+        pieza(grupo, kit.cil(7.9, 7, 24), mat, [C.x, C.y, C.z], [PI / 2, 0, 0], 1);
         const ent = P.puerto(tag, 'ent'), sal = P.puerto(tag, 'sal'), p = g.position;
         const e = [ent[0] - p.x, ent[1], ent[2] - p.z], s = [sal[0] - p.x, sal[1], sal[2] - p.z];
+        pieza(grupo, kit.cil(1.7, 5, 10), mat, [e[0], e[1], e[2] + 2.7], [PI / 2, 0, 0], 1);        // fluido en la aspiración
+        pieza(grupo, kit.cil(1.7, 6, 10), mat, [s[0], 23.2, s[2]], [0, 0, 0], 1);                  // y en la descarga
+        const imp = new THREE.Group(); imp.position.set(C.x, C.y, C.z); grupo.add(imp);
+        pieza(imp, kit.cil(6.4, 0.7, 24), kit.mat('inox'), [0, 0, 1.3], [PI / 2, 0, 0]);          // disco trasero
+        pieza(imp, kit.cil(1.7, 4.6, 10), kit.mat('inoxMate'), [0, 0, -0.3], [PI / 2, 0, 0]);     // cubo
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * PI * 2;
+          pieza(imp, kit.caja(4.8, 0.5, 3.3), kit.mat('inoxMate'), [Math.cos(a) * 3.9, Math.sin(a) * 3.9, -0.5], [0, 0, a + 0.5]);   // álabes inclinados (curvos)
+        }
+        pieza(grupo, kit.cil(1.1, 8, 8), kit.mat('inoxMate'), [C.x, C.y, C.z + 4.5], [PI / 2, 0, 0]);        // eje
+        pieza(grupo, kit.cil(2.5, 0.9, 14), kit.mat('laton'), [C.x, C.y, C.z + 2.5], [PI / 2, 0, 0]);        // sello mecánico
         const fIn = flechas(grupo, 3, 0x7dff9c), fOut = flechas(grupo, 3, 0xffd166);
         let fase = 0, ultimo = -1;
         return { grupo, actualizar(estado, dt) {
           const eq = K.equipoDe(estado, tag), w = velocidadRodeteRadS(eq), marcha = w > 0;
           imp.rotation.z -= w * (dt || 0);
           fase = (fase + (dt || 0) * (0.3 + w / (PI * 3))) % 1;
-          colocarFlechas(fIn, [e[0], e[1], e[2] + 11], [e[0], e[1], 3], fase, marcha);
-          colocarFlechas(fOut, [s[0], 17, s[2]], [s[0], s[1] - 1, s[2]], fase, marcha);
+          colocarFlechas(fIn, [e[0], e[1], e[2] + 0.4], [e[0], e[1], C.z - 3.2], fase, marcha);
+          colocarFlechas(fOut, [s[0], C.y + 4, s[2]], [s[0], s[1] - 1, s[2]], fase, marcha);
           const hex = agua ? K.colorAguaCaliente(K.temperaturaAguaCaliente(estado)) : K.colorProducto(K.temperaturaDe(estado, 'entrada', 4));
           if (hex !== ultimo) { mat.color.setHex(hex); ultimo = hex; }
           mat.opacity = marcha ? 0.55 : 0.3;
@@ -185,6 +198,19 @@
       const m = new THREE.Matrix4(), c = new THREE.Color();
       canales.forEach((k, i) => { m.setPosition(k.x, 41, 0); losas.setMatrixAt(i, m); losas.setColorAt(i, c.setHex(0x888888)); });
       grupo.add(losas);
+      // corrugado en espiga (chevrones) de las placas: dos «V» por fila y cuatro filas en cada canal; los canales vecinos las llevan cruzadas, como en las placas reales
+      const MEDIAS = 4 * 4, matRelieve = basico(0x14202a, { transparent: true, opacity: 0.8, depthWrite: false });
+      const relieve = new THREE.InstancedMesh(kit.registrar(kit.caja(0.7, 0.6, 12)), matRelieve, n * MEDIAS); relieve.frustumCulled = false; relieve.renderOrder = 2; relieve.raycast = ninguno;
+      { const q = new THREE.Quaternion(), eu = new THREE.Euler(), v = new THREE.Vector3(), un = new THREE.Vector3(1, 1, 1), mm = new THREE.Matrix4();
+        canales.forEach((k, i) => {
+          let j = 0;
+          for (const y of [20, 33, 46, 59]) for (const zc of [-11.5, 11.5]) for (const lado of [-1, 1]) {
+            eu.set((i % 2 ? -1 : 1) * lado * -0.85, 0, 0); q.setFromEuler(eu); v.set(k.x, y, zc + lado * 5.6);
+            mm.compose(v, q, un); relieve.setMatrixAt(i * MEDIAS + j++, mm);
+          }
+        });
+      }
+      grupo.add(relieve);
       const PUNTOS = 3, matPunto = basico(0xffffff);
       const puntos = new THREE.InstancedMesh(kit.registrar(kit.caja(0.6, 2.4, 2.4)), matPunto, n * PUNTOS); puntos.frustumCulled = false; puntos.renderOrder = 2; puntos.raycast = ninguno;
       grupo.add(puntos);
@@ -273,8 +299,10 @@
     const DEFINICIONES = { 'TK-101': tanque, 'HW-201': calentador, 'P-101': bomba('P-101'), 'P-201': bomba('P-201'), 'HX-101': intercambiador,
       'FDV-101': fdv, 'SV-101': piloto, 'FLT-101': filtro };
 
+    const ocultas = [];                // piezas que solo se ven con el equipo cerrado (p. ej. las juntas de las placas, que taparían los canales)
     function aplicarTransparencia(tag, g) {
       g.traverse(o => {
+        if (o.userData && o.userData.soloCerrado && o.visible) { o.visible = false; ocultas.push(o); return; }
         if (!(o.isMesh || o.isInstancedMesh) || !o.userData || !esCarcasa(tag, o.userData.clave) || !o.material || o.material.isMeshBasicMaterial) return;
         guardadas.push([o, o.material, o.renderOrder]);
         const c = o.material.clone(); c.transparent = true; c.opacity = OPACIDAD_CARCASA; c.depthWrite = false;
@@ -282,6 +310,8 @@
       });
     }
     function restaurar() {
+      for (const o of ocultas) o.visible = true;
+      ocultas.length = 0;
       for (const [o, mat, orden] of guardadas) { o.material = mat; o.renderOrder = orden; }
       guardadas.length = 0;
       for (const c of clones) c.dispose();
