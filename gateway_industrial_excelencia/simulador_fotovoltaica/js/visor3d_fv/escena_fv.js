@@ -139,7 +139,7 @@
       const radio = Math.max(8, tam.length() / 2), pared = paredDe(id);
       const azimut = { N: 0.18, E: -Math.PI / 2 + 0.18, O: Math.PI / 2 - 0.18 }[pared];
       const distancia = Math.max(radio * 3.2, pared ? 45 : 60);
-      return { azimut: azimut !== undefined ? azimut : 0.45, elevacion: pared ? 0.12 : 0.55, distancia, minimo: Math.max(6, radio * 0.45), maximo: Math.max(distancia * 3, 400), far: 16000, objetivo: { x: centro.x, y: centro.y, z: centro.z } };
+      return { azimut: azimut !== undefined ? azimut : 0.45, elevacion: pared ? 0.12 : 0.55, elevacionMinima: 0.03, distancia, minimo: Math.max(6, radio * 0.45), maximo: Math.max(distancia * 3, 400), far: 16000, objetivo: { x: centro.x, y: centro.y, z: centro.z } };
     }
     const visibleEnCadena = o => { for (let n = o; n; n = n.parent) if (!n.visible) return false; return true; };
     function mallasSeleccionables() {
@@ -159,7 +159,7 @@
 
     const escena = { raiz, elementos, actualizar, resaltar, aislar, restaurar, vistaDe, ponerCorte, ponerTapa, mallasSeleccionables, liberar, sombras: false,
       luces, iluminacionPropia: true, ajustesRender, ponerCalidad, get calidad() { return calidad; }, get luz() { return luzActual; }, partes, sol, hemi,
-      vistaInicial: vistaDeLaDireccion() || { azimut: 0.62, elevacion: 0.36, distancia: 1150, minimo: 40, maximo: 4200, far: 16000, objetivo: { x: -520, y: 80, z: -230 } } };
+      vistaInicial: vistaDeLaDireccion() || { azimut: 0.62, elevacion: 0.36, elevacionMinima: 0.05, distancia: 1150, minimo: 40, maximo: 4200, far: 16000, objetivo: { x: -520, y: 80, z: -230 } } };
     if (typeof window !== 'undefined') window.fvUltimaEscena = escena;                  // para depurar desde la consola del navegador
     return escena;
   }

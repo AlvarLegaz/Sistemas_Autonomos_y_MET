@@ -132,6 +132,18 @@
       const alto = b.alto - Y_CALLE, m = new THREE.Mesh(kit.registrar(new THREE.BoxGeometry(b.ancho, alto, b.fondo)), matsEd[b.color]);
       m.position.set(b.x, Y_CALLE + alto / 2, b.z); m.raycast = () => {}; grupo.add(m);
     }
+    // El edificio que hay DEBAJO de la cubierta: sin él la cubierta parecía una losa flotando sobre la calle cuando la cámara bajaba al borde (se veía el vacío y los otros edificios por debajo)
+    {
+      const w = anchoC + 48, d = CU.z1 + 24 - zN, h = -0.6 - Y_CALLE;
+      const matCara = (rx, ry) => {
+        if (!facha) return matsEd.blanco;
+        const t = kit.registrar(facha.clone()); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry);
+        return kit.matDinamico(colorEdificio.blanco, { map: t, roughness: 0.9, metalness: 0 });
+      };
+      const lado = matCara(d / 520, h / 640), frente = matCara(w / 520, h / 640);
+      const cuerpo = new THREE.Mesh(kit.registrar(new THREE.BoxGeometry(w, h, d)), [lado, lado, matsEd.blanco, matsEd.blanco, frente, frente]);
+      cuerpo.position.set((CU.x0 + CU.x1) / 2, Y_CALLE + h / 2, (zN + CU.z1 + 24) / 2); cuerpo.raycast = () => {}; grupo.add(cuerpo);
+    }
     const eA = kit.ensamble(), azar = azarDe(77);
     for (let i = 0; i < 46; i++) {                                                                           // árboles y pinos de la calle, sobre todo al sur
       const x = -1800 + azar() * 3800, z = 700 + azar() * 1500, r = 90 + azar() * 90;

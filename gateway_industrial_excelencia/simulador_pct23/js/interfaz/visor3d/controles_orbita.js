@@ -82,7 +82,9 @@
         if (this.desplazando) desplazarObjetivo(this.vista, dx, dy, this.elemento.clientHeight || 600);
         else {
           this.vista.azimut -= dx * SENSIBILIDAD_GIRO;
-          this.vista.elevacion = limitar(this.vista.elevacion + dy * SENSIBILIDAD_GIRO, -ELEVACION_MAXIMA, ELEVACION_MAXIMA);
+          // `elevacionMinima` (opcional, en la vista de la escena) impide bajar la cámara por debajo del suelo de la escena (p. ej. de la cubierta fotovoltaica)
+          const minimaEl = typeof this.vista.elevacionMinima === 'number' ? this.vista.elevacionMinima : -ELEVACION_MAXIMA;
+          this.vista.elevacion = limitar(this.vista.elevacion + dy * SENSIBILIDAD_GIRO, minimaEl, ELEVACION_MAXIMA);
         }
       } else if (this.punteros.size === 2) {
         const distancia = this.distanciaEntrePunteros(), centro = this.centroEntrePunteros();
