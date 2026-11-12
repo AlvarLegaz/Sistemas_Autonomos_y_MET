@@ -14,9 +14,11 @@
   const { limitar } = termica;
   const P = C.proceso;
 
-  function crearSimulacion({ semilla = 1 } = {}) {
+  /** `valvulasManuales`: las electroválvulas XV-* no las gobierna el PLC (ni reposición de niveles ni agua fría): solo se abren y cierran a mano con `ordenes.manual`. */
+  function crearSimulacion({ semilla = 1, valvulasManuales = false } = {}) {
     const motor = crearMotorAverias(CATALOGO, { semilla });
-    let estado = crearEstado(), mem = plc.crearMemoria(), salidas = plc.salidasApagadas();
+    const memoriaNueva = () => Object.assign(plc.crearMemoria(), { valvulasManuales: !!valvulasManuales });
+    let estado = crearEstado(), mem = memoriaNueva(), salidas = plc.salidasApagadas();
     let ord, pbRestoS = 0, pulsoTSH = false, restoDt = 0, registroAI = {}, modoAnterior = 'PARADA';
     const ordenesVacias = () => ({ arrancar: false, parar: false, modo: null, pulsadores: [], manual: {}, consignaTT103C: null, consignaCaudalLh: null });
     ord = ordenesVacias();
@@ -63,7 +65,9 @@
       else if (p101.fallo && p101.temperaturaDisipadorC < C.variador.disparoC - 20) p101.fallo = false;
       eq['VFD-101'].fallo = p101.fallo;
 
-      const hayAvance = fdv.apertura01 >= 0.5;
+      // En recirculación de agua la FDV está en desvío (el agua vuelve al tanque), pero el circuito de recirculación pasa por el lado pasteurizado de la regeneración:
+      // el calentamiento y el diferencial se calculan como en avance. Solo con la FDV en desvío en otro modo (fallo, manual, parada) no llega producto caliente a la regeneración.
+      const hayAvance = fdv.apertura01 >= 0.5 || (estado.modo === 'RECIRCULACION_AGUA' && !!eq['P-101'].marcha);
       const obj = termica.objetivosProducto({ entradaC: estado.tanque.temperaturaC, aguaC: T.aguaCaliente, salidaTuboC: T.salidaTubo, caudalLh: caudal, hayAvance, aguaFria: eq['XV-301'].abierta });
       const tau = caudal > 1 ? C.intercambiador.tauSeccionS : 120;
       T.entrada = estado.tanque.temperaturaC;
@@ -172,7 +176,7 @@
 
     /** Vuelve la planta a su estado inicial (las averías inyectadas se conservan salvo que se pida quitarlas). */
     function reiniciar({ quitarAverias = false } = {}) {
-      estado = crearEstado(); mem = plc.crearMemoria(); salidas = plc.salidasApagadas(); ord = ordenesVacias(); restoDt = 0; pbRestoS = 0; pulsoTSH = false; registroAI = {}; modoAnterior = 'PARADA';
+      estado = crearEstado(); mem = memoriaNueva(); salidas = plc.salidasApagadas(); ord = ordenesVacias(); restoDt = 0; pbRestoS = 0; pulsoTSH = false; registroAI = {}; modoAnterior = 'PARADA';
       if (quitarAverias) for (const a of motor.activas()) motor.quitar(a.instancia);
       motor.reloj(0);
     }

@@ -51,7 +51,7 @@ test('llenado: abre la válvula de cada depósito que no está lleno y cierra la
   assert.deepEqual(plan.ordenes, [['XV-101', 1], ['XV-302', 0]]);
   assert.equal(plan.terminado, false);
   const lleno = simple.planLlenado({ tanque: { nivelPct: 99.5 }, aguaCaliente: { nivelPct: 100 }, plc: {} }, false);
-  assert.deepEqual(lleno.ordenes, [['XV-101', null], ['XV-302', null]]);         // en automático se quita el forzado
+  assert.deepEqual(lleno.ordenes, [['XV-101', 0], ['XV-302', 0]]);               // las electroválvulas son manuales: se cierran y el PLC no las vuelve a abrir
   assert.equal(lleno.terminado, true);
 });
 
@@ -115,6 +115,44 @@ test('nivelDeposito fija el nivel de cada depósito, lo reflejan los instrumento
 test('los dos modos de la pantalla se llaman Normal y Revisión (en el contrato, para cambiarlos en un sitio)', () => {
   assert.deepEqual(layout.PLANTA.modos, { normal: 'Normal', manual: 'Revisión' });
   assert.match(simple.textoEstado({ modo: 'PRODUCCION', tanque: { nivelPct: 80 }, aguaCaliente: { nivelPct: 90 }, alarmas: [], plc: {} }, true), /^Normal · Producción · en marcha/);
+});
+
+test('caldera: enciende P-102 y los dos bancos si nada lo impide, y si ya está encendida la apaga', () => {
+  const sim = enManual();
+  const plan = simple.planCaldera(sim.estado());
+  assert.equal(plan.accion, 'encender'); assert.deepEqual(plan.ordenes, [['P-102', 1], ['KM-201', 1], ['KM-202', 1]]); assert.match(plan.peligro, /30 kW/);
+  for (const [tag, valor] of plan.ordenes) sim.ordenes.manual(tag, valor);
+  for (let i = 0; i < 20; i++) sim.paso(0.5);
+  const e = sim.estado(); assert.equal(e.equipos['KM-201'].cerrado, true); assert.equal(e.equipos['KM-202'].cerrado, true); assert.ok(e.equipos['HW-101'].potenciaKW >= 60);
+  const apagar = simple.planCaldera(e); assert.equal(apagar.accion, 'apagar'); assert.deepEqual(apagar.ordenes, [['KM-201', 0], ['KM-202', 0]]);
+});
+
+test('caldera: con poco nivel de agua no se enciende y dice por qué', () => {
+  const sim = enManual(); sim.ordenes.nivelDeposito('aguaCaliente', 5); sim.paso(0.5); sim.paso(0.5);
+  const plan = simple.planCaldera(sim.estado());
+  assert.equal(plan.accion, 'bloqueado'); assert.match(plan.texto, /nivel bajo/);
+});
+
+test('niveles de partida: Normal con los depósitos a medias y Revisión con los dos vacíos', () => {
+  assert.deepEqual(simple.NIVELES_INICIALES.normal, { tanque: 60, aguaCaliente: 60 });
+  assert.deepEqual(simple.NIVELES_INICIALES.revision, { tanque: 0, aguaCaliente: 0 });
+  const sim = crearSimulacion({ semilla: 1 });
+  for (const [cual, pct] of Object.entries(simple.NIVELES_INICIALES.revision)) sim.ordenes.nivelDeposito(cual, pct);
+  sim.ordenes.modo('MANUAL'); sim.paso(0.5); sim.paso(0.5);
+  const e = sim.estado(); assert.equal(Math.round(e.tanque.nivelPct), 0); assert.equal(Math.round(e.aguaCaliente.nivelPct), 0);
+});
+
+test('electroválvulas manuales: se accionan con el clic también en modo Normal y el PLC no las gobierna', () => {
+  const sim = crearSimulacion({ semilla: 1, valvulasManuales: true }); sim.paso(0.5);
+  assert.deepEqual(simple.decidirClic('XV-301', sim.estado()), { tipo: 'orden', tag: 'XV-301', valor: 1 });          // en Normal, sin pasar a Revisión
+  assert.equal(simple.decidirClic('P-102', sim.estado()).tipo, 'aviso');                                             // el resto de actuadores sigue pidiendo Revisión
+  sim.ordenes.nivelDeposito('tanque', 40); sim.ordenes.nivelDeposito('aguaCaliente', 60); sim.ordenes.arrancar();
+  for (let i = 0; i < 120; i++) sim.paso(1);
+  const e = sim.estado();
+  assert.equal(e.equipos['XV-101'].abierta, false); assert.equal(e.equipos['XV-302'].abierta, false); assert.equal(e.equipos['XV-301'].abierta, false);   // sin reposición ni agua fría automáticas
+  assert.ok(e.tanque.nivelPct <= 40.5, `el tanque no sube sin reposición (en recirculación el agua vuelve a él): ${e.tanque.nivelPct}`);
+  sim.ordenes.manual('XV-301', 1); sim.paso(1); sim.paso(1);
+  assert.equal(sim.estado().equipos['XV-301'].abierta, true);                                                        // y a mano sí se abre
 });
 
 test('reloj con horas, minutos y segundos', () => { assert.equal(simple.formatoReloj(3725.9), '01:02:05'); assert.equal(simple.formatoReloj(), '00:00:00'); });

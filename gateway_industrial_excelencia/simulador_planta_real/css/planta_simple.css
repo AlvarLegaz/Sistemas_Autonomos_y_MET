@@ -15,14 +15,20 @@
 .planta-simple .barra .paro-todo:hover { background: color-mix(in srgb, var(--error) 10%, var(--panel)); }
 .planta-simple .estado-manual b { font-size: 24px; }
 /* Modo Manual: las barras (velocidad de P-101 y niveles) y sus botones; en Automático no se ven, y el panel «Mando y consignas» del esquema solo se ve en Automático */
-.planta-simple .ajustes-manual { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; margin-top: 6px; }
-.planta-simple .ajustes-manual label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--tenue); }
-.planta-simple .ajustes-manual input[type="range"] { width: 130px; accent-color: var(--agua); }
+/* Va dentro del esquema (foreignObject), en el hueco de «Mando y consignas»: sus tamaños son unidades del dibujo y escalan con él */
+.planta-simple foreignObject.fo-manual { overflow: visible; }
+.planta-simple .ajustes-manual { box-sizing: border-box; width: 400px; height: 312px; padding: 16px 16px 14px; display: flex; flex-direction: column; justify-content: space-between;
+  background: var(--panel); border: 1.5px solid var(--borde); border-radius: 8px; font-family: var(--fuente); }
+.planta-simple .ajustes-manual h2 { margin: 0; font-size: 12px; font-weight: 800; letter-spacing: .06em; color: var(--tenue); }
+.planta-simple .ajustes-manual label { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 4px 8px; font-size: 13px; font-weight: 700; color: var(--texto); }
+.planta-simple .ajustes-manual label output { font-size: 14px; text-align: right; font-variant-numeric: tabular-nums; }
+.planta-simple .ajustes-manual input[type="range"] { grid-column: 1 / -1; width: 100%; height: 22px; margin: 0; accent-color: var(--agua); }
 .planta-simple .ajustes-manual #vel-p101 { accent-color: var(--producto); }
-.planta-simple .ajustes-manual output { min-width: 3.4em; text-align: right; color: var(--texto); font-variant-numeric: tabular-nums; }
-.planta-simple .botones-manual { display: inline-flex; gap: 8px; }
-.planta-simple .botones-manual button { min-height: 34px; padding: 0 12px; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); font-weight: 600; cursor: pointer; }
+.planta-simple .botones-manual { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.planta-simple .botones-manual button { min-height: 34px; padding: 0 8px; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); color: var(--texto); font: 700 13px var(--fuente); cursor: pointer; }
 .planta-simple .botones-manual button:hover { border-color: var(--acento); }
+.planta-simple .botones-manual #m-caldera { grid-column: 1 / -1; }
+.planta-simple .botones-manual button.activo { background: color-mix(in srgb, var(--caliente) 28%, var(--panel)); border-color: var(--caliente); }
 body:not([data-modo="manual"]) .ajustes-manual { display: none; }
 body[data-modo="manual"] #sim-play, body[data-modo="manual"] #sim-pause { display: none; }
 body[data-modo="manual"] #panel-mando { display: none; }
@@ -31,7 +37,7 @@ body[data-estado="alarma"].planta-simple .barra { box-shadow: inset 0 -4px 0 var
 /* el esquema ocupa la pantalla: se ajusta al alto disponible sin desplazarse ni leerse pequeño */
 .planta-simple .escena { padding: 10px 16px 14px; }
 .planta-simple .lienzo { padding: 4px; overflow: hidden; }
-.planta-simple .lienzo svg { width: 100%; min-width: 0; height: calc(100vh - 245px); min-height: 460px; }
+.planta-simple .lienzo svg { width: 100%; min-width: 0; height: calc(100vh - 205px); min-height: 460px; }
 
 .aviso-clic { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 60; margin: 0; max-width: min(92vw, 80ch); padding: 10px 16px;
               border: 1px solid var(--acento); border-radius: 8px; background: var(--panel); color: var(--texto); font-weight: 600; box-shadow: 0 4px 18px rgba(0, 0, 0, .35); }

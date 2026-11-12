@@ -150,19 +150,20 @@
       mem.banco2 = conAgua && (tt105.valor < consignaAguaC - K.banco2.encenderPorDebajoC || (mem.banco2 && tt105.valor <= consignaAguaC + K.banco2.apagarPorEncimaC));
       sal.DO['KM-201'] = mem.banco1 ? 1 : 0;
       sal.DO['KM-202'] = mem.banco2 ? 1 : 0;
-      // FDV: en producción solo avanza si se cumplen todas las condiciones (72 °C, 15 s, ΔP, aire y lazos sanos); en recirculación, con lazos sanos y aire
-      const avance = mem.modo === 'PRODUCCION' ? cumple
-        : (mem.modo === 'CIP' ? aire : (aire && dpOK && lazoSano(tt103.calidad) && lazoSano(ft101.calidad)));
+      // FDV: en producción solo avanza si se cumplen todas las condiciones (72 °C, 15 s, ΔP, aire y lazos sanos); en recirculación de agua SIEMPRE en desvío
+      // (el agua vuelve al tanque de balance: nada sale por la salida de producto mientras no se esté produciendo, y menos a menos de 72 °C); en CIP, con aire
+      const avance = mem.modo === 'PRODUCCION' ? cumple : (mem.modo === 'CIP' ? aire : false);
       sal.DO['SV-101'] = avance ? 1 : 0;
       // Agua fría: si TT-104 no es fiable, se abre (enfriar es lo seguro)
-      mem.xv301 = !lazoSano(tt104.calidad) ? true : (tt104.valor > K.xv301.abrirPorEncimaC || (mem.xv301 && tt104.valor > K.xv301.cerrarPorDebajoC));
+      // El agua fría se enciende al arrancar y sigue abierta mientras la planta funciona en recirculación o en producción (en CIP se cierra en la línea siguiente).
+      mem.xv301 = !mem.valvulasManuales;                                    // con las electroválvulas a mano no la abre el PLC (el operador la acciona)
       sal.DO['XV-301'] = enCIP ? 0 : (mem.xv301 ? 1 : 0);
       sal.DO['XV-401'] = enCIP ? 1 : 0;
     } else {
       mem.banco1 = mem.banco2 = false; mem.xv301 = false;
     }
-    // Reposición automática de niveles (todos los modos menos MANUAL, y mientras no haya paro de emergencia)
-    if (!mem.paro && mem.modo !== 'MANUAL') {
+    // Reposición automática de niveles (todos los modos menos MANUAL, y mientras no haya paro de emergencia). Con `valvulasManuales` no hay reposición: llena el operador.
+    if (!mem.paro && mem.modo !== 'MANUAL' && !mem.valvulasManuales) {
       const lt = AI['LT-101'];
       if (lt && lazoSano(lt.calidad)) mem.xv101 = lt.valor < C.tanque.reponerDesdePct ? true : (lt.valor >= C.tanque.reponerHastaPct ? false : mem.xv101);
       else mem.xv101 = DI['LSH-101'] !== 1;                         // sin transmisor de nivel se llena hasta el flotador de nivel alto

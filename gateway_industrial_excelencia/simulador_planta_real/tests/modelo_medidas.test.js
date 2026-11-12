@@ -88,7 +88,7 @@ test('AV-KM-NO-CIERRA: 24 V en la bobina (orden dada) y 0 V en la carga', () => 
 });
 
 test('AV-BOBINA-ABIERTA: llegan 24 V al piloto pero la bobina mide infinito', () => {
-  const sim = crearSimulacion(); sim.averias.inyectar('AV-BOBINA-ABIERTA'); sim.ordenes.arrancar();
+  const sim = plantaEnProduccion(); sim.averias.inyectar('AV-BOBINA-ABIERTA');      // la FDV solo se manda a avance en producción (en recirculación de agua queda en desvío)
   let visto = false; for (let t = 0; t < 20 && !visto; t++) { sim.paso(0.5); if (M(sim, 'SV-101:BORNAS', 'V').valor === 24) visto = true; }
   assert.ok(visto, 'el PLC debe dar la orden de avance'); assert.equal(M(sim, 'SV-101:BOBINA', 'ohm').valor, Infinity);
   assert.equal(M(crearSimulacion(), 'SV-101:BOBINA', 'ohm').valor, 220);

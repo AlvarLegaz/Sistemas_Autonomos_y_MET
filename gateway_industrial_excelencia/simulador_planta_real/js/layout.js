@@ -169,7 +169,7 @@
       automatiza: 'Nada: ni niveles, ni consigna de temperatura, ni la FDV. Siguen activas las protecciones cableadas: paro de emergencia, termostato TSH-101, 24 V, aire de la FDV, nivel bajo de calentador, calentador sin P-102 y marcha en seco de P-101.' },
     RECIRCULACION_AGUA: { nombre: 'Recirculación de agua', tipo: 'automatico',
       descripcion: 'Modo previo a producir: el agua circula y la planta se calienta hasta cumplir las condiciones de pasteurización.',
-      automatiza: 'Caudal, calentamiento en cascada, FDV (en avance solo con lazos sanos, aire y diferencial), agua fría y niveles.' },
+      automatiza: 'Caudal, calentamiento en cascada, agua fría y niveles. La FDV queda siempre en desvío: el agua vuelve al tanque de balance y solo se avanza en producción.' },
     PRODUCCION: { nombre: 'Producción', tipo: 'automatico',
       descripcion: 'Producción de leche pasteurizada: la FDV solo avanza con 72 °C, 15 s de residencia, diferencial de regeneración y aire.',
       automatiza: 'Todo; si se pierden las condiciones durante 10 s vuelve a recirculación.' },
