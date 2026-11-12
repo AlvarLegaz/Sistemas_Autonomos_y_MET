@@ -164,7 +164,7 @@ class Acceso(Base):
 class Simulador(Base):
     def test_alumno_autorizado_ve_el_simulador_con_la_barra_de_sesion(self):
         alumno, _ = self.autorizado()
-        self.assertEqual(alumno.get("/").headers["Location"], "/simulador/")
+        self.assertEqual(alumno.get("/").headers["Location"], "/simuladores")
         r = alumno.get("/simulador/")
         html = r.get_data(as_text=True)
         self.assertEqual(r.status_code, 200)
@@ -575,6 +575,23 @@ class DetrasDeProxy(Base):
         self.fallar(c, "10.0.0.1")
         r = self.post(c, "/entrar", {"correo": "otro@ejemplo.es", "clave": "otra"}, headers={"X-Forwarded-For": "10.0.0.99"})
         self.assertEqual(r.status_code, 429)         # sigue siendo la misma IP (la del proxy): la cabecera se ignora
+
+
+class ElegirSimulador(Base):
+    def test_sin_sesion_o_pendiente_no_se_ve_la_eleccion(self):
+        self.assertEqual(self.c.get("/simuladores").headers["Location"], "/entrar")
+
+    def test_el_alumno_autorizado_elige_entre_los_dos_simuladores(self):
+        alumno, _ = self.autorizado()
+        r = alumno.get("/simuladores")
+        html = r.get_data(as_text=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('href="/simulador/"', html)
+        self.assertIn('href="/planta-real/"', html)
+
+    def test_la_barra_del_simulador_enlaza_con_la_eleccion(self):
+        alumno, _ = self.autorizado()
+        self.assertIn('href="/simuladores"', alumno.get("/simulador/").get_data(as_text=True))
 
 
 if __name__ == "__main__":

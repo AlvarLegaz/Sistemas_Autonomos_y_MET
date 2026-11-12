@@ -1,0 +1,126 @@
+/* Esquemas eléctricos (unifilar y cableado) de la instalación fotovoltaica. Usa las variables de /simulador/css/interfaz.css si están cargadas (--panel, --tubo, --ok, --error,
+   --aviso, --texto, --tenue, --fondo, --borde, --caliente, --agua) y valores de reserva por si no. Cada elemento vivo lleva data-e="estado": el color nunca va solo, porque también
+   cambia la forma (cuchilla abierta o cerrada, hilo roto, aspa) y el texto de estado. Todo con prefijo .dg- (y k- / c- / a- en los ids del dibujo). */
+:root {
+  --dg-fondo: var(--fondo, #E2E7EB); --dg-panel: var(--panel, #F5F7F8); --dg-texto: var(--texto, #16202A); --dg-tenue: var(--tenue, #56636F); --dg-borde: var(--borde, #BAC4CC);
+  --dg-tubo: var(--tubo, #6A7886); --dg-ok: var(--ok, #1A7F4B); --dg-error: var(--error, #C0262D); --dg-aviso: var(--aviso, #9A5B00); --dg-acento: var(--acento, #F68B11);
+  --dg-pos: var(--caliente, #D9480F); --dg-neg: var(--agua, #1F78B4); --dg-foco: var(--foco, #0b5cad);
+  --dg-c-rojo: #D62828; --dg-c-negro: #1B1B1B; --dg-c-marron: #8B5A2B; --dg-c-azul: #1F6FD0; --dg-c-amarillo: #E8C100; --dg-c-verde: #2E9B3E;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --dg-fondo: var(--fondo, #161314); --dg-panel: var(--panel, #221E1F); --dg-texto: var(--texto, #F0ECED); --dg-tenue: var(--tenue, #A9A3A5); --dg-borde: var(--borde, #403B3C);
+    --dg-tubo: var(--tubo, #A39E9F); --dg-ok: var(--ok, #4CC28A); --dg-error: var(--error, #F0605F); --dg-aviso: var(--aviso, #E0A33A); --dg-pos: var(--caliente, #FF8A3D); --dg-neg: var(--agua, #4AA3DF);
+    --dg-foco: var(--foco, #8ccbff); --dg-c-rojo: #FF6B6B; --dg-c-negro: #B9C0C8; --dg-c-marron: #C48A55; --dg-c-azul: #5BA3F5;
+  }
+}
+
+/* ventana aparte (unifilar.html y cableado.html) */
+body.dg-ventana { margin: 0; display: flex; flex-direction: column; height: 100vh; background: var(--dg-fondo); color: var(--dg-texto); font-family: var(--fuente, system-ui, sans-serif); }
+.dg-cabecera { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 8px 16px; background: var(--dg-panel); border-bottom: 3px solid var(--dg-acento); }
+.dg-cabecera h1 { margin: 0; font-size: 18px; font-weight: 800; flex: 1 1 auto; min-width: 0; }
+.dg-cabecera .dg-modo { font-size: 14px; color: var(--dg-tenue); font-variant-numeric: tabular-nums; }
+.dg-cabecera button, .dg-cabecera a.dg-boton { min-height: 40px; padding: 0 16px; display: inline-flex; align-items: center; border: 1px solid var(--dg-borde); border-radius: 6px; background: var(--dg-fondo); color: var(--dg-texto); font: 700 14px var(--fuente, system-ui, sans-serif); cursor: pointer; text-decoration: none; }
+.dg-cabecera button:hover, .dg-cabecera a.dg-boton:hover { border-color: var(--dg-foco); }
+.dg-cabecera button:focus-visible, .dg-cabecera a.dg-boton:focus-visible { outline: 3px solid var(--dg-foco); outline-offset: 2px; }
+.dg-aviso { margin: 0; padding: 6px 16px; background: color-mix(in srgb, var(--dg-aviso) 22%, var(--dg-panel)); border-bottom: 1px solid var(--dg-aviso); font-weight: 600; font-size: 14px; }
+.dg-aviso[hidden] { display: none; }
+.dg-pagina { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px 16px 12px; }
+.dg-hoja { margin: 0 0 18px; }
+.dg-hoja h2 { margin: 6px 0; font-size: 16px; font-weight: 800; }
+.dg-lienzo { overflow-x: auto; border: 1px solid var(--dg-borde); border-radius: 8px; background: var(--dg-panel); }
+.dg-lienzo svg { display: block; width: 100%; min-width: 1000px; height: auto; }
+.dg-pie { margin: 0; padding: 6px 12px 10px; text-align: center; font-size: 12px; color: var(--dg-tenue); background: var(--dg-fondo); }
+
+/* textos (en unidades del viewBox: 15 px a 1600 de ancho son unos 11 px en una ventana de 1180) */
+.dg-t { font: 500 15px var(--fuente, system-ui, sans-serif); fill: var(--dg-texto); }
+.dg-f { font: 800 15px var(--fuente, system-ui, sans-serif); fill: var(--dg-texto); }
+.dg-v { font: 800 18px var(--fuente, system-ui, sans-serif); fill: var(--dg-texto); }
+.dg-z { font: 800 15px var(--fuente, system-ui, sans-serif); letter-spacing: .04em; fill: var(--dg-tenue); }
+.dg-g { font: 800 19px var(--fuente, system-ui, sans-serif); fill: var(--dg-texto); }
+text[data-e="fallo"], text[data-e="fundido"], text[data-e="disparado"], text[data-e="agotado"], text[data-e="sin"] { fill: var(--dg-error); }
+text[data-e="degradada"], text[data-e="alarma"], text[data-e="espera"] { fill: var(--dg-aviso); }
+
+/* conductores: grueso y de color con tensión, fino y gris sin ella, discontinuo sin datos */
+.dg-cable { fill: none; stroke: var(--dg-tubo); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.dg-cable[data-e="vivo"] { stroke: var(--dg-ok); stroke-width: 4; }
+.dg-cable.dg-p[data-e="vivo"] { stroke: var(--dg-pos); }
+.dg-cable.dg-n[data-e="vivo"] { stroke: var(--dg-neg); }
+.dg-cable[data-e="muerto"] { stroke: var(--dg-tubo); stroke-width: 1.8; opacity: .85; }
+.dg-cable[data-e="sd"] { stroke-dasharray: 5 4; }
+.dg-cable.dg-barra[data-e="vivo"] { stroke-width: 7; }
+.dg-enlace { stroke-dasharray: 6 5; stroke-width: 1.8; }
+.dg-trazos { fill: none; stroke: var(--dg-tubo); stroke-width: 2.4; stroke-linecap: round; }
+.dg-nodo { fill: var(--dg-tubo); }
+.dg-borne { fill: var(--dg-panel); stroke: var(--dg-tubo); stroke-width: 1.6; }
+.dg-flecha { fill: var(--dg-tubo); }
+
+/* aparatos */
+.dg-armario { fill: none; stroke: var(--dg-tubo); stroke-width: 2; stroke-dasharray: 10 6; }
+.dg-caja { fill: var(--dg-panel); stroke: var(--dg-tubo); stroke-width: 2; }
+.dg-caja.dg-campo { stroke-dasharray: 8 5; }
+.dg-celda { fill: none; stroke: var(--dg-tubo); stroke-width: 1.6; }
+.dg-cuchilla { fill: none; stroke: var(--dg-texto); stroke-width: 3.2; stroke-linecap: round; }
+.dg-hilo { fill: none; stroke: var(--dg-texto); stroke-width: 2.6; stroke-linecap: round; }
+.dg-bor { fill: var(--dg-panel); stroke: var(--dg-texto); stroke-width: 2; }
+
+/* forma según el estado: dibujos «solo activo» (cuchilla cerrada, hilo sano) y «solo inactivo» (cuchilla abierta, hilo roto, aspa) */
+.dg-dis .dg-on-only { display: none; }
+.dg-dis .dg-off-only { display: inline; }
+.dg-dis:is([data-e="cerrado"], [data-e="ok"], [data-e="on"], [data-e="vivo"], [data-e="espera"], [data-e="degradada"]) .dg-on-only { display: inline; }
+.dg-dis:is([data-e="cerrado"], [data-e="ok"], [data-e="on"], [data-e="vivo"], [data-e="espera"], [data-e="degradada"]) .dg-off-only { display: none; }
+.dg-dis:is([data-e="fallo"], [data-e="fundido"], [data-e="disparado"], [data-e="agotado"]) .dg-aspa { stroke: var(--dg-error); stroke-width: 3; }
+.dg-dis[data-e="sd"] .dg-aspa, .dg-dis[data-e="abierto"] .dg-aspa, .dg-dis[data-e="off"] .dg-aspa { display: none; }
+
+/* relleno y borde según el estado: verde = activo, rojo grueso = fallo, ámbar = degradado o espera */
+.dg-dis:is([data-e="cerrado"], [data-e="ok"], [data-e="on"]) .dg-caja { fill: color-mix(in srgb, var(--dg-ok) 26%, var(--dg-panel)); stroke: var(--dg-ok); stroke-width: 3; }
+.dg-dis:is([data-e="fallo"], [data-e="fundido"], [data-e="disparado"], [data-e="agotado"]) .dg-caja { fill: color-mix(in srgb, var(--dg-error) 28%, var(--dg-panel)); stroke: var(--dg-error); stroke-width: 4; }
+.dg-dis:is([data-e="degradada"], [data-e="alarma"], [data-e="espera"]) .dg-caja { fill: color-mix(in srgb, var(--dg-aviso) 30%, var(--dg-panel)); stroke: var(--dg-aviso); stroke-width: 4; }
+.dg-dis:is([data-e="fallo"], [data-e="fundido"], [data-e="disparado"], [data-e="agotado"]) .dg-cuchilla, .dg-dis[data-e="fundido"] .dg-hilo { stroke: var(--dg-error); }
+
+/* equipos pulsables */
+svg g[data-tag].dg-equipo { cursor: pointer; }
+svg g[data-tag].dg-equipo:hover .dg-caja { stroke: var(--dg-foco); stroke-width: 3.5; }
+svg g[data-tag].dg-equipo:focus { outline: none; }
+svg g[data-tag].dg-equipo:focus-visible { outline: 3px solid var(--dg-foco); outline-offset: 3px; }
+.dg-equipo .dg-armario { pointer-events: stroke; }
+
+/* leyenda */
+.dg-leg { stroke: var(--dg-tubo); stroke-width: 1.6; }
+.dg-leg-on { fill: color-mix(in srgb, var(--dg-ok) 40%, var(--dg-panel)); stroke: var(--dg-ok); stroke-width: 3; }
+.dg-leg-off { fill: var(--dg-panel); }
+.dg-leg-fallo { fill: color-mix(in srgb, var(--dg-error) 35%, var(--dg-panel)); stroke: var(--dg-error); stroke-width: 3; }
+.dg-leg-x { fill: none; stroke: var(--dg-error); stroke-width: 2.4; stroke-linecap: round; }
+
+/* cableado: colores reales de los conductores (el grosor lo pone el atributo stroke-width según la sección) */
+.dg-hilo-c { fill: none; stroke-linecap: butt; stroke-linejoin: round; }
+.dg-hilo-c[data-e="muerto"] { opacity: .45; }
+.dg-hilo-c[data-e="sd"] { opacity: .8; }
+.dg-col-rojo { stroke: var(--dg-c-rojo); } .dg-col-negro { stroke: var(--dg-c-negro); } .dg-col-marron { stroke: var(--dg-c-marron); } .dg-col-azul { stroke: var(--dg-c-azul); }
+.dg-col-amarillo { stroke: var(--dg-c-amarillo); } .dg-col-verde { stroke: var(--dg-c-verde); stroke-dasharray: 9 9; }
+
+/* tabla de conductores */
+.dg-tabla { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; background: var(--dg-panel); }
+.dg-tabla caption { text-align: left; font-weight: 800; padding: 6px 0; font-size: 15px; }
+.dg-tabla th, .dg-tabla td { border: 1px solid var(--dg-borde); padding: 4px 8px; text-align: left; vertical-align: top; }
+.dg-tabla th { background: color-mix(in srgb, var(--dg-tubo) 14%, var(--dg-panel)); }
+.dg-tabla td.dg-num { text-align: right; white-space: nowrap; }
+.dg-tabla .dg-alto { color: var(--dg-error); font-weight: 800; }
+.dg-tabla-caja { overflow-x: auto; }
+.dg-supuesto { margin: 8px 0 0; padding: 8px 12px; border-left: 4px solid var(--dg-aviso); background: color-mix(in srgb, var(--dg-aviso) 14%, var(--dg-panel)); font-size: 13px; }
+
+/* ficha de ayuda (ventana flotante) */
+.dg-ficha { position: fixed; z-index: 20; right: 16px; top: 70px; width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 90px); overflow: auto; background: var(--dg-panel); color: var(--dg-texto);
+  border: 2px solid var(--dg-acento); border-radius: 10px; padding: 10px 14px 14px; box-shadow: 0 8px 28px rgba(0, 0, 0, .35); }
+.dg-ficha[hidden] { display: none; }
+.dg-ficha header { display: flex; gap: 8px; align-items: flex-start; }
+.dg-ficha h3 { margin: 0; flex: 1 1 auto; font-size: 16px; }
+.dg-ficha h4 { margin: 10px 0 2px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--dg-tenue); }
+.dg-ficha p, .dg-ficha li { font-size: 14px; line-height: 1.4; margin: 2px 0; }
+.dg-ficha ul { margin: 2px 0; padding-left: 20px; }
+.dg-ficha .dg-riesgo { border-left: 4px solid var(--dg-error); padding-left: 8px; }
+.dg-ficha .dg-cerrar { min-width: 40px; min-height: 40px; border: 1px solid var(--dg-borde); border-radius: 6px; background: var(--dg-fondo); color: var(--dg-texto); font-size: 20px; cursor: pointer; }
+.dg-ficha .dg-cerrar:focus-visible { outline: 3px solid var(--dg-foco); outline-offset: 2px; }
+
+@media (max-width: 700px) { .dg-cabecera h1 { font-size: 16px; } .dg-pagina { padding: 6px 8px 10px; } }
+@media print { .dg-cabecera button, .dg-cabecera a.dg-boton { display: none; } body.dg-ventana { height: auto; } .dg-pagina { overflow: visible; } }

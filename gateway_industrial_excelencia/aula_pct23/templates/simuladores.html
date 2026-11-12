@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block titulo %}Elegir simulador · Aula PCT23{% endblock %}
+{% block seccion %}Simuladores{% endblock %}
+{% block contenido %}
+<h1 class="titulo-sims">¿Qué simulador quieres usar?</h1>
+<p class="ayuda">Puedes cambiar de uno a otro cuando quieras desde el enlace «Simuladores» de la barra inferior.</p>
+<div class="sims">
+  <a class="sim-tarjeta" href="/simulador/">
+    <span class="sim-etiqueta">Maqueta</span>
+    <h2>Planta de pasteurización PCT23</h2>
+    <p>La maqueta del aula: manual, automático y demostración, con sus sensores, bombas y el control del PLC.</p>
+    <span class="boton-enlace">Abrir simulador</span>
+  </a>
+  {% if hay_planta %}
+  <a class="sim-tarjeta" href="/planta-real/">
+    <span class="sim-etiqueta">Planta real</span>
+    <h2>Pasteurizadora HTST · Lácteos Politécnico</h2>
+    <p>La estación EP-01 de tamaño industrial: sinóptico, modelo 3D de cada equipo, esquemas de fuerza y mando, y modo Revisión.</p>
+    <span class="boton-enlace">Abrir simulador</span>
+  </a>
+  {% endif %}
+</div>
+{% endblock %}

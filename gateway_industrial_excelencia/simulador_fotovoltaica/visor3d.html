@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="author" content="Álvar Legaz Aparicio">
+<meta name="copyright" content="© 2026 Álvar Legaz Aparicio. Todos los derechos reservados.">
+<title>Instalación fotovoltaica en 3D</title>
+<link rel="icon" type="image/png" href="/simulador/img/favicon.png">
+<link rel="stylesheet" href="/simulador/css/interfaz.css">
+</head>
+<body class="v3d-ventana">
+<script src="js/interfaz/cargador.js"></script>
+<script>
+// Ventana aparte del 3D: lee el estado de la ventana que la abrió (mismo origen), así el 3D se mueve igual que el simulador.
+// Abierta directamente (sin simulador detrás) usa el modelo real parado a la hora de la dirección o, si no existe, un estado de demostración.
+//   Parámetros: ?foco=TAG&solo=1 (un equipo aislado) · ?calidad=alta|baja · ?hora=15.5&dia=172&nubes=0.3 · ?averias=ID1,ID2 · ?velocidad=600 (segundos simulados por segundo real)
+//               ?demo=1 (estado de demostración en vez del modelo) · ?soc=0.4 · ?sombras=PV-205:0.8,PV-206:0.5
+//               ?vista=azimut,elevacion,distancia,x,y,z (cámara inicial) · ?panel=0 (sin panel lateral ni etiquetas)
+(async function () {
+  await FV_CARGADOR.cargarTodo({ conInterfaz: false, conDiseno3d: true, conDocumentacion: true });
+  PCT.fvVisor.registrar();
+  const p = new URLSearchParams(location.search);
+  if (p.get('panel') === '0') { const st = document.createElement('style'); st.textContent = '.v3d-panel{display:none!important}.v3d-etiquetas{display:none!important}.v3d-cuerpo{grid-template-columns:1fr!important}.v3d-pista{display:none}'; document.head.appendChild(st); }
+  const foco = p.get('foco') || undefined, solo = p.get('solo') === '1';
+  const num = (clave, defecto) => { const v = parseFloat(p.get(clave)); return Number.isFinite(v) ? v : defecto; };
+  let ultimo = null, sim = null, velocidad = num('velocidad', 0), t0 = performance.now(), previo = t0;
+  if (!window.opener) {
+    const averias = (p.get('averias') || '').split(',').filter(Boolean);
+    const sombras = Object.fromEntries((p.get('sombras') || '').split(',').filter(Boolean).map(x => { const [t, v] = x.split(':'); return [t, parseFloat(v)]; }));
+    const usarModelo = p.get('demo') !== '1' && PCT.fv && PCT.fv.crearSimulacion;
+    if (usarModelo) {
+      try {
+        sim = PCT.fv.crearSimulacion({ semilla: 7, diaAnio: num('dia', 172), horaSolar: num('hora', 9), nubosidad: num('nubes', 0.1) });
+        for (const a of averias) try { sim.ordenes.averias.activar(a); } catch (error) { console.warn('[visor3d fv] avería desconocida', a); }
+        for (const [t, v] of Object.entries(sombras)) try { sim.ordenes.ambiente.sombra(t, v); } catch (error) { /* sin sombra */ }
+        if (p.get('soc')) sim.ordenes.bateria.socInicial(num('soc', 0.8) * (num('soc', 0.8) <= 1 ? 100 : 1));
+        sim.paso(1); ultimo = sim.estado;
+      } catch (error) { console.warn('[visor3d fv] el modelo no arranca; se usa el estado de demostración', error); sim = null; }
+    }
+    if (!sim) { ultimo = PCT.fvEstadoDemo.estadoDemo({ horaSolar: num('hora', 9), diaAnio: num('dia', 172), nubosidad: num('nubes', 0.1), averias, sombras, soc01: num('soc', 0.78) }); }
+  }
+  function estadoDelSimulador() {
+    try { const o = window.opener; if (o && !o.closed && o.PCT && o.PCT.fvApp) { const e = o.PCT.fvApp.estadoActual(); if (e) ultimo = e; } } catch (error) { /* la ventana de origen se cerró */ }
+    if (sim && velocidad > 0) {                                                       // modelo propio en marcha (solo si no hay simulador detrás)
+      const ahora = performance.now(), dt = Math.min(0.25, (ahora - previo) / 1000) * velocidad; previo = ahora;
+      for (let r = dt; r > 0; r -= 5) sim.paso(Math.min(5, r));
+    }
+    return ultimo;
+  }
+  PCT.visor3d.alCerrar = () => window.close();
+  window.fvVisor3d = { sim: () => sim, estado: () => ultimo, ponerVelocidad: v => { velocidad = v; previo = performance.now(); } };
+  PCT.visor3d.abrir('FV', estadoDelSimulador, foco, undefined, solo);
+})();
+</script>
+</body>
+</html>

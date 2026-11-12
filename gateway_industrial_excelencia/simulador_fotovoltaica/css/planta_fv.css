@@ -1,0 +1,231 @@
+/* Simulador de la instalación fotovoltaica (index.html). Los colores base, la cabecera, la barra, las pestañas y la velocidad vienen de /simulador/css/interfaz.css.
+   Aquí: página, sinóptico (flujos, estados con color y forma), paneles, gráficas, fichas y diálogos. */
+:root { --fv: #C98F00; --bat: #1A7F4B; --redc: #1F78B4; --consumo: #7B5BC9; --foco: #0b5cad; --alto-barra: 120px; --hilo: #9AA6B1; }
+@media (prefers-color-scheme: dark) { :root { --fv: #F2B93B; --bat: #4CC28A; --redc: #4AA3DF; --consumo: #A98BEF; --foco: #8ccbff; --hilo: #5d5859; } }
+
+.aviso-planta { margin: 0; padding: 8px 20px; background: color-mix(in srgb, var(--aviso) 22%, var(--panel)); border-bottom: 1px solid var(--aviso); color: var(--texto); font-weight: 600; }
+html, body { max-width: 100%; overflow-x: hidden; }
+
+/* ---------- cabecera, barra ---------- */
+.planta-fv .cab { gap: 10px 22px; }
+.planta-fv .cab .sim { display: flex; flex-direction: column; gap: 1px; font-size: 22px; line-height: 1.1; }
+.planta-fv .cab .sim small { font-size: 13px; font-weight: 600; letter-spacing: 0; color: var(--tenue); }
+.planta-fv .modos button { padding: 6px 16px; min-height: 36px; border: 0; border-radius: 6px; background: none; color: var(--tenue); font-weight: 600; cursor: pointer; }
+.planta-fv .modos button:hover { color: var(--texto); }
+.planta-fv .modos button[aria-current="page"] { background: var(--panel); color: var(--texto); box-shadow: 0 0 0 1px var(--borde); }
+.planta-fv .ventanas { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+.planta-fv .ventanas button { min-height: 36px; padding: 0 16px; border: 1px solid var(--acento); border-radius: 999px; background: none; color: var(--acento-texto, var(--acento)); font-weight: 600; cursor: pointer; }
+.planta-fv .ventanas button:hover { background: color-mix(in srgb, var(--acento) 12%, var(--panel)); }
+.planta-fv .barra { position: static; padding: 8px 20px; }
+.planta-fv .estado-manual b { font-size: 24px; white-space: nowrap; }
+.planta-fv .etq-vel { font-size: 12px; font-weight: 700; color: var(--tenue); letter-spacing: .04em; text-transform: uppercase; }
+body[data-estado="alarma"].planta-fv .barra { box-shadow: inset 0 -4px 0 var(--error); }
+body[data-modo="revision"].planta-fv .cab { border-bottom-color: var(--aviso); }
+.aviso-clic { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 60; margin: 0; max-width: min(92vw, 80ch); padding: 10px 16px;
+              border: 1px solid var(--acento); border-radius: 8px; background: var(--panel); color: var(--texto); font-weight: 600; box-shadow: 0 4px 18px rgba(0, 0, 0, .35); }
+.aviso-clic[hidden] { display: none; }
+.pie-copyright { margin: 0; padding: 4px 16px 56px; text-align: center; font-size: 12px; color: var(--tenue); }
+
+/* ---------- cuerpo: sinóptico + lateral; gráficas debajo ---------- */
+.planta-fv .cuerpo-simple { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 0 12px; align-items: start; padding-right: 16px; }
+.planta-fv .escena { padding: 10px 0 14px 16px; min-width: 0; }
+.planta-fv .lienzo { padding: 4px; overflow: hidden; }
+.planta-fv .lienzo svg { display: block; width: 100%; min-width: 0; height: auto; }
+.planta-fv .lateral-simple { margin-top: 10px; background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; overflow: hidden; position: sticky; top: 8px; max-height: calc(100vh - 24px); overflow-y: auto; }
+.planta-fv .lateral-simple .pestanas { padding: 0 8px; position: sticky; top: 0; z-index: 2; }
+.planta-fv .lateral-simple .pestanas button { padding: 11px 12px; font-size: 14px; }
+.planta-fv .lateral-simple .panel-pestana { padding: 6px 14px 16px; }
+.planta-fv .lateral-simple h2 { margin: 12px 0 8px; font-size: 12px; font-weight: 800; letter-spacing: .06em; color: var(--tenue); }
+@media (max-width: 1199px) {
+  .planta-fv .cuerpo-simple { grid-template-columns: minmax(0, 1fr); padding-right: 0; }
+  .planta-fv .escena { padding-right: 16px; }
+  .planta-fv .lateral-simple { position: static; max-height: none; margin: 0 16px 10px; }
+}
+@media (max-width: 899px) {
+  .planta-fv .ventanas { margin-left: 0; }
+  .planta-fv .lienzo { overflow-x: auto; touch-action: pan-x pan-y pinch-zoom; }
+  .planta-fv .lienzo svg { min-width: 1250px; }
+  .planta-fv .barra { grid-template-columns: minmax(0, 1fr); }
+  .planta-fv .barra .acciones { min-width: 0; flex-wrap: wrap; }
+}
+
+/* ---------- panel Mando ---------- */
+.planta-fv .grupo-mando { display: flex; flex-direction: column; gap: 8px; margin-bottom: 6px; }
+.planta-fv .fila-rango { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 8px; font-size: 14px; font-weight: 700; }
+.planta-fv .fila-rango output { font-size: 15px; text-align: right; font-variant-numeric: tabular-nums; }
+.planta-fv .fila-rango input[type="range"] { grid-column: 1 / -1; width: 100%; height: 22px; margin: 0; accent-color: var(--acento); }
+.planta-fv .fila-fecha, .planta-fv .fila-select { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; font-weight: 700; }
+.planta-fv .grupo-mando input[type="date"], .planta-fv .grupo-mando select { min-height: 36px; padding: 0 8px; border: 1px solid var(--borde); border-radius: 6px; background: var(--fondo); color: var(--texto); font-weight: 600; }
+.planta-fv .fila-check { display: flex; gap: 8px; align-items: center; font-size: 13px; font-weight: 600; color: var(--tenue); }
+.planta-fv .fila-check input { width: 18px; height: 18px; accent-color: var(--acento); }
+.planta-fv .botones-fila { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.planta-fv .botones-fila:has(> :only-child) { grid-template-columns: 1fr; }
+.planta-fv .grupo-mando button, .planta-fv .graf-barra button { min-height: 36px; padding: 0 10px; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); color: var(--texto); font: 700 13px var(--fuente); cursor: pointer; }
+.planta-fv .grupo-mando button:hover:not(:disabled) { border-color: var(--acento); }
+.planta-fv .grupo-mando button:disabled { opacity: .45; cursor: default; }
+.solo-revision { display: none; }
+body[data-modo="revision"] .solo-revision { display: block; }
+.lista-prot { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.lista-prot li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 5px 8px; border-radius: 6px; background: var(--fondo); border-left: 5px solid var(--ok); font-size: 13px; }
+.lista-prot li[data-estado="ABIERTO"] { border-left-color: var(--apagado); }
+.lista-prot li[data-estado="DISPARADO"], .lista-prot li[data-estado="FUNDIDO"], .lista-prot li[data-estado="AGOTADO"] { border-left-color: var(--error); }
+.lista-prot .nombre small { display: block; color: var(--tenue); font-size: 11.5px; line-height: 1.25; white-space: normal; }
+.lista-prot output { font-size: 12px; color: var(--tenue); text-transform: uppercase; letter-spacing: .03em; }
+.lista-prot button { min-width: 92px; }
+.planta-fv details.sombras summary { cursor: pointer; font-weight: 700; font-size: 14px; padding: 6px 0; }
+.rejilla-sombras { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+.rejilla-sombras label { display: grid; grid-template-columns: 1fr auto; gap: 0 6px; font-size: 12.5px; font-weight: 700; }
+.rejilla-sombras input { grid-column: 1 / -1; width: 100%; accent-color: var(--tenue); }
+.aviso-profesor { margin: 0; font-size: 13px; color: var(--tenue); }
+.lista-averias { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.lista-averias label { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: start; padding: 6px 8px; border-radius: 6px; background: var(--fondo); font-size: 13px; cursor: pointer; }
+.lista-averias small { display: block; color: var(--tenue); font-size: 11.5px; }
+.lista-averias input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--error); }
+.lista-averias li:has(input:checked) label { border-left: 5px solid var(--error); }
+
+/* ---------- panel Lecturas ---------- */
+.alarmas-fv ul { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 5px; }
+.alarmas-fv li { display: grid; grid-template-columns: 1.4em 1fr; gap: 6px; align-items: baseline; font-size: 13px; padding: 7px 8px; border-radius: 6px; background: var(--fondo); border-left: 5px solid var(--borde); }
+.alarmas-fv li.al-alarma { border-left-color: var(--error); } .alarmas-fv li.al-alarma .simbolo { color: var(--error); }
+.alarmas-fv li.al-aviso { border-left-color: var(--aviso); } .alarmas-fv li.al-aviso .simbolo { color: var(--aviso); }
+.alarmas-fv li.al-ok { border-left-color: var(--ok); } .alarmas-fv li.al-ok .simbolo { color: var(--ok); }
+.tabla-fv dl { display: grid; gap: 4px; margin: 0 0 14px; }
+.tabla-fv dl > div { display: flex; justify-content: space-between; gap: 10px; padding: 5px 8px; border-radius: 6px; background: var(--fondo); border-left: 5px solid var(--borde); font-size: 13px; }
+.tabla-fv dl > div.e-ok { border-left-color: var(--ok); } .tabla-fv dl > div.e-aviso { border-left-color: var(--aviso); } .tabla-fv dl > div.e-alarma { border-left-color: var(--error); }
+.tabla-fv dt { color: var(--tenue); } .tabla-fv dd { margin: 0; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---------- gráficas ---------- */
+.planta-fv .graficas-simple { padding: 10px 0 28px; }
+.planta-fv .graficas-simple h2 { margin: 6px 0 8px; font-size: 12px; font-weight: 800; letter-spacing: .06em; color: var(--tenue); }
+.planta-fv #graficas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.planta-fv #graficas .graf-barra { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.planta-fv #graficas .graf { margin: 0; min-width: 0; }
+.planta-fv #graficas .graf.completo { grid-column: 1 / -1; }
+.graf figcaption { font-size: 13px; font-weight: 700; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 4px; }
+.graf-leyenda { font-weight: 500; color: var(--tenue); }
+.graf-leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 4px 0 8px; vertical-align: -1px; }
+.planta-fv #graficas canvas { display: block; width: 100%; border: 1px solid var(--borde); border-radius: 6px; }
+.graf-barra button[aria-pressed="true"] { background: var(--acento) !important; border-color: var(--acento) !important; color: var(--sobre-acento, #16202A) !important; }
+.graf-iv-datos { flex: 1 1 300px; font-size: 13px; font-weight: 600; color: var(--tenue); }
+@media (max-width: 899px) { .planta-fv #graficas { grid-template-columns: 1fr; } }
+
+/* ---------- sinóptico ---------- */
+svg text { fill: var(--texto); font: 12px var(--fuente); }
+.fv-tag { font: 600 12px var(--fuente); fill: var(--tenue); text-anchor: middle; }
+.fv-fuerte { font-weight: 800; fill: var(--texto); }
+.fv-mini { font-size: 10.5px; font-weight: 700; }
+.fv-micro { font-size: 9.5px; font-weight: 700; }
+.fv-grande { font-size: 20px !important; }
+.fv-valor { font: 700 13px var(--fuente); fill: var(--texto); text-anchor: middle; font-variant-numeric: tabular-nums; }
+.fv-valor.fv-mini { font-size: 11px; }
+.fv-valor.fv-micro { font-size: 9.5px; }
+.fv-zona { font: 800 12px var(--fuente); letter-spacing: .05em; fill: var(--tenue); }
+.fv-chip { font-weight: 800; fill: var(--texto); font-size: 11.5px; letter-spacing: .04em; }
+.fv-alarma-txt { fill: var(--error); font-weight: 800; font-size: 11px; }
+.fv-pantalla { font: 700 11.5px ui-monospace, Consolas, monospace; fill: #bfe8ff; }
+.fv-blanco { fill: #fff; letter-spacing: .03em; }
+
+/* cables y flujos de potencia: hilo gris debajo (grueso según la potencia), puntos animados encima en el sentido del flujo y flecha */
+.cable { fill: none; stroke: var(--hilo); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; pointer-events: none; }
+.hilo { fill: none; stroke: var(--hilo); stroke-width: 3; pointer-events: none; }
+.cable.activo.solar { stroke: color-mix(in srgb, var(--fv) 45%, var(--panel)); } .cable.activo.bateria { stroke: color-mix(in srgb, var(--bat) 45%, var(--panel)); }
+.cable.activo.red { stroke: color-mix(in srgb, var(--redc) 45%, var(--panel)); } .cable.activo.carga { stroke: color-mix(in srgb, var(--consumo) 45%, var(--panel)); }
+.corriente { display: none; fill: none; stroke-linecap: round; stroke-dasharray: 3 17; pointer-events: none; animation: fv-fluir 1.2s linear infinite; }
+.corriente.activo { display: inline; }
+.corriente.solar { stroke: var(--fv); } .corriente.bateria { stroke: var(--bat); } .corriente.red { stroke: var(--redc); } .corriente.carga { stroke: var(--consumo); }
+.corriente.inversa { animation-direction: reverse; }
+.corriente { stroke-width: 5; }
+.flechas { display: none; pointer-events: none; stroke: var(--panel); stroke-width: 1.2; }
+.flechas.activo { display: inline; }
+.flechas.solar { fill: var(--fv); } .flechas.bateria { fill: var(--bat); } .flechas.red { fill: var(--redc); } .flechas.carga { fill: var(--consumo); }
+@keyframes fv-fluir { to { stroke-dashoffset: -20; } }
+.en-pausa .corriente { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .corriente { animation: none; stroke-dasharray: none; stroke-opacity: .55; } }
+
+/* burbujas de medida */
+.burbuja rect { fill: var(--panel); stroke: var(--borde); stroke-width: 1.5; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .25)); }
+.burbuja { pointer-events: none; }
+.fv-medida { font: 700 12px var(--fuente); fill: var(--texto); text-anchor: middle; font-variant-numeric: tabular-nums; }
+
+/* equipos: forma + color. verde = en servicio, ámbar = aviso, rojo = alarma, gris = parado */
+.forma { fill: var(--panel); stroke: var(--tubo); stroke-width: 2; }
+.e-ok > .forma, .e-ok .forma.panel { stroke: var(--ok); }
+.e-aviso > .forma { stroke: var(--aviso); stroke-width: 3.5; fill: color-mix(in srgb, var(--aviso) 14%, var(--panel)); }
+.e-alarma > .forma { stroke: var(--error); stroke-width: 4; fill: color-mix(in srgb, var(--error) 16%, var(--panel)); }
+.e-parado > .forma { stroke: var(--apagado); stroke-dasharray: none; }
+.e-ok > .forma.inversor, .e-ok > .forma.bateria, .e-ok > .forma.carga, .e-ok > .forma.red { fill: color-mix(in srgb, var(--ok) 9%, var(--panel)); }
+.forma.cadena { fill: var(--fondo); }
+.e-alarma > .forma.cadena { fill: color-mix(in srgb, var(--error) 18%, var(--panel)); }
+.forma.caja { fill: color-mix(in srgb, var(--panel) 80%, transparent); stroke-width: 2.5; }
+.forma.panel { fill: #24344f; stroke: #aab4be; stroke-width: 3; }
+g[data-tag="PV-201"] .forma.panel, g[data-tag="PV-202"] .forma.panel, g[data-tag="PV-203"] .forma.panel, g[data-tag="PV-204"] .forma.panel,
+g[data-tag="PV-205"] .forma.panel, g[data-tag="PV-206"] .forma.panel, g[data-tag="PV-207"] .forma.panel, g[data-tag="PV-208"] .forma.panel { fill: #151a22; }
+.e-ok .forma.panel { stroke: var(--ok); } .e-aviso .forma.panel { stroke: var(--aviso); stroke-width: 4.5; fill: #2d3a52; } .e-alarma .forma.panel { stroke: var(--error); stroke-width: 5; fill: #3a2530; } .e-parado .forma.panel { stroke: #8a949e; }
+.celdas { fill: none; stroke: rgba(255, 255, 255, .22); stroke-width: 1; pointer-events: none; }
+.sombra { fill: #000; opacity: 0; pointer-events: none; }
+.bypass { fill: #55606c; opacity: .8; pointer-events: none; } .bypass.on { fill: var(--error); opacity: 1; }
+.etq-fondo { fill: rgba(10, 16, 24, .72); pointer-events: none; }
+svg .etq-fondo ~ text, svg g[data-tag] .etq-fondo + text { fill: #fff; }
+.e-aviso .etq-fondo + text, .e-alarma .etq-fondo + text, .e-ok .etq-fondo + text, .e-parado .etq-fondo + text { fill: #fff; }
+.franja-azul { fill: #1d63b8; pointer-events: none; }
+.forma.inversor.easun { fill: #f2f5f8; } .e-ok > .forma.inversor.easun, .e-aviso > .forma.inversor.easun, .e-alarma > .forma.inversor.easun, .e-parado > .forma.inversor.easun { fill: #f2f5f8; }
+.forma.inversor.easun ~ text:not(.fv-blanco):not(.fv-pantalla):not(.fv-alarma-txt) { fill: #16202A; }
+.forma.inversor.zcs { fill: #d9dee4; } .e-ok > .forma.inversor.zcs, .e-aviso > .forma.inversor.zcs, .e-alarma > .forma.inversor.zcs, .e-parado > .forma.inversor.zcs { fill: #d9dee4; }
+.forma.inversor.zcs ~ text:not(.fv-pantalla):not(.fv-alarma-txt) { fill: #16202A; }
+g[data-tag="INV-101"] .led-fv text, g[data-tag="INV-201"] .led-fv text { fill: #16202A; }
+.pantalla { fill: #0d2b4a; stroke: #6fa8dc; stroke-width: 1.5; pointer-events: none; }
+.led { fill: #6b747c; stroke: #3b434a; stroke-width: 1.2; } .led.on { fill: #2fd37d; stroke: #1a7f4b; filter: drop-shadow(0 0 3px #2fd37d); } .led.on.alarma { fill: #ff4d4f; stroke: #8a1c1f; filter: drop-shadow(0 0 3px #ff4d4f); }
+.soc-fondo { fill: var(--fondo); stroke: var(--borde); } .soc { fill: var(--bat); pointer-events: none; }
+.e-aviso .soc { fill: var(--aviso); } .e-alarma .soc { fill: var(--error); }
+.palanca { fill: none; stroke: var(--texto); stroke-width: 3.5; stroke-linecap: round; pointer-events: none; }
+g:not(.abierta) > .pal-a, g.abierta > .pal-c { display: none; }
+.e-ok .palanca { stroke: var(--ok); } .e-alarma .palanca { stroke: var(--error); } .e-parado .palanca { stroke: var(--tenue); }
+.borna { fill: var(--tubo); }
+.fus-hilo { stroke: var(--texto); stroke-width: 2.4; fill: none; pointer-events: none; }
+.fus-roto { display: none; stroke: var(--error); stroke-width: 2.4; fill: none; pointer-events: none; }
+g.fundido .fus-hilo { display: none; } g.fundido .fus-roto { display: inline; }
+.testigo { fill: var(--ok); stroke: var(--panel); stroke-width: 1; } g.agotado .testigo { fill: var(--error); }
+.caseta { fill: none; stroke: var(--tubo); stroke-width: 3; stroke-dasharray: 14 8; pointer-events: stroke; }
+.e-aviso > .caseta { stroke: var(--aviso); } .e-alarma > .caseta { stroke: var(--error); }
+.bandeja { fill: repeating-linear-gradient(0deg, var(--fondo) 0 6px, var(--panel) 6px 12px); fill: var(--fondo); stroke: var(--tubo); stroke-width: 2; stroke-dasharray: 5 3; pointer-events: all; }
+.caja-aux { fill: none; stroke: var(--tubo); stroke-width: 2; stroke-dasharray: 6 4; pointer-events: none; }
+.enlace { fill: none; stroke: var(--tubo); stroke-width: 1.5; stroke-dasharray: 3 3; pointer-events: none; }
+.torre { fill: none; stroke: var(--tenue); stroke-width: 2; stroke-linecap: round; pointer-events: none; }
+.muestra { stroke-width: 2.5; } .muestra.e-ok { fill: color-mix(in srgb, var(--ok) 20%, var(--panel)); stroke: var(--ok); } .muestra.e-aviso { fill: color-mix(in srgb, var(--aviso) 20%, var(--panel)); stroke: var(--aviso); }
+.muestra.e-alarma { fill: color-mix(in srgb, var(--error) 20%, var(--panel)); stroke: var(--error); } .muestra.e-parado { fill: var(--panel); stroke: var(--apagado); }
+.cable.activo.solar.leyenda { stroke-width: 6; }
+svg g[data-tag] { cursor: pointer; }
+svg g[data-tag] > rect.caja, svg g[data-tag] > rect.forma { pointer-events: all; }
+svg g[data-tag]:hover > .forma, svg g[data-tag]:hover > .caseta, svg g[data-tag]:hover > .bandeja { stroke: var(--foco); stroke-width: 3.5; }
+svg g[data-tag]:focus { outline: none; }
+svg g[data-tag]:focus-visible { outline: 3px solid var(--foco); outline-offset: 3px; }
+svg g[data-tag].elegida > .forma.cadena { stroke: var(--foco); stroke-width: 3.5; }
+.leyenda-nota { margin: 6px 0 0; font-size: 12.5px; color: var(--tenue); }
+
+/* ---------- ficha de equipo, ayuda ---------- */
+#ficha-equipo, #guia-fv { position: fixed; z-index: 10040; top: 10vh; left: 50%; transform: translateX(-50%); width: min(580px, 94vw); max-height: 80vh; overflow: auto; padding: 14px 18px 18px; background: var(--panel); color: var(--texto); border: 1px solid var(--borde); border-radius: 10px; box-shadow: 0 18px 50px rgba(0, 0, 0, .55); }
+#ficha-equipo[hidden], #guia-fv[hidden] { display: none; }
+#ficha-equipo header, #guia-fv header { display: flex; justify-content: space-between; align-items: start; gap: 12px; border-bottom: 3px solid var(--acento); margin-bottom: 8px; }
+#ficha-equipo h3, #guia-fv h3 { margin: 0 0 6px; font-size: 17px; }
+#ficha-equipo h4, #guia-fv h4 { margin: 12px 0 2px; font-size: 14px; }
+#ficha-equipo p, #guia-fv p { margin: 0 0 6px; }
+#ficha-equipo header button, #guia-fv header button { width: 44px; height: 44px; border: 1px solid var(--borde); border-radius: 6px; background: var(--fondo); font-size: 22px; cursor: pointer; }
+.etiqueta-ficha { display: inline-block; padding: 1px 9px; border-radius: 999px; background: var(--fondo); font-size: 12px; color: var(--tenue); }
+.ficha-botones { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.ficha-botones button { min-height: 44px; padding: 0 14px; border: 1px solid var(--acento); border-radius: 8px; background: transparent; color: var(--texto); font-weight: 700; cursor: pointer; }
+.ficha-botones .ficha-accion { background: var(--acento); color: var(--sobre-acento); }
+
+/* ---------- móvil: interfaz.css reordena la escena con `display: contents` (pensado para la maqueta); aquí se mantiene el orden natural ---------- */
+@media (max-width: 699px) {
+  .planta-fv .escena, .planta-fv .lateral-simple { display: block; }
+  .planta-fv .lienzo { order: 0; margin: 0; }
+  .planta-fv .lateral-simple .pestanas { order: 0; margin-top: 0; border-top: 0; overflow-x: visible; }
+  .planta-fv .lateral-simple .panel-pestana { order: 0; }
+  .planta-fv .cab .logo { height: 36px; width: auto; }
+  .planta-fv .cab .sim { font-size: 15px; }
+  .planta-fv .cab .sim small { font-size: 12px; }
+  .planta-fv .estado-manual b { font-size: 20px; }
+  .planta-fv .escena { padding: 8px 10px 14px; }
+  .planta-fv .barra { padding: 8px 12px; }
+  .rejilla-sombras { grid-template-columns: 1fr; }
+}

@@ -345,7 +345,7 @@ def crear_app(config=None):
         a = alumno()
         if a is None:
             return redirect(url_for("entrar"))
-        return redirect("/simulador/" if a["estado"] == "autorizado" else url_for("pendiente"))
+        return redirect(url_for("simuladores") if a["estado"] == "autorizado" else url_for("pendiente"))
 
     @app.route("/registro", methods=["GET", "POST"])
     def registro():
@@ -450,8 +450,17 @@ def crear_app(config=None):
         if a is None:
             return redirect(url_for("entrar"))
         if a["estado"] == "autorizado":
-            return redirect("/simulador/")
+            return redirect(url_for("simuladores"))
         return render_template("pendiente.html", a=a)
+
+    # ----- elección del simulador (tras entrar) -----
+    @app.get("/simuladores")
+    def simuladores():
+        a = alumno()
+        if not profesor() and not (a and a["estado"] == "autorizado"):
+            return redirect(url_for("entrar" if a is None else "pendiente"))
+        hay_planta = (cfg["planta_real"] / "index.html").is_file()
+        return render_template("simuladores.html", hay_planta=hay_planta)
 
     # ----- simulador y planta real (protegidos: alumno autorizado o profesor con el PIN) -----
     def servir(raiz, ruta, pagina_de_inicio=None):

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="author" content="Álvar Legaz Aparicio">
+<meta name="copyright" content="© 2026 Álvar Legaz Aparicio. Todos los derechos reservados.">
+<title>Instalación fotovoltaica · Unifilar</title>
+<link rel="icon" type="image/png" href="/simulador/img/favicon.png">
+<link rel="stylesheet" href="/simulador/css/interfaz.css">
+<link rel="stylesheet" href="css/diagramas.css">
+</head>
+<body class="dg-ventana" data-vista="unifilar">
+<header class="dg-cabecera">
+  <h1 id="dg-titulo">Instalación fotovoltaica · Unifilar</h1>
+  <span class="dg-modo" id="dg-modo" aria-live="off"></span>
+  <a class="dg-boton" id="dg-otra" href="cableado.html">Ver Cableado</a>
+  <button type="button" id="dg-cerrar">Cerrar</button>
+</header>
+<p class="dg-aviso" id="dg-aviso" hidden></p>
+<main class="dg-pagina" id="dg-pagina"></main>
+<footer class="dg-pie">© 2026 Álvar Legaz Aparicio. Todos los derechos reservados.</footer>
+<script src="js/interfaz/ventana_diagrama.js"></script>
+<script>
+// Ventana aparte del esquema unifilar: lee el estado de la ventana que la abrió (mismo origen), como el 3D.
+window.FV_VENTANA = FV_VENTANA_DIAGRAMA.iniciar('unifilar');
+</script>
+</body>
+</html>
