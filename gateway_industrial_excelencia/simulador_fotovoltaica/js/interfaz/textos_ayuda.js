@@ -374,7 +374,10 @@
     const eq = layout.EQUIPOS.find(x => x.tag === tag); if (!eq) return '';
     const cadenas = []; for (const k of ['A', 'B']) for (const c of ((e.campos && e.campos[k] && e.campos[k].cadenas) || [])) cadenas.push(c);
     const prot = e.protecciones && e.protecciones[tag];
-    if (prot) return `${prot.estado}${prot.causa ? ' · ' + prot.causa : ''}`;
+    if (prot) {
+      const est = (eq.tipo === 'fusible' || eq.tipo === 'descargador') && prot.estado === 'CERRADO' ? 'SANO' : prot.estado;      // un fusible o un cartucho sano no está «cerrado»
+      return `${est}${prot.causa ? ' · ' + prot.causa : ''}`;
+    }
     if (eq.tipo === 'panel') { for (const c of cadenas) { const p = (c.paneles || []).find(x => x.tag === tag); if (p) return `${kw(p.p)} · ${dec(p.v)} V · célula ${dec(p.tempCelulaC, 0)} °C · sombra ${Math.round((p.sombra01 || 0) * 100)} %${(p.bypass || []).some(Boolean) ? ' · diodo de paso activo' : ''}`; } return ''; }
     if (eq.tipo === 'cadena') { const c = cadenas.find(x => x.id === tag); return c ? `${dec(c.v)} V · ${dec(c.i)} A · ${kw(c.p)} · Voc ${dec(c.voc)} V${c.abierta ? ' · ABIERTA' : ''}` : ''; }
     if (tag === 'INV-101') { const i = e.inversores && e.inversores[tag]; return i ? `${i.estado} · ${String(i.modo || '').replace(/_/g, ' ')} · PV ${kw(i.pvP)} · batería ${kw(i.bateriaP)} · red ${kw(i.redP)} · carga ${kw(i.cargaP)} · ${dec(i.temperaturaC, 0)} °C${i.alarma ? ' · ' + i.alarma : ''}` : ''; }

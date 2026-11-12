@@ -4,6 +4,8 @@
 (function () {
   const textos = typeof require !== 'undefined' ? require('./textos_ayuda.js') : PCT.htstTextosAyuda;
   const puntos = typeof require !== 'undefined' ? require('./puntos_medida.js') : PCT.htstPuntosMedida;
+  // Pulsación larga (compartida con la maqueta, /simulador/js/interfaz/pulsacion_larga.js): 3 s con el dedo o el lápiz = ficha del equipo (iPad: no hay clic derecho)
+  const PULSACION = typeof PCT !== 'undefined' && PCT.pulsacionLarga ? PCT.pulsacionLarga : null;
 
   /** Tag del equipo (atributo data-tag) del elemento pulsado o de alguno de sus padres; null si no es un equipo. */
   function tagDelElemento(nodo, raiz) {
@@ -66,8 +68,25 @@
       if (evento.target.closest && evento.target.closest('.panel-boton')) return;     // los botones del panel de mando los atiende la página
       contexto.clicIzquierdo(tag, evento);
     };
-    svg.addEventListener('click', alClicIzquierdo);
-    svg.addEventListener('contextmenu', alPulsar);
+    // Pulsación larga táctil: al cumplirse los 3 s se abre la ficha y el clic que llega al soltar el dedo NO acciona el equipo. Mientras se mantiene, el equipo
+    // se ilumina poco a poco (clase `pulsando`) para que se vea que va a abrirse; moverse más de 10 px o soltar antes lo cancela (un toque corto acciona como siempre).
+    let suprimirClic = false, tactil = false, marcado = null;
+    const desmarcar = () => { if (marcado) marcado.classList.remove('pulsando'); marcado = null; };
+    if (PULSACION && PULSACION.crearPulsacionLarga) {
+      const larga = PULSACION.crearPulsacionLarga({ alCumplir: g => { suprimirClic = true; desmarcar(); abrir(g.dataset.tag, g); } });
+      svg.addEventListener('pointerdown', evento => {
+        tactil = evento.pointerType === 'touch' || evento.pointerType === 'pen';
+        if (!tactil) return;
+        const g = evento.target.closest && evento.target.closest('g[data-tag]');
+        if (!g || !ELEMENTOS[g.dataset.tag]) return;
+        suprimirClic = false; desmarcar(); marcado = g; g.classList.add('pulsando');
+        larga.empezar(evento.clientX, evento.clientY, g);
+      });
+      svg.addEventListener('pointermove', evento => { if (tactil) { larga.mover(evento.clientX, evento.clientY); if (marcado && !marcado.isConnected) desmarcar(); } });
+      for (const nombre of ['pointerup', 'pointercancel', 'pointerleave']) svg.addEventListener(nombre, () => { larga.terminar(); desmarcar(); setTimeout(() => { suprimirClic = false; }, 500); });
+    }
+    svg.addEventListener('click', evento => { if (suprimirClic) { suprimirClic = false; evento.stopPropagation(); return; } alClicIzquierdo(evento); });
+    svg.addEventListener('contextmenu', evento => { if (tactil && PULSACION) { evento.preventDefault(); return; } alPulsar(evento); });   // en táctil manda la pulsación de 3 s, no el menú del navegador
     // Teclado: Intro o Espacio sobre un equipo enfocado abre su ficha (o lo acciona, si hay `clicIzquierdo`); la tecla de menú contextual abre la ficha
     svg.addEventListener('keydown', evento => {
       if (evento.key !== 'Enter' && evento.key !== ' ') return;

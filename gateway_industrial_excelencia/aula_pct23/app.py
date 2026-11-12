@@ -29,7 +29,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import safe_join
 
 ESTADOS = ("pendiente", "autorizado", "rechazado")
-ACCIONES = ("autorizar", "rechazar", "pendiente", "eliminar", "clave", "autorizar_todos")
+ACCIONES = ("autorizar", "rechazar", "pendiente", "eliminar", "clave", "autorizar_todos", "simuladores", "simuladores_lista")
 PIN_POR_DEFECTO = "12345678"       # el aula arranca con este PIN si no se define AULA_PIN (la pantalla del aula avisa)
 PIN_PROHIBIDOS = {"", "cambia-este-pin"}
 PIN_MINIMO = 6
@@ -37,9 +37,23 @@ EXTENSIONES_SIMULADOR = {".html", ".css", ".js", ".png", ".svg", ".ico", ".json"
 CORREO = re.compile(r"^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$")
 LARGO_MAX = {"nombre": 80, "apellidos": 120, "modulo": 80, "correo": 254}
 CLAVE_MINIMA = 8
-PAGINAS_SIMULADOR = ("index", "manual", "automatico", "demostracion", "planta_real")
+PAGINAS_SIMULADOR = ("index", "manual", "automatico", "demostracion", "planta_real", "fotovoltaica")
+# Los simuladores del aula. `cfg` = clave de la configuración con su carpeta; `ruta` = dónde se sirve; el profesor decide cuáles ve cada alumno
+# (columna usuarios.simuladores: NULL = todos, texto vacío = ninguno, o los ids separados por comas). La carpeta de la maqueta (/simulador/) además
+# sirve el código compartido (js, css, img) que usan los otros dos: esos archivos no se restringen, solo las PÁGINAS (.html) de cada simulador.
+SIMULADORES = (
+    {"id": "maqueta", "cfg": "simulador", "ruta": "/simulador/", "etiqueta": "Maqueta", "titulo": "Planta de pasteurización PCT23",
+     "descripcion": "La maqueta del aula con sus sensores, bombas y el control del PLC: modo manual, automático y demostración.", "pagina": "index"},
+    {"id": "planta_real", "cfg": "planta_real", "ruta": "/planta-real/", "etiqueta": "Planta real", "titulo": "Pasteurizadora HTST · Lácteos Politécnico",
+     "descripcion": "La estación EP-01 de tamaño industrial: sinóptico, modelo 3D de cada equipo, esquemas de fuerza y mando y modo Revisión con averías.", "pagina": "planta_real"},
+    {"id": "fotovoltaica", "cfg": "fotovoltaica", "ruta": "/fotovoltaica/", "etiqueta": "Fotovoltaica", "titulo": "Instalación fotovoltaica de la cubierta",
+     "descripcion": "Dos campos de paneles, inversores híbridos EASun y ZCS, batería y cuadro de alterna: sol, sombras, averías, unifilar, cableado y 3D.", "pagina": "fotovoltaica"},
+)
+IDS_SIMULADORES = tuple(s["id"] for s in SIMULADORES)
+ETIQUETAS_PAGINA = {"index": "Inicio de la maqueta", "manual": "Modo manual", "automatico": "Modo automático", "demostracion": "Demostración",
+                    "planta_real": "Planta real HTST", "fotovoltaica": "Instalación fotovoltaica"}
 # Páginas que no llevan la barra del aula (son ventanas auxiliares) y archivos que nunca se sirven (bancos de pruebas de desarrollo).
-SIN_BARRA = {"visor3d"}
+SIN_BARRA = {"visor3d", "unifilar", "cableado"}
 NUNCA_SERVIR = {"banco_pruebas.html"}
 SEGUNDOS_MAX_POR_ENVIO = 120
 EVENTOS_MAX_POR_ENVIO = 30
@@ -58,6 +72,7 @@ def config_desde_entorno():
         "datos": Path(env.get("AULA_DATOS", "./datos")),
         "simulador": Path(env.get("AULA_SIMULADOR", Path(__file__).resolve().parent.parent / "simulador_pct23")),
         "planta_real": Path(env.get("AULA_PLANTA_REAL", Path(__file__).resolve().parent.parent / "simulador_planta_real")),
+        "fotovoltaica": Path(env.get("AULA_FOTOVOLTAICA", Path(__file__).resolve().parent.parent / "simulador_fotovoltaica")),
         "modulos": [m.strip() for m in env.get("AULA_MODULOS", "").split(",") if m.strip()],
         "cookie_segura": env.get("AULA_COOKIE_SEGURA", "0") == "1",
         # 1 = al arrancar se borra el PIN cambiado desde el aula y vuelve a valer AULA_PIN (por si se olvida)
@@ -129,7 +144,8 @@ CREATE TABLE IF NOT EXISTS usuarios (
     clave_hash    TEXT NOT NULL,
     estado        TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente','autorizado','rechazado')),
     creado        TEXT NOT NULL,
-    resuelto      TEXT
+    resuelto      TEXT,
+    simuladores   TEXT
 );
 CREATE INDEX IF NOT EXISTS usuarios_estado ON usuarios(estado);
 CREATE TABLE IF NOT EXISTS actividad (
@@ -209,6 +225,7 @@ def crear_app(config=None):
     cfg["datos"] = Path(cfg["datos"])
     cfg["simulador"] = Path(cfg["simulador"])
     cfg["planta_real"] = Path(cfg["planta_real"])
+    cfg["fotovoltaica"] = Path(cfg["fotovoltaica"])
     cfg["datos"].mkdir(parents=True, exist_ok=True)
     if not (cfg["simulador"] / "index.html").is_file():
         raise RuntimeError(f"No se encuentra el simulador en {cfg['simulador']}")
@@ -232,6 +249,8 @@ def crear_app(config=None):
     ruta_bd = cfg["datos"] / "aula.sqlite3"
     with contextlib.closing(conectar(ruta_bd)) as con:
         con.executescript(ESQUEMA)
+        if "simuladores" not in [c["name"] for c in con.execute("PRAGMA table_info(usuarios)")]:
+            con.execute("ALTER TABLE usuarios ADD COLUMN simuladores TEXT")       # instalaciones anteriores: NULL = ven todos, como hasta ahora
         if cfg.get("pin_restablecer"):
             con.execute("DELETE FROM ajustes WHERE clave='pin_hash'")
         con.commit()
@@ -290,6 +309,33 @@ def crear_app(config=None):
     def profesor():
         return session.get("prof_hasta", 0) > time.time()
 
+    def disponibles():
+        """Simuladores desplegados en este servidor (su carpeta existe), en el orden de SIMULADORES."""
+        return [s for s in SIMULADORES if (cfg[s["cfg"]] / "index.html").is_file()]
+
+    def ids_asignados(fila):
+        """Ids de simuladores que el profesor ha asignado a una fila de usuario (NULL = todos, vacío = ninguno)."""
+        valor = fila["simuladores"] if fila is not None and "simuladores" in fila.keys() else None
+        if valor is None:
+            return set(IDS_SIMULADORES)
+        return {i for i in valor.split(",") if i in IDS_SIMULADORES}
+
+    def simuladores_del_usuario():
+        """Simuladores que puede abrir quien tiene la sesión: el profesor (con el PIN) todos; el alumno autorizado, los que tenga asignados."""
+        todos = disponibles()
+        if profesor():
+            return todos
+        a = alumno()
+        if not (a and a["estado"] == "autorizado"):
+            return []
+        permitidos = ids_asignados(a)
+        return [s for s in todos if s["id"] in permitidos]
+
+    @app.template_global()
+    def simuladores_de(fila):
+        """Para las plantillas del aula: ids asignados a un alumno."""
+        return ids_asignados(fila)
+
     def token_csrf():
         if "csrf" not in session:
             session["csrf"] = secrets.token_urlsafe(24)
@@ -297,7 +343,7 @@ def crear_app(config=None):
 
     @app.context_processor
     def contexto():
-        return {"csrf": token_csrf, "modulos": cfg["modulos"], "alumno_sesion": alumno(), "profesor": profesor(),
+        return {"csrf": token_csrf, "modulos": cfg["modulos"], "alumno_sesion": alumno(), "profesor": profesor(), "simuladores": disponibles(),
                 "pin_por_defecto": cfg["pin"] == PIN_POR_DEFECTO and pin_guardado() is None, "pin_defecto_valor": PIN_POR_DEFECTO}
 
     @app.before_request
@@ -316,7 +362,7 @@ def crear_app(config=None):
         resp.headers["Content-Security-Policy"] = (
             "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; "
             "img-src 'self' data:; frame-ancestors 'none'; form-action 'self'; base-uri 'self'")
-        if request.path.startswith(("/simulador/", "/planta-real/")):
+        if request.path.startswith(("/simulador/", "/planta-real/", "/fotovoltaica/")):
             resp.headers["Cache-Control"] = "private, no-cache"          # solo para quien ha entrado; se revalida
         elif request.endpoint != "static":
             resp.headers["Cache-Control"] = "no-store"
@@ -459,11 +505,13 @@ def crear_app(config=None):
         a = alumno()
         if not profesor() and not (a and a["estado"] == "autorizado"):
             return redirect(url_for("entrar" if a is None else "pendiente"))
-        hay_planta = (cfg["planta_real"] / "index.html").is_file()
-        return render_template("simuladores.html", hay_planta=hay_planta)
+        lista = simuladores_del_usuario()
+        if len(lista) == 1 and request.args.get("lista") != "1":
+            return redirect(lista[0]["ruta"])           # con uno solo asignado no hay nada que elegir
+        return render_template("simuladores.html", lista=lista)
 
     # ----- simulador y planta real (protegidos: alumno autorizado o profesor con el PIN) -----
-    def servir(raiz, ruta, pagina_de_inicio=None):
+    def servir(raiz, ruta, pagina_de_inicio=None, sim=None):
         """Sirve un archivo de `raiz` (simulador_pct23 o simulador_planta_real) con el mismo control de acceso, las mismas extensiones y la misma
         exclusión de tests. pagina_de_inicio: nombre con el que se registra la actividad cuando se abre index.html (para distinguir las dos pantallas de inicio)."""
         a = alumno()
@@ -475,6 +523,10 @@ def crear_app(config=None):
         ext = Path(ruta).suffix.lower()
         if ext not in EXTENSIONES_SIMULADOR:
             abort(404)
+        if ext == ".html" and sim and sim not in [s["id"] for s in simuladores_del_usuario()]:
+            # Solo se restringen las páginas de cada simulador: el código compartido (js, css, imágenes) lo usan los tres y sigue abierto a quien haya entrado.
+            return render_template("error.html", titulo="Simulador no asignado",
+                                   texto="El profesor no te ha asignado este simulador. Si lo necesitas, pídeselo."), 403
         if ext != ".html":
             return send_from_directory(raiz, ruta, max_age=0)
         destino = safe_join(str(raiz), ruta)
@@ -505,14 +557,21 @@ def crear_app(config=None):
     @app.get("/simulador/", defaults={"ruta": "index.html"})
     @app.get("/simulador/<path:ruta>")
     def simulador(ruta):
-        return servir(cfg["simulador"], ruta)
+        return servir(cfg["simulador"], ruta, sim="maqueta")
 
     @app.get("/planta-real/", defaults={"ruta": "index.html"})
     @app.get("/planta-real/<path:ruta>")
     def planta_real(ruta):
         if not (cfg["planta_real"] / "index.html").is_file():
             abort(404)                                  # despliegue sin la planta real
-        return servir(cfg["planta_real"], ruta, "planta_real")
+        return servir(cfg["planta_real"], ruta, "planta_real", sim="planta_real")
+
+    @app.get("/fotovoltaica/", defaults={"ruta": "index.html"})
+    @app.get("/fotovoltaica/<path:ruta>")
+    def fotovoltaica(ruta):
+        if not (cfg["fotovoltaica"] / "index.html").is_file():
+            abort(404)                                  # despliegue sin la instalación fotovoltaica
+        return servir(cfg["fotovoltaica"], ruta, "fotovoltaica", sim="fotovoltaica")
 
     # ----- aula del profesor -----
     @app.get("/aula")
@@ -704,6 +763,14 @@ def crear_app(config=None):
         busca = limpiar(request.form.get("q"), 80)
         volver = url_for("aula", estado=estado, modulo=modulo or None, q=busca or None)
         con = bd()
+        if accion == "simuladores_lista":
+            # El mismo reparto de simuladores para todos los alumnos que muestra ahora la lista (con su filtro de estado, módulo y búsqueda)
+            elegidos = ",".join(i for i in IDS_SIMULADORES if request.form.get("sim_" + i))
+            ids = [f["id"] for f in datos_panel(estado if estado in ESTADOS + ("todos",) else "pendiente", modulo, busca)["filas"]]
+            con.executemany("UPDATE usuarios SET simuladores=? WHERE id=?", [(elegidos, i) for i in ids])
+            con.commit()
+            flash(f"Simuladores asignados a {len(ids)} alumno(s): {elegidos.replace(',', ', ') or 'ninguno'}.", "ok")
+            return redirect(volver)
         if accion == "autorizar_todos":
             sql, params = "UPDATE usuarios SET estado='autorizado', resuelto=? WHERE estado='pendiente'", [ahora_iso()]
             if modulo:
@@ -727,6 +794,11 @@ def crear_app(config=None):
             con.execute("UPDATE usuarios SET estado=?, resuelto=? WHERE id=?", (nuevo, ahora_iso(), uid))
             con.commit()
             flash(f"{nombre}: {nuevo}.", "ok")
+        elif accion == "simuladores":
+            elegidos = ",".join(i for i in IDS_SIMULADORES if request.form.get("sim_" + i))
+            con.execute("UPDATE usuarios SET simuladores=? WHERE id=?", (elegidos, uid))
+            con.commit()
+            flash(f"{nombre}: simuladores asignados: {elegidos.replace(',', ', ') or 'ninguno'}.", "ok")
         elif accion == "eliminar":
             con.execute("DELETE FROM usuarios WHERE id=?", (uid,))
             con.commit()

@@ -8,7 +8,7 @@
     '/simulador/js/utilidades/modulos.js', '/simulador/js/utilidades/matematicas.js', '/simulador/js/configuracion/constantes_fisicas.js', '/simulador/js/interfaz/dom.js',
     '/simulador/js/interfaz/scada/canvas.js', '/simulador/js/interfaz/scada/objeto_scada.js', '/simulador/js/interfaz/scada/etiqueta.js', '/simulador/js/interfaz/scada/valvula.js',
     '/simulador/js/interfaz/scada/sensor.js', '/simulador/js/interfaz/scada/tuberia.js',
-    '/simulador/js/interfaz/visor3d/especificaciones.js', '/simulador/js/interfaz/visor3d/lecturas.js', '/simulador/js/interfaz/visor3d/controles_orbita.js', '/simulador/js/interfaz/visor3d/visor3d.js',
+    '/simulador/js/interfaz/visor3d/especificaciones.js', '/simulador/js/interfaz/visor3d/lecturas.js', '/simulador/js/interfaz/visor3d/controles_orbita.js', '/simulador/js/interfaz/visor3d/visor3d.js', '/simulador/js/interfaz/pulsacion_larga.js',
   ];
   const MODELO = [      // AGENTE-MODELO (rutas relativas), en el orden de sus dependencias; simulacion.js siempre al final
     'js/layout.js', 'js/configuracion/constantes.js', 'js/modelo/sol.js', 'js/modelo/panel.js', 'js/modelo/cadena.js', 'js/modelo/seguidor.js', 'js/modelo/bateria.js',
@@ -22,7 +22,7 @@
     'js/interfaz/textos_ayuda.js',
   ];
   const INTERFAZ = [    // AGENTE-INTERFAZ
-    'js/interfaz/formato_fv.js', 'js/scada2d/esquema_fv.js', 'js/interfaz/ayuda_fv.js', 'js/interfaz/grafica_fv.js', 'js/interfaz/panel_revision.js', 'js/interfaz/panel_lecturas.js',
+    'js/interfaz/formato_fv.js', 'js/scada2d/esquema_fv.js', 'js/interfaz/diagnostico_fv.js', 'js/interfaz/toque_largo_fv.js', 'js/interfaz/ayuda_fv.js', 'js/interfaz/grafica_fv.js', 'js/interfaz/panel_revision.js', 'js/interfaz/panel_lecturas.js',
   ];
 
   function cargarScript(ruta) {
@@ -49,7 +49,7 @@
   async function cargarTodo({ conInterfaz = true, conDiseno3d = false, conDocumentacion = true } = {}) {
     const faltan = [];
     await cargarLista(COMPARTIDO, faltan);
-    await cargarLista(await listaDe('js/modelo/indice.js', 'FV_MODELO', MODELO), faltan);
+    await cargarLista(MODELO, faltan);      // el modelo usa su lista fija (sin índice: evita una petición que daba 404)
     if (conDiseno3d) await cargarLista(await listaDe('js/visor3d_fv/indice.js', 'FV_DISENO3D', DISENO3D), faltan);
     if (conDocumentacion) await cargarLista(DOCUMENTACION, faltan);
     if (conInterfaz) await cargarLista(INTERFAZ, faltan);

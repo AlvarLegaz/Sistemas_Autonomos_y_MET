@@ -411,3 +411,8 @@ body[data-nivel="1"] #franja-alarmas { display: none !important; }          /* e
 .galeria-variables td { padding: 4px 0; color: var(--tenue); }
 .galeria-variables tr + tr { border-top: 1px solid var(--borde); }
 @media (max-width: 760px) { .galeria-vivo { grid-template-columns: 1fr; } .galeria-controles label { grid-template-columns: 1fr 64px; } .galeria-controles label span { grid-column: 1 / -1; } }
+
+/* Pulsación larga (iPad): el equipo se ilumina mientras se mantiene el dedo 3 s y luego abre su ficha; sin menú ni selección del navegador sobre el esquema */
+svg g[data-tag] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+svg g[data-tag].pulsando { animation: mantener-pulsado 3s linear forwards; }
+@keyframes mantener-pulsado { from { filter: drop-shadow(0 0 0 #F68B11); } to { filter: drop-shadow(0 0 5px #F68B11) drop-shadow(0 0 8px #F68B11); } }

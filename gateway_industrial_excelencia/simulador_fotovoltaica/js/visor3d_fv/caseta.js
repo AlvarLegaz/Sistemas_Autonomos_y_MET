@@ -27,7 +27,8 @@
     const raiz = new THREE.Group(); raiz.position.set(C.x, 0, C.z); base.grupo.add(raiz);   // decorado interior (sin elemento propio)
     const hw = C.ancho / 2, hd = C.fondo / 2, hm = C.altoMuro;
     // Materiales propios de la carcasa (translúcidos en la vista «Corte»)
-    const matMuro = kit.matDinamico('taupe'), matNervio = kit.matDinamico('taupeClaro'), matTecho = kit.matDinamico(0x9b9283), matMarco = kit.matDinamico('blanco');
+    const mapaChapa = kit.textura(K.lienzoChapa, [0.5, 0.5]), mapaTecho = kit.textura(() => K.lienzoChapa({ semilla: 9 }), [0.5, 0.5]);   // tile de 200 cm; null sin DOM (pruebas)
+    const matMuro = kit.matDinamico('taupe', mapaChapa ? { map: mapaChapa } : {}), matNervio = kit.matDinamico('taupeClaro'), matTecho = kit.matDinamico(0x9b9283, mapaTecho ? { map: mapaTecho } : {}), matMarco = kit.matDinamico('blanco');
     const translucidos = [matMuro, matNervio, matTecho, matMarco];
 
     const ens = kit.ensamble();
@@ -37,17 +38,31 @@
     ens.caja(hw + C.puerta.x0, hm, 1, matMuro, [(-hw + C.puerta.x0) / 2, hm / 2, hd - 0.5]);
     ens.caja(hw - C.puerta.x1, hm, 1, matMuro, [(hw + C.puerta.x1) / 2, hm / 2, hd - 0.5]);
     ens.caja(C.puerta.x1 - C.puerta.x0, hm - C.puerta.alto, 1, matMuro, [(C.puerta.x0 + C.puerta.x1) / 2, (hm + C.puerta.alto) / 2, hd - 0.5]);
-    // Nervios verticales de la chapa (cada 14 cm) en las caras exteriores
-    for (let x = -hw + 12; x < hw - 6; x += 14) { ens.caja(2.6, hm - 6, 0.9, matNervio, [x, hm / 2, -hd - 0.4]); }
-    for (let z = -hd + 12; z < hd - 6; z += 14) for (const s of [-1, 1]) ens.caja(0.9, hm - 6, 2.6, matNervio, [s * (hw + 0.4), hm / 2, z]);
-    for (let x = -hw + 12; x < -hw + 70; x += 14) ens.caja(2.6, hm - 6, 0.9, matNervio, [x, hm / 2, hd + 0.4]);
-    for (let x = C.puerta.x1 + 8; x < hw - 6; x += 14) ens.caja(2.6, hm - 6, 0.9, matNervio, [x, hm / 2, hd + 0.4]);
+    // Nervios verticales de la chapa (cada 14 cm, trapecio de dos escalones) en las caras exteriores, con remaches arriba y abajo y rodapié galvanizado
+    const nervioN = (x, z, giro) => {                                                                       // giro 0: pared norte/sur (cara en z); giro 1: pared este/oeste (cara en x)
+      const [w1, d1, w2, d2] = [3.8, 0.5, 1.7, 1.1];
+      if (!giro) { ens.caja(w1, hm - 6, d1, matNervio, [x, hm / 2, z]); ens.caja(w2, hm - 6, d2, matNervio, [x, hm / 2, z + Math.sign(z) * 0.3]); for (const y of [9, hm - 9]) ens.add(kit.cil(0.55, 0.5, 6), matNervio, [x, y, z + Math.sign(z) * 0.95], [Math.PI / 2, 0, 0]); }
+      else { ens.caja(d1, hm - 6, w1, matNervio, [x, hm / 2, z]); ens.caja(d2, hm - 6, w2, matNervio, [x + Math.sign(x) * 0.3, hm / 2, z]); for (const y of [9, hm - 9]) ens.add(kit.cil(0.55, 0.5, 6), matNervio, [x + Math.sign(x) * 0.95, y, z], [0, 0, Math.PI / 2]); }
+    };
+    for (let x = -hw + 12; x < hw - 6; x += 14) nervioN(x, -hd - 0.4, 0);
+    for (let z = -hd + 12; z < hd - 6; z += 14) for (const sg of [-1, 1]) nervioN(sg * (hw + 0.4), z, 1);
+    for (let x = -hw + 12; x < -hw + 70; x += 14) nervioN(x, hd + 0.4, 0);
+    for (let x = C.puerta.x1 + 8; x < hw - 6; x += 14) nervioN(x, hd + 0.4, 0);
+    ens.caja(C.ancho + 2, 6, 1.4, 'galvanizado', [0, 3, -hd - 0.9]);                                       // rodapié galvanizado en los otros tres lados
+    for (const sg of [-1, 1]) ens.caja(1.4, 6, C.fondo + 2, 'galvanizado', [sg * (hw + 0.9), 3, 0]);
+    for (const sg of [-1, 1]) ens.caja(1.4, 6, 14, 'galvanizado', [sg * (hw + 0.9), 3, hd + 4]);
     // Tejado a dos aguas: dos faldones con vuelo, cumbrera, canalón blanco y los frontones triangulares
     const alfa = Math.atan((C.altoCumbrera - hm - 0.5) / (hd + 6)), largo = (hd + 6) / Math.cos(alfa);
     ens.caja(C.ancho + 12, 2.2, largo, matTecho, [0, hm + 0.8 + (C.altoCumbrera - hm) / 2 * 0.98, -(hd + 6) / 2], [-alfa, 0, 0]);
     ens.caja(C.ancho + 12, 2.2, largo, matTecho, [0, hm + 0.8 + (C.altoCumbrera - hm) / 2 * 0.98, (hd + 6) / 2], [alfa, 0, 0]);
     ens.caja(C.ancho + 13, 3, 7, matMarco, [0, C.altoCumbrera + 0.6, 0]);
+    {                                                                                                       // nervios del faldón (en la misma malla que el tejado: se quitan con la «Tapa»)
+      const cy = hm + 0.8 + (C.altoCumbrera - hm) / 2 * 0.98, ca = Math.cos(alfa), sa = Math.sin(alfa);
+      for (let x = -C.ancho / 2 - 2; x <= C.ancho / 2 + 4; x += 14) for (const sg of [-1, 1]) ens.caja(2.4, 0.9, largo, matTecho, [x, cy + 1.5 * ca, sg * ((hd + 6) / 2 + 1.5 * sa)], [sg * alfa, 0, 0]);
+    }
     for (const s of [-1, 1]) {
+      ens.caja(C.ancho + 12, 1.2, 1.2, matMarco, [0, hm + 1.9, s * (hd + 7.2)]).caja(C.ancho + 12, 1.0, 1.4, matMarco, [0, hm - 3.2, s * (hd + 6.6)]);   // canalón: borde y fondo
+      ens.caja(1.0, 4, 4, matMarco, [-(C.ancho + 12) / 2, hm - 0.8, s * (hd + 5.2)]).caja(1.0, 4, 4, matMarco, [(C.ancho + 12) / 2, hm - 0.8, s * (hd + 5.2)]);   // tapas laterales
       ens.caja(C.ancho + 12, 4, 4.5, matMarco, [0, hm - 1, s * (hd + 5)]);
       ens.add(kit.prisma([[-hd, hm], [hd, hm], [0, C.altoCumbrera]], 1), matMuro, [s * (hw - 0.5), 0, 0]);
     }
@@ -56,6 +71,9 @@
     ens.caja(C.puerta.x1 - C.puerta.x0 + 4, 4, 3, matMarco, [(C.puerta.x0 + C.puerta.x1) / 2, C.puerta.alto + 2, hd + 1]);
     ens.caja(C.puerta.x1 - C.puerta.x0 + 8, 3, 8, 'galvanizado', [0, 1.5, hd + 3]);
     ens.caja(C.ancho + 4, 4, 8, 'galvanizado', [0, 2, hd + 4.5]);                            // zócalo galvanizado a todo lo ancho
+    ens.add(kit.cil(2.0, hm - 2, 10), matMarco, [hw + 6, (hm - 2) / 2, hd + 7.4]);                              // bajante del canalón con sus abrazaderas
+    for (const y of [20, 80, 140]) ens.add(kit.cil(2.7, 1.6, 10), matMarco, [hw + 6, y, hd + 7.4]);
+    ens.add(kit.cil(2.0, 8, 10), matMarco, [hw + 6, hm - 0.5, hd + 4], [Math.PI / 2, 0, 0]);
     const hojas = [[-105, 0], [70, 0]];
     for (const [x] of hojas) {
       ens.caja(70, C.puerta.alto - 4, 1.6, matMuro, [x, C.puerta.alto / 2 + 2, hd + 6.5]);
@@ -101,8 +119,8 @@
     ensI.caja(5, 72, 3, 'blanco', [-12, 94.5 + 36, zN + 1.5]);
     // suelo de césped artificial y zócalo galvanizado de la puerta
     ensI.construir(raiz, 'CAS-001', { sinRayo: false });
-    const matCesped = kit.matDinamico('cesped');
-    const cesped = kit.malla(new THREE.PlaneGeometry(2 * xE, 2 * hd - 6), matCesped, raiz, null, [0, 0.7, 0], [-Math.PI / 2, 0, 0]); cesped.receiveShadow = true; cesped.raycast = () => {};
+    const matCesped = kit.mat('cesped');
+    const cesped = kit.malla(kit.planoUV(2 * xE, 2 * hd - 6, 50), matCesped, raiz, null, [0, 0.7, 0], [-Math.PI / 2, 0, 0]); cesped.receiveShadow = true; cesped.raycast = () => {};
     const unex = kit.pantalla(512, 64, pintarUnex), efapel = kit.pantalla(512, 64, pintarEfapel);
     const plano = (w, h, tex, pos, giro) => {
       if (!tex) return null;
@@ -139,6 +157,25 @@
     g.add(raiz); base.grupo.remove(raiz);
     raiz.position.set(0, 0, 0);
 
+    /* ---------- Estructura metálica blanca sobre la caseta (tres cerchas Warren con correas y pilares), como en la foto: el techo del edificio queda por encima ---------- */
+    const estructura = new THREE.Group(); base.grupo.add(estructura);
+    {
+      const eT = kit.ensamble(), P = 0xe6e4dc, Z = [-640, -330, -20], X0 = -985, X1 = -455, YB = 330, HT = 46, N = 16, dx = (X1 - X0) / N, largoD = Math.hypot(dx, HT), ang = Math.atan2(HT, dx);
+      for (const z of Z) {
+        eT.caja(X1 - X0 + 24, 5, 6, P, [(X0 + X1) / 2, YB, z]).caja(X1 - X0 + 24, 5, 6, P, [(X0 + X1) / 2, YB + HT, z]);                  // cordones inferior y superior
+        for (let i = 0; i <= N; i++) eT.caja(3.2, HT, 4, P, [X0 + i * dx, YB + HT / 2, z]);                                                 // montantes
+        for (let i = 0; i < N; i++) eT.caja(largoD, 3, 3.4, P, [X0 + (i + 0.5) * dx, YB + HT / 2, z], [0, 0, (i % 2 ? -1 : 1) * ang]);        // diagonales
+        for (const x of [X0, X1]) {                                                                                                         // pilares con placa de anclaje y tornillos (en la esquina delantera este se quita uno para no tapar la caseta)
+          if (x === X1 && z === Z[2]) continue;
+          eT.caja(10, YB, 10, P, [x, YB / 2, z]).caja(26, 2, 26, 'galvanizado', [x, 1, z]).caja(20, 18, 3, P, [x + (x === X0 ? 10 : -10), YB - 12, z], [0, 0, (x === X0 ? -1 : 1) * 0.8]);
+          for (const [a, b] of [[-9, -9], [9, -9], [-9, 9], [9, 9]]) eT.add(kit.cil(1.0, 2.4, 6), 'galvanizado', [x + a, 2.6, z + b]);
+        }
+      }
+      for (let i = 0; i <= N; i += 2) eT.caja(5, 7, Z[2] - Z[0] + 90, P, [X0 + i * dx, YB + HT + 5.5, (Z[0] + Z[2]) / 2]);                    // correas a lo largo de z sobre las cerchas
+      for (const x of [X0, X1]) eT.caja(8, 10, Z[2] - Z[0] + 24, P, [x, YB - 6, (Z[0] + Z[2]) / 2]);                                       // vigas de cabeza sobre los pilares
+      eT.construir(estructura, null, { sinRayo: true });
+    }
+
     /* ---------- Vistas ---------- */
     let corte = false, tapa = true;
     function ponerCorte(v) {
@@ -149,6 +186,7 @@
     function ponerTapa(v) {
       tapa = !!v;
       if (mallaTecho) mallaTecho.visible = tapa;
+      estructura.visible = tapa && !corte;                                                                                                   // sin «Tapa» tampoco se ven las cerchas que tapan el interior desde arriba
     }
     /** Abre/cierra el tejado: en «Corte» el tejado se ve translúcido igualmente. */
     const tejadoVisible = () => tapa;
@@ -156,7 +194,7 @@
     base.alActualizar(() => {});
     function liberar() { kit.liberar(); }
     return { grupo: base.grupo, elementos: base.elementos, actualizar: base.actualizar, finalizar: base.finalizar, liberar, ponerCorte, ponerTapa, tejadoVisible, kit,
-      materialesCorte: translucidos, grupoInterior: raiz };
+      materialesCorte: translucidos, grupoInterior: raiz, estructura };
   }
 
   const api = { crear, pintarUnex, pintarEfapel };

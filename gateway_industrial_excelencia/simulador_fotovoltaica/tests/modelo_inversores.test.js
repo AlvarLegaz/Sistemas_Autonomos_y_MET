@@ -32,7 +32,7 @@ test('EASun, RED_PRIMERO: las cargas van con la red y el sol solo carga la bater
   const sim = crear({ socInicial: 40 });
   sim.ordenes.inversor.modoEasun('RED_PRIMERO'); sim.ordenes.cargas.poner('LOAD-302', 400); avanzar(sim, 120);
   const e = E(sim);
-  assert.equal(e.fuente, 'RED'); assert.ok(Math.abs(e.redP - 400) < 10, `red ${e.redP}`); assert.ok(e.bateriaP > 500);
+  assert.equal(e.fuente, 'RED'); assert.ok(Math.abs(e.redP - 417) < 6, `red ${e.redP} (400 W de cargas + derivación 0,5 % + 15 W propios)`); assert.ok(e.bateriaP > 500);
 });
 
 test('EASun, BATERIA_PRIMERO de noche: la batería alimenta las cargas y no se toca la red', () => {
@@ -43,17 +43,32 @@ test('EASun, BATERIA_PRIMERO de noche: la batería alimenta las cargas y no se t
   assert.ok(sim.estado.cargas['LOAD-302'].alimentada && Math.abs(e.cargaP - 500) < 5);
 });
 
-test('EASun: corte por tensión baja (pasa a red y carga la batería) y rearme a 25 V', () => {
-  const sim = crear({ horaSolar: 23, socInicial: 4 });
+test('EASun: política de batería baja: deja de descargar al SoC mínimo útil (10 %), la red la carga y no vuelve a descargar hasta el 25 % (histéresis)', () => {
+  const sim = crear({ horaSolar: 23, socInicial: 12, estabilizar: 5 });
   sim.ordenes.inversor.modoEasun('BATERIA_PRIMERO'); sim.ordenes.cargas.poner('LOAD-302', 1500);
-  let agotada = false, fuentes = new Set(), vAntes = 0;
-  for (let t = 0; t < 7200; t += 5) { sim.paso(5); const e = E(sim); if (e.bateriaAgotada) { agotada = true; vAntes = sim.estado.bateria.v; } fuentes.add(e.fuente); if (agotada && !e.bateriaAgotada) break; }
-  assert.ok(agotada, 'se agotó la batería (tensión < 21 V bajo carga)');
+  let agotada = false, fuentes = new Set(), socCorte = null, vCorte = 0, socMin = 1;
+  for (let t = 0; t < 7200; t += 5) {
+    sim.paso(5); const e = E(sim), b = sim.estado.bateria; fuentes.add(e.fuente); socMin = Math.min(socMin, b.soc01);
+    if (e.bateriaAgotada && !agotada) { agotada = true; socCorte = b.soc01; vCorte = b.v; }
+    if (agotada && !e.bateriaAgotada) { assert.ok(b.soc01 >= 0.249 && b.v >= 25, `rearme con SoC ${b.soc01} y ${b.v} V`); break; }
+    if (agotada) assert.ok(e.fuente === 'RED' && e.bateriaP >= 0, 'agotada: las cargas van por la red y la batería solo carga');
+  }
+  assert.ok(agotada && socCorte > 0.09 && socCorte <= 0.1005, `corte con SoC ${socCorte}`);
+  assert.ok(vCorte > 24.5, `el corte por SoC llega mucho antes de los 21 V: ${vCorte} V`);
+  assert.ok(socMin > 0.09, `nunca baja del SoC mínimo útil: ${socMin}`);
   assert.ok(fuentes.has('RED'), 'pasó a red');
   assert.equal(E(sim).bateriaAgotada, false, 'rearmó');
-  assert.ok(vAntes >= 24.9, `rearme a ${vAntes} V`);
+  assert.ok(sim.estado.alarmas.every(a => a.codigo !== 'EASUN_BATERIA_BAJA'));
   avanzar(sim, 120);
-  assert.ok(E(sim).bateriaP < 0 || E(sim).fuente === 'INVERSOR', 'vuelve a descargar tras el rearme');
+  assert.equal(E(sim).fuente, 'INVERSOR'); assert.ok(E(sim).bateriaP < 0, 'vuelve a descargar tras el rearme');
+});
+
+test('EASun: sin red y con la batería en el SoC mínimo, las cargas se quedan sin tensión (no se descarga la reserva)', () => {
+  const sim = crear({ horaSolar: 23, socInicial: 9, estabilizar: 5 });
+  sim.ordenes.red.disponible(false); sim.ordenes.cargas.poner('LOAD-302', 500); avanzar(sim, 60);
+  assert.equal(E(sim).bateriaAgotada, true); assert.equal(sim.estado.cargas['LOAD-302'].alimentada, false);
+  assert.ok(sim.estado.bateria.soc01 > 0.089, 'la reserva no se toca');
+  assert.ok(sim.estado.alarmas.some(a => a.codigo === 'EASUN_BATERIA_BAJA'));
 });
 
 test('EASun: sin red alimenta las cargas con sol y batería', () => {

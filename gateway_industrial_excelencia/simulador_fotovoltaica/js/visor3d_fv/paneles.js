@@ -8,31 +8,41 @@
 
   /* ---------- Texturas de células (canvas procedural, sin imágenes) ---------- */
   function azarDe(semilla) { let s = semilla >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
-  /** Policristalino de 60 células (10 × 6): azul con vetas, rejilla de plata fina y dos barras colectoras por célula. */
+  /** Policristalino de 60 células (10 × 6): azul medio con granos (facetas) de distinto tono por célula, 3 barras colectoras de plata y rejilla de dedos finos; juntas claras de la lámina trasera. */
   function pintarPoli(ctx, w, h) {
-    const azar = azarDe(5), cols = 10, filas = 6, m = 7, cw = (w - 2 * m) / cols, ch = (h - 2 * m) / filas;
-    ctx.fillStyle = '#b9c0ca'; ctx.fillRect(0, 0, w, h);
+    const azar = azarDe(5), cols = 10, filas = 6, m = Math.round(w * 0.012), cw = (w - 2 * m) / cols, ch = (h - 2 * m) / filas, hueco = Math.max(3, w * 0.006);
+    ctx.fillStyle = '#d3d9e2'; ctx.fillRect(0, 0, w, h);                                           // lámina trasera clara entre células
     for (let f = 0; f < filas; f++) for (let c = 0; c < cols; c++) {
-      const x = m + c * cw, y = m + f * ch, v = Math.floor(azar() * 22);
-      const d = ctx.createLinearGradient(x, y, x + cw, y + ch); d.addColorStop(0, `rgb(${52 + v},${72 + v},${112 + v})`); d.addColorStop(1, `rgb(${38 + v},${56 + v},${92 + v})`);
-      ctx.fillStyle = d; ctx.fillRect(x + 1.2, y + 1.2, cw - 2.4, ch - 2.4);
-      ctx.strokeStyle = 'rgba(205,215,230,0.55)'; ctx.lineWidth = 1;
-      for (let k = 1; k < 7; k++) { ctx.beginPath(); ctx.moveTo(x + 1.5, y + k * ch / 7); ctx.lineTo(x + cw - 1.5, y + k * ch / 7); ctx.stroke(); }
-      ctx.strokeStyle = 'rgba(235,240,250,0.85)'; ctx.lineWidth = 1.6;
-      for (const q of [0.33, 0.66]) { ctx.beginPath(); ctx.moveTo(x + cw * q, y + 1.5); ctx.lineTo(x + cw * q, y + ch - 1.5); ctx.stroke(); }
+      const x = m + c * cw + hueco / 2, y = m + f * ch + hueco / 2, ww = cw - hueco, hh = ch - hueco, v = Math.floor(azar() * 34) - 14;
+      ctx.fillStyle = `rgb(${50 + v},${88 + v},${150 + v})`; ctx.fillRect(x, y, ww, hh);
+      for (let k = 0; k < 16; k++) {                                                                 // granos cristalinos: facetas de brillo distinto
+        const cx = x + azar() * ww, cy = y + azar() * hh, r = ww * (0.12 + azar() * 0.22), dv = (azar() - 0.5) * 34;
+        ctx.fillStyle = `rgba(${dv > 0 ? 190 : 10},${dv > 0 ? 215 : 20},${dv > 0 ? 255 : 60},${(Math.abs(dv) / 255).toFixed(3)})`;
+        ctx.beginPath(); ctx.moveTo(cx + r * (azar() - 0.5), cy - r); ctx.lineTo(cx + r, cy + r * (azar() - 0.5)); ctx.lineTo(cx + r * (azar() - 0.5), cy + r); ctx.lineTo(cx - r, cy + r * (azar() - 0.5)); ctx.closePath(); ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(190,205,230,0.16)'; ctx.lineWidth = Math.max(1, w * 0.0007);
+      for (let k = 1; k < 24; k++) { ctx.beginPath(); ctx.moveTo(x + 1, y + k * hh / 24); ctx.lineTo(x + ww - 1, y + k * hh / 24); ctx.stroke(); }            // dedos finos
+      ctx.fillStyle = 'rgba(205,214,232,0.62)'; const bw = Math.max(1.5, w * 0.0021);
+      for (const q of [0.2, 0.5, 0.8]) ctx.fillRect(x + ww * q - bw / 2, y, bw, hh);                                                                      // barras colectoras
     }
   }
-  /** Monocristalino half-cut de 108 células (18 × 6 medias células): casi negro con rejilla clara y la línea central de las medias células. */
+  /** Monocristalino half-cut de 108 medias células (18 × 6) todo negro: células casi negras con esquinas cortadas (pseudocuadradas), 9 hilos de plata muy finos, línea central vertical entre las dos mitades. */
   function pintarMono(ctx, w, h) {
-    const azar = azarDe(9), cols = 18, filas = 6, m = 6, cw = (w - 2 * m) / cols, ch = (h - 2 * m) / filas;
-    ctx.fillStyle = '#6b7282'; ctx.fillRect(0, 0, w, h);
+    const azar = azarDe(9), cols = 18, filas = 6, m = Math.round(w * 0.01), cw = (w - 2 * m) / cols, ch = (h - 2 * m) / filas, hueco = Math.max(2, w * 0.0025);
+    ctx.fillStyle = '#0b0d12'; ctx.fillRect(0, 0, w, h);
     for (let f = 0; f < filas; f++) for (let c = 0; c < cols; c++) {
-      const x = m + c * cw, y = m + f * ch, v = Math.floor(azar() * 10);
-      ctx.fillStyle = `rgb(${26 + v},${32 + v},${48 + v})`; ctx.fillRect(x + 1.6, y + 1.6, cw - 3.2, ch - 3.2);
-      ctx.strokeStyle = 'rgba(170,185,210,0.6)'; ctx.lineWidth = 1;
-      for (const q of [0.25, 0.5, 0.75]) { ctx.beginPath(); ctx.moveTo(x + cw * q, y + 2); ctx.lineTo(x + cw * q, y + ch - 2); ctx.stroke(); }
+      const extra = c >= cols / 2 ? hueco * 1.6 : 0, x = m + c * cw + hueco / 2 + (c === cols / 2 ? hueco * 1.6 : 0), y = m + f * ch + hueco / 2, ww = cw - hueco, hh = ch - hueco, v = Math.floor(azar() * 9);
+      const ch2 = ww * 0.16, esquinas = (c % 2 === 0 ? [1, 0, 0, 1] : [0, 1, 1, 0]);
+      ctx.fillStyle = `rgb(${24 + v},${30 + v},${46 + v})`; ctx.beginPath();
+      ctx.moveTo(x + (esquinas[0] ? ch2 : 0), y); ctx.lineTo(x + ww - (esquinas[1] ? ch2 : 0), y); ctx.lineTo(x + ww, y + (esquinas[1] ? ch2 : 0)); ctx.lineTo(x + ww, y + hh - (esquinas[2] ? ch2 : 0));
+      ctx.lineTo(x + ww - (esquinas[2] ? ch2 : 0), y + hh); ctx.lineTo(x + (esquinas[3] ? ch2 : 0), y + hh); ctx.lineTo(x, y + hh - (esquinas[3] ? ch2 : 0)); ctx.lineTo(x, y + (esquinas[0] ? ch2 : 0)); ctx.closePath(); ctx.fill();
+      const g2 = ctx.createLinearGradient(x, y, x + ww, y + hh); g2.addColorStop(0, 'rgba(70,95,150,0.20)'); g2.addColorStop(1, 'rgba(70,95,150,0)'); ctx.fillStyle = g2; ctx.fillRect(x, y, ww, hh);
+      ctx.strokeStyle = 'rgba(165,178,200,0.62)'; ctx.lineWidth = Math.max(1, w * 0.0008);
+      for (let k = 1; k < 9; k++) { ctx.beginPath(); ctx.moveTo(x + k * ww / 9, y + 1); ctx.lineTo(x + k * ww / 9, y + hh - 1); ctx.stroke(); }
+      void extra;
     }
-    ctx.strokeStyle = 'rgba(225,232,245,0.85)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(m, h / 2); ctx.lineTo(w - m, h / 2); ctx.stroke();
+    ctx.fillStyle = '#05070a'; ctx.fillRect(w / 2 - hueco * 1.3, m, hueco * 2.6, h - 2 * m);                      // la línea central de las medias células
+    ctx.fillStyle = 'rgba(140,150,175,0.55)'; ctx.fillRect(w / 2 - 1, m, 2, h - 2 * m);
   }
   function pintarAviso(ctx, w, h) {
     ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(w / 2, 6); ctx.lineTo(w - 6, h - 8); ctx.lineTo(6, h - 8); ctx.closePath(); ctx.fill();
@@ -44,14 +54,14 @@
     const kit = K.crearKit(THREE), base = Base.crearBase(kit);
     const { grupo } = base;
     const sinTextura = typeof document === 'undefined';
-    const texPoli = kit.pantalla(512, 320, pintarPoli), texMono = kit.pantalla(1024, 340, pintarMono), texAviso = kit.pantalla(128, 128, pintarAviso);
+    const texPoli = kit.pantalla(1024, 620, pintarPoli), texMono = kit.pantalla(1536, 990, pintarMono), texAviso = kit.pantalla(128, 128, pintarAviso);
     const matBypass = kit.registrar(new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.55, depthWrite: false }));
     const geoBypass = kit.registrar(new THREE.PlaneGeometry(1, 1));
     const matAviso = texAviso ? kit.registrar(new THREE.SpriteMaterial({ map: texAviso.textura, depthTest: false, transparent: true })) : null;
 
     function matVidrio(tipo) {
       const tex = tipo === 'B' ? texMono : texPoli;
-      const propiedades = tex ? { map: tex.textura, roughness: 0.2, metalness: 0.1, envMapIntensity: 0.95 } : {};
+      const propiedades = tex ? { map: tex.textura, roughness: 0.1, metalness: 0.25, envMapIntensity: tipo === 'B' ? 1.5 : 1.25 } : {};
       const base0 = tipo === 'B' ? 0x181d2a : tipo === 'V' ? 0x5c6f96 : 0x2d467a;
       return kit.matDinamico(tex ? 0xffffff : base0, propiedades);
     }
@@ -62,10 +72,25 @@
       if (!conElemento) grupo.add(g);
       const pg = new THREE.Group(); pg.position.set(p.x, p.y, p.z); pg.rotation.x = p.inclinacion; g.add(pg);
       const W = p.ancho, L = p.largo, T = p.grueso, ens = kit.ensamble();
-      const marco = tipo === 'B' ? 'marcoNegro' : tipo === 'V' ? 'aluminioViejo' : 'aluminio';
-      ens.caja(W, T, 3.2, marco, [0, 0, L / 2 - 1.6]).caja(W, T, 3.2, marco, [0, 0, -L / 2 + 1.6]).caja(3.2, T, L - 6.4, marco, [W / 2 - 1.6, 0, 0]).caja(3.2, T, L - 6.4, marco, [-W / 2 + 1.6, 0, 0]);
-      ens.caja(W - 6, 0.8, L - 6, tipo === 'B' ? 'negro' : 'blanco', [0, -T / 2 + 0.6, 0]);
-      ens.caja(11, 2.6, 6.5, 'negro', [0, -T / 2 - 1.4, -L / 2 + 14]);                          // caja de conexiones (con sus diodos de paso) en la cara trasera
+      const marco = tipo === 'B' ? 'marcoNegro' : tipo === 'V' ? 'aluminioViejo' : 'aluminio', lado = tipo === 'B' ? 3.4 : 3.2, ala = 1.5;
+      // marco de aluminio con perfil: pared exterior, ala superior que muerde el vidrio y pestaña inferior de refuerzo (las cuatro caras)
+      for (const sz of [-1, 1]) {
+        ens.caja(W, T, 1.3, marco, [0, 0, sz * (L / 2 - 0.65)]).caja(W - 2.6, 0.55, ala, marco, [0, T / 2 - 0.27, sz * (L / 2 - 1.3 - ala / 2)]).caja(W - 2.6, 0.5, 1.4, marco, [0, -T / 2 + 0.6, sz * (L / 2 - 2.0)]);
+        ens.caja(1.3, T, L - 2.6, marco, [sz * (W / 2 - 0.65), 0, 0]).caja(ala, 0.55, L - 5.2, marco, [sz * (W / 2 - 1.3 - ala / 2), T / 2 - 0.27, 0]).caja(1.4, 0.5, L - 5.2, marco, [sz * (W / 2 - 2.0), -T / 2 + 0.6, 0]);
+      }
+      void lado;
+      ens.caja(W - 4, 0.7, L - 4, tipo === 'B' ? 'negro' : 'blanco', [0, -T / 2 + 0.9, 0]);                       // lámina trasera
+      ens.caja(15, 3, 8.5, 'negro', [0, -T / 2 - 1.2, -L / 2 + 14]).caja(11, 0.5, 5, 'goma', [0, -T / 2 - 2.9, -L / 2 + 14]);   // caja de conexiones trasera con su tapa
+      for (const sx of [-1, 1]) ens.add(kit.cil(0.9, 3.4, 8), 'goma', [sx * 5.2, -T / 2 - 1.2, -L / 2 + 8.5], [Math.PI / 2, 0, 0]);   // prensaestopas de salida de los cables
+      ens.caja(24, 0.15, 12, 'blanco', [W * 0.18, -T / 2 + 0.4, 6]).caja(22, 0.12, 1.6, 'negro', [W * 0.18, -T / 2 + 0.33, 9]);      // etiqueta con su código de barras
+      // tornillería de sujeción: abrazaderas de aluminio con tornillo allen sobre el marco, junto a cada perfil de soporte (cuatro por panel)
+      const xs = tipo === 'B' ? [-W / 2 + 26, W / 2 - 26] : [-56, 56];
+      for (const x of xs) for (const sz of [-1, 1]) {
+        ens.caja(5.2, 0.5, 2.6, 'galvanizado', [x, T / 2 + 0.25, sz * (L / 2 - 1.2)]);
+        ens.add(kit.cil(0.55, 1.1, 6), 'galvanizado', [x, T / 2 + 1.0, sz * (L / 2 - 1.2)]);
+        ens.add(kit.cil(0.33, 0.3, 6), 'negro', [x, T / 2 + 1.6, sz * (L / 2 - 1.2)]);
+      }
+      for (const sz of [-1, 1]) for (const sx of [-1, 1]) ens.add(kit.cil(0.4, 0.4, 6), 'galvanizado', [sx * (W / 2 - 0.05), 0, sz * (L / 2 - 6)], [0, 0, Math.PI / 2]);      // tornillos de las escuadras del marco
       ens.construir(pg, conElemento ? tag : null);
       const material = matVidrio(tipo);
       const vidrio = new THREE.Mesh(kit.registrar(new THREE.PlaneGeometry(W - 6.4, L - 6.4)), material);

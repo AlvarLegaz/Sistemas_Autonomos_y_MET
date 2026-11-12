@@ -19,7 +19,9 @@
     DESAJUSTE_SIGMA: 0.012,                    // dispersión típica de Isc entre paneles de una cadena (1,2 %)
     SEGUIDOR: { periodoS: 1, pasoRel: 0.006, eficiencia: 0.995, barridoEasunS: 900, barridoZcsS: 600 },
     EASUN: { etaDcdc: 0.97, etaBypass: 0.995, cargaRedMaxA: 20, absorcionFinA: 5, rRedOhm: 0, tempReduceC: 75, tempFalloC: 95, tempRearmeC: 75,
-      rThCw: 0.12, tauTermicaS: 400, umbralSobrecarga: 1.0 },
+      rThCw: 0.12, tauTermicaS: 400, umbralSobrecarga: 1.0,
+      arranqueS: 8,                            // autocomprobación al encender con el interruptor
+      socRearmePct: 25 },                      // SoC al que vuelve a descargar la batería tras agotarla (el corte es layout.BATERIA.socMinUtilPct = 10 %)
     ZCS: { aislamientoMinMohm: 0.5, aislamientoSanoMohm: 12, aislamientoFalloMohm: 0.08, tiempoAislamientoS: 30, reintentoAislamientoS: 60,
       redTripMaxV: 253, redReduceDesdeV: 245, redReconectaV: 250, redTripMinV: 195.5, fMin: 47.5, fMax: 51.5, zRedOhm: 0.3, rThCw: 0.10, tempReduceC: 70, tempFalloC: 90, tauTermicaS: 400, pMinAcW: 8 },
     CASETA: { uaNormalWK: 60, uaTapadaWK: 8, tauS: 900, subidaBasePorSolC: 0 },
@@ -30,6 +32,7 @@
     },
     PRETIL: { alturaCriticaGrados: 62, alturaPlenaGrados: 47, sombraMax: 0.55, paneles: ['PV-205', 'PV-206'] }, // sombra del pretil sobre la fila delantera del campo B
     SUCIEDAD_AVERIA_A: 0.3,
+    AISLAMIENTO_CADENA_MOHM: { 'STR-101': 40, 'STR-102': 36, 'STR-201': 24, 'STR-202': 26 },   // aislamiento a tierra de cada cadena sana (megóhmetro); el ZCS ve la paralela de las dos del B (≈ 12 MΩ)
   };
 
   /** Generador pseudoaleatorio determinista (mulberry32): misma semilla, misma secuencia. */

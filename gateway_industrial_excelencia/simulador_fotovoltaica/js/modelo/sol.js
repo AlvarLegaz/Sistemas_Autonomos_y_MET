@@ -36,28 +36,46 @@
     return { alturaGrados: alt / RAD, azimutGrados: az / RAD, sinAltura: sinAlt, esDia: sinAlt > 0.0087 /* > 0,5° */, declinacionGrados: dec / RAD };
   }
 
-  /** Irradiancia de cielo despejado sobre el horizontal: directa normal, difusa horizontal y global horizontal (W/m²). */
+  /**
+   * Irradiancia de cielo despejado sobre el horizontal: directa normal, difusa horizontal y global horizontal (W/m²).
+   * Meinel con masa de aire de Kasten-Young y aire limpio de la costa de Cartagena: a mediodía de junio da ≈ 990 W/m² en
+   * horizontal y ≈ 1 000-1 020 W/m² sobre el plano de 28° (un día despejado de verano en el sureste).
+   */
   function cieloDespejado(dia, sinAlt) {
     if (sinAlt <= 0.0087) return { gbn: 0, gdh: 0, gh: 0, sinAlt: 0 };
     const e0 = 1 + 0.033 * Math.cos(2 * Math.PI * diaValido(dia) / 365);
     const altDeg = Math.asin(sinAlt) / RAD;
     const masa = 1 / (sinAlt + 0.50572 * Math.pow(altDeg + 6.07995, -1.6364));        // Kasten-Young
-    const gbn = 0.95 * 1361 * e0 * Math.pow(0.7, Math.pow(masa, 0.678));              // Meinel, con 0,95 de turbidez típica de la costa
+    const gbn = 1.015 * 1361 * e0 * Math.pow(0.7, Math.pow(masa, 0.678));              // Meinel
     const gdh = (0.095 + 0.04 * (1 - sinAlt)) * gbn * sinAlt + 15 * sinAlt;
     return { gbn, gdh, gh: gbn * sinAlt + gdh, sinAlt };
   }
 
-  /** La nubosidad (0–1) quita mucha directa y poco difusa: con cielo cubierto queda ~0,28 de la global despejada, toda difusa. */
-  function conNubosidad(cielo, nub) {
+  /**
+   * Efecto de la nubosidad n (0–1; con 1 el cielo está cubierto). La global horizontal baja con kc = 1 − 0,72·n² (n = 0,3 → −6 %;
+   * n = 0,5 → −18 %; n = 0,7 → −35 %; n = 1 → −72 %, todo difusa); la directa baja más deprisa ((1 − n)^1,2) y la difusa recoge la diferencia.
+   * `realce` (0–1, por defecto 0) es el efecto borde de nube: con cielo parcialmente cubierto y sol directo entre nubes, los bordes brillantes
+   * de las nubes suman hasta un 20 % de la global despejada en difusa, de modo que la global puede superar a la de cielo despejado
+   * (picos reales de 1 100-1 200 W/m² sobre el plano; nunca más).
+   */
+  function conNubosidad(cielo, nub, realce = 0) {
     const n = limitar(nub, 0, 1);
-    const gbn = cielo.gbn * Math.pow(1 - n, 1.4);
-    const gdh = cielo.gdh * (1 - n) + n * 0.28 * cielo.gh;
+    const kc = 1 - 0.72 * n * n;
+    const gbn = cielo.gbn * Math.pow(1 - n, 1.2);
+    const gdh = Math.max(cielo.gdh * (1 - n), cielo.gh * kc - gbn * cielo.sinAlt) + 0.2 * cielo.gh * limitar(realce, 0, 1) * 4 * n * (1 - n);
     return { gbn, gdh, gh: gbn * cielo.sinAlt + gdh, sinAlt: cielo.sinAlt };
   }
 
-  /** Irradiancia sobre un plano (inclinación y azimut en grados, azimut 0 = sur). `pos` viene de posicionSolar. */
+  /** Factor de transmisión del vidrio (modificador del ángulo de incidencia, ASHRAE con b0 = 0,05): 1 con el sol de frente, 0,95 a 60°, 0,76 a 80°. */
+  const factorIncidencia = cosInc => (cosInc <= 0.05 ? 0 : limitar(1 - 0.05 * (1 / cosInc - 1), 0, 1));
+
+  /**
+   * Irradiancia sobre un plano (inclinación y azimut en grados, azimut 0 = sur). `pos` viene de posicionSolar.
+   * `g` es lo que mediría un piranómetro en el plano; `gUtil` es lo que de verdad atraviesa el vidrio (la directa con el modificador del
+   * ángulo de incidencia y un 3 % menos en difusa y reflejada): es la que mueve las células. `difusaUtil` = difusa + reflejada útiles.
+   */
   function planoInclinado(pos, cielo, inclinacionGrados, azimutGrados, albedo = C.ALBEDO) {
-    if (!pos.esDia || cielo.gh <= 0) return { g: 0, directa: 0, difusa: 0, reflejada: 0, cosIncidencia: 0 };
+    if (!pos.esDia || cielo.gh <= 0) return { g: 0, gUtil: 0, difusaUtil: 0, directa: 0, difusa: 0, reflejada: 0, cosIncidencia: 0 };
     const alt = pos.alturaGrados * RAD, az = pos.azimutGrados * RAD, b = inclinacionGrados * RAD, g = azimutGrados * RAD;
     const sx = Math.cos(alt) * Math.sin(az), sy = Math.cos(alt) * Math.cos(az), sz = Math.sin(alt);       // x oeste, y sur, z arriba
     const nx = Math.sin(b) * Math.sin(g), ny = Math.sin(b) * Math.cos(g), nz = Math.cos(b);
@@ -65,7 +83,8 @@
     const directa = cielo.gbn * cosInc;
     const difusa = cielo.gdh * (1 + Math.cos(b)) / 2;
     const reflejada = cielo.gh * albedo * (1 - Math.cos(b)) / 2;
-    return { g: directa + difusa + reflejada, directa, difusa, reflejada, cosIncidencia: cosInc };
+    const difusaUtil = 0.97 * (difusa + reflejada);
+    return { g: directa + difusa + reflejada, gUtil: directa * factorIncidencia(cosInc) + difusaUtil, difusaUtil, directa, difusa, reflejada, cosIncidencia: cosInc };
   }
 
   /** Temperatura ambiente de Cartagena: media 18,5 °C, ±7,5 °C estacional (máx. a finales de julio) y ±4,5 °C diaria (máx. 15 h, mín. 5 h). */
@@ -75,7 +94,10 @@
     return 18.5 + est + dia24 - 1.5 * limitar(nub, 0, 1);
   }
 
-  const api = { declinacionGrados, posicionSolar, cieloDespejado, conNubosidad, planoInclinado, temperaturaAmbiente, textoReloj, fechaDeDia, diaValido, MESES };
+  /** Nubosidad media (0–1) de cada mes en Cartagena (referencia para elegir un «cielo medio» y para la prueba de balance anual). */
+  const NUBOSIDAD_MEDIA_MES = [0.26, 0.30, 0.28, 0.34, 0.32, 0.22, 0.12, 0.20, 0.26, 0.29, 0.27, 0.26];
+
+  const api = { declinacionGrados, posicionSolar, cieloDespejado, conNubosidad, planoInclinado, factorIncidencia, temperaturaAmbiente, textoReloj, fechaDeDia, diaValido, MESES, NUBOSIDAD_MEDIA_MES };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') { const P = (window.PCT = window.PCT || {}); (P.fv = P.fv || {}).sol = api; }
 })();

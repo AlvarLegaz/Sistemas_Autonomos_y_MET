@@ -581,17 +581,132 @@ class ElegirSimulador(Base):
     def test_sin_sesion_o_pendiente_no_se_ve_la_eleccion(self):
         self.assertEqual(self.c.get("/simuladores").headers["Location"], "/entrar")
 
-    def test_el_alumno_autorizado_elige_entre_los_dos_simuladores(self):
+    def test_el_alumno_autorizado_ve_las_tres_tarjetas_con_su_imagen_3d(self):
         alumno, _ = self.autorizado()
+        self.assertEqual(alumno.get("/").headers["Location"], "/simuladores")
         r = alumno.get("/simuladores")
         html = r.get_data(as_text=True)
         self.assertEqual(r.status_code, 200)
-        self.assertIn('href="/simulador/"', html)
-        self.assertIn('href="/planta-real/"', html)
+        for ruta, imagen in (("/simulador/", "maqueta.jpg"), ("/planta-real/", "planta_real.jpg"), ("/fotovoltaica/", "fotovoltaica.jpg")):
+            self.assertIn(f'href="{ruta}"', html)
+            self.assertIn("img/sim/" + imagen, html)
+            self.assertEqual(alumno.get("/static/img/sim/" + imagen).status_code, 200, imagen)
 
     def test_la_barra_del_simulador_enlaza_con_la_eleccion(self):
         alumno, _ = self.autorizado()
         self.assertIn('href="/simuladores"', alumno.get("/simulador/").get_data(as_text=True))
+
+    def test_el_alumno_autorizado_abre_la_instalacion_fotovoltaica_con_la_barra_del_aula(self):
+        alumno, _ = self.autorizado()
+        r = alumno.get("/fotovoltaica/")
+        self.assertEqual(r.status_code, 200)
+        html = r.get_data(as_text=True)
+        self.assertIn("Instalación fotovoltaica", html)
+        self.assertIn('id="aula-barra"', html)
+        self.assertEqual(alumno.get("/fotovoltaica/js/layout.js").status_code, 200)
+        self.assertEqual(alumno.get("/fotovoltaica/tests/modelo_sol.test.js").status_code, 404)
+        self.assertEqual(self.c.get("/fotovoltaica/").headers["Location"], "/entrar")
+
+
+class AsignarSimuladores(Base):
+    """El profesor decide qué simuladores ve cada alumno (NULL = todos, como hasta ahora)."""
+
+    def asignar(self, prof, **sims):
+        datos = {"id": str(self.id_de()), "estado": "autorizado"}
+        datos.update({"sim_" + k: "1" for k, v in sims.items() if v})
+        return self.accion(prof, "simuladores", **datos)
+
+    def test_por_defecto_ve_todos(self):
+        alumno, _ = self.autorizado()
+        self.assertIsNone(self.consulta("SELECT simuladores FROM usuarios")[0]["simuladores"])
+        for ruta in ("/simulador/", "/planta-real/", "/fotovoltaica/"):
+            self.assertEqual(alumno.get(ruta).status_code, 200, ruta)
+
+    def test_con_dos_asignados_ve_solo_esas_dos_tarjetas_y_el_tercero_da_403(self):
+        alumno, prof = self.autorizado()
+        self.asignar(prof, maqueta=True, fotovoltaica=True)
+        html = alumno.get("/simuladores").get_data(as_text=True)
+        self.assertIn('href="/simulador/"', html)
+        self.assertIn('href="/fotovoltaica/"', html)
+        self.assertNotIn('href="/planta-real/"', html)
+        r = alumno.get("/planta-real/")
+        self.assertEqual(r.status_code, 403)
+        self.assertIn("no te ha asignado", r.get_data(as_text=True))
+        self.assertEqual(alumno.get("/fotovoltaica/").status_code, 200)
+
+    def test_el_codigo_compartido_de_la_maqueta_sigue_abierto_aunque_no_la_tenga_asignada(self):
+        alumno, prof = self.autorizado()
+        self.asignar(prof, fotovoltaica=True)
+        self.assertEqual(alumno.get("/simulador/").status_code, 403)                      # la página de la maqueta, no
+        for recurso in ("js/interfaz/scada/canvas.js", "css/interfaz.css", "img/logo-politecnico.png"):
+            self.assertEqual(alumno.get("/simulador/" + recurso).status_code, 200, recurso)  # el código que usan los otros simuladores, sí
+
+    def test_con_uno_solo_asignado_entra_directo(self):
+        alumno, prof = self.autorizado()
+        self.asignar(prof, planta_real=True)
+        r = alumno.get("/simuladores")
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.headers["Location"], "/planta-real/")
+        self.assertEqual(alumno.get("/").headers["Location"], "/simuladores")
+
+    def test_sin_ninguno_asignado_se_le_explica(self):
+        alumno, prof = self.autorizado()
+        self.asignar(prof)
+        self.assertEqual(self.consulta("SELECT simuladores FROM usuarios")[0]["simuladores"], "")
+        r = alumno.get("/simuladores")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("no te ha asignado ningún simulador", r.get_data(as_text=True))
+        for ruta in ("/simulador/", "/planta-real/", "/fotovoltaica/"):
+            self.assertEqual(alumno.get(ruta).status_code, 403, ruta)
+
+    def test_el_profesor_con_el_pin_ve_todos_siempre(self):
+        _, prof = self.autorizado()
+        self.asignar(prof)
+        for ruta in ("/simulador/", "/planta-real/", "/fotovoltaica/"):
+            self.assertEqual(prof.get(ruta).status_code, 200, ruta)
+
+    def test_asignar_a_toda_la_lista(self):
+        alumno, prof = self.autorizado()
+        self.registrar(correo="otra@ejemplo.es", nombre="Otra", apellidos="Alumna")
+        self.accion(prof, "simuladores_lista", estado="todos", sim_planta_real="1")
+        for fila in self.consulta("SELECT simuladores FROM usuarios"):
+            self.assertEqual(fila["simuladores"], "planta_real")
+        self.assertEqual(alumno.get("/fotovoltaica/").status_code, 403)
+
+    def test_solo_el_profesor_puede_asignar(self):
+        alumno, _ = self.autorizado()
+        r = self.post(alumno, "/aula/accion", {"accion": "simuladores", "id": str(self.id_de()), "sim_maqueta": "1"}, "/simuladores")
+        self.assertEqual(r.status_code, 302)
+        self.assertIsNone(self.consulta("SELECT simuladores FROM usuarios")[0]["simuladores"])
+
+    def test_el_panel_del_aula_muestra_y_guarda_las_casillas(self):
+        _, prof = self.autorizado()
+        html = prof.get("/aula?estado=autorizado").get_data(as_text=True)
+        for nombre in ("sim_maqueta", "sim_planta_real", "sim_fotovoltaica"):
+            self.assertIn(f'name="{nombre}"', html)
+        self.assertIn("Asignar a toda la lista", html)
+        self.asignar(prof, maqueta=True)
+        self.assertIn("1 de 3", prof.get("/aula?estado=autorizado").get_data(as_text=True))
+
+    def test_una_base_de_datos_anterior_sin_la_columna_se_actualiza_y_todos_siguen_viendo_todo(self):
+        otra = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+        try:
+            con = sqlite3.connect(Path(otra.name) / "aula.sqlite3")
+            con.executescript("""CREATE TABLE usuarios (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL, apellidos TEXT NOT NULL, modulo TEXT NOT NULL,
+                correo TEXT NOT NULL UNIQUE COLLATE NOCASE, clave_hash TEXT NOT NULL, estado TEXT NOT NULL DEFAULT 'pendiente', creado TEXT NOT NULL, resuelto TEXT);
+                INSERT INTO usuarios (nombre, apellidos, modulo, correo, clave_hash, estado, creado) VALUES ('A','B','M','a@b.es','x','autorizado','2025-01-01');""")
+            con.commit()
+            con.close()
+            app = aula.crear_app({"pin": PIN, "datos": otra.name, "simulador": SIMULADOR, "secret_key": "k"})
+            con = sqlite3.connect(Path(otra.name) / "aula.sqlite3")
+            try:
+                self.assertIn("simuladores", [c[1] for c in con.execute("PRAGMA table_info(usuarios)")])
+                self.assertIsNone(con.execute("SELECT simuladores FROM usuarios").fetchone()[0])
+            finally:
+                con.close()
+            self.assertEqual(app.test_client().get("/salud").status_code, 200)
+        finally:
+            otra.cleanup()
 
 
 if __name__ == "__main__":

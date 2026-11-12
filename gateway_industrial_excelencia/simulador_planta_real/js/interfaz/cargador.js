@@ -4,7 +4,7 @@
 // es lo primero que se carga, antes de que exista PCT.
 (function () {
   const COMPARTIDO = [   // simulador_pct23 (ruta absoluta: la misma en local con servir_local.py y en el aula)
-    '/simulador/js/utilidades/modulos.js', '/simulador/js/utilidades/matematicas.js', '/simulador/js/configuracion/constantes_fisicas.js', '/simulador/js/interfaz/dom.js',
+    '/simulador/js/utilidades/modulos.js', '/simulador/js/utilidades/matematicas.js', '/simulador/js/configuracion/constantes_fisicas.js', '/simulador/js/interfaz/dom.js', '/simulador/js/interfaz/pulsacion_larga.js',
     '/simulador/js/interfaz/scada/canvas.js', '/simulador/js/interfaz/scada/objeto_scada.js', '/simulador/js/interfaz/scada/etiqueta.js', '/simulador/js/interfaz/scada/valvula.js',
     '/simulador/js/interfaz/scada/sensor.js', '/simulador/js/interfaz/scada/tuberia.js',
     '/simulador/js/interfaz/visor3d/especificaciones.js', '/simulador/js/interfaz/visor3d/lecturas.js', '/simulador/js/interfaz/visor3d/controles_orbita.js', '/simulador/js/interfaz/visor3d/visor3d.js',

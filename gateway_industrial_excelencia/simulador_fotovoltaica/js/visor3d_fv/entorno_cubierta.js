@@ -66,12 +66,19 @@
     e.caja(24, hp, fondoC + 24, 'hormigon', [CU.x1 + 12, hp / 2, cz + 12]).caja(24, hp, fondoC + 24, 'hormigon', [CU.x0 - 12, hp / 2, cz + 12]);
     e.caja(anchoC + 56, 3, 28, 'hormigonOscuro', [cx + 25, hp + 1.5, CU.z1 + 12]);
     e.caja(28, 3, fondoC + 28, 'hormigonOscuro', [CU.x1 + 12, hp + 1.5, cz + 12]).caja(28, 3, fondoC + 28, 'hormigonOscuro', [CU.x0 - 12, hp + 1.5, cz + 12]);
-    const alt = CU.alturaBarandilla, yb = hp + 3;
-    for (let x = CU.x0 - 12; x <= CU.x1 + 12; x += 160) e.caja(4.4, alt, 4.4, 0xe8ebee, [x, yb + alt / 2, CU.z1 + 12]);
-    for (let z = CU.z0; z <= CU.z1; z += 160) { e.caja(4.4, alt, 4.4, 0xe8ebee, [CU.x1 + 12, yb + alt / 2, z]); e.caja(4.4, alt, 4.4, 0xe8ebee, [CU.x0 - 12, yb + alt / 2, z]); }
+    const alt = CU.alturaBarandilla, yb = hp + 3, BLANCO = 0xeceef0;
+    // barandilla de tubo blanco: montantes redondos con placa de anclaje y tres tubos horizontales (como en las fotos), con una escuadra de refuerzo cada pocos montantes
+    const poste = (x, z, k) => {
+      e.add(kit.cil(2.1, alt, 8), BLANCO, [x, yb + alt / 2, z]); e.caja(12, 0.8, 12, 'galvanizado', [x, yb + 0.4, z]);
+      for (const [dx, dz] of [[-4, -4], [4, -4], [-4, 4], [4, 4]]) e.add(kit.cil(0.55, 0.8, 6), 'galvanizado', [x + dx, yb + 1.0, z + dz]);
+      e.add(kit.esfera(2.3, 6), BLANCO, [x, yb + alt + 0.4, z]);
+      if (k % 3 === 0) e.add(kit.cil(0.9, 38, 6), BLANCO, [x, yb + 16, z - 12], [0.55, 0, 0]);
+    };
+    for (let x = CU.x0 - 12; x <= CU.x1 + 12; x += 160) poste(x, CU.z1 + 12, Math.round((x - CU.x0) / 160));
+    for (let z = CU.z0; z <= CU.z1; z += 160) { poste(CU.x1 + 12, z, 1); poste(CU.x0 - 12, z, 1); }
     for (const h of [0.35, 0.7, 1.0]) {
-      e.caja(anchoC + 50, 2.6, 2.6, 0xe8ebee, [cx + 25, yb + alt * h - 1, CU.z1 + 12]);
-      e.caja(2.6, 2.6, fondoC + 24, 0xe8ebee, [CU.x1 + 12, yb + alt * h - 1, cz + 12]).caja(2.6, 2.6, fondoC + 24, 0xe8ebee, [CU.x0 - 12, yb + alt * h - 1, cz + 12]);
+      e.add(kit.cil(1.7, anchoC + 50, 8), BLANCO, [cx + 25, yb + alt * h - 1, CU.z1 + 12], [0, 0, Math.PI / 2]);
+      e.add(kit.cil(1.7, fondoC + 24, 8), BLANCO, [CU.x1 + 12, yb + alt * h - 1, cz + 12], [Math.PI / 2, 0, 0]).add(kit.cil(1.7, fondoC + 24, 8), BLANCO, [CU.x0 - 12, yb + alt * h - 1, cz + 12], [Math.PI / 2, 0, 0]);
     }
 
     /* ---------- Edificio del norte con tuberías y conductos de fondo ---------- */

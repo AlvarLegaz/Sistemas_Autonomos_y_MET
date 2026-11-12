@@ -3,9 +3,9 @@
 // van aparte para probarlas con node:test sin THREE.
 (function () {
   const PALETA = {
-    aluminio: 0xc9ced3, aluminioViejo: 0xd9d4c2, marcoNegro: 0x1b1e22, negro: 0x16181b, goma: 0x25282c, blanco: 0xf1f1ec, blancoCaja: 0xe6e8e8, gris: 0x9aa1a7, grisOscuro: 0x4a5057,
-    taupe: 0xa89e8e, taupeClaro: 0xb8afa0, interiorMetal: 0x8e9c9a, crema: 0xe6d6a6, cremaOscuro: 0xcdbb87, hormigon: 0xb4ad9f, hormigonOscuro: 0x8f8a80, aislante: 0xe9e3b6,
-    cesped: 0x3f7f2c, impermeable: 0x4f555a, impermeableClaro: 0x62686c, azul: 0x1f60ab, azulOscuro: 0x143f73, rojo: 0xc0242b, naranja: 0xe58b1c, amarillo: 0xe6c229, verde: 0x2fa84f,
+    aluminio: 0xdfe3e6, aluminioViejo: 0xd9d4c2, marcoNegro: 0x1b1e22, negro: 0x16181b, goma: 0x25282c, blanco: 0xf1f1ec, blancoCaja: 0xe6e8e8, gris: 0x9aa1a7, grisOscuro: 0x4a5057,
+    taupe: 0xbdb2a0, taupeClaro: 0xcbc2b2, interiorMetal: 0x8e9c9a, crema: 0xe6d6a6, cremaOscuro: 0xcdbb87, hormigon: 0xb4ad9f, hormigonOscuro: 0x8f8a80, aislante: 0xe9e3b6,
+    cesped: 0x4a7a38, impermeable: 0x4f555a, impermeableClaro: 0x62686c, azul: 0x1f60ab, azulOscuro: 0x143f73, rojo: 0xc0242b, naranja: 0xe58b1c, amarillo: 0xe6c229, verde: 0x2fa84f,
     cobre: 0xb87333, latonera: 0xb4913d, zcs: 0x5a5e66, vidrio: 0x2a2f34, humo: 0x23282c, galvanizado: 0xc2c8cd, ladrillo: 0xa6482e, ocre: 0xd8b57a, rosa: 0xd9a98c, tierra: 0x8d7b5a,
   };
   const limitar = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -107,9 +107,9 @@
     return porSoftware || lento ? 'baja' : 'alta';
   }
   const PBR = {
-    aluminio: { metalness: 0.9, roughness: 0.3, envMapIntensity: 1.3 }, aluminioViejo: { metalness: 0.8, roughness: 0.42, envMapIntensity: 1.0 },
+    aluminio: { metalness: 0.62, roughness: 0.34, envMapIntensity: 1.15 }, aluminioViejo: { metalness: 0.8, roughness: 0.42, envMapIntensity: 1.0 },
     marcoNegro: { metalness: 0.7, roughness: 0.4, envMapIntensity: 1.0 }, galvanizado: { metalness: 0.6, roughness: 0.45, envMapIntensity: 0.7 },
-    taupe: { metalness: 0.45, roughness: 0.46, envMapIntensity: 0.9 }, taupeClaro: { metalness: 0.45, roughness: 0.46, envMapIntensity: 0.9 }, interiorMetal: { metalness: 0.6, roughness: 0.4, envMapIntensity: 0.9 },
+    taupe: { metalness: 0.12, roughness: 0.5, envMapIntensity: 0.6 }, taupeClaro: { metalness: 0.12, roughness: 0.5, envMapIntensity: 0.6 }, interiorMetal: { metalness: 0.6, roughness: 0.4, envMapIntensity: 0.9 },
     zcs: { metalness: 0.35, roughness: 0.5, envMapIntensity: 0.8 }, negro: { metalness: 0.0, roughness: 0.5, envMapIntensity: 0.6 }, goma: { metalness: 0.0, roughness: 0.85, envMapIntensity: 0.3 },
     hormigon: { metalness: 0.0, roughness: 0.95, envMapIntensity: 0.3 }, hormigonOscuro: { metalness: 0.0, roughness: 0.95, envMapIntensity: 0.3 },
     impermeable: { metalness: 0.0, roughness: 0.92, envMapIntensity: 0.35 }, impermeableClaro: { metalness: 0.0, roughness: 0.92, envMapIntensity: 0.35 },
@@ -175,6 +175,58 @@
     return c;
   }
 
+  /** Césped artificial (enlosable, 1 tile ≈ 50 cm): fondo verde apagado con miles de hebras cortas de varios tonos y alguna punta amarillenta. Menos saturado que el verde puro. */
+  function lienzoCesped({ n = 256, semilla = 21, hebras = 5200 } = {}) {
+    const c = document.createElement('canvas'); c.width = c.height = n;
+    const g = c.getContext('2d');
+    let s = semilla >>> 0;
+    const azar = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    g.fillStyle = '#5f7449'; g.fillRect(0, 0, n, n);
+    for (let i = 0; i < 40; i++) { const x = azar() * n, y = azar() * n, r = 10 + azar() * 30; g.fillStyle = azar() < 0.5 ? 'rgba(30,50,20,0.10)' : 'rgba(150,170,90,0.08)'; for (const [dx, dy] of [[0, 0], [n, 0], [-n, 0], [0, n], [0, -n]]) { g.beginPath(); g.arc(x + dx, y + dy, r, 0, 7); g.fill(); } }
+    const tonos = ['#4d6a3c', '#5b7545', '#687f4c', '#46603a', '#7a8d55', '#556f40', '#88955c', '#949c62'];
+    g.lineCap = 'round'; g.lineWidth = 1.3;
+    for (let i = 0; i < hebras; i++) {
+      const x = azar() * n, y = azar() * n, a = -Math.PI / 2 + (azar() - 0.5) * 1.9, l = 4 + azar() * 6;
+      g.strokeStyle = tonos[Math.floor(azar() * tonos.length)];
+      for (const [dx, dy] of [[0, 0], [n, 0], [-n, 0], [0, n], [0, -n]]) { if ((dx && x > 12 && x < n - 12) || (dy && y > 12 && y < n - 12)) continue; g.beginPath(); g.moveTo(x + dx, y + dy); g.lineTo(x + dx + Math.cos(a) * l, y + dy + Math.sin(a) * l); g.stroke(); }
+    }
+    return c;
+  }
+  /** Chapa lacada de la caseta (tile de 200 cm): vertical con vetas de lluvia, base más sucia (salpicaduras) y algún punto de óxido. Casi blanca: tiñe el color de la pintura. */
+  function lienzoChapa({ n = 256, semilla = 5 } = {}) {
+    const c = document.createElement('canvas'); c.width = c.height = n;
+    const g = c.getContext('2d');
+    let s = semilla >>> 0;
+    const azar = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    g.fillStyle = '#f4f2ee'; g.fillRect(0, 0, n, n);
+    for (let i = 0; i < 90; i++) { const x = azar() * n, w = 1 + azar() * 5, d = azar() * 0.07; const gr = g.createLinearGradient(0, 0, 0, n); gr.addColorStop(0, `rgba(70,60,45,${(d * 0.2).toFixed(3)})`); gr.addColorStop(1, `rgba(70,60,45,${d.toFixed(3)})`); g.fillStyle = gr; g.fillRect(x, 0, w, n); }
+    const base = g.createLinearGradient(0, n, 0, n * 0.7); base.addColorStop(0, 'rgba(80,66,48,0.30)'); base.addColorStop(1, 'rgba(80,66,48,0)'); g.fillStyle = base; g.fillRect(0, n * 0.7, n, n * 0.3);
+    const alto = g.createLinearGradient(0, 0, 0, n * 0.12); alto.addColorStop(0, 'rgba(60,50,40,0.12)'); alto.addColorStop(1, 'rgba(60,50,40,0)'); g.fillStyle = alto; g.fillRect(0, 0, n, n * 0.12);
+    for (let i = 0; i < 26; i++) { g.fillStyle = `rgba(120,70,40,${(0.05 + azar() * 0.10).toFixed(3)})`; g.beginPath(); g.arc(azar() * n, n * (0.78 + azar() * 0.22), 0.8 + azar() * 1.6, 0, 7); g.fill(); }
+    return c;
+  }
+  /** Reflejos sobre la tapa ahumada: franjas diagonales claras (cielo y ventana) con degradado; se pinta sobre fondo transparente y se mezcla de forma aditiva. */
+  function pintarReflejoTapa(ctx, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    const banda = (x0, ancho, alfa) => { ctx.save(); ctx.translate(w * x0, 0); ctx.rotate(0.38); const d = ctx.createLinearGradient(0, 0, ancho, 0); d.addColorStop(0, 'rgba(255,255,255,0)'); d.addColorStop(0.5, `rgba(235,245,255,${alfa})`); d.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = d; ctx.fillRect(0, -h * 0.3, ancho, h * 1.6); ctx.restore(); };
+    banda(0.05, w * 0.45, 0.55); banda(0.55, w * 0.22, 0.4); banda(0.8, w * 0.12, 0.3);
+    ctx.fillStyle = 'rgba(210,230,255,0.22)'; ctx.fillRect(w * 0.12, h * 0.1, w * 0.3, h * 0.2);          // ventana reflejada
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1;
+    for (let i = 0; i < 18; i++) { ctx.beginPath(); const x = (i * 53) % w, y = (i * 97) % h; ctx.moveTo(x, y); ctx.lineTo(x + 14 + (i % 5) * 6, y + 9); ctx.stroke(); }   // arrugas del plástico protector
+  }
+  const MAPAS_PROCEDURALES = {
+    hormigon: { lienzo: () => lienzoRuido({ n: 256, base: '#e9e5dc', manchas: 55, contraste: 20, grano: 3600, semilla: 11, radioMax: 0.08 }), color: null },
+    hormigonOscuro: { lienzo: () => lienzoRuido({ n: 256, base: '#d6d2c8', manchas: 45, contraste: 18, grano: 3000, semilla: 13, radioMax: 0.08 }), color: null },
+    cesped: { lienzo: () => lienzoCesped(), color: 0xffffff },
+  };
+  /** Recoloca las UV de una caja para que una repetición de textura sean `T` cm en cualquier cara (proporcional al mundo, sin estirar). */
+  function uvDeCaja(g, w, h, d, T = 100) {
+    const uv = g.attributes.uv; if (!uv || uv.count !== 24) return g;
+    const su = [d, d, w, w, w, w], sv = [h, h, d, d, h, h];
+    for (let f = 0; f < 6; f++) for (let k = 0; k < 4; k++) { const i = f * 4 + k; uv.setXY(i, uv.getX(i) * su[f] / T, uv.getY(i) * sv[f] / T); }
+    return g;
+  }
+
   function crearKit(THREE) {
     const recursos = [];
     const registrar = r => { recursos.push(r); return r; };
@@ -185,14 +237,37 @@
       if (clase === 'MeshStandardMaterial' && envMap && props.envMap === undefined) props.envMap = envMap;
       return registrar(new THREE[clase](props));
     };
-    const mat = clave => { if (!materiales.has(clave)) materiales.set(clave, crearMaterial(clave, {})); return materiales.get(clave); };
+    const mapasProc = new Map();
+    /** Textura de canvas enlosable (null sin DOM). `lienzo`: () => canvas; `repetir`: repeticiones por unidad de UV. */
+    const textura = (lienzo, repetir = [1, 1]) => {
+      if (typeof document === 'undefined') return null;
+      const t = registrar(new THREE.CanvasTexture(lienzo()));
+      t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repetir[0], repetir[1]); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+      return t;
+    };
+    const mapaProc = clave => {
+      const def = MAPAS_PROCEDURALES[clave];
+      if (!def || typeof document === 'undefined') return null;
+      if (!mapasProc.has(clave)) mapasProc.set(clave, textura(def.lienzo));
+      return mapasProc.get(clave);
+    };
+    const mat = clave => {
+      if (!materiales.has(clave)) {
+        const m = typeof clave === 'string' ? mapaProc(clave) : null, opciones = m ? { map: m } : {};
+        if (m && MAPAS_PROCEDURALES[clave].color !== null) opciones.color = MAPAS_PROCEDURALES[clave].color;
+        materiales.set(clave, crearMaterial(clave, opciones));
+      }
+      return materiales.get(clave);
+    };
     const matDinamico = (color, opciones = {}) => crearMaterial(color, opciones);
     const matLed = color => registrar(new THREE.MeshBasicMaterial(calidad === 'alta' ? { color, toneMapped: false } : { color }));
     const tmp = new THREE.Object3D();
 
     const cil = (r, h, seg = 12) => new THREE.CylinderGeometry(r, r, h, seg);
     const cono = (r1, r2, h, seg = 12) => new THREE.CylinderGeometry(r2, r1, h, seg);
-    const caja = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+    const caja = (w, h, d) => uvDeCaja(new THREE.BoxGeometry(w, h, d), w, h, d);
+    /** Plano w × d cuyas UV dan una repetición de textura cada `T` cm (césped, suelos). */
+    const planoUV = (w, d, T = 50) => { const g = new THREE.PlaneGeometry(w, d), uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w / T, uv.getY(i) * d / T); return g; };
     const esfera = (r, seg = 10) => new THREE.SphereGeometry(r, seg, Math.max(5, seg - 3));
     const toro = (radio, tubo, arco = Math.PI * 2, seg = 12) => new THREE.TorusGeometry(radio, tubo, 6, seg, arco);
     /** Prisma triangular de la sección (z, y) con `grosor` a lo largo de x; opcional hueco triangular interior (cm). Sección = [[z, y], ...]. */
@@ -212,14 +287,15 @@
     function fusionar(lista) {
       let total = 0;
       for (const g of lista) total += g.attributes.position.count;
-      const pos = new Float32Array(total * 3), nor = new Float32Array(total * 3);
+      const pos = new Float32Array(total * 3), nor = new Float32Array(total * 3), uvs = new Float32Array(total * 2);
       let desplazamiento = 0;
       for (const g of lista) {
         pos.set(g.attributes.position.array, desplazamiento * 3); nor.set(g.attributes.normal.array, desplazamiento * 3);
+        if (g.attributes.uv) uvs.set(g.attributes.uv.array, desplazamiento * 2);
         desplazamiento += g.attributes.position.count; g.dispose();
       }
       const fusionada = new THREE.BufferGeometry();
-      fusionada.setAttribute('position', new THREE.BufferAttribute(pos, 3)); fusionada.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+      fusionada.setAttribute('position', new THREE.BufferAttribute(pos, 3)); fusionada.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); fusionada.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
       return fusionada;
     }
 
@@ -269,12 +345,12 @@
       return { textura, ctx, canvas: c, repintar };
     }
 
-    return { THREE, PALETA, calidad, envMap, mat, matDinamico, matLed, cil, cono, caja, esfera, toro, prisma, tubo, malla, pantalla, registrar,
+    return { THREE, PALETA, calidad, envMap, mat, textura, matDinamico, matLed, cil, cono, caja, planoUV, esfera, toro, prisma, tubo, malla, pantalla, registrar,
       ensamble: () => new Ensamble(), liberar() { for (const r of recursos) if (r && r.dispose) r.dispose(); recursos.length = 0; materiales.clear(); } };
   }
 
   const api = { PALETA, limitar, num, decimal, suavizar, mezclarHex, rad, inversorDe, proteccionDe, bateriaDe, averiaActiva, panelDe, cadenaDeEstado,
     direccionSol, luzSolar, coloresCielo, factorSombra, textoEasun, textoZcs,
-    PBR, fijarEstilo, estiloActual, elegirCalidad, parametrosPBR, especificacionMaterial, CARAS_ENTORNO, pintarCaraEntorno, crearEntorno, lienzoRuido, crearKit };
+    PBR, fijarEstilo, estiloActual, elegirCalidad, parametrosPBR, especificacionMaterial, CARAS_ENTORNO, pintarCaraEntorno, crearEntorno, lienzoRuido, lienzoCesped, lienzoChapa, pintarReflejoTapa, uvDeCaja, MAPAS_PROCEDURALES, crearKit };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else { window.PCT = window.PCT || {}; PCT.fvKit = api; }
 })();

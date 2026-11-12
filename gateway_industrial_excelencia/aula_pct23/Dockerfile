@@ -21,6 +21,9 @@ RUN rm -rf /app/simulador/tests /app/simulador/*.md
 # Planta real HTST (segundo simulador): sin tests, sin documentación y sin el banco de pruebas del 3D
 COPY simulador_planta_real /app/planta_real
 RUN rm -rf /app/planta_real/tests /app/planta_real/*.md /app/planta_real/servir_local.py /app/planta_real/js/visor3d_htst/banco_pruebas.html
+# Instalación fotovoltaica (tercer simulador): igual, sin tests ni documentación
+COPY simulador_fotovoltaica /app/fotovoltaica
+RUN rm -rf /app/fotovoltaica/tests /app/fotovoltaica/*.md /app/fotovoltaica/servir_local.py
 
 # Usuario sin privilegios; los datos (SQLite y clave de sesiones) viven en el volumen /data
 RUN useradd --system --uid 10001 --no-create-home aula \
@@ -29,7 +32,8 @@ USER aula
 
 ENV AULA_DATOS=/data \
     AULA_SIMULADOR=/app/simulador \
-    AULA_PLANTA_REAL=/app/planta_real
+    AULA_PLANTA_REAL=/app/planta_real \
+    AULA_FOTOVOLTAICA=/app/fotovoltaica
 
 EXPOSE 8000
 VOLUME ["/data"]

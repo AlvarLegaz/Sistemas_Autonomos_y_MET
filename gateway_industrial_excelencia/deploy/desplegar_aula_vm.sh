@@ -29,13 +29,13 @@ done
 RAIZ="$(cd "$(dirname "$0")/.." && pwd)"            # gateway_industrial_excelencia
 SSH=(ssh -o BatchMode=yes -o ConnectTimeout=15); [ -n "$CLAVE" ] && SSH+=(-i "$CLAVE" -o IdentitiesOnly=yes)
 
-if [ -n "$(git -C "$RAIZ" status --porcelain -- aula_pct23 simulador_pct23 simulador_planta_real)" ]; then
+if [ -n "$(git -C "$RAIZ" status --porcelain -- aula_pct23 simulador_pct23 simulador_planta_real simulador_fotovoltaica)" ]; then
   echo "Hay cambios sin commitear en aula_pct23 o simulador_pct23: se despliega el último commit, sin ellos."
 fi
 echo "== Subiendo el código del commit $(git -C "$RAIZ" rev-parse --short HEAD) a $DESTINO =="
-git -C "$RAIZ" archive --format=tar HEAD -- aula_pct23 simulador_pct23 simulador_planta_real .dockerignore \
-    ':(exclude)aula_pct23/tests' ':(exclude)simulador_pct23/tests' ':(exclude)simulador_planta_real/tests' ':(exclude)simulador_planta_real/js/visor3d_htst/banco_pruebas.html' \
-  | "${SSH[@]}" "$DESTINO" 'mkdir -p ~/pct23-docker && rm -rf ~/pct23-docker/simulador_pct23 ~/pct23-docker/simulador_planta_real ~/pct23-docker/simulador_didactico && tar -C ~/pct23-docker -xf - 2>&1 | grep -v "in the future" || true'
+git -C "$RAIZ" archive --format=tar HEAD -- aula_pct23 simulador_pct23 simulador_planta_real simulador_fotovoltaica .dockerignore \
+    ':(exclude)aula_pct23/tests' ':(exclude)simulador_pct23/tests' ':(exclude)simulador_planta_real/tests' ':(exclude)simulador_fotovoltaica/tests' ':(exclude)simulador_planta_real/js/visor3d_htst/banco_pruebas.html' \
+  | "${SSH[@]}" "$DESTINO" 'mkdir -p ~/pct23-docker && rm -rf ~/pct23-docker/simulador_pct23 ~/pct23-docker/simulador_planta_real ~/pct23-docker/simulador_fotovoltaica ~/pct23-docker/simulador_didactico && tar -C ~/pct23-docker -xf - 2>&1 | grep -v "in the future" || true'
 
 echo "== Desplegando en la VM =="
 "${SSH[@]}" "$DESTINO" "MIGRAR='$MIGRAR' ENV_ANTIGUO='$ENV_ANTIGUO' bash -s" <<'REMOTO'

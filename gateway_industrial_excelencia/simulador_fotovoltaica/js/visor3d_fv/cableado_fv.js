@@ -51,10 +51,19 @@
     const { grupo } = base;
     const E = {};                                                                      // id → ensamble
     const ens = id => E[id] || (E[id] = kit.ensamble());
-    const cable = (id, pts, r, clave, radiales = 4) => {
+    /** Cable por los puntos `pts`; `marcas` = [{ t (0..1 a lo largo), clave, f (factor de radio) }]: anillos (cinta de marcado, abrazadera) orientados según el cable. */
+    const cable = (id, pts, r, clave, radiales = 4, marcas = []) => {
       const n = Math.max(4, Math.min(260, Math.ceil(largo3(pts) / 7)));
       ens(id).add(kit.tubo(pts, r, n, radiales), clave);
+      if (!marcas.length) return;
+      const curva = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(p[0], p[1], p[2])), false, 'catmullrom', 0.2), q = new THREE.Quaternion(), eje = new THREE.Vector3(0, 1, 0);
+      for (const m of marcas) {
+        const pos = curva.getPointAt(m.t), tan = curva.getTangentAt(m.t); q.setFromUnitVectors(eje, tan);
+        const giro = new THREE.Euler().setFromQuaternion(q);
+        ens(id).add(kit.cil(r * (m.f || 1.35), m.largo || 1.2, 8), m.clave, [pos.x, pos.y, pos.z], [giro.x, giro.y, giro.z]);
+      }
     };
+    const rojas = [{ t: 0.07, clave: 'rojo', f: 1.3 }, { t: 0.93, clave: 'rojo', f: 1.3 }], abraz = [{ t: 0.35, clave: 'blanco', f: 1.5, largo: 0.7 }, { t: 0.62, clave: 'blanco', f: 1.5, largo: 0.7 }];
     const gStr = {};
     for (const t of ['STR-101', 'STR-102', 'STR-201', 'STR-202']) gStr[t] = base.nuevoGrupo(t);
     const gBan = base.nuevoGrupo('BAN-001');
@@ -72,6 +81,11 @@
         for (const s of [-1, 1]) {
           if (alongX) { e.caja(len, 5, 0.55, 'marcoNegro', [cx, y + 2.5, cz + s * an / 2]); e.caja(len, 0.5, 1.1, 'marcoNegro', [cx, y + 5, cz + s * an / 2]); }
           else { e.caja(0.55, 5, len, 'marcoNegro', [cx + s * an / 2, y + 2.5, cz]); e.caja(1.1, 0.5, len, 'marcoNegro', [cx + s * an / 2, y + 5, cz]); }
+        }
+        for (let d = 40; d < len - 20; d += 85) {                                                           // bridas negras que sujetan el haz de cables a la rejilla (una cada ~85 cm)
+          const t = d / len, px = a[0] + dx * t, pz = a[1] + dz * t;
+          if (alongX) { e.caja(1.0, 0.5, an - 1, 'goma', [px, y + 3.7, pz]).caja(0.9, 3.4, 0.5, 'goma', [px, y + 2.0, pz - an / 2 + 0.6]).caja(0.9, 3.4, 0.5, 'goma', [px, y + 2.0, pz + an / 2 - 0.6]); }
+          else { e.caja(an - 1, 0.5, 1.0, 'goma', [px, y + 3.7, pz]).caja(0.5, 3.4, 0.9, 'goma', [px - an / 2 + 0.6, y + 2.0, pz]).caja(0.5, 3.4, 0.9, 'goma', [px + an / 2 - 0.6, y + 2.0, pz]); }
         }
         // sobre bloques de hormigón cada ~2 m (como en la foto)
         const nb = Math.max(1, Math.floor(len / 200));
@@ -108,11 +122,19 @@
       const todos = campoPts.concat(tray, [[xPared, 22, ultimo[2]]], interior), sin = [todos[0]];
       for (const p of todos) { const q = sin[sin.length - 1]; if (Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) > 0.8) sin.push(p); }
       cable(c.cadena, sin, 0.6, c.polo === '+' ? 'rojo' : 'negro');
-      // MC4 (macho fijo y hembra móvil) en línea sobre el carril de la bandeja, con cinta amarilla de identificación
+      // MC4 (macho fijo y hembra móvil) en línea sobre el carril de la bandeja: cuerpo, tuerca hexagonal, funda del cable y cinta amarilla de identificación
       const g = gStr[c.cadena], yM = Y_BANDEJA, xm = xu - 14;
       kit.malla(kit.cil(0.95, 4.2, 8), matMc, g, c.cadena, [xm + 2.2, yM, zu], [0, 0, Math.PI / 2]).castShadow = true;
       const arriba = kit.malla(kit.cil(1.15, 4.4, 8), matMcSup, g, c.cadena, [xm - 2.2, yM, zu], [0, 0, Math.PI / 2]); arriba.castShadow = true;
-      ens(c.cadena).add(kit.cil(0.8, 1.2, 8), 'amarillo', [xm - 9, yM, zu], [0, 0, Math.PI / 2]);
+      const hijo = (geo, pos) => { const h = kit.malla(geo, matMcSup, arriba, c.cadena, pos); h.castShadow = true; return h; };
+      hijo(kit.cil(1.4, 1.5, 6), [0, 0.4, 0]); hijo(kit.cil(0.8, 3.0, 8), [0, 3.3, 0]); hijo(kit.caja(0.5, 1.8, 1.2), [0, -1.4, 1.15]);       // tuerca, funda y pestaña de bloqueo de la hembra
+      const ee = ens(c.cadena);
+      ee.add(kit.cil(1.3, 1.6, 6), 'negro', [xm + 4.6, yM, zu], [0, 0, Math.PI / 2]).add(kit.cil(0.8, 3.0, 8), 'negro', [xm + 7.0, yM, zu], [0, 0, Math.PI / 2]);   // tuerca y funda del macho
+      for (const dxm of [-9, 11, -24]) ee.add(kit.cil(0.82, 1.1, 8), 'amarillo', [xm + dxm, yM, zu], [0, 0, Math.PI / 2]);                    // cintas amarillas de marcado (± y número de cadena)
+      if (c.k % 2 === 0) {                                                                                  // lazo de cable sobrante enrollado junto a la bandeja
+        const cx = xu + (c.polo === '+' ? -17 : 17), cz = zu - 30 - (c.k % 4) * 5;
+        for (let v = 0; v < 3; v++) ee.add(kit.toro(7 - v * 0.4, 0.7, Math.PI * 2, 14), c.polo === '+' ? 'rojo' : 'negro', [cx, 1.1 + v * 1.1, cz], [Math.PI / 2, 0, 0]);
+      }
       (conectores[c.cadena] = conectores[c.cadena] || []).push({ arriba, x: xm - 2.2 });
     });
     // puentes entre los paneles de cada cadena (bajo el marco)
@@ -129,14 +151,14 @@
     const cb = I('CB-101').u, inv = I('INV-101').u, qb = I('QB-101').u, fb = I('FB-101').u, bx = -40, zc = I('QA-301').u, zz = I('INV-201').u;
     const xW = -D.SEMI.x + 5.7, xW2 = xW + 1.2, zAc = [zc + 3, zc - 3];
     // caja de continua → EASun (positivo y negativo, 10 mm²)
-    cable('CB-101', [W(cb - 6, 123.5, -105), W(cb - 6, 121, -102.4), W(cb - 6, 90.0, -101.2), W(inv - 6, 90.0, -101.2), W(inv - 6, 112, -102.2), W(inv - 6, 106.5, -103)], 0.75, 'rojo');
-    cable('CB-101', [W(cb - 9, 123.5, -105), W(cb - 9, 121, -102.4), W(cb - 9, 91.2, -101.2), W(inv, 91.2, -101.2), W(inv, 112, -102.2), W(inv, 106.5, -103)], 0.75, 'negro');
+    cable('CB-101', [W(cb - 6, 123.5, -105), W(cb - 6, 121, -102.4), W(cb - 6, 90.0, -101.2), W(inv - 6, 90.0, -101.2), W(inv - 6, 112, -102.2), W(inv - 6, 106.5, -103)], 0.75, 'rojo', 4, abraz);
+    cable('CB-101', [W(cb - 9, 123.5, -105), W(cb - 9, 121, -102.4), W(cb - 9, 91.2, -101.2), W(inv, 91.2, -101.2), W(inv, 112, -102.2), W(inv, 106.5, -103)], 0.75, 'negro', 4, abraz);
     // batería: del EASun al magnetotérmico (QB-101), al portafusible (FB-101) y a los bornes de la batería
-    cable('QB-101', [W(inv + 6, 107, -103), W(inv + 6, 100, -98.2), W(qb - 1.8, 78, -98.2), W(qb - 1.8, 73.6, -104.6)], 1.0, 'rojo', 5);
-    cable('QB-101', [W(inv + 12, 107, -103), W(inv + 12, 100, -98.2), W(qb + 1.8, 78, -98.2), W(qb + 1.8, 73.6, -104.6)], 1.0, 'negro', 5);
-    cable('FB-101', [W(qb - 1.8, 62.8, -104.6), W(qb - 1.8, 58.5, -104), W(fb, 56, -104)], 1.0, 'rojo', 5);
-    cable('BAT-101', [W(fb, 42.5, -104), W(fb - 5, 38, -102.5), W(bx - 21, 41.5, -100)], 1.0, 'rojo', 5);
-    cable('BAT-101', [W(qb + 1.8, 62.8, -104.6), W(qb + 14, 50, -100.5), W(bx - 14.5, 41.5, -100)], 1.0, 'negro', 5);
+    cable('QB-101', [W(inv + 6, 107, -103), W(inv + 6, 100, -98.2), W(qb - 1.8, 78, -98.2), W(qb - 1.8, 73.6, -104.6)], 1.0, 'rojo', 5, abraz);
+    cable('QB-101', [W(inv + 12, 107, -103), W(inv + 12, 100, -98.2), W(qb + 1.8, 78, -98.2), W(qb + 1.8, 73.6, -104.6)], 1.0, 'negro', 5, rojas);
+    cable('FB-101', [W(qb - 1.8, 62.8, -104.6), W(qb - 1.8, 58.5, -104), W(fb, 56, -104)], 1.0, 'rojo', 5, rojas);
+    cable('BAT-101', [W(fb, 42.5, -104), W(fb - 5, 38, -102.5), W(bx - 21, 41.5, -100)], 1.0, 'rojo', 5, rojas);
+    cable('BAT-101', [W(qb + 1.8, 62.8, -104.6), W(qb + 14, 50, -100.5), W(bx - 14.5, 41.5, -100)], 1.0, 'negro', 5, rojas);
     // alterna hacia el cuadro: la del EASun (por la canaleta del fondo) y la del ZCS (desde la pared este)
     cable('QA-301', [W(inv - 12, 106.5, -103), W(inv - 12, 98, -101.0), W(inv - 12, 88.8, -101.0), W(-128, 88.8, -101.0), W(xW + 3, 88.8, -98), W(xW, 88.8, -92), W(xW, 88.8, zAc[0]), W(xW, 96.5, zAc[0]), W(-134.6, 98.6, zAc[0])], 0.95, 0x2d3034);
     cable('QA-301', [W(131, 98.4, zz + 15), W(129.4, 94, zz + 15), W(129.4, 88.8, zz + 15), W(129.4, 88.8, -97), W(124, 88.8, -99.0), W(0, 88.8, -99.0), W(-124, 88.8, -99.0), W(xW2 + 3, 88.8, -95), W(xW2, 88.8, -88), W(xW2, 88.8, zAc[1]), W(xW2, 96.5, zAc[1]), W(-134.6, 98.6, zAc[1])], 0.95, 0x2d3034);

@@ -11,6 +11,7 @@
   /** Prepara la ventana. `vista` es 'fuerza' o 'mando'. Devuelve { sim, estado, objetos } (sim solo si no hay ventana de origen: sirve para probar). */
   async function iniciar(vista) {
     const V = VISTAS[vista], $ = id => document.getElementById(id);
+    await HTST_CARGADOR.cargarScript('/simulador/js/interfaz/pulsacion_larga.js');
     for (const ruta of ['js/scada2d/diagrama_fuerza.js', 'js/scada2d/diagrama_mando.js', 'js/interfaz/puntos_medida.js', 'js/interfaz/ayuda_htst.js']) await HTST_CARGADOR.cargarScript(ruta);
     const D = PCT[V.modulo], planta = (PCT.htstLayout && PCT.htstLayout.PLANTA) || { fabrica: 'Planta real', corto: 'HTST' };
     const titulo = `${planta.fabrica} · ${planta.corto} · ${V.nombre}`;

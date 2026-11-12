@@ -4,8 +4,25 @@
 //   reloj → sol, cielo y ambiente → plano de cada campo → cadenas (sombras, suciedad, diodos, averías) → topología de protecciones →
 //   EASun (MPPT, fuentes, cargador) → batería → ZCS (aislamiento, red, MPPT) → balance de alterna con la red y las cargas →
 //   disparos por sobrecorriente → energías → temperatura de la caseta. Después de los micro-pasos se publica `estado` (objeto vivo, mismo objeto siempre).
-// Determinista con `semilla` (mismatch de paneles, variación lenta de la nubosidad, carga y aislamiento).
+// Determinista con `semilla` (mismatch de paneles, rachas de nubosidad lenta y rápida, carga y aislamiento).
 // ORDEN DE CARGA en el navegador: ver configuracion/constantes.js.
+//
+// CAMPOS EXTRA del `estado` añadidos en la revisión de ingeniería (el contrato de ARQUITECTURA.md §3 no cambia: solo se AÑADE):
+//   campos.A|B.diagnostico = { pEsperadaW, pDisponibleW, pRealW, perdidaW, perdidaPct, cadenas: [ { id, pEsperadaW, pDisponibleW, pRealW, perdidaPct, causa } ] }
+//        esperada = lo que daría la planta sana y limpia con la misma luz y temperatura; disponible = lo que pueden dar los paneles tal como están (0 si la cadena
+//        está desconectada); real = lo que entrega al inversor. causa: 'NOCHE' | 'SIN_CONEXION' | 'MAXIMO_LOCAL' | 'LIMITADA_POR_INVERSOR' | 'PERDIDA_EN_PANELES' | 'NORMAL'.
+//        «Producción» (energia.produccionA/BWh) es la potencia de continua que entra al inversor (ya recortada si el EASun no puede aprovecharla: no vierte).
+//   inversores['INV-101'] += { mpptActivo, solDormido, arrancando, limiteCargaA, dormido:false }
+//        El EASun no tiene estado «dormido»: lo alimentan red o batería y sigue vivo de noche (solo duerme su MPPT: solDormido). `arrancando` = 8 s de autocomprobación al encenderlo.
+//        Estado FALLO también por SOBRECARGA sin red (más de 1,05 × 3 kW durante 10 s: salida cortada, reintento a los 180 s). En derivación en reposo (sin cargas, con red)
+//        queda en ESPERA con ≈ 15 W propios que da la red, no la batería.
+//   bateria += { socMinUtilPct, energiaUtilWh, vReposoV, limiteCargaA }
+//        socMinUtilPct (layout, 10 %) manda ahora: el EASun deja de descargar a ese SoC y no vuelve hasta el 25 % (política completa en bateria.js e inversor_easun.js).
+//        vReposoV = tensión sin la sobretensión de carga (27,2 V a plena carga); limiteCargaA = tope de carga del BMS según la temperatura (0 bajo 0 °C).
+//   alarmas: código nuevo 'BATERIA_FRIA' (info) cuando el BMS limita la carga por frío. 'EASUN_SOBRECARGA' pasa a significar corte de salida si el estado es FALLO.
+//   sim.aislamiento(tagCadena) → { ok, mohm, texto }: el megóhmetro de las cuatro cadenas (con FALLO_AISLAMIENTO_B, STR-201 da décimas de MΩ).
+//   ambiente.ghWm2 sigue siendo la global horizontal; campos.X.gPlanoWm2 la del plano (lo que mediría un piranómetro). La luz que de verdad llega a las células
+//   descuenta el modificador del ángulo de incidencia (planoInclinado → gUtil) y no se publica. Nubosidad media de cada mes: PCT.fv.sol.NUBOSIDAD_MEDIA_MES.
 (function () {
   const esNode = typeof require !== 'undefined';
   const { CONSTANTES: C, layout, crearRng } = esNode ? require('../configuracion/constantes.js') : window.PCT.fv.constantes;
@@ -32,11 +49,12 @@
     ZCS_REDUCCION_TENSION: 'ZCS: tensión de red alta, potencia reducida', ZCS_REDUCIDO_TEMP: 'ZCS: temperatura alta, potencia reducida', ZCS_SOBRETEMP: 'ZCS: sobretemperatura, inversor parado', ZCS_CADENA_ABIERTA: 'ZCS: una entrada MPPT sin tensión (cadena abierta)',
     BMS_CORTE_BAJA: 'BMS: corte por baja tensión de celda (no descarga)', BMS_CORTE_ALTA: 'BMS: corte por alta tensión de celda (no carga)', BMS_CORTE_CORRIENTE: 'BMS: corte por sobrecorriente',
     BATERIA_SOC_BAJO: 'Batería casi descargada', CASETA_CALIENTE: 'Caseta muy caliente: revisar la ventilación',
+    BATERIA_FRIA: 'Batería fría: el BMS limita la corriente de carga',
   };
   const SEVERIDAD = { PROTECCION_DISPARADA: 'alarma', FUSIBLE_FUNDIDO: 'alarma', SPD_AGOTADO: 'aviso', PROTECCION_ABIERTA: 'info', RED_CAIDA: 'alarma', EASUN_SIN_BATERIA: 'alarma', EASUN_SOBRETEMP: 'alarma',
     EASUN_BATERIA_BAJA: 'aviso', EASUN_REDUCIDO_TEMP: 'aviso', EASUN_SOBRECARGA: 'aviso', EASUN_COM_PERDIDA: 'aviso', ZCS_AISLAMIENTO: 'alarma', ZCS_SIN_RED: 'aviso', ZCS_SOBRETENSION_RED: 'aviso',
     ZCS_REDUCCION_TENSION: 'aviso', ZCS_REDUCIDO_TEMP: 'aviso', ZCS_SOBRETEMP: 'alarma', ZCS_CADENA_ABIERTA: 'aviso', BMS_CORTE_BAJA: 'alarma', BMS_CORTE_ALTA: 'alarma', BMS_CORTE_CORRIENTE: 'aviso',
-    BATERIA_SOC_BAJO: 'info', CASETA_CALIENTE: 'aviso' };
+    BATERIA_SOC_BAJO: 'info', CASETA_CALIENTE: 'aviso', BATERIA_FRIA: 'info' };
   // Averías cuyo efecto es un estado «de memoria» de una protección: [tag, acción]. Al activarse la dejan así; al rearmarla el alumno, la avería se retira.
   const ESTADO_AVERIA = { FUSIBLE_F101: ['F-101', 'fundir'], SPD_DISPARADO_A: ['SPD-101', 'agotar'], QB_DISPARADO: ['QB-101', 'disparar'], DIFERENCIAL_DISPARADO: ['ID-301', 'disparar'] };
 
@@ -50,14 +68,18 @@
 
     function construir(op) {
       const rng = crearRng(op.semilla);
-      const cadenas = {};
+      const cadenas = {}, referencia = {};
       for (const k of ['A', 'B']) {
         const campo = layout.CAMPOS[k];
-        for (const c of campo.cadenas) cadenas[c.id] = Cadena.crearCadena({ id: c.id, esp: campo.panel, tags: c.paneles, desajustes: c.paneles.map(() => 1 + limitar(C.DESAJUSTE_SIGMA * rng.normal(), -0.03, 0.03)) });
+        for (const c of campo.cadenas) {
+          const desajustes = c.paneles.map(() => 1 + limitar(C.DESAJUSTE_SIGMA * rng.normal(), -0.03, 0.03));
+          cadenas[c.id] = Cadena.crearCadena({ id: c.id, esp: campo.panel, tags: c.paneles, desajustes });
+          referencia[c.id] = Cadena.crearCadena({ id: c.id, esp: campo.panel, tags: c.paneles, desajustes });    // la misma cadena sana, limpia y sin sombra (para el diagnóstico)
+        }
       }
       const bat = Bateria.crearBateria({ socInicial01: 0.6 });
-      S = { op, rng, t: 0, dia: op.diaAnio, hora: op.horaSolar, nubOrden: limitar(op.nubosidad, 0, 1), tAmbOrden: null, suciedad: { A: 0, B: 0 }, sombras: {}, ruidoNub: 0,
-        cadenas, bat, prot: Prot.crearProtecciones(), cargas: RC.crearCargas(rng), red: RC.crearRed(), easun: Easun.crearEasun(), zcs: Zcs.crearZcs(rng),
+      S = { op, rng, t: 0, dia: op.diaAnio, hora: op.horaSolar, nubOrden: limitar(op.nubosidad, 0, 1), tAmbOrden: null, suciedad: { A: 0, B: 0 }, sombras: {}, ruidoNub: 0, ruidoRapido: 0,
+        cadenas, referencia, mppRef: {}, bat, prot: Prot.crearProtecciones(), cargas: RC.crearCargas(rng), red: RC.crearRed(), easun: Easun.crearEasun(), zcs: Zcs.crearZcs(rng),
         tCaseta: 25, energia: { prodA: 0, prodB: 0, consumo: 0 }, res: null, tMpp: -1e9, mpp: {}, tConectorC: 25 };
       S.tCaseta = Sol.temperaturaAmbiente(S.dia, S.hora, S.nubOrden) + 2;
       S.easun.tC = S.tCaseta + 5; S.zcs.tC = S.tCaseta + 5; S.bat.tC = S.tCaseta;
@@ -82,10 +104,15 @@
       S.hora += dt / 3600;
       if (S.hora >= 24) { S.hora -= 24; S.dia = (S.dia % 365) + 1; }
       // Cielo
-      S.ruidoNub = limitar(S.ruidoNub - S.ruidoNub * dt / 900 + 1.2 * Math.sqrt(dt / 900) * S.rng.normal(), -1.5, 1.5);
-      const n = S.nubOrden, nEf = limitar(n + 0.35 * S.ruidoNub * 4 * n * (1 - n), 0, 1);
+      // Nubosidad variable: una racha lenta (≈ 15 min, bancos de nubes) y otra rápida (≈ 80 s, nubes sueltas que pasan). Con el cielo despejado
+      // (n = 0) o cubierto (n = 1) no hay variación; la máxima variación está en n = 0,5. Las aberturas entre nubes dan el realce de borde de nube.
+      if (dt > 0) {
+        S.ruidoNub = limitar(S.ruidoNub - S.ruidoNub * dt / 900 + 1.2 * Math.sqrt(dt / 900) * S.rng.normal(), -1.5, 1.5);
+        S.ruidoRapido = limitar(S.ruidoRapido - S.ruidoRapido * dt / 80 + 1.2 * Math.sqrt(dt / 80) * S.rng.normal(), -1.5, 1.5);
+      }
+      const n = S.nubOrden, amp = 4 * n * (1 - n), nEf = limitar(n + (0.35 * S.ruidoNub + 0.2 * S.ruidoRapido) * amp, 0, 1);
       const pos = Sol.posicionSolar(S.dia, S.hora);
-      const cielo = Sol.conNubosidad(Sol.cieloDespejado(S.dia, pos.sinAltura), nEf);
+      const cielo = Sol.conNubosidad(Sol.cieloDespejado(S.dia, pos.sinAltura), nEf, limitar(-S.ruidoRapido / 1.5, 0, 1));
       const tAmb = S.tAmbOrden != null ? S.tAmbOrden : Sol.temperaturaAmbiente(S.dia, S.hora, nEf);
       const suc = { A: motor.hay('SUCIEDAD_ALTA_A') ? 1 - (1 - S.suciedad.A) * (1 - C.SUCIEDAD_AVERIA_A) : S.suciedad.A, B: S.suciedad.B };
       // Cadenas
@@ -103,7 +130,7 @@
           for (const tag of c.paneles) sombras[tag] = 1 - (1 - (S.sombras[tag] || 0)) * (1 - sombraPretil(tag, pos.alturaGrados));
           const rExtra = c.id === 'STR-202' && motor.hay('CONECTOR_RESISTIVO_B2') ? motor.parametro('CONECTOR_RESISTIVO_B2', 'resistenciaOhm', 1) : 0;
           const fusOk = fusible[c.id] ? prot.conduce(fusible[c.id]) : true;
-          cad.actualizar({ g: pl.g, gDif: pl.difusa + pl.reflejada, tAmbC: tAmb, suciedad: suc[k], sombras, diodos, abierta: abiertaFisica[c.id] || !fusOk, resistenciaExtraOhm: rExtra, dt });
+          cad.actualizar({ g: pl.gUtil, gDif: pl.difusaUtil, tAmbC: tAmb, suciedad: suc[k], sombras, diodos, abierta: abiertaFisica[c.id] || !fusOk, resistenciaExtraOhm: rExtra, dt });
         }
       }
       // Red y topología
@@ -154,14 +181,50 @@
       const objetivo = tAmb + 5 * cielo.gh / 1000 + perdidas / ua;
       S.tCaseta += (objetivo - S.tCaseta) * (1 - Math.exp(-dt / C.CASETA.tauS));
       const iCon = op['STR-202'].i;
-      S.tConectorC = tAmb + 6 + (motor.hay('CONECTOR_RESISTIVO_B2') ? iCon * iCon * motor.parametro('CONECTOR_RESISTIVO_B2', 'resistenciaOhm', 1) * 1.1 : 0);
+      // El conector sano va unos 6 °C sobre el ambiente; el malo disipa I²·R y se calienta 0,45 K por vatio (1 Ω con 13 A son 170 W: más de 100 °C, de quemarse).
+      S.tConectorC = tAmb + 6 + (motor.hay('CONECTOR_RESISTIVO_B2') ? iCon * iCon * motor.parametro('CONECTOR_RESISTIVO_B2', 'resistenciaOhm', 1) * 0.45 : 0);
       S.res = { pos, cielo, planos, tAmb, nEf, suc, top, redDisp, vRed, fRed, rA, rB, op, cons301, serv302, pRed, dem301, dem302, abiertaFisica };
     }
 
     function refrescarMpp() {
       if (!mppSucio && S.t - S.tMpp < 30) return;
-      for (const id of Object.keys(S.cadenas)) S.mpp[id] = S.cadenas[id].mpp();
+      const R = S.res;
+      for (const id of Object.keys(S.cadenas)) {
+        S.mpp[id] = S.cadenas[id].mpp();
+        // Referencia sana: la misma cadena sin sombra, suciedad, diodos ni conector malo, con la temperatura de célula ya estabilizada
+        const k = campoDe(id), ref = S.referencia[id], pl = R.planos[k];
+        ref.iniciada = false;
+        ref.actualizar({ g: pl.gUtil, gDif: pl.difusaUtil, tAmbC: R.tAmb, suciedad: 0, sombras: {}, diodos: {}, abierta: false, resistenciaExtraOhm: 0, dt: 0 });
+        S.mppRef[id] = ref.mpp();
+      }
       S.tMpp = S.t; mppSucio = false;
+    }
+
+    /**
+     * Diagnóstico didáctico por cadena y campo: potencia que daría la planta sana (esperada), la que pueden dar los paneles tal como están
+     * (disponible: sombras, suciedad, diodos, conector; 0 si la cadena está desconectada) y la que entrega de verdad al inversor (real).
+     * causa: 'NOCHE' | 'SIN_CONEXION' (fusible, MC4, seccionador) | 'MAXIMO_LOCAL' (sombra parcial: el MPPT está en un pico que no es el global) |
+     *        'LIMITADA_POR_INVERSOR' (la cadena podría dar más: batería llena y cargas servidas, tope de 3 kW, inversor sin conectar…) |
+     *        'PERDIDA_EN_PANELES' (sombra, suciedad, diodo, conector…) | 'NORMAL'.
+     */
+    function diagnostico(R, campos) {
+      const d = {};
+      for (const k of ['A', 'B']) {
+        const camp = campos[k];
+        const cadenas = camp.cadenas.map(c => {
+          const esperada = (S.mppRef[c.id] || { p: 0 }).p, conectada = R.top.cadenaConectada[c.id] && !c.abierta;
+          const disponible = conectada ? c.pmpp : 0, real = c.p;
+          let causa = 'NORMAL';
+          if (esperada < 20) causa = 'NOCHE';
+          else if (!conectada) causa = 'SIN_CONEXION';
+          else if (real < 0.9 * disponible) causa = c.enMaximoLocal ? 'MAXIMO_LOCAL' : 'LIMITADA_POR_INVERSOR';
+          else if (disponible < 0.9 * esperada) causa = 'PERDIDA_EN_PANELES';
+          return { id: c.id, pEsperadaW: esperada, pDisponibleW: disponible, pRealW: real, perdidaPct: esperada > 20 ? limitar(100 * (1 - real / esperada), 0, 100) : 0, causa };
+        });
+        const esp = cadenas.reduce((s, c) => s + c.pEsperadaW, 0), disp = cadenas.reduce((s, c) => s + c.pDisponibleW, 0), real = cadenas.reduce((s, c) => s + c.pRealW, 0);
+        d[k] = { pEsperadaW: esp, pDisponibleW: disp, pRealW: real, perdidaW: Math.max(0, esp - real), perdidaPct: esp > 20 ? limitar(100 * (1 - real / esp), 0, 100) : 0, cadenas };
+      }
+      return d;
     }
 
     function alarmasActuales(R) {
@@ -181,6 +244,7 @@
       if ((R.rB.estado === 'OPERANDO' || R.rB.estado === 'REDUCIDO') && (mp[0].v <= 1) !== (mp[1].v <= 1)) add('ZCS_CADENA_ABIERTA', 'INV-201');
       if (S.bat.bms !== 'OK') add('BMS_' + S.bat.bms, 'BAT-101');
       if (S.bat.soc01 < 0.05) add('BATERIA_SOC_BAJO', 'BAT-101');
+      if (S.bat.limiteCargaA() < 0.5 * layout.BATERIA.corrienteMaxCargaA) add('BATERIA_FRIA', 'BAT-101');
       if (S.tCaseta > 50) add('CASETA_CALIENTE', 'CAS-001');
       return L;
     }
@@ -200,10 +264,13 @@
         const act = cadenas.filter(c => c.i > 0);
         campos[k] = { gPlanoWm2: R.planos[k].g, p: cadenas.reduce((s, c) => s + c.p, 0), v: act.length ? act.reduce((s, c) => s + c.v, 0) / act.length : Math.max(0, ...cadenas.map(c => c.v)), i: cadenas.reduce((s, c) => s + c.i, 0), cadenas };
       }
+      const diag = diagnostico(R, campos);
+      for (const k of ['A', 'B']) campos[k].diagnostico = diag[k];
       const a = R.rA, b = R.rB, bat = S.bat;
       const cadA = campos.A, pvA = cadA.p;
       const inv101 = { estado: a.estado, modo: S.easun.modo, pvV: a.pvV, pvI: cadA.i, pvP: pvA, bateriaP: a.bateriaP, redP: a.redP, cargaP: a.cargaP, temperaturaC: a.temperaturaC, eficiencia: a.eficiencia, etapaCarga: a.etapaCarga,
-        alarma: a.alarma, leds: a.leds, encendido: S.easun.encendido, fuente: a.fuente, comunicacion: !motor.hay('COMUNICACION_PERDIDA_EASUN'), bateriaAgotada: a.bateriaAgotada, reduccion: a.derate };
+        alarma: a.alarma, leds: a.leds, encendido: S.easun.encendido, fuente: a.fuente, comunicacion: !motor.hay('COMUNICACION_PERDIDA_EASUN'), bateriaAgotada: a.bateriaAgotada, reduccion: a.derate,
+        mpptActivo: !!a.mpptActivo, solDormido: !a.mpptActivo, arrancando: !!a.arrancando, limiteCargaA: a.limiteCargaA, dormido: false };
       const inv201 = { estado: b.estado, mppt: b.mppt.map(m => ({ v: m.v, i: m.i, p: m.p, activo: m.activo })), acP: b.acP, acV: b.acV, acF: b.acF, vertidoP: R.top.redEnCuadro ? -R.pRed : 0, temperaturaC: b.temperaturaC,
         eficiencia: b.eficiencia, aislamientoMohm: b.aislamientoMohm, leds: b.leds, alarma: b.alarma, segundosParaConexion: b.segundosParaConexion, encendido: S.zcs.encendido, dormido: !!b.dormido, reduccion: b.derate };
       const kwhProd = S.energia.prodA + S.energia.prodB, auto = Math.max(0, kwhProd - S.red.energiaExportadaWh);
@@ -214,7 +281,8 @@
         ambiente: { ghWm2: R.cielo.gh, nubosidad: R.nEf, temperaturaAmbienteC: R.tAmb, suciedad: { A: R.suc.A, B: R.suc.B }, temperaturaCasetaC: S.tCaseta },
         campos,
         inversores: { 'INV-101': inv101, 'INV-201': inv201 },
-        bateria: { tag: 'BAT-101', soc01: bat.soc01, v: bat.v, vCeldaMin: bat.vCeldaMin, vCeldaMax: bat.vCeldaMax, i: bat.i, p: bat.v * bat.i, temperaturaC: bat.tC, bms: bat.bms, energiaWh: bat.energiaWh() },
+        bateria: { tag: 'BAT-101', soc01: bat.soc01, v: bat.v, vCeldaMin: bat.vCeldaMin, vCeldaMax: bat.vCeldaMax, i: bat.i, p: bat.v * bat.i, temperaturaC: bat.tC, bms: bat.bms, energiaWh: bat.energiaWh(),
+          socMinUtilPct: layout.BATERIA.socMinUtilPct, energiaUtilWh: bat.energiaUtilWh(), vReposoV: bat.ocvReposo(), limiteCargaA: bat.limiteCargaA() },
         red: { disponible: R.redDisp, v: R.vRed, f: R.fRed, p: R.pRed, energiaImportadaWh: S.red.energiaImportadaWh, energiaExportadaWh: S.red.energiaExportadaWh },
         cargas: { 'LOAD-301': { w: R.cons301, manual: S.cargas.esManual('LOAD-301'), demandaW: R.dem301, alimentada: R.top.cargas301Energizadas },
           'LOAD-302': { w: R.serv302, manual: S.cargas.esManual('LOAD-302'), demandaW: R.dem302, alimentada: a.alimentada } },
@@ -275,7 +343,7 @@
       },
       bateria: { socInicial(pct) {
         if (!Number.isFinite(pct)) return;
-        S.bat.soc01 = limitar(pct / 100, 0, 1); S.bat.bms = 'OK'; S.bat.tCorteS = 0;
+        S.bat.soc01 = limitar(pct / 100, 0, 1); S.bat.bms = 'OK'; S.bat.tCorteS = 0; S.bat.pol = 0;
         S.easun.ciclo = 'CC'; S.easun.bateriaAgotada = false; S.easun.vBat = S.bat.ocv();
         refrescar();
       } },
@@ -297,6 +365,16 @@
     sim.medir = (a, b) => Medidas.crearMedidas(ctxMedidas()).medir(a, b);
     sim.continuidad = (a, b) => Medidas.crearMedidas(ctxMedidas()).continuidad(a, b);
     sim.potencial = n => Medidas.crearMedidas(ctxMedidas()).potencial(n);
+    /**
+     * Megóhmetro: aislamiento a tierra de una cadena ('STR-101'…'STR-202'), medido con el campo desconectado. Sano: decenas de MΩ;
+     * con FALLO_AISLAMIENTO_B, STR-201 baja a unas décimas de MΩ (el ZCS no conecta por debajo de 0,5 MΩ). → { ok, mohm, texto }.
+     */
+    sim.aislamiento = tag => {
+      const sano = C.AISLAMIENTO_CADENA_MOHM[tag];
+      if (!sano) return { ok: false, mohm: 0, texto: 'Punto de medida desconocido' };
+      const mohm = tag === 'STR-201' && motor.hay('FALLO_AISLAMIENTO_B') ? C.ZCS.aislamientoFalloMohm : sano;
+      return { ok: true, mohm, texto: `${mohm.toFixed(2)} MΩ a tierra (${mohm < C.ZCS.aislamientoMinMohm ? 'FALLO: por debajo de ' + C.ZCS.aislamientoMinMohm + ' MΩ' : 'correcto'})` };
+    };
     sim.puntos = Medidas.PUNTOS;
     Object.defineProperty(sim, 'medidas', { get() { if (!medidasCache) medidasCache = Medidas.crearMedidas(ctxMedidas()).medidas(); return medidasCache; }, enumerable: true });
 

@@ -3,15 +3,48 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const L = require('../js/layout.js');
-const { crearBateria, ocvCelda } = require('../js/modelo/bateria.js');
+const { crearBateria, ocvCelda, limiteCargaA } = require('../js/modelo/bateria.js');
 
 test('batería: la tensión de reposo crece con el SoC y es plana en el centro', () => {
   let ant = -1;
   for (let s = 0; s <= 100; s += 1) { const v = ocvCelda(s); assert.ok(v >= ant - 1e-12, `monótona en ${s}`); ant = v; }
   assert.ok(ocvCelda(80) - ocvCelda(20) < 0.15, 'meseta plana entre 20 y 80 %');
-  assert.ok(ocvCelda(5) < 3.15 && ocvCelda(100) > 3.5, 'extremos con pendiente');
+  assert.ok(ocvCelda(5) < 3.15 && ocvCelda(0) < 2.6 && ocvCelda(100) >= 3.39, 'extremos con pendiente');
   const b = crearBateria({ socInicial01: 0.5 });
   assert.ok(b.ocv() > 25 && b.ocv() < 27, `reposo al 50 % ${b.ocv()}`);
+});
+
+test('batería: tensiones de reposo reales de LiFePO4 (27,2 V a plena carga, ~26,4 V al 50 %, ~25,6 V al 10 %) y absorción a 28,4 V', () => {
+  const v = s => crearBateria({ socInicial01: s / 100 }).ocvReposo();
+  assert.ok(Math.abs(v(100) - 27.2) < 0.15, `100 %: ${v(100)}`);
+  assert.ok(v(50) > 26.2 && v(50) < 26.7, `50 %: ${v(50)}`);
+  assert.ok(v(10) > 25.4 && v(10) < 25.8, `10 %: ${v(10)}`);
+  assert.ok(v(0) < 20.5 && v(2) < 23.9, 'rodilla inferior');
+  const cargando = crearBateria({ socInicial01: 0.99 });
+  for (let t = 0; t < 600; t += 5) cargando.paso(5, 20, 25);
+  assert.ok(cargando.ocv() > 27.8, `con carga sostenida la tensión sin corriente sube sobre la de reposo: ${cargando.ocv()}`);
+  const antes = cargando.ocv();
+  for (let t = 0; t < 1800; t += 5) cargando.paso(5, 0, 25);
+  assert.ok(cargando.ocv() < antes - 0.4 && cargando.ocv() < 27.5, `en reposo vuelve a ~27,2 V: ${cargando.ocv()}`);
+});
+
+test('batería: rendimiento de ida y vuelta de 94-96 % (20 → 90 % → 20 % a ±25 A)', () => {
+  const b = crearBateria({ socInicial01: 0.2 }); let entra = 0, sale = 0;
+  while (b.soc01 < 0.9) { entra += b.vTerm(25) * 25 * 5 / 3600; b.paso(5, 25, 25); }
+  for (let t = 0; t < 1200; t += 5) b.paso(5, 0, 25);
+  while (b.soc01 > 0.2) { sale += -b.vTerm(-25) * -25 * 5 / 3600; b.paso(5, -25, 25); }
+  const eta = sale / entra;                                                          // energía en terminales: la que sale entre la que entró
+  assert.ok(eta > 0.93 && eta < 0.97, `ida y vuelta ${(eta * 100).toFixed(1)} %`);
+});
+
+test('batería: el BMS limita la corriente de carga con frío y no carga bajo 0 °C', () => {
+  const b = crearBateria({ socInicial01: 0.5 });
+  assert.equal(limiteCargaA(-2), 0); assert.equal(limiteCargaA(3), 10);
+  assert.ok(limiteCargaA(12) > 30 && limiteCargaA(12) < 70);
+  assert.equal(limiteCargaA(25), L.BATERIA.corrienteMaxCargaA);
+  b.tC = -3; assert.equal(b.permiteCarga(), false); assert.equal(b.permiteDescarga(), true);
+  b.tC = 25; assert.equal(b.permiteCarga(), true);
+  assert.ok(b.energiaUtilWh() > 0 && Math.abs(b.energiaUtilWh() - 0.4 * L.BATERIA.energiaWh) < 1e-6, 'energía útil sobre el 10 %');
 });
 
 test('batería: cargando la tensión sube sobre el reposo y descargando baja (resistencia interna)', () => {

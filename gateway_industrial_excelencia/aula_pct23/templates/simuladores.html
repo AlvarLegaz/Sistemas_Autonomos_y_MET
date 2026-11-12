@@ -3,21 +3,22 @@
 {% block seccion %}Simuladores{% endblock %}
 {% block contenido %}
 <h1 class="titulo-sims">¿Qué simulador quieres usar?</h1>
-<p class="ayuda">Puedes cambiar de uno a otro cuando quieras desde el enlace «Simuladores» de la barra inferior.</p>
+{% if lista %}
+<p class="ayuda">Elige uno. Puedes cambiar de simulador cuando quieras desde el enlace «Simuladores» de la barra inferior.</p>
 <div class="sims">
-  <a class="sim-tarjeta" href="/simulador/">
-    <span class="sim-etiqueta">Maqueta</span>
-    <h2>Planta de pasteurización PCT23</h2>
-    <p>La maqueta del aula: manual, automático y demostración, con sus sensores, bombas y el control del PLC.</p>
-    <span class="boton-enlace">Abrir simulador</span>
+  {% for s in lista %}
+  <a class="sim-tarjeta" href="{{ s['ruta'] }}" aria-label="Abrir {{ s['titulo'] }}">
+    <img class="sim-imagen" src="{{ url_for('static', filename='img/sim/' ~ s['id'] ~ '.jpg') }}" alt="Modelo 3D: {{ s['titulo'] }}" width="1000" height="625" loading="lazy">
+    <div class="sim-texto">
+      <span class="sim-etiqueta">{{ s['etiqueta'] }}</span>
+      <h2>{{ s['titulo'] }}</h2>
+      <p>{{ s['descripcion'] }}</p>
+      <span class="boton-enlace">Abrir simulador</span>
+    </div>
   </a>
-  {% if hay_planta %}
-  <a class="sim-tarjeta" href="/planta-real/">
-    <span class="sim-etiqueta">Planta real</span>
-    <h2>Pasteurizadora HTST · Lácteos Politécnico</h2>
-    <p>La estación EP-01 de tamaño industrial: sinóptico, modelo 3D de cada equipo, esquemas de fuerza y mando, y modo Revisión.</p>
-    <span class="boton-enlace">Abrir simulador</span>
-  </a>
-  {% endif %}
+  {% endfor %}
 </div>
+{% else %}
+<p class="aviso" role="status">El profesor todavía no te ha asignado ningún simulador. Cuando lo haga aparecerá aquí; si tienes la página abierta, recárgala.</p>
+{% endif %}
 {% endblock %}

@@ -41,6 +41,13 @@
     return { tag, titulo: ext.titulo || `${tag} · ${q.nombre}`, etiqueta: ext.etiqueta || `${layout.CIRCUITOS[layout.circuitoDe(tag)] || 'Instalación'}`, queEs: ext.queEs || t[0], enSimulador: ext.enSimulador || t[1], mantenimiento: ext.mantenimiento || t[2] };
   }
 
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  /** Cuerpo de la ficha completa de PCT.fvTextos (qué es, para qué sirve, cómo falla, qué medir, riesgos, averías). Los textos son del propio simulador (pueden llevar negritas). */
+  function cuerpoRico(f) {
+    const lista = (titulo, items, clase) => (items && items.length ? `<h4>${titulo}</h4><ul${clase ? ` class="${clase}"` : ''}>${items.map(i => `<li>${i}</li>`).join('')}</ul>` : '');
+    return `<h4>Qué es</h4><p>${f.queEs}</p><h4>Para qué sirve</h4><p>${f.paraQue}</p>${lista('Cómo falla y qué síntoma da', f.fallos)}${lista('Qué medir con el multímetro', f.medir)}${lista('Riesgos', f.riesgos, 'ficha-riesgo')}${lista('Averías relacionadas', (f.averias || []).map(a => `${esc(a.titulo)} <small>(${esc(a.id)})</small>`))}`;
+  }
+
   /** Texto de «Estado ahora» (lo vivo del equipo). */
   function textoVivo(tag, estado) {
     if (!estado) return '—';
@@ -65,7 +72,7 @@
     const ventana = document.createElement('div');
     ventana.id = 'ficha-equipo'; ventana.hidden = true; ventana.setAttribute('role', 'dialog'); ventana.setAttribute('aria-modal', 'true'); ventana.setAttribute('aria-labelledby', 'ficha-titulo');
     ventana.innerHTML = '<header><h3 id="ficha-titulo"></h3><button type="button" class="ficha-cerrar" aria-label="Cerrar (Esc)" title="Cerrar (Esc)">×</button></header><span class="etiqueta-ficha"></span>' +
-      '<p class="ficha-que"></p><h4>En el simulador</h4><p class="ficha-sim"></p><h4>Estado ahora</h4><p class="ficha-vivo"></p><h4>Qué mirar al mantenerlo</h4><p class="ficha-mant"></p><div class="ficha-mando"></div>' +
+      '<div class="ficha-cuerpo"></div><h4>Estado ahora</h4><p class="ficha-vivo"></p><div class="ficha-diag" hidden></div><div class="ficha-mando"></div>' +
       '<div class="ficha-botones"><button type="button" class="ficha-accion" hidden></button><button type="button" class="ficha-3d">Ver en 3D ▸</button></div>';
     document.body.appendChild(ventana);
     let actual = null, temporizador = null, origen = null, accionActual = null;
@@ -74,6 +81,8 @@
       const estado = contexto.sim().estado;
       const texto = (ext && contexto.textos.estadoVivo ? contexto.textos.estadoVivo(actual, estado) : null) || textoVivo(actual, estado);
       ventana.querySelector('.ficha-vivo').textContent = texto || '—';
+      const dg = ventana.querySelector('.ficha-diag'), D = !enNode && PCT.fvDiagnostico;
+      if (D && (actual === 'INV-101' || actual === 'INV-201')) { const x = D.diagnosticoInversor(estado, actual); dg.hidden = false; dg.className = `ficha-diag e-${x.nivel}`; dg.innerHTML = `<b>Causa:</b> ${esc(x.causa)}${x.efecto ? `<br><b>Efecto:</b> ${esc(x.efecto)}` : ''}`; } else dg.hidden = true;
       const b = ventana.querySelector('.ficha-accion'), a = contexto.accion ? contexto.accion(actual) : null;
       accionActual = a; b.hidden = !a; if (a) b.textContent = a.texto;
     };
@@ -87,8 +96,10 @@
       const f = fichaDe(tag, ext); if (!f) return;
       if (ventana.hidden) origen = desde || document.activeElement;
       actual = tag;
-      ventana.querySelector('h3').textContent = f.titulo; ventana.querySelector('.etiqueta-ficha').textContent = f.etiqueta;
-      ventana.querySelector('.ficha-que').textContent = f.queEs; ventana.querySelector('.ficha-sim').textContent = f.enSimulador || '—'; ventana.querySelector('.ficha-mant').textContent = f.mantenimiento || '—';
+      const rica = contexto.textos && contexto.textos.fichaDe ? contexto.textos.fichaDe(tag) : null;      // la ficha completa de PCT.fvTextos: con listas (síntomas, medidas, riesgos, averías)
+      ventana.querySelector('h3').textContent = rica ? rica.titulo : f.titulo; ventana.querySelector('.etiqueta-ficha').textContent = rica ? rica.etiqueta : f.etiqueta;
+      ventana.querySelector('.ficha-cuerpo').innerHTML = rica ? cuerpoRico(rica) : `<p>${esc(f.queEs)}</p><h4>En el simulador</h4><p>${esc(f.enSimulador || '—')}</p><h4>Qué mirar al mantenerlo</h4><p>${esc(f.mantenimiento || '—')}</p>`;
+      ventana.querySelector('.ficha-cuerpo').scrollTop = 0; ventana.scrollTop = 0;
       ventana.hidden = false; vivo(); clearInterval(temporizador); temporizador = setInterval(vivo, 500);
       ventana.querySelector('.ficha-cerrar').focus();
     }
@@ -104,6 +115,7 @@
       contexto.clicIzquierdo(tag, evento);
     });
     svg.addEventListener('contextmenu', alPulsar);
+    if (!enNode && PCT.fvToqueLargo) PCT.fvToqueLargo.activar(svg, { existe, abrir: (tag, g) => abrir(tag, g) });      // iPad: mantener pulsado 3 s = clic derecho
     svg.addEventListener('keydown', evento => {
       const g = evento.target.closest && evento.target.closest('g[data-tag]'); if (!g || !existe(g.dataset.tag)) return;
       if (evento.key === 'ContextMenu' || (evento.key === 'F10' && evento.shiftKey)) { evento.preventDefault(); abrir(g.dataset.tag, g); return; }
@@ -124,7 +136,7 @@
     return { abrir, cerrar };
   }
 
-  const api = { POR_TIPO, TIPOS_BOTON_3D, fichaDe, textoVivo, tagDelElemento, urlVisor3d, iniciarAyuda };
+  const api = { cuerpoRico, POR_TIPO, TIPOS_BOTON_3D, fichaDe, textoVivo, tagDelElemento, urlVisor3d, iniciarAyuda };
   void F;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') (window.PCT = window.PCT || {}).fvAyuda = api;

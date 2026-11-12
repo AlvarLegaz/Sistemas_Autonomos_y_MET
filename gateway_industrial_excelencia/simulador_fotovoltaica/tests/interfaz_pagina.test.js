@@ -52,12 +52,20 @@ test('clic izquierdo: inversores y red se apagan y encienden; las cadenas eligen
 
 test('clic izquierdo: lo que no se acciona da información, nunca una orden', () => {
   const e = sim().estado;
-  for (const tag of ['PV-101', 'CB-101', 'BAT-101', 'LOAD-301', 'QA-301', 'CAS-001']) assert.equal(P.decidirClic(tag, e, 'revision').tipo, 'info', tag);
+  for (const tag of ['CB-101', 'BAT-101', 'LOAD-301', 'QA-301', 'CAS-001']) assert.equal(P.decidirClic(tag, e, 'revision').tipo, 'info', tag);
+});
+
+test('clic izquierdo en un panel (Revisión): pone la sombra 50 %, luego 100 % y luego la quita; en Normal pide Revisión', () => {
+  const s = sim(); let e = marcha(s, 10);
+  assert.equal(P.decidirClic('PV-101', e, 'normal').tipo, 'aviso');
+  const pasos = [];
+  for (let k = 0; k < 3; k++) { const d = P.decidirClic('PV-101', e, 'revision'); assert.equal(d.tipo, 'sombra'); pasos.push(d.valor); s.ordenes.ambiente.sombra(d.tag, d.valor); e = marcha(s, 10); }
+  assert.deepEqual(pasos, [0.5, 1, 0]);
 });
 
 test('todo equipo del contrato tiene una decisión de clic sin errores', () => {
   const e = sim().estado;
-  for (const q of layout.EQUIPOS) for (const modo of ['normal', 'revision']) assert.ok(['cadena', 'orden', 'aviso', 'info'].includes(P.decidirClic(q.tag, e, modo).tipo), q.tag);
+  for (const q of layout.EQUIPOS) for (const modo of ['normal', 'revision']) assert.ok(['cadena', 'orden', 'aviso', 'info', 'sombra'].includes(P.decidirClic(q.tag, e, modo).tipo), q.tag);
 });
 
 test('restaurar Normal: sin averías, protecciones cerradas, red, cargas automáticas y sin sombras', () => {
@@ -155,4 +163,17 @@ test('el cargador lista los módulos de la interfaz que existen y un módulo que
 
 test('las páginas del contrato de la interfaz existen (index, css)', () => {
   for (const f of ['index.html', 'css/planta_fv.css']) assert.ok(fs.existsSync(path.join(__dirname, '..', f)), f);
+});
+
+test('restaurar Normal con el modelo real: no queda nada de la sesión de Revisión (suciedad, sombras, modo del EASun, apagados, SoC no se toca)', () => {
+  const real = require('../js/modelo/simulacion.js').crearSimulacion({ semilla: 1, diaAnio: 172, horaSolar: 11, nubosidad: 0.1 });
+  const o = real.ordenes;
+  o.averias.activar('FUSIBLE_F101'); o.averias.activar('RED_CAIDA'); o.protecciones.abrir('QF-302'); o.inversor.modoEasun('BATERIA_PRIMERO'); o.inversor.encender('INV-201', false);
+  o.ambiente.poner({ suciedadA: 0.4, suciedadB: 0.3, temperaturaAmbienteC: 5 }); o.ambiente.sombra('PV-205', 1); o.red.tension(260); o.cargas.poner('LOAD-301', 2800);
+  marcha(real, 60); P.restaurarNormal(real); const e = marcha(real, 600);
+  assert.deepEqual(e.averiasActivas, []); assert.equal(e.red.disponible, true); assert.equal(Math.round(e.red.v), 230);
+  assert.equal(e.ambiente.suciedad.A, 0); assert.equal(e.ambiente.suciedad.B, 0); assert.equal(e.inversores['INV-101'].modo, 'SOLAR_PRIMERO');
+  assert.notEqual(e.inversores['INV-201'].estado, 'APAGADO'); assert.equal(e.cargas['LOAD-301'].manual, false);
+  for (const t of ['QF-302', 'QS-101', 'QB-101']) assert.equal(e.protecciones[t].estado, 'CERRADO', t);
+  assert.ok(e.ambiente.temperaturaAmbienteC > 10);
 });

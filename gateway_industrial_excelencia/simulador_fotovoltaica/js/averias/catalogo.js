@@ -1,4 +1,4 @@
-// Catálogo de averías (las 17 de AVERIAS de layout.js, mismos ids y tags) con lo que necesita el profesor y el alumno:
+// Catálogo de averías (las 18 de AVERIAS de layout.js, mismos ids y tags) con lo que necesita el profesor y el alumno:
 // descripción, síntomas esperados en el sinóptico, alarmas que deben aparecer, forma de diagnosticarla y reparación.
 // Los EFECTOS no están aquí: los produce la física del modelo leyendo qué averías hay activas (ver simulacion.js, cadena.js, bateria.js e inversores).
 //   dificultad: 1 fácil · 2 media · 3 difícil.   solucion.accion: 'rearmar' (la maniobra del alumno retira la avería), 'sustituir', 'reparar', 'limpiar', 'despejar'.
@@ -23,17 +23,17 @@
       alarmas: [], diagnostico: ['Comparar la tensión en vacío de STR-102 con la de STR-101 (≈ 12 V menos).', 'Medir cada panel aparte: PV-104 da 2/3 de su Voc.'],
       solucion: { texto: 'Sustituir el panel PV-104 (o su caja de conexiones con diodos).', accion: 'sustituir', tag: 'PV-104' } },
     DIODO_BYPASS_ABIERTO_PV203: { dificultad: 3, descripcion: 'El diodo de paso de la subcadena de PV-203 está abierto: una sombra parcial en ese panel hunde toda la cadena STR-201.',
-      sintomas: ['Sin sombra todo parece normal.', 'Con una sombra pequeña sobre PV-203 la cadena STR-201 cae a casi cero, mucho más que con otro panel.', 'La curva I-V de STR-201 pierde casi toda la corriente con poca sombra.'],
+      sintomas: ['Sin sombra todo parece normal.', 'Con una sombra del 30 % sobre PV-203 la cadena STR-201 cae ≈ 65 % (con el diodo sano caería ≈ 25 %), y el panel se calienta unos 18 °C más (punto caliente).', 'La curva I-V de STR-201 pierde casi toda la corriente con poca sombra.'],
       alarmas: [], diagnostico: ['Sombrear ligeramente PV-203 y comparar con la sombra equivalente en PV-202.', 'Medir con el diodo desconectado (sin tensión directa).'],
       solucion: { texto: 'Sustituir el panel PV-203 o la caja de conexiones (diodo de paso).', accion: 'sustituir', tag: 'PV-203' } },
     CONECTOR_RESISTIVO_B2: { dificultad: 2, descripcion: 'Un conector MC4 de STR-202 tiene mala conexión (resistencia alta): calienta y pierde potencia.',
-      sintomas: ['El MPPT2 entrega menos potencia que el MPPT1 con la misma luz (~7 % menos).', 'El conector se calienta (termografía) en torno a 1 Ω equivalente.', 'La tensión de la cadena en carga cae más de lo normal.'],
+      sintomas: ['El MPPT2 entrega menos potencia que el MPPT1 con la misma luz (≈ 11 % menos; el campo B, ≈ 5 %).', 'El conector se calienta (termografía): con 1 Ω equivalente y 13 A pasa de 100 °C.', 'La tensión de la cadena en carga cae más de lo normal.'],
       alarmas: [], diagnostico: ['Comparar las potencias de MPPT1 y MPPT2.', 'Medir la caída de tensión en el conector con la cadena en carga.'],
       solucion: { texto: 'Cambiar el conector MC4 con el crimpado correcto.', accion: 'reparar', tag: 'STR-202' },
       parametros: { resistenciaOhm: { defecto: 1.0, min: 0.2, max: 5 } } },
     FALLO_AISLAMIENTO_B: { dificultad: 2, descripcion: 'Hay una fuga a tierra en el campo B (cable pelado o panel húmedo): el ZCS no pasa la comprobación de aislamiento.',
       sintomas: ['El ZCS nunca llega a conectar: se queda en fallo con el LED de alarma.', 'El campo B tiene sol y tensión pero no inyecta.', 'Medida de aislamiento muy baja (< 0,5 MΩ).'],
-      alarmas: ['ZCS_AISLAMIENTO'], diagnostico: ['Leer el aislamiento que mide el ZCS.', 'Medir con megóhmetro cada cadena a tierra y localizar la que falla.'],
+      alarmas: ['ZCS_AISLAMIENTO'], diagnostico: ['Leer el aislamiento que mide el ZCS (por debajo de 0,5 MΩ no conecta).', 'Medir con megóhmetro (sim.aislamiento) cada cadena a tierra por separado: la que falla da unas décimas de MΩ y las sanas, decenas.'],
       solucion: { texto: 'Localizar y reparar el cable o panel con fuga a tierra.', accion: 'reparar', tag: 'STR-201' } },
     SPD_DISPARADO_A: { dificultad: 1, descripcion: 'El descargador de sobretensiones SPD-101 está agotado (testigo rojo): la instalación funciona pero sin protección.',
       sintomas: ['Todo funciona con normalidad.', 'El testigo del SPD-101 está en rojo.'],
@@ -81,7 +81,35 @@
       solucion: { texto: 'Retirar el objeto o reubicar la fila delantera.', accion: 'despejar', tag: 'PV-205' } },
   };
 
-  const CATALOGO = layout.AVERIAS.map(a => Object.assign({ id: a.id, titulo: a.titulo, tag: a.tag, dificultad: 2, descripcion: a.titulo, sintomas: [], alarmas: [], diagnostico: [], solucion: { texto: '', accion: 'reparar', tag: a.tag }, parametros: {} }, EXTRA[a.id] || {}));
+  /**
+   * CUÁNTO CAE LA POTENCIA en cada avería respecto a la esperada (lo que da la planta sana con la misma luz), para el diagnóstico didáctico.
+   * `perdidaPct` es el rango de `estado.campos[campo].diagnostico.perdidaPct` en el escenario patrón: junio, cielo despejado, a `horaSolar` (11 por defecto),
+   * batería al 30 % (el EASun aprovecha todo el sol) y la avería activa unos minutos; `sombra` = sombras previas por panel; `porCadena` = { id: [min, max] } de la cadena afectada.
+   * `null` = la avería no se nota en la potencia de los paneles (se ve en otras lecturas: alarmas, temperaturas, estado de la batería).
+   */
+  const EFECTOS = {
+    CADENA_ABIERTA_A1: { campo: 'A', perdidaPct: [45, 55], porCadena: { 'STR-101': [95, 100] }, texto: 'El campo A pierde la mitad (una de sus dos cadenas no entrega).' },
+    CADENA_ABIERTA_B1: { campo: 'B', perdidaPct: [45, 55], porCadena: { 'STR-201': [95, 100] }, texto: 'El campo B pierde la mitad (el MPPT1 no recibe nada).' },
+    FUSIBLE_F101: { campo: 'A', perdidaPct: [45, 55], porCadena: { 'STR-101': [95, 100] }, texto: 'El campo A pierde la mitad.' },
+    DIODO_BYPASS_PV104: { campo: 'A', perdidaPct: [4, 11], porCadena: { 'STR-102': [9, 15] }, texto: 'STR-102 pierde ≈ 12 % (un tercio de un panel de tres); el campo A, ≈ 7 %.' },
+    DIODO_BYPASS_ABIERTO_PV203: { campo: 'B', perdidaPct: [22, 42], porCadena: { 'STR-201': [50, 80] }, sombra: { 'PV-203': 0.3 },
+      texto: 'Sin sombra no se nota nada; con una sombra del 30 % sobre PV-203, STR-201 pierde ≈ 65 % (con el diodo sano perdería ≈ 25 %).' },
+    CONECTOR_RESISTIVO_B2: { campo: 'B', perdidaPct: [3, 8], porCadena: { 'STR-202': [8, 14] }, texto: 'STR-202 pierde ≈ 11 % (170 W de calor en el conector con 1 Ω); el campo B, ≈ 5 %.' },
+    FALLO_AISLAMIENTO_B: { campo: 'B', perdidaPct: [95, 100], texto: 'El campo B no inyecta nada: el ZCS no conecta.' },
+    SPD_DISPARADO_A: null,
+    QB_DISPARADO: { campo: 'A', perdidaPct: [95, 100], texto: 'El EASun pierde la batería, no arranca el sol y el campo A no produce.' },
+    BMS_CORTE_BATERIA: null,
+    CELDA_DESEQUILIBRADA: null,
+    VENTILACION_TAPADA: null,
+    DIFERENCIAL_DISPARADO: { campo: 'B', perdidaPct: [95, 100], texto: 'El ZCS se queda sin red: el campo B no inyecta. El campo A sigue (cargando la batería y las cargas protegidas).' },
+    RED_CAIDA: { campo: 'B', perdidaPct: [95, 100], texto: 'El ZCS se desconecta por anti-isla: el campo B no inyecta.' },
+    SOBRETENSION_RED: { campo: 'B', perdidaPct: [95, 100], texto: 'A 253 V el ZCS desconecta: el campo B no inyecta.' },
+    COMUNICACION_PERDIDA_EASUN: null,
+    SUCIEDAD_ALTA_A: { campo: 'A', perdidaPct: [25, 32], porCadena: { 'STR-101': [25, 32], 'STR-102': [25, 32] }, texto: 'Las dos cadenas del campo A pierden ≈ 28 % (la suciedad del 30 % menos lo que baja la temperatura de célula).' },
+    SOMBRA_PARAPETO: { campo: 'B', perdidaPct: [20, 40], porCadena: { 'STR-202': [45, 70] }, horaSolar: 8, texto: 'A las 8 h de junio STR-202 pierde ≈ 60 % y el campo B ≈ 30 %; a mediodía no se nota.' },
+  };
+
+  const CATALOGO = layout.AVERIAS.map(a => Object.assign({ id: a.id, titulo: a.titulo, tag: a.tag, dificultad: 2, descripcion: a.titulo, sintomas: [], alarmas: [], diagnostico: [], solucion: { texto: '', accion: 'reparar', tag: a.tag }, parametros: {}, efecto: EFECTOS[a.id] || null }, EXTRA[a.id] || {}));
   const porId = id => CATALOGO.find(a => a.id === id) || null;
 
   const api = { CATALOGO, porId };

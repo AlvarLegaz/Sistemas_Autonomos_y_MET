@@ -124,3 +124,9 @@ svg g[data-tag].dg-equipo:focus-visible { outline: 3px solid var(--dg-foco); out
 
 @media (max-width: 700px) { .dg-cabecera h1 { font-size: 16px; } .dg-pagina { padding: 6px 8px 10px; } }
 @media print { .dg-cabecera button, .dg-cabecera a.dg-boton { display: none; } body.dg-ventana { height: auto; } .dg-pagina { overflow: visible; } }
+
+/* pulsación larga (iPad): sin menú ni selección del sistema y anillo que se llena en 3 s */
+svg, svg g[data-tag] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+.anillo-toque { fill: none; stroke: var(--foco, #0b5cad); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; pointer-events: none; animation: fv-anillo 3s linear forwards; }
+@keyframes fv-anillo { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .anillo-toque { animation: none; stroke-dashoffset: 0; stroke-opacity: .6; } }

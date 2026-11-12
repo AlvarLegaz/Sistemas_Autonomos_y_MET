@@ -5,6 +5,7 @@
   const enNode = typeof require !== 'undefined';
   const F = enNode ? require('./formato_fv.js') : PCT.fvFormato;
   const { formatoPotencia, formatoHora, textoFecha, dec } = F;
+  const D = enNode ? require('./diagnostico_fv.js') : PCT.fvDiagnostico;
 
   const C = { A: '#e0a100', B: '#2d80c7', consumo: '#8f6bd6', red: '#1f9e8f', soc: '#2f9e6a', v: '#d66d2b', gh: '#c9a227', gA: '#e0861a', gB: '#2d80c7', t: '#e5484d' };
   const GRUPOS = [
@@ -78,6 +79,18 @@
       return [(f.t - tMin) / span * ancho, alto - (Math.max(rango.minimo, Math.min(rango.maximo, valor)) - rango.minimo) / alt * alto];
     });
   }
+  /** Marcas del eje de tiempo: [{ t, rotulo }] a horas «redondas» del reloj solar (cada 15 min … 12 h según lo largo del tramo), sin tocar los extremos. */
+  function marcasTiempo(filas, maxMarcas = 6) {
+    if (!filas || filas.length < 2 || !Number.isFinite(filas[0].h)) return [];
+    const t0 = filas[0].t, t1 = filas[filas.length - 1].t, h0 = filas[0].h, horas = (t1 - t0) / 3600;
+    if (!(horas > 0)) return [];
+    const paso = [0.25, 0.5, 1, 2, 3, 6, 12, 24].find(p => horas / p <= maxMarcas) || 24, marcas = [];
+    for (let h = Math.ceil((h0 + 1e-9) / paso) * paso; h < h0 + horas - 1e-9; h += paso) {
+      const hh = ((h % 24) + 24) % 24, t = t0 + (h - h0) * 3600;
+      marcas.push({ t, rotulo: hh < 1e-9 ? '00:00' : formatoHora(hh) });
+    }
+    return marcas;
+  }
   /** Rótulo de tiempo de una fila del historial: «21 jun 09:30». */
   const rotuloFila = f => (f && Number.isFinite(f.h) ? `${Number.isFinite(f.d) ? textoFecha(f.d) + ' ' : ''}${formatoHora(f.h)}` : '');
 
@@ -107,7 +120,7 @@
     let ventanaS = null, cadena = CADENAS[0];
     contenedor.innerHTML = '<div class="graf-barra" role="group" aria-label="Base de tiempos (reloj solar simulado)">' + BASES_DE_TIEMPO.map(([n, s]) => `<button type="button" data-s="${s}" aria-pressed="${s === ventanaS}">${n}</button>`).join('') + '</div>' +
       GRUPOS.map(g => `<figure class="graf${g.ancho === 'completo' ? ' completo' : ''}" data-fig="${g.id}"><figcaption>${g.titulo}${g.tipo === 'estados' ? '<span class="graf-leyenda"><i style="background:#2f9e6a"></i>en servicio <i style="background:#e0a33a"></i>aviso <i style="background:#e5484d"></i>alarma <i style="background:#8a949e"></i>parado/abierto</span>' : `<span class="graf-leyenda">${g.series.map(([, color, nombre]) => `<i style="background:${color}"></i>${nombre}`).join(' ')}</span>`}</figcaption><canvas width="520" height="${g.alto || 200}" data-grupo="${g.id}" role="img" aria-label="${g.titulo}"></canvas></figure>`).join('') +
-      `<figure class="graf completo" data-fig="iv"><figcaption>Curva I-V y P-V de la cadena <span class="graf-leyenda"><i style="background:${C.B}"></i>I (A) <i style="background:${C.A}"></i>P (W) <i style="background:none;border:2px solid #e5484d"></i>máxima potencia <i style="background:#2f9e6a"></i>punto de trabajo</span></figcaption>` +
+      `<figure class="graf completo" data-fig="iv"><figcaption>Curva I-V y P-V de la cadena <span class="graf-leyenda"><i style="background:${C.B}"></i>I (A) <i style="background:${C.A}"></i>P (W) <i style="background:none;border:2px solid #e5484d"></i>máximo ideal <i style="background:#2f9e6a"></i>punto de trabajo del MPPT</span></figcaption>` +
       `<div class="graf-barra" role="group" aria-label="Cadena de la curva I-V">${CADENAS.map(c => `<button type="button" data-cadena="${c}" aria-pressed="${c === cadena}">${c}</button>`).join('')}<output class="graf-iv-datos" aria-live="off"></output></div><canvas width="520" height="250" data-grupo="iv" role="img" aria-label="Curva I-V y P-V de la cadena seleccionada"></canvas></figure>`;
     contenedor.querySelector('.graf-barra').addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
@@ -131,13 +144,24 @@
       c.clearRect(0, 0, lienzo.width, lienzo.height); c.fillStyle = color(s, '--panel', '#222'); c.fillRect(0, 0, lienzo.width, lienzo.height);
       return { c, w: lienzo.width, h: lienzo.height, s, borde: color(s, '--borde', '#555'), tenue: color(s, '--tenue', '#999') };
     }
+    /** Líneas verticales suaves y la hora en el borde de abajo, salvo junto a los rótulos de los extremos. */
+    function ejeTiempo(c, filas, x0, ancho, yArriba, yAbajo, yTexto, borde, tenue) {
+      const tMin = filas[0].t, span = Math.max(filas[filas.length - 1].t - tMin, 1e-9);
+      c.save(); c.font = '11px system-ui,sans-serif'; c.textAlign = 'center'; c.lineWidth = 1;
+      for (const m of marcasTiempo(filas, Math.max(2, Math.floor(ancho / 110)))) {
+        const x = x0 + (m.t - tMin) / span * ancho;
+        c.strokeStyle = borde; c.globalAlpha = 0.5; c.setLineDash([2, 4]); c.beginPath(); c.moveTo(x, yArriba); c.lineTo(x, yAbajo); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
+        if (x - x0 > 90 && x0 + ancho - x > 90) { c.fillStyle = tenue; c.fillText(m.rotulo, x, yTexto); }
+      }
+      c.restore();
+    }
     function dibujarLineas(lienzo, filas, grupo) {
       const { c, w, h, borde, tenue } = preparar(lienzo);
       if (filas.length < 2) { c.fillStyle = tenue; c.font = '13px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('Pulsa Iniciar: la gráfica se va dibujando con el tiempo simulado', w / 2, h / 2); return; }
       const izq = 60, der = grupo.series.some(s => s[3] === 'der') ? 52 : 12, ancho = w - izq - der, alto = h - 16 - 24, y0 = 10;
       const sel = lado => grupo.series.filter(s => (s[3] || 'izq') === lado);
       const sinNegativos = r => (grupo.noNegativo ? { minimo: Math.max(0, r.minimo), maximo: r.maximo } : r);
-      const rangoIz = sinNegativos(rangoDe(filas.flatMap(f => sel('izq').map(([tag]) => f.v[tag])).concat(grupo.id === 'bateria' ? [0, 100] : grupo.id === 'potencia' || grupo.id === 'clima' ? [0] : []), grupo.minimo || 1));
+      const rangoIz = grupo.id === 'bateria' ? { minimo: 0, maximo: 100 } : sinNegativos(rangoDe(filas.flatMap(f => sel('izq').map(([tag]) => f.v[tag])).concat(grupo.id === 'bateria' ? [0, 100] : grupo.id === 'potencia' || grupo.id === 'clima' ? [0] : []), grupo.minimo || 1));
       const rangoDr = sel('der').length ? rangoDe(filas.flatMap(f => sel('der').map(([tag]) => f.v[tag])), grupo.minimoDer || 1) : null;
       const tMin = filas[0].t, tMax = filas[filas.length - 1].t;
       c.font = '11px system-ui,sans-serif'; c.lineWidth = 1;
@@ -148,6 +172,7 @@
       }
       if (rangoIz.minimo < 0 && rangoIz.maximo > 0) { const y = y0 + alto * rangoIz.maximo / (rangoIz.maximo - rangoIz.minimo); c.strokeStyle = tenue; c.setLineDash([4, 3]); c.beginPath(); c.moveTo(izq, y); c.lineTo(izq + ancho, y); c.stroke(); c.setLineDash([]); }
       c.fillStyle = tenue; c.textAlign = 'left'; c.fillText(rotuloFila(filas[0]), izq, h - 6); c.textAlign = 'right'; c.fillText(rotuloFila(filas[filas.length - 1]), izq + ancho, h - 6);
+      ejeTiempo(c, filas, izq, ancho, y0, y0 + alto, h - 6, borde, tenue);
       for (const [tag, col, , lado] of grupo.series) {
         const rg = (lado || 'izq') === 'der' ? rangoDr : rangoIz;
         c.strokeStyle = col; c.lineWidth = 2; c.beginPath(); let abierto = false;
@@ -172,12 +197,14 @@
           c.fillStyle = col[v] || col[0]; c.globalAlpha = v === 0 ? 0.35 : 1; c.fillRect(x1, y0 + 3, Math.max(x2 - x1, 1.5), fila - 7); c.globalAlpha = 1;
         }
       });
+      ejeTiempo(c, filas, padIzq, ancho, 3, 3 + alto - 0, h - 4, borde, tenue);
       c.textBaseline = 'alphabetic'; c.fillStyle = tenue; c.textAlign = 'left'; c.fillText(rotuloFila(filas[0]), padIzq, h - 4); c.textAlign = 'right'; c.fillText(rotuloFila(filas[filas.length - 1]), padIzq + ancho, h - 4);
     }
     function dibujarIV(lienzo) {
       const { c, w, h, borde, tenue, s } = preparar(lienzo), dat = contexto.curvaIV ? contexto.curvaIV(cadena) : null;
       const salida = contenedor.querySelector('.graf-iv-datos');
       if (!dat || !dat.curva || dat.curva.length < 2) { c.fillStyle = tenue; c.font = '13px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('Sin curva (cadena sin datos)', w / 2, h / 2); salida.textContent = ''; return; }
+      if (resumenCurva(dat.curva).pMax < 5) { c.fillStyle = tenue; c.font = '13px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText(dat.cadena && dat.cadena.abierta ? 'Cadena abierta: sin corriente, la curva I-V se queda en cero' : 'Sin luz suficiente: la cadena no produce y la curva se queda en cero', w / 2, h / 2); salida.textContent = ''; return; }
       const R = resumenCurva(dat.curva), izq = 52, der = 56, ancho = w - izq - der, alto = h - 20 - 26, y0 = 12;
       const vMax = Math.max(R.vMax, 1) * 1.04, iMax = Math.max(R.iMax, 0.5) * 1.15, pMax = Math.max(R.pMax, 10) * 1.15;
       const X = v => izq + v / vMax * ancho, YI = i => y0 + alto - i / iMax * alto, YP = p => y0 + alto - p / pMax * alto;
@@ -189,11 +216,16 @@
       }
       const trazo = (col, fx, fy, disc) => { c.strokeStyle = col; c.lineWidth = 2.2; c.setLineDash(disc ? [6, 3] : []); c.beginPath(); R.puntos.forEach((q, k) => { const px = fx(q), py = fy(q); if (k) c.lineTo(px, py); else c.moveTo(px, py); }); c.stroke(); c.setLineDash([]); };
       trazo(C.B, q => X(q.v), q => YI(q.i)); trazo(C.A, q => X(q.v), q => YP(Number.isFinite(q.p) ? q.p : q.v * q.i), true);
-      const mpp = dat.mpp || R.mpp;
-      c.strokeStyle = '#e5484d'; c.lineWidth = 2.5; c.beginPath(); c.arc(X(mpp.v), YP(mpp.p), 7, 0, 2 * Math.PI); c.stroke();
-      if (dat.trabajo && Number.isFinite(dat.trabajo.v)) { c.fillStyle = '#2f9e6a'; c.beginPath(); c.arc(X(dat.trabajo.v), YI(dat.trabajo.i), 5.5, 0, 2 * Math.PI); c.fill(); }
-      const pico = maximosLocales(dat.curva);
-      salida.textContent = `Máxima potencia ${formatoPotencia(mpp.p)} a ${dec(mpp.v, 0)} V y ${dec(mpp.i, 1)} A${dat.trabajo ? ` · trabaja a ${dec(dat.trabajo.v, 0)} V y ${dec(dat.trabajo.i, 1)} A` : ''}${pico > 1 ? ` · ${pico} picos de potencia: sombra parcial` : ''}`;
+      const mpp = dat.mpp || R.mpp, tr = dat.trabajo && Number.isFinite(dat.trabajo.v) ? dat.trabajo : null;
+      c.strokeStyle = '#e5484d'; c.lineWidth = 2.5; c.beginPath(); c.arc(X(mpp.v), YP(mpp.p), 8, 0, 2 * Math.PI); c.stroke();
+      c.beginPath(); c.arc(X(mpp.v), YI(mpp.i), 8, 0, 2 * Math.PI); c.stroke();
+      if (tr) {
+        const pTr = Number.isFinite(tr.p) ? tr.p : tr.v * tr.i;
+        c.strokeStyle = '#2f9e6a'; c.lineWidth = 1.2; c.setLineDash([3, 3]); c.beginPath(); c.moveTo(X(tr.v), y0 + alto); c.lineTo(X(tr.v), Math.min(YP(pTr), YI(tr.i))); c.stroke(); c.setLineDash([]);
+        c.fillStyle = '#2f9e6a'; for (const yy of [YI(tr.i), YP(pTr)]) { c.beginPath(); c.arc(X(tr.v), yy, 5.5, 0, 2 * Math.PI); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
+      }
+      const pico = maximosLocales(dat.curva), fr = D && dat.cadena ? D.trabajoFrenteIdeal(dat.cadena, dat.curva) : null;
+      salida.textContent = `${fr ? fr.texto + ' ' : ''}Máximo ideal ${formatoPotencia(mpp.p)} a ${dec(mpp.v, 0)} V y ${dec(mpp.i, 1)} A${tr ? ` · punto de trabajo ${dec(tr.v, 0)} V y ${dec(tr.i, 1)} A` : ''}${pico > 1 ? ` · ${pico} picos de potencia: sombra parcial (el MPPT puede quedarse en el pico equivocado)` : ''}`;
       void s;
     }
     function redibujar() {
@@ -207,7 +239,7 @@
     return { redibujar, seleccionarCadena, cadena: () => cadena };
   }
 
-  const api = { GRUPOS, BASES_DE_TIEMPO, CADENAS, crearHistorial, valoresHistorial, rangoDe, puntosDeSerie, rotuloFila, resumenCurva, maximosLocales, crearGraficas };
+  const api = { GRUPOS, BASES_DE_TIEMPO, CADENAS, crearHistorial, valoresHistorial, rangoDe, puntosDeSerie, rotuloFila, marcasTiempo, resumenCurva, maximosLocales, crearGraficas };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') (window.PCT = window.PCT || {}).fvGrafica = api;
 })();

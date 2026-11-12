@@ -158,6 +158,17 @@
     return L;
   }
 
+  /** Parte un texto en `n` líneas de hasta `max` caracteres (por palabras); lo que no cabe se corta con «…» (el texto entero está en el diagnóstico y en la ficha). */
+  function partirTexto(texto, max = 30, n = 2) {
+    const lineas = [''], palabras = String(texto || '').split(/\s+/).filter(Boolean);
+    for (const p of palabras) {
+      const ult = lineas.length - 1;
+      if (!lineas[ult]) lineas[ult] = p; else if ((lineas[ult] + ' ' + p).length <= max) lineas[ult] += ' ' + p; else if (lineas.length < n) lineas.push(p); else { lineas[ult] = (lineas[ult] + ' …').slice(0, max); break; }
+    }
+    while (lineas.length < n) lineas.push('');
+    return lineas.map(l => (l.length > max ? l.slice(0, max - 1) + '…' : l));
+  }
+
   /** Líneas de la pantalla del EASun, del ZCS y de la batería, y textos de las cajas. { id: texto } */
   function textosEquipos(e) {
     const T = {};
@@ -168,14 +179,14 @@
     T['t-INV-101-l2'] = `BAT ${formatoTension(b.v)}  ${formatoPorcentaje(b.soc01)}`;
     T['t-INV-101-l3'] = `${i1.etapaCarga && i1.etapaCarga !== 'NINGUNA' ? i1.etapaCarga : 'sin carga'} · ${formatoTemperatura(i1.temperaturaC)}`;
     T['t-INV-101-modo'] = `modo ${nombreEstado(i1.modo).toLowerCase()}`;
-    T['t-INV-101-alarma'] = i1.alarma || '';
+    [T['t-INV-101-alarma'], T['t-INV-101-alarma2']] = partirTexto(i1.alarma);
     T['t-INV-201-estado'] = nombreEstado(i2.estado);
     const m = i2.mppt || [];
     T['t-INV-201-l1'] = m[0] ? `MPPT1 ${formatoTension(m[0].v, 0)}  ${formatoPotencia(m[0].p)}` : 'MPPT1 —';
     T['t-INV-201-l2'] = m[1] ? `MPPT2 ${formatoTension(m[1].v, 0)}  ${formatoPotencia(m[1].p)}` : 'MPPT2 —';
     T['t-INV-201-l3'] = i2.estado === 'ESPERA_RED' ? `conecta en ${Math.max(0, Math.ceil(numero(i2.segundosParaConexion)))} s` : `aislamiento ${dec(i2.aislamientoMohm, 1)} MΩ`;
     T['t-INV-201-l4'] = `${formatoPotencia(i2.acP)} · ${formatoTemperatura(i2.temperaturaC)}`;
-    T['t-INV-201-alarma'] = i2.alarma || '';
+    [T['t-INV-201-alarma'], T['t-INV-201-alarma2']] = partirTexto(i2.alarma);
     T['t-BAT-101-v'] = `${formatoTension(b.v)} · ${formatoPorcentaje(b.soc01)}`;
     T['t-BAT-101-i'] = `${conSigno(b.i, 1)} A · ${formatoTemperatura(b.temperaturaC)}`;
     T['t-BAT-101-bms'] = `BMS ${b.bms || '—'}`;
@@ -233,7 +244,7 @@
   function fusible(tag, x, y, lado = 'abajo') {
     return g(tag, ['rect', { class: 'forma', x: x - 16, y: y - 8, width: 32, height: 16, rx: 3 }], ['path', { class: 'fus-hilo', d: `M${x - 12} ${y} H${x + 12}` }],
       ['path', { class: 'fus-roto', d: `M${x - 12} ${y} H${x - 4} M${x + 4} ${y} H${x + 12} M${x - 3} ${y - 5} L${x + 3} ${y + 5}` }],
-      txt(x, lado === 'abajo' ? y + 24 : y - 14, tag, 'fv-tag fv-mini fv-fuerte'));
+      lado === 'izq' ? txt(x - 22, y + 4, tag, 'fv-tag fv-mini fv-fuerte', der) : txt(x, lado === 'abajo' ? y + 24 : y - 14, tag, 'fv-tag fv-mini fv-fuerte'));
   }
   /** Descargador de sobretensiones con testigo (verde sano, rojo agotado). */
   function descargador(tag, x, y) {
@@ -279,7 +290,7 @@
       ['rect', { class: 'pantalla', x: 780, y: 100, width: 160, height: 62, rx: 6 }],
       txt(788, 120, '—', 'fv-pantalla', Object.assign({ id: 't-INV-101-l1' }, izq)), txt(788, 138, '—', 'fv-pantalla', Object.assign({ id: 't-INV-101-l2' }, izq)), txt(788, 156, '—', 'fv-pantalla', Object.assign({ id: 't-INV-101-l3' }, izq)),
       led('led-INV-101-red', 800, 186, 'AC'), led('led-INV-101-bateria', 840, 186, 'BAT'), led('led-INV-101-fallo', 880, 186, 'FALLO'),
-      txt(860, 224, '—', 'fv-tag', { id: 't-INV-101-modo' }), txt(860, 244, '', 'fv-tag fv-alarma-txt', { id: 't-INV-101-alarma' }),
+      txt(860, 224, '—', 'fv-tag', { id: 't-INV-101-modo' }), txt(860, 242, '', 'fv-tag fv-alarma-txt', { id: 't-INV-101-alarma' }), txt(860, 255, '', 'fv-tag fv-alarma-txt', { id: 't-INV-101-alarma2' }),
       txt(860, 286, 'Hybrid Solar Inverter', 'fv-tag fv-mini fv-blanco')));
     add(g('COM-101', ['rect', { class: 'forma', x: 722, y: 262, width: 34, height: 18, rx: 3 }], txt(739, 275, 'COM', 'fv-tag fv-micro'), txt(739, 295, 'COM-101', 'fv-tag fv-micro')));
     add(txt(752, 156, 'PV', 'fv-tag fv-mini', der));
@@ -303,7 +314,7 @@
       txt(784, 589, '—', 'fv-pantalla', Object.assign({ id: 't-INV-201-l1' }, izq)), txt(784, 606, '—', 'fv-pantalla', Object.assign({ id: 't-INV-201-l2' }, izq)),
       txt(784, 623, '—', 'fv-pantalla', Object.assign({ id: 't-INV-201-l3' }, izq)), txt(784, 640, '—', 'fv-pantalla', Object.assign({ id: 't-INV-201-l4' }, izq)),
       led('led-INV-201-onGrid', 796, 668, 'On-Grid'), led('led-INV-201-offGrid', 860, 668, 'Off-Grid'), led('led-INV-201-alarma', 924, 668, 'Alarm'),
-      txt(860, 706, '', 'fv-tag fv-alarma-txt', { id: 't-INV-201-alarma' })));
+      txt(860, 697, '', 'fv-tag fv-alarma-txt', { id: 't-INV-201-alarma' }), txt(860, 710, '', 'fv-tag fv-alarma-txt', { id: 't-INV-201-alarma2' })));
     add(txt(752, 552, 'MPPT1', 'fv-tag fv-mini', der), txt(752, 677, 'MPPT2', 'fv-tag fv-mini', der));
     add(cable('ZCS', 'M960 600 H1270'));
     add(g('MED-201', ['rect', { class: 'forma', x: 988, y: 582, width: 44, height: 36, rx: 4 }], txt(1010, 597, 'kWh', 'fv-tag fv-micro'), txt(1010, 611, '—', 'fv-valor fv-micro', { id: 't-MED-201' }), txt(1010, 636, 'MED-201', 'fv-tag fv-mini fv-fuerte')));
@@ -427,7 +438,7 @@
   }
 
   const api = { ESQUEMA_FV, VIEWBOX, TRAMOS, TIPOS, PROTECCIONES, FUSIBLES, DESCARGADORES, construirEsquema, tagsDelEsquema, idsDelEsquema, estadoVisual, estadoEquipo, etiquetaAria,
-    repartoFlujos, grosorFlujo, cicloFlujo, lecturasBurbujas, textosEquipos, ledsInversores, alarmaDeTag, cadenaDe, panelDe, crearObjetos };
+    repartoFlujos, grosorFlujo, cicloFlujo, lecturasBurbujas, textosEquipos, partirTexto, ledsInversores, alarmaDeTag, cadenaDe, panelDe, crearObjetos };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') (window.PCT = window.PCT || {}).fvEsquema = api;
 })();

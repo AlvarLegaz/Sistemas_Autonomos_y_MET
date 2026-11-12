@@ -108,6 +108,8 @@
       poner($('r-inv101'), i1 === 'APAGADO' ? 'Encender EASun' : 'Apagar EASun'); poner($('r-inv201'), i2 === 'APAGADO' ? 'Encender ZCS' : 'Apagar ZCS');
       if (!enfocado($('r-modo')) && $('r-modo').value !== (e.inversores['INV-101'] || {}).modo && (e.inversores['INV-101'] || {}).modo) $('r-modo').value = e.inversores['INV-101'].modo;
       poner($('r-red'), e.red.disponible === false ? 'Reponer la red' : 'Cortar la red');
+      if (!enfocado($('r-vred')) && e.red && e.red.disponible !== false && Number.isFinite(e.red.v)) { const v = Math.round(e.red.v); if ($('r-vred').value !== String(v)) $('r-vred').value = String(v); poner($('o-r-vred'), `${v} V`); }
+      for (const [id, tag] of [['r-l301', 'LOAD-301'], ['r-l302', 'LOAD-302']]) if (!enfocado($(`${id}-auto`)) && e.cargas[tag] && typeof e.cargas[tag].manual === 'boolean') $(`${id}-auto`).checked = !e.cargas[tag].manual;
       for (const [id, tag] of [['r-l301', 'LOAD-301'], ['r-l302', 'LOAD-302']]) if ($(`${id}-auto`).checked && !enfocado($(id))) { const w = Math.round((e.cargas[tag].w || 0) / 50) * 50; $(id).value = String(w); poner($(`o-${id}`), `${Math.round(e.cargas[tag].w || 0)} W`); }
       if (!enfocado($('r-sucA'))) { const v = Math.round(e.ambiente.suciedad.A * 100); $('r-sucA').value = String(v); poner($('o-r-sucA'), `${v} %`); }
       if (!enfocado($('r-sucB'))) { const v = Math.round(e.ambiente.suciedad.B * 100); $('r-sucB').value = String(v); poner($('o-r-sucB'), `${v} %`); }
@@ -116,7 +118,13 @@
       const activas = new Set(e.averiasActivas || []);
       contenedor.querySelectorAll('[data-averia]').forEach(c => { if (c.checked !== activas.has(c.dataset.averia)) c.checked = activas.has(c.dataset.averia); });
     }
-    return { actualizar };
+    /** Deja los controles como el modelo recién puesto en Normal o restablecido: cargas y temperatura en automático y tensión de red nominal. */
+    function restablecer() {
+      for (const id of ['r-l301', 'r-l302', 'r-tamb']) $(`${id}-auto`).checked = true;
+      $('r-vred').value = '230'; poner($('o-r-vred'), '230 V');
+      contenedor.querySelectorAll('[data-averia]').forEach(c => { c.checked = false; });
+    }
+    return { actualizar, restablecer };
   }
 
   const api = { PROTECCIONES, FUSIBLES, DESCARGADORES, MODOS_EASUN, textoBotonProteccion, crearPanelMando };

@@ -7,7 +7,7 @@
     unifilar: { nombre: 'Unifilar', modulo: 'fvDiagramaUnifilar', otra: ['cableado', 'Cableado'] },
     cableado: { nombre: 'Cableado', modulo: 'fvDiagramaCableado', otra: ['unifilar', 'Unifilar'] },
   };
-  const SCRIPTS = ['/simulador/js/utilidades/modulos.js', '/simulador/js/interfaz/scada/canvas.js', 'js/layout.js', 'js/scada2d/diagrama_unifilar.js', 'js/scada2d/diagrama_cableado.js', 'js/interfaz/textos_ayuda.js'];
+  const SCRIPTS = ['/simulador/js/utilidades/modulos.js', '/simulador/js/interfaz/scada/canvas.js', '/simulador/js/interfaz/pulsacion_larga.js', 'js/interfaz/toque_largo_fv.js', 'js/layout.js', 'js/scada2d/diagrama_unifilar.js', 'js/scada2d/diagrama_cableado.js', 'js/interfaz/textos_ayuda.js'];
 
   function cargarScript(ruta) {
     return new Promise(resolver => { const s = document.createElement('script'); s.src = ruta; s.async = false; s.onload = () => resolver(true); s.onerror = () => resolver(false); document.head.appendChild(s); });
@@ -120,6 +120,7 @@
     const abrirFicha = e => { const tag = tagDelElemento(e.target, e.currentTarget); if (tag && PCT.fvTextos.fichaDe(tag)) { e.preventDefault(); ficha.abrir(tag, e.target.closest ? e.target.closest('g[data-tag]') : null); } };
     for (const svg of svgs) {
       svg.addEventListener('contextmenu', abrirFicha);
+      PCT.fvToqueLargo.activar(svg, { existe: tag => !!PCT.fvTextos.fichaDe(tag), abrir: (tag, g) => ficha.abrir(tag, g) });      // iPad: mantener pulsado 3 s = clic derecho
       svg.addEventListener('click', e => { const tag = tagDelElemento(e.target, svg), o = conOrigen(); if (!tag) return; if (o) o.PCT.fvApp.accionarEquipo(tag); else abrirFicha(e); });
       svg.addEventListener('keydown', e => {
         if (e.key !== 'Enter' && e.key !== ' ') return;

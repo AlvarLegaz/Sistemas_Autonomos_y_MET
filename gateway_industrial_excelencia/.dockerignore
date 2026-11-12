@@ -10,5 +10,8 @@ simulador_pct23/tests
 simulador_planta_real/tests
 simulador_planta_real/js/visor3d_htst/banco_pruebas.html
 simulador_planta_real/servir_local.py
+!simulador_fotovoltaica
+simulador_fotovoltaica/tests
+simulador_fotovoltaica/servir_local.py
 **/__pycache__
 **/*.pyc
