@@ -13,7 +13,7 @@
   const TAGS = ['TT-101', 'TT-102', 'TT-103', 'TT-104', 'TT-201', 'TT-106', 'TSH-201', 'FT-101', 'PT-101', 'PT-102', 'LT-101', 'LSH-101', 'LSL-101', 'LSL-201', 'LSH-201', 'ZS-101', 'ZS-102', 'PSL-501'];
 
   // Depósitos donde van atornillados los instrumentos de nivel y temperatura (cm, coordenadas del patín): centro en planta y radio de la pared.
-  const TK = { cx: -135, cz: -35, r: 33 };         // tanque de balance TK-101
+  const TK = { cx: -127, cz: -35, r: 33 };         // tanque de balance TK-101
   const HW = { cx: 20, cz: 45, r: 17 };            // depósito de agua caliente HW-201
   // El visor del tanque va de y = 24 (0 %) a y = 76 (100 %) y el del calentador de y = 11,8 a y = 64,2: así cada interruptor queda a la altura de su nivel.
   const nivelTanque = pct => 24 + 52 * pct / 100;
@@ -36,7 +36,8 @@
   const MONTAJE_FIJO = {
     'TT-102': [-12, 72, -10],                      // en la parte alta del intercambiador, entre los paquetes de regeneración y calentamiento
     'FT-101': [-68, 25, 35],                       // en línea entre la bomba P-101 y la entrada del intercambiador
-    'ZS-101': [127, 26, -5], 'ZS-102': [111, 26, -5], 'PSL-501': [135, 18, 10],       // los finales de carrera, en el yugo de la FDV
+    // los finales de carrera, en las caras exteriores del yugo de la FDV (que está en x = 118 ± 4,35): a 5 cm hacia +z del eje de la válvula, fuera de los montantes de avance y desvío (x = 128 y 108, z = -5)
+    'ZS-101': [127, 23, 0.5], 'ZS-102': [109, 23, 0.5], 'PSL-501': [135, 18, 10],
   };
   /** Posición de montaje de un instrumento (función pura, sin THREE). */
   function montaje(tag) {
@@ -214,13 +215,13 @@
       e.add(kit.caja(10.0, 0.5, 6.8), 'inoxMate', [0, 13.8, 0]);                                     // visera
       e.add(kit.caja(8.2, 5.6, 0.5), 'oscuro', [0, 10.3, 3.4]);                                      // tapa con ventana
       for (const dx of [-1.6, 0, 1.6]) e.add(kit.caja(0.9, 0.9, 0.25), 'grisOscuro', [dx, 9.3, 3.75]);   // teclas táctiles
-      cilindro(e, [-5.1, 10.1, 0], X, 1.0, 0.6, 'laton', 8);
-      const salida = prensa(e, [4.8, 10.1, 0], X);
+      for (const sx of [-5.1, 5.1]) cilindro(e, [sx, 10.1, 0], X, 1.0, 0.6, 'laton', 8);               // tapones laterales
+      const salida = prensa(e, [0, 10.1, -3.2], [0, 0, -1]);                                         // el cable sale por detrás: a los lados están los montantes de entrada y salida del tubo
       e.construir(c, tag);
       const pantalla = kit.matLed(0x2d6b3a); kit.malla(kit.caja(5.8, 2.6, 0.3), pantalla, c, tag, [0, 11.6, 3.7]);
       placa(tag, c, [0, 8.0, 3.72], [0, 0, 0], 4.2, 1.0);
       const led = ledEn(tag, c, [3.5, 11.6, 3.75], 0.4);
-      cable(tag, c, salida, X, [0, -1, 0], 14);
+      cable(tag, c, salida, [0, 0, -1], [0, -1, 0], 14);
       enlazarLed(tag, led);
       let ultimoP = -1;
       base.alActualizar(estado => {
@@ -393,7 +394,7 @@
       for (const sy of [-1, 1]) cilindro(e, [-1.3, sy * 1.8 - 0.2, 1.9], Z, 0.3, 0.3, 'inoxMate', 6);
       cilindro(e, [0, -3.8, 0], Y, 0.9, 1.6, 'laton', 10);                                           // entrada de cable
       e.add(kit.caja(6.4, 0.5, 4.0), 'inoxMate', [hacia * 1.2, -3.35, 0]);                           // ménsula
-      e.add(kit.caja(0.5, 9.0, 4.0), 'inoxMate', [hacia * 4.2, 0.2, 0]);                             // escuadra al yugo de la válvula
+      e.add(kit.caja(0.5, 9.0, 6.0), 'inoxMate', [hacia * 4.2, 0.2, -1.0]);                            // escuadra al yugo de la válvula (a ras de su cara; llega hasta la placa del yugo, 4 cm hacia -z)
       e.construir(c, tag);
       const palanca = new THREE.Group(); palanca.position.set(0, 5.7, 0); c.add(palanca);
       kit.malla(kit.caja(4.6, 0.5, 0.7), kit.mat('inoxMate'), palanca, tag, [hacia * 2.3, 0, 0]);

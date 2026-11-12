@@ -12,6 +12,7 @@
 
   const p = (tag, nombre) => P.puerto(tag, nombre);
   const SALIDA = P.puerto('SALIDA_PRODUCTO', 'ent'), SUMINISTRO = P.puerto('SUMINISTRO_FRIO', 'sal'), DESAGUE = P.puerto('DESAGUE', 'ent');
+  const CIP_EMPALME = [p('HX-101', 'raw_in')[0], 90, 32];     // punto del tubo LECHE_CRUDA_4 (y = 90, tramo en z hacia raw_in) donde entra el CIP en te
   const SUMINISTRO_LECHE = P.puerto('SUMINISTRO_LECHE', 'sal'), DESAGUE_LECHE = P.puerto('DESAGUE_LECHE', 'ent'), DESAGUE_AGUA = P.puerto('DESAGUE_AGUA', 'ent');
 
   /**
@@ -67,20 +68,20 @@
     { id: 'LECHE_CRUDA_2', ayuda: 'FLT-101', fluido: 'leche', de: p('FLT-101', 'sal'), a: p('P-101', 'ent'), carril: 36 },
     { id: 'LECHE_CRUDA_3', ayuda: 'P-101', fluido: 'leche', de: p('P-101', 'sal'), a: p('FT-101', 'ent'), carril: 44 },
     { id: 'LECHE_CRUDA_4', ayuda: 'FT-101', fluido: 'leche', de: p('FT-101', 'sal'), a: p('HX-101', 'raw_in'), carril: 90, anclas: 'PT-101' },
-    { id: 'LECHE_CALIENTE', ayuda: 'HX-101', fluido: 'leche', de: p('HX-101', 'cal_out'), a: p('HT-101', 'ent'), carril: 92 },
+    { id: 'LECHE_CALIENTE', ayuda: 'HX-101', fluido: 'leche', de: p('HX-101', 'cal_out'), a: p('HT-101', 'ent'), carril: 104 },
     { id: 'LECHE_TRAS_TUBO', ayuda: 'HT-101', fluido: 'leche', de: p('HT-101', 'sal'), a: p('FDV-101', 'com'), carril: 60, anclas: 'TT-103' },
-    { id: 'LECHE_AVANCE', ayuda: 'FDV-101', fluido: 'leche', de: p('FDV-101', 'avance'), a: p('HX-101', 'past_in'), carril: 100, anclas: 'PT-102' },
+    { id: 'LECHE_AVANCE', ayuda: 'FDV-101', fluido: 'leche', de: p('FDV-101', 'avance'), a: p('HX-101', 'past_in'), carril: 108, anclas: 'PT-102' },
     // puente exterior entre las placas intermedias: leche pasteurizada de la regeneración al enfriamiento (lleva TT-106)
     { id: 'LECHE_REG_ENF', ayuda: 'HX-101', fluido: 'leche', de: p('HX-101', 'reg_out'), a: p('HX-101', 'enf_in'), carril: 86, anclas: 'TT-106' },
     { id: 'LECHE_SALIDA', ayuda: 'HX-101', fluido: 'leche', de: p('HX-101', 'fin_out'), a: SALIDA, carril: 96, anclas: 'TT-104' },
-    { id: 'LECHE_DESVIO', ayuda: 'FDV-101', fluido: 'leche', de: p('FDV-101', 'desvio'), a: p('TK-101', 'ret'), carril: 106 },
+    { id: 'LECHE_DESVIO', ayuda: 'FDV-101', fluido: 'leche', de: p('FDV-101', 'desvio'), a: p('TK-101', 'ret'), carril: 100 },
     { id: 'AGUA_CALIENTE_1', ayuda: 'HW-201', fluido: 'agua_caliente', de: p('HW-201', 'sal'), a: p('P-201', 'ent'), carril: 30 },
-    { id: 'AGUA_CALIENTE_2', ayuda: 'P-201', fluido: 'agua_caliente', de: p('P-201', 'sal'), a: p('HX-101', 'hot_in'), carril: 70, anclas: 'TT-201' },
+    { id: 'AGUA_CALIENTE_2', ayuda: 'P-201', fluido: 'agua_caliente', de: p('P-201', 'sal'), a: p('HX-101', 'hot_in'), carril: 84, anclas: 'TT-201' },
     { id: 'AGUA_CALIENTE_RETORNO', ayuda: 'HX-101', fluido: 'agua_caliente', de: p('HX-101', 'hot_out'), a: p('HW-201', 'ent'), carril: 76 },
     { id: 'AGUA_FRIA_1', ayuda: 'XV-301', fluido: 'agua_fria', de: SUMINISTRO, a: p('XV-301', 'ent'), carril: 10 },
     { id: 'AGUA_FRIA_2', ayuda: 'XV-301', fluido: 'agua_fria', de: p('XV-301', 'sal'), a: p('HX-101', 'cold_in'), carril: 82 },
     { id: 'AGUA_FRIA_DESAGUE', ayuda: 'HX-101', fluido: 'agua_fria', de: p('HX-101', 'cold_out'), a: DESAGUE, carril: 86, pendiente: 0.04 },
-    { id: 'CIP', ayuda: 'XV-401', fluido: 'cip', de: p('XV-401', 'sal'), a: p('HX-101', 'raw_in'), carril: 88 },
+    { id: 'CIP', ayuda: 'XV-401', fluido: 'cip', de: p('XV-401', 'sal'), a: CIP_EMPALME, carril: 100 },       // el CIP se une a la leche cruda en una te sobre su tramo en z (y = 90), no en la boca raw_in: dos tubos no pueden compartir recorrido
     // Llenado y vaciado (modo manual y reposición automática): cada pareja de tubos lleva fluido cuando su válvula está abierta.
     { id: 'LECHE_LLENADO_1', ayuda: 'XV-101', fluido: 'leche', de: SUMINISTRO_LECHE, a: p('XV-101', 'ent'), carril: 10 },
     { id: 'LECHE_LLENADO_2', ayuda: 'XV-101', fluido: 'leche', de: p('XV-101', 'sal'), a: p('TK-101', 'llen'), carril: 62 },

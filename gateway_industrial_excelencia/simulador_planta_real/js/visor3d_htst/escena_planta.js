@@ -7,10 +7,27 @@
   const modulos = () => (typeof require !== 'undefined'
     ? [require('./equipos_proceso.js'), require('./tuberias.js'), require('./instrumentos.js'), require('./armario.js')]
     : [PCT.htstEquiposProceso, PCT.htstTuberias, PCT.htstInstrumentos3d, PCT.htstArmario]);
+  const ENTORNO = typeof require !== 'undefined' ? require('./entorno_planta.js') : PCT.htstEntorno;       // puede faltar en el navegador: la escena sale igual, sin el entorno
   const INTERIORES = typeof require !== 'undefined' ? require('./interiores.js') : PCT.htstInteriores;
   const TUB = typeof require !== 'undefined' ? require('./tuberias.js') : PCT.htstTuberias;
   const INS = typeof require !== 'undefined' ? require('./instrumentos.js') : PCT.htstInstrumentos3d;
   const { SKID } = layout;
+  const KIT = typeof require !== 'undefined' ? require('./kit.js') : PCT.htstKit;
+
+  /* ---------- Luz de la nave y calidad gráfica (funciones puras: se prueban sin THREE) ----------
+   * 'alta': hemisférica + sol suave con sombras + tres luminarias de techo + contraluz frío, con tone mapping neutro; 'baja': las tres luces de siempre del visor
+   * (hemisférica, sol y contraluz), sin sombras ni tone mapping, con los materiales Lambert. Las intensidades están en las unidades de three r169 (cm en la escena). */
+  const LUCES = {
+    alta: { hemi: { cielo: 0xe4ecf5, suelo: 0x59616a, intensidad: 0.62 }, sol: { color: 0xfff2e2, intensidad: 2.0, pos: [190, 420, 260], sombras: true },
+      contra: { color: 0x9db9e6, intensidad: 0.45, pos: [-260, 160, -200] },
+      luminarias: { color: 0xfff6ea, intensidad: 52000, distancia: 760, decaimiento: 2, altura: 330, x: [-170, 40, 250], z: [-10, 10, 10] },
+      render: { toneMapping: 'neutral', exposicion: 1.0, sombras: true } },
+    baja: { hemi: { cielo: 0xdde8f5, suelo: 0x1b2330, intensidad: 1.15 }, sol: { color: 0xffffff, intensidad: 1.6, pos: [30, 55, 40], sombras: false },
+      contra: { color: 0x8fb4ff, intensidad: 0.7, pos: [-40, 20, -30] }, luminarias: null,
+      render: { toneMapping: 'ninguno', exposicion: 1.0, sombras: false } },
+  };
+  /** Preset de luz y de renderizado de un nivel de calidad (cualquier valor desconocido da 'baja'). */
+  const lucesDeCalidad = calidad => LUCES[calidad === 'alta' ? 'alta' : 'baja'];
 
   /* ---------- Nave: canaleta de desagüe delante del patín y pasillo marcado (cm; el suelo de la nave está en y = -SKID.alto) ---------- */
   const NAVE = { ancho: 900, fondo: 800, zPared: -400, altoPared: 360, canaleta: { z: SKID.fondo / 2 + 32, ancho: 22, largo: SKID.ancho + 40 } };
@@ -103,15 +120,35 @@
     return elegidos.sort((p, q) => p.x - q.x);
   }
 
-  function crearEscena(THREE) {
+  /** `opciones` (la pasa el visor): { calidad: 'alta' | 'baja' (forzada), porSoftware: bool }. Sin DOM (pruebas) siempre sale 'baja'. */
+  function crearEscena(THREE, clave, opciones = {}) {
     const raiz = new THREE.Group();
     const recursos = [];
     const guardar = r => { recursos.push(r); return r; };
-    const mat = (color, opciones = {}) => guardar(new THREE.MeshLambertMaterial(Object.assign({ color }, opciones)));
+    // Calidad y estilo de materiales: se fijan antes de crear los módulos para que sus kits (que no cambian de firma) pidan PBR o Lambert.
+    let calidad = typeof document === 'undefined' ? 'baja' : KIT.elegirCalidad({ forzada: opciones.calidad, porSoftware: opciones.porSoftware });
+    const envMap = calidad === 'alta' ? guardar(KIT.crearEntorno(THREE)) : null;
+    KIT.fijarEstilo({ calidad, envMap });
+    const mat = (color, opc = {}) => {
+      const { clase, props } = KIT.especificacionMaterial(color, opc, calidad);
+      if (clase === 'MeshStandardMaterial' && envMap && props.envMap === undefined) props.envMap = envMap;
+      return guardar(new THREE[clase](props));
+    };
+    // Texturas procedurales de la nave (solo en calidad alta): ruido de canvas enlosable, sin imágenes externas.
+    const texturaRuido = (parametros, repetirX, repetirY, color) => {
+      const t = guardar(new THREE.CanvasTexture(KIT.lienzoRuido(parametros)));
+      t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repetirX, repetirY); if (color) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+      return t;
+    };
     const caja = (w, h, d, material, x, y, z) => { const m = new THREE.Mesh(guardar(new THREE.BoxGeometry(w, h, d)), material); m.position.set(x, y, z); raiz.add(m); return m; };
 
     // Patín de acero inoxidable (cubierta con borde de bandeja de recogida, vigas y patas) y suelo de la sala.
-    const matPatin = mat(0x8c969f), matViga = mat(0x6d767f), matSuelo = mat(0x4a545b);
+    const matPatin = mat(0x8c969f, { metalness: 0.85, roughness: 0.36 }), matViga = mat(0x6d767f, { metalness: 0.6, roughness: 0.5 });
+    // Suelo de resina epoxi: brillo medio con rugosidad y color moteados y algún arañazo (texturas de canvas enlosables, 150 cm por baldosa de ruido).
+    const matSuelo = calidad === 'alta'
+      ? mat(0xffffff, { map: texturaRuido({ n: 256, base: '#4a545b', manchas: 150, contraste: 18, rayas: 70, semilla: 11 }, NAVE.ancho / 150, NAVE.fondo / 150, true),
+        roughnessMap: texturaRuido({ n: 128, base: '#707070', manchas: 90, contraste: 46, semilla: 23 }, NAVE.ancho / 150, NAVE.fondo / 150, false), roughness: 1, metalness: 0.0, envMapIntensity: 1.0 })
+      : mat(0x4a545b);
     caja(SKID.ancho, 2, SKID.fondo, matPatin, 0, -1, 0);
     for (const sz of [-1, 1]) caja(SKID.ancho, 3, 2, matPatin, 0, 1.5, sz * (SKID.fondo / 2 - 1));            // borde de la bandeja
     for (const sx of [-1, 1]) caja(2, 3, SKID.fondo, matPatin, sx * (SKID.ancho / 2 - 1), 1.5, 0);
@@ -122,7 +159,16 @@
     const Y0 = -SKID.alto, sinRayo = m => { m.raycast = () => {}; return m; };
     const plano = (w, d, material, x, y, z) => { const m = sinRayo(new THREE.Mesh(guardar(new THREE.PlaneGeometry(w, d)), material)); m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); raiz.add(m); return m; };
     plano(NAVE.ancho, NAVE.fondo, matSuelo, 0, Y0, NAVE.zPared + NAVE.fondo / 2);
-    const matPared = mat(0xc9cfd3), matJunta = mat(0xa9b0b5), matZocalo = mat(0x6f7b84);
+    // Pared de panel sándwich: chapa lacada con nervios finos verticales y una junta cada 110 cm (la textura es UN panel; se repite a lo ancho de la nave).
+    let matPared;
+    if (calidad === 'alta') {
+      const lp = KIT.lienzoRuido({ n: 256, base: '#c9cfd3', manchas: 40, contraste: 7, semilla: 5 }), g = lp.getContext('2d');
+      for (let x = 8; x < 256; x += 16) { g.fillStyle = 'rgba(0,0,0,0.09)'; g.fillRect(x, 0, 2, 256); g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(x + 2, 0, 1, 256); }
+      g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(0, 0, 3, 256);
+      const tp = guardar(new THREE.CanvasTexture(lp)); tp.wrapS = tp.wrapT = THREE.RepeatWrapping; tp.repeat.set(NAVE.ancho / 110, 1); tp.colorSpace = THREE.SRGBColorSpace; tp.anisotropy = 4;
+      matPared = mat(0xffffff, { map: tp, metalness: 0.1, roughness: 0.5, envMapIntensity: 0.7 });
+    } else matPared = mat(0xc9cfd3);
+    const matJunta = mat(0xa9b0b5, { metalness: 0.2, roughness: 0.55 }), matZocalo = mat(0x6f7b84, { metalness: 0.7, roughness: 0.4 });
     sinRayo(caja(NAVE.ancho, NAVE.altoPared, 4, matPared, 0, Y0 + NAVE.altoPared / 2, NAVE.zPared - 2));
     for (let x = -NAVE.ancho / 2 + 110; x < NAVE.ancho / 2; x += 110) sinRayo(caja(1.2, NAVE.altoPared, 0.6, matJunta, x, Y0 + NAVE.altoPared / 2, NAVE.zPared + 0.4));   // juntas de los paneles
     sinRayo(caja(NAVE.ancho, 30, 3, matZocalo, 0, Y0 + 15, NAVE.zPared + 1.5));                                                                    // zócalo sanitario
@@ -204,10 +250,10 @@
       c.fillStyle = '#15191c'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '700 44px system-ui, sans-serif'; c.fillText(texto, 128, 38);
       c.font = '600 20px system-ui, sans-serif'; c.fillText(nombre, 128, 74);
       const tx = guardar(new THREE.CanvasTexture(lz)); tx.colorSpace = THREE.SRGBColorSpace;
-      const m = sinRayo(new THREE.Mesh(guardar(new THREE.PlaneGeometry(16, 6)), guardar(new THREE.MeshLambertMaterial({ map: tx }))));
+      const m = sinRayo(new THREE.Mesh(guardar(new THREE.PlaneGeometry(16, 6)), mat(0xffffff, { map: tx, metalness: 0.55, roughness: 0.38 })));
       m.position.set(x, y, z); m.rotation.y = giroY || 0; raiz.add(m);
     }
-    placa('TK-101', 'TANQUE DE BALANCE', -135, 52, -1.6, 0);
+    placa('TK-101', 'TANQUE DE BALANCE', -127, 52, -1.6, 0);
     placa('HX-101', 'INTERCAMBIADOR', -49.7, 56, -35, -Math.PI / 2);      // en la cara exterior de la placa fija del bastidor
     placa('HW-201', 'AGUA CALIENTE', 20 + 17.3 * Math.sin(0.75), 48, 45 + 17.3 * Math.cos(0.75), 0.75);
     // zócalo bajo el armario (queda fuera del patín)
@@ -225,6 +271,8 @@
     rotulo.position.set(-90, 0.05, SKID.fondo / 2 - 8); rotulo.rotation.x = -Math.PI / 2; rotulo.raycast = () => {}; raiz.add(rotulo);
 
     const partes = modulos().map(m => m.crear(THREE));
+    // Entorno (bandeja de cables, depósito de CIP, servicios de la nave…): se construye el último porque mide los equipos ya hechos para no chocar con ellos
+    if (ENTORNO) partes.push(ENTORNO.crear(THREE, { partes: partes.slice(), porticos: porticosTuberia().map(p => p.x) }));
     const elementos = {};
     for (const parte of partes) { raiz.add(parte.grupo); Object.assign(elementos, parte.elementos); }
     raiz.updateMatrixWorld(true);
@@ -239,10 +287,56 @@
       interiores.actualizar(estado, dt);
     }
 
+    // Luces de la nave (fuera de `raiz`: aislar() oculta hermanos dentro de ella y no debe apagar la luz). El visor las añade a su escena (iluminacionPropia).
+    const luces = new THREE.Group(), preset = lucesDeCalidad(calidad);
+    const hemi = new THREE.HemisphereLight(preset.hemi.cielo, preset.hemi.suelo, preset.hemi.intensidad);
+    const sol = new THREE.DirectionalLight(preset.sol.color, preset.sol.intensidad); sol.position.set(...preset.sol.pos); sol.target.position.set(35, 0, 0);
+    const contra = new THREE.DirectionalLight(preset.contra.color, preset.contra.intensidad); contra.position.set(...preset.contra.pos);
+    luces.add(hemi, sol, sol.target, contra);
+    if (preset.sol.sombras) {                                                  // sombras suaves de la luz principal: un mapa de 2048 que abarca toda la planta (≈ 3 mm por texel)
+      sol.castShadow = true; sol.shadow.mapSize.set(2048, 2048); sol.shadow.bias = -0.0004; sol.shadow.normalBias = 0.5; sol.shadow.radius = 3;
+      Object.assign(sol.shadow.camera, { left: -290, right: 290, top: 240, bottom: -240, near: 60, far: 1100 }); sol.shadow.camera.updateProjectionMatrix();
+    }
+    const luminarias = [];                                                     // luminarias de techo: tres puntos de luz sobre el pasillo, que dan el relleno y el brillo en el inox
+    if (preset.luminarias) {
+      const L = preset.luminarias;
+      L.x.forEach((x, i) => { const p = new THREE.PointLight(L.color, L.intensidad, L.distancia, L.decaimiento); p.position.set(x, Y0 + L.altura, L.z[i]); luces.add(p); luminarias.push(p); });
+    }
+    // Sombras: lo opaco las proyecta (menos suelos planos) y casi todo las recibe; lo translúcido (vidrios, líquidos) y los materiales básicos (LED, rótulos) no las proyectan.
+    function marcarSombras(grupo) {
+      grupo.traverse(o => {
+        if (!(o.isMesh || o.isInstancedMesh) || !o.material) return;
+        const m = o.material, basico = !!m.isMeshBasicMaterial;
+        o.receiveShadow = !basico; o.castShadow = !basico && !m.transparent && !(o.geometry && o.geometry.type === 'PlaneGeometry');
+      });
+    }
+    if (calidad === 'alta') marcarSombras(raiz);
+    /** Baja la calidad en caliente (modo lento del visor): luces sencillas, sin sombras, y los materiales PBR pierden entorno, metal y brillo (quedan como Lambert). Solo baja, no sube. */
+    function ponerCalidad(nuevo) {
+      if (nuevo !== 'baja' || calidad === 'baja') return calidad;
+      calidad = 'baja';
+      const p = lucesDeCalidad('baja');
+      hemi.color.setHex(p.hemi.cielo); hemi.groundColor.setHex(p.hemi.suelo); hemi.intensity = p.hemi.intensidad;
+      sol.color.setHex(p.sol.color); sol.intensity = p.sol.intensidad; sol.position.set(...p.sol.pos); sol.castShadow = false;
+      if (sol.shadow.map) { sol.shadow.map.dispose(); sol.shadow.map = null; }
+      contra.color.setHex(p.contra.color); contra.intensity = p.contra.intensidad; contra.position.set(...p.contra.pos);
+      for (const l of luminarias) l.visible = false;
+      raiz.traverse(o => {
+        if (!(o.isMesh || o.isInstancedMesh)) return;
+        o.castShadow = o.receiveShadow = false;
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+          if (m && m.isMeshStandardMaterial) { m.envMap = null; m.roughnessMap = null; m.metalness = 0; m.roughness = 1; m.needsUpdate = true; }
+        }
+      });
+      return calidad;
+    }
+    const ajustesRender = () => Object.assign({}, lucesDeCalidad(calidad).render);
+
     let contorno = null;
     function resaltar(id) {
       if (contorno) { raiz.remove(contorno); contorno.geometry.dispose(); contorno = null; }
       interiores.abrir(id && elementos[id] ? id : null);
+      if (calidad === 'alta' && id && elementos[id]) marcarSombras(elementos[id].grupo);       // el interior que se acaba de abrir también proyecta y recibe
       if (!id || !elementos[id]) return;
       raiz.updateMatrixWorld(true);
       contorno = new THREE.Box3Helper(new THREE.Box3().setFromObject(elementos[id].grupo).expandByScalar(0.8), 0xf68b11);
@@ -281,7 +375,9 @@
       interiores.liberar();
       for (const parte of partes) parte.liberar();
       for (const r of recursos) if (r && r.dispose) r.dispose();
+      if (sol.shadow.map) sol.shadow.map.dispose();
       if (contorno) contorno.geometry.dispose();
+      KIT.fijarEstilo({ calidad: 'baja' });                                    // el estilo es global: la siguiente escena parte de Lambert
     }
 
     // La planta mide 420 cm de punta a punta (con el armario): hace falta una cámara con far ≥ 1100. `vistaInicial.far` lo indica; el visor de la maqueta
@@ -290,10 +386,11 @@
     const ponerCorte = v => { for (const parte of partes) if (parte.ponerCorte) parte.ponerCorte(!!v); };
     const ponerTapa = v => { for (const parte of partes) if (parte.ponerTapa) parte.ponerTapa(!!v); };
     return { raiz, elementos, actualizar, resaltar, aislar, restaurar, vistaDe, ponerCorte, ponerTapa, mallasSeleccionables, liberar, sombras: false,
+      luces, iluminacionPropia: true, ajustesRender, ponerCalidad, get calidad() { return calidad; },
       vistaInicial: { azimut: 0.4, elevacion: 0.5, distancia: 470, minimo: 60, maximo: 600, far: 1100, objetivo: { x: 35, y: 35, z: 0 } } };
   }
 
-  const api = { crearEscena, crear: crearEscena, soportesTuberia, porticosTuberia, ALTO_PORTICO, NAVE };
+  const api = { crearEscena, crear: crearEscena, soportesTuberia, porticosTuberia, ALTO_PORTICO, NAVE, LUCES, lucesDeCalidad };
   if (typeof module !== 'undefined') module.exports = api;
   else { window.PCT = window.PCT || {}; PCT.htstEscenaPlanta = api; PCT.visor3dEscenas = PCT.visor3dEscenas || {}; PCT.visor3dEscenas.htst = api; }
 })();

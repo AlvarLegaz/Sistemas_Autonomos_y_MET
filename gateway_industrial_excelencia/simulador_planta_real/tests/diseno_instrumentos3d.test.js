@@ -11,7 +11,7 @@ const textos = require('../js/interfaz/textos_ayuda.js');
 const { estadoDemo } = require('../js/visor3d_htst/estado_demo.js');
 
 const TODOS = ['TT-101', 'TT-102', 'TT-103', 'TT-104', 'TT-106', 'TT-201', 'TSH-201', 'FT-101', 'PT-101', 'PT-102', 'LT-101', 'LSH-101', 'LSL-101', 'LSL-201', 'LSH-201', 'ZS-101', 'ZS-102', 'PSL-501'];
-const TK = { cx: -135, cz: -35, r: 33 }, HW = { cx: 20, cz: 45, r: 17 };
+const TK = { cx: -127, cz: -35, r: 33 }, HW = { cx: 20, cz: 45, r: 17 };      // TK-101 está 8 cm a la derecha de su sitio del layout (así cabe en la bancada)
 
 test('existen todos los instrumentos, con su tag en el layout, su tipo y su sitio de montaje', () => {
   assert.deepEqual([...INS.TAGS].sort(), [...TODOS].sort());

@@ -15,7 +15,7 @@
   ];
   const DISENO = [      // DISEÑADOR (js/visor3d_htst/), en el orden de sus dependencias: efectos antes que la base; escena_planta al final
     'js/visor3d_htst/kit.js', 'js/visor3d_htst/efectos_averias.js', 'js/visor3d_htst/puertos.js', 'js/visor3d_htst/base_equipo.js', 'js/visor3d_htst/equipos_proceso.js',
-    'js/visor3d_htst/tuberias.js', 'js/visor3d_htst/instrumentos.js', 'js/visor3d_htst/armario.js', 'js/visor3d_htst/cargador_modelos.js', 'js/visor3d_htst/como_funciona.js', 'js/visor3d_htst/interiores.js', 'js/visor3d_htst/escena_planta.js',
+    'js/visor3d_htst/tuberias.js', 'js/visor3d_htst/instrumentos.js', 'js/visor3d_htst/armario.js', 'js/visor3d_htst/cargador_modelos.js', 'js/visor3d_htst/como_funciona.js', 'js/visor3d_htst/interiores.js', 'js/visor3d_htst/entorno_planta.js', 'js/visor3d_htst/escena_planta.js',
   ];
   const INTERFAZ = [    // PROGRAMADOR-INTERFAZ
     'js/interfaz/niveles.js', 'js/interfaz/textos_ayuda.js', 'js/interfaz/puntos_medida.js', 'js/interfaz/multimetro.js', 'js/interfaz/osciloscopio.js', 'js/interfaz/hoja_registro.js',

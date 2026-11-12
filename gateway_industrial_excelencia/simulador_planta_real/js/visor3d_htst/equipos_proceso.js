@@ -82,7 +82,7 @@
 
     /* ---------- TK-101 tanque de balance ---------- */
     (function () {
-      const g = base.nuevoGrupo('TK-101'), e = kit.ensamble();
+      const g = base.nuevoGrupo('TK-101', [8, 0]), e = kit.ensamble();          // 8 cm a la derecha del layout: patas y virola caben en la bancada
       const R = 33;
       // estructura: cuatro patas con pie regulable (varilla roscada, tuerca y plato), refuerzos horizontales y chapas de unión al faldón
       for (const [sx, sz] of [[-24, -24], [24, -24], [-24, 24], [24, 24]]) {
@@ -120,6 +120,7 @@
       e.add(kit.cil(1.9, 2.6, 10), 'inox', [r[0], r[1] - 1.7, r[2]]); soldadura(e, 1.9, 'y', [r[0], r[1] - 2.9, r[2]], 12); tricamp(e, [r[0], r[1] - 0.7, r[2]], 'y');
       e.add(kit.cil(3, 1.2, 12), 'inox', [ll[0], ll[1], ll[2] + 0.6], [PI / 2, 0, 0]); tricamp(e, [ll[0], ll[1], ll[2] - 1.6], 'z');
       e.add(kit.cil(3, 1.2, 12), 'inox', [va[0], va[1], va[2] - 0.6], [PI / 2, 0, 0]); tricamp(e, [va[0], va[1], va[2] + 1.6], 'z');
+      e.add(kit.cil(1.9, 5, 10), 'inox', [va[0], va[1], va[2] - 2.5], [PI / 2, 0, 0]);                                    // tramo corto desde la pared (la boca queda 1,7 cm delante de ella)
       // tubo de nivel (visor) con sus dos tomas, la válvula de bola inferior, los soportes y la escala graduada
       cilE(e, 0.7, 4, 'x', [-35, 24, 0], 'inoxMate', 8); cilE(e, 0.7, 4, 'x', [-35, 76, 0], 'inoxMate', 8);
       e.add(kit.esfera(1.5, 8), 'inoxMate', [-34.4, 24, 0]); e.add(kit.cil(0.35, 3.4, 6), 'rojo', [-34.4, 24, 2.4], [PI / 2, 0, 0]); e.add(kit.esfera(0.7, 6), 'rojo', [-34.4, 24, 4.1]);
@@ -167,11 +168,11 @@
 
     /* ---------- FLT-101 filtro de aspiración (colador en T con cesta extraíble) ---------- */
     (function () {
-      const g = base.nuevoGrupo('FLT-101'), e = kit.ensamble();
+      const g = base.nuevoGrupo('FLT-101', [16, 0]), e = kit.ensamble();          // 16 cm a la derecha del layout: libra las patas del tanque y alinea sus bocas con TK-101.sal
       cilE(e, 1.9, 24, 'z', [0, 12, 0], 'inox', 12);                                  // tubo pasante (eje z)
       cilE(e, 2.5, 7, 'z', [0, 12, 0], 'inox', 14);                                   // cuerpo en T, algo más ancho
       soldadura(e, 2.5, 'z', [0, 12, -3.6], 14); soldadura(e, 2.5, 'z', [0, 12, 3.6], 14);
-      tricamp(e, [0, 12, -8.2], 'z'); tricamp(e, [0, 12, 8.2], 'z');
+      tricamp(e, [0, 12, -10.6], 'z'); tricamp(e, [0, 12, 10.6], 'z');          // en los extremos del tubo pasante, que es donde empalman las tuberías
       e.add(kit.cil(5, 10, 18), 'inox', [0, 17, 0]);                                  // carcasa de la cesta (derivación vertical)
       e.add(kit.cil(5.3, 0.7, 18), 'inoxMate', [0, 11.7, 0]);                        // soldadura al cuerpo
       tricamp(e, [0, 22.4, 0], 'y', 3.7);                                             // tapa con tri-clamp
@@ -329,27 +330,28 @@
 
     /* ---------- HT-101 tubo de residencia (serpentín de tres pasos sobre dos caballetes) ---------- */
     (function () {
-      const g = base.nuevoGrupo('HT-101'), e = kit.ensamble();
+      const g = base.nuevoGrupo('HT-101', [18, 0]), e = kit.ensamble();          // 18 cm a la derecha del layout: el serpentín empieza a la derecha del bastidor de HX-101
+      const LP = 54;                                                              // largo de cada paso (cm)
       const matTubo = kit.matDinamico(0xc3cbd3);
-      for (const y of [20, 34, 48]) e.add(kit.cil(1.9, 80, 12), matTubo, [0, y, 0], [0, 0, PI / 2]);
-      e.add(kit.toro(7, 1.9, PI, 18), matTubo, [40, 27, 0], [0, 0, -PI / 2]);          // codo derecho (pasos 1-2)
-      e.add(kit.toro(7, 1.9, PI, 18), matTubo, [-40, 41, 0], [0, 0, PI / 2]);          // codo izquierdo (pasos 2-3)
+      for (const y of [20, 34, 48]) e.add(kit.cil(1.9, LP, 12), matTubo, [0, y, 0], [0, 0, PI / 2]);
+      e.add(kit.toro(7, 1.9, PI, 18), matTubo, [LP / 2, 27, 0], [0, 0, -PI / 2]);      // codo derecho (pasos 1-2)
+      e.add(kit.toro(7, 1.9, PI, 18), matTubo, [-LP / 2, 41, 0], [0, 0, PI / 2]);      // codo izquierdo (pasos 2-3)
       const ent = local('HT-101', 'ent', g), sal = local('HT-101', 'sal', g);
-      e.add(kit.cil(1.9, 8, 10), matTubo, [ent[0] + 4, ent[1], ent[2]], [0, 0, PI / 2]); e.add(kit.cil(1.9, 8, 10), matTubo, [sal[0] - 4, sal[1], sal[2]], [0, 0, PI / 2]);
+      e.add(kit.cil(1.9, 14, 10), matTubo, [ent[0] + 7, ent[1], ent[2]], [0, 0, PI / 2]); e.add(kit.cil(1.9, 8, 10), matTubo, [sal[0] - 4, sal[1], sal[2]], [0, 0, PI / 2]);
       // soldaduras en los codos y uniones tri-clamp cada pocos metros de tubo recto, y las conexiones de entrada y salida
-      for (const y of [20, 34, 48]) { for (const x of [-40, 40]) soldadura(e, 1.9, 'x', [x, y, 0], 12); for (const x of [-20, 20]) tricamp(e, [x, y, 0], 'x'); }
+      for (const y of [20, 34, 48]) { for (const x of [-LP / 2, LP / 2]) soldadura(e, 1.9, 'x', [x, y, 0], 12); for (const x of [-8, 8]) tricamp(e, [x, y, 0], 'x'); }
       tricamp(e, [ent[0] + 1.5, ent[1], ent[2]], 'x'); tricamp(e, [sal[0] - 1.5, sal[1], sal[2]], 'x');
       // flechas del sentido de flujo (entra por abajo a la izquierda y sale por arriba a la derecha)
       flecha(e, [0, 20, 2.0], 'x', 1); flecha(e, [0, 34, 2.0], 'x', -1); flecha(e, [0, 48, 2.0], 'x', 1);
       // dos caballetes: montantes, base, travesaños bajo cada paso y abrazaderas atornilladas al tubo
-      for (const x of [-26, 26]) {
+      for (const x of [-17, 17]) {
         for (const z of [-8, 8]) { e.add(kit.caja(2.5, 54, 2.5), 'inoxMate', [x, 27, z]); e.add(kit.cil(2.6, 0.6, 10), 'inoxMate', [x, 0.3, z]); }
         e.add(kit.caja(3, 2.2, 22), 'inoxMate', [x, 1.1, 0]); e.add(kit.caja(3, 2, 20), 'inoxMate', [x, 54.5, 0]);
         for (const y of [20, 34, 48]) { e.add(kit.caja(3, 1.2, 16), 'inoxMate', [x, y - 2.8, 0]); cilE(e, 2.4, 1.4, 'x', [x, y, 0], 'inoxMate', 12); e.add(kit.caja(1.2, 1.2, 3), 'inoxMate', [x, y + 2.9, 0]); }
       }
       e.construir(g, 'HT-101');
-      placaGrabada(g, 'HT-101', 9, 3.4, [26, 40, 9.35], 0);
-      base.registrar('HT-101', g, [96, 58, 24], 64);
+      placaGrabada(g, 'HT-101', 9, 3.4, [17, 40, 9.35], 0);
+      base.registrar('HT-101', g, [86, 58, 24], 64);
       let ultimo = -1;
       base.alActualizar(estado => {
         const hex = K.colorTuboCaliente(K.temperaturaDe(estado, 'salidaTubo', 20));
@@ -399,7 +401,7 @@
       e.add(kit.caja(9, 6, 6), 'laton', [0, 8, 0]);                                              // cuerpo de latón
       e.add(kit.cil(2.6, 7, 14), 'negro', [0, 14.5, 0]); e.add(kit.cil(2.85, 0.6, 14), 'oscuro', [0, 11.2, 0]); e.add(kit.cil(2.85, 0.6, 14), 'oscuro', [0, 17.8, 0]);   // bobina
       e.add(kit.caja(3.2, 2, 3.4), 'negro', [0, 19, 0]); tornillo(e, [0, 20.2, 0], 'y', 0.4, 0.5);      // conector DIN
-      e.add(kit.cil(1.1, 4, 10), 'laton', [4, 13, 0]); tornillo(e, [4, 11.4, 0], 'y', 1.4, 0.8);      // racores de aire
+      for (const sx of [-4, 4]) { e.add(kit.cil(1.1, 4, 10), 'laton', [sx, 13, 0]); tornillo(e, [sx, 11.4, 0], 'y', 1.4, 0.8); }      // racores de aire: entrada a la derecha, salida a la izquierda
       e.add(kit.cil(0.5, 6, 6), 'inoxMate', [4, 4, 0], [0, 0, PI / 2]);
       e.add(kit.cil(0.9, 1.2, 8), 'rojo', [-4.9, 8, 0], [0, 0, PI / 2]);                              // accionamiento manual
       for (const sx of [-3, 3]) { e.add(kit.cil(1, 2.4, 8), 'inoxMate', [sx, 1.2, 0]); e.add(kit.cil(2, 0.4, 10), 'inoxMate', [sx, 0.2, 0]); }
@@ -425,6 +427,7 @@
       e.add(kit.cil(0.5, 5, 6), 'negro', [4.5, 19, 0]);
       e.add(kit.cil(1.1, 1.6, 10), 'rojo', [-4.5, 0.6 + 3.2, 3.4], [PI / 2, 0, 0]);                                 // purga del filtro
       e.add(kit.cil(1.5, 2, 10), 'laton', [0, 14.5, 0], [0, 0, PI / 2]);                                              // unión entre módulos
+      e.add(kit.cil(1.1, 2.6, 10), 'laton', [-4.5, 18.3, 0]);                                                        // racor de salida sobre la tapa del filtro (puerto sal)
       e.construir(g, 'FRL-501');
       const matManometro = kit.matDinamico(0xf2f0e6);
       kit.malla(kit.cil(2.6, 1, 14), matManometro, g, 'FRL-501', [4.5, 21, 0]);
@@ -526,8 +529,8 @@
       flecha(e, [0, 13.45, 0], 'y', 1);
       e.add(kit.cil(1.7, 2.4, 10), 'inox', [0, 14.4, 0]); e.add(kit.cil(2.5, 0.8, 12), 'inoxMate', [0, 13.9, 0]);                  // cuello con abrazadera
       e.add(kit.cil(3.2, 5.6, 16), 'azul', [0, 18.4, 0]); e.add(kit.cil(3.5, 0.6, 16), 'inoxMate', [0, 15.9, 0]); e.add(kit.cil(3.5, 0.6, 16), 'inoxMate', [0, 21.1, 0]);   // actuador
-      e.add(kit.cil(1.3, 3, 10), 'negro', [4.6, 18.6, 0], [0, 0, PI / 2]); e.add(kit.cil(0.45, 1.8, 6), 'laton', [3.4, 18.6, 0], [0, 0, PI / 2]);   // piloto de bobina
-      e.add(kit.caja(1.4, 1.2, 1.6), 'negro', [6.4, 18.6, 0]);
+      e.add(kit.cil(1.3, 3, 10), 'negro', [4.6, 20.2, 0], [0, 0, PI / 2]); e.add(kit.cil(0.45, 1.8, 6), 'laton', [3.4, 20.2, 0], [0, 0, PI / 2]);   // piloto de bobina (alto: así XV-202, girada, pasa por encima del visor de HW-201)
+      e.add(kit.caja(1.4, 1.2, 1.6), 'negro', [6.4, 20.2, 0]);
       e.construir(g, tag);
       const matCapuchon = kit.matLed(0x777777);
       const capuchon = kit.malla(kit.cil(2.2, 1.6, 12), matCapuchon, g, tag, [0, 21.8, 0]);

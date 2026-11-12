@@ -1,4 +1,4 @@
-// Kit de construcción 3D de la planta HTST (DISEÑADOR). Materiales LIGEROS (MeshLambert, sin sombras) y ensambles que FUSIONAN las geometrías
+// Kit de construcción 3D de la planta HTST (DISEÑADOR). Materiales LIGEROS (MeshLambert en calidad baja; PBR con entorno en calidad alta) y ensambles que FUSIONAN las geometrías
 // estáticas de cada equipo por material: así un equipo de cien piezas cuesta 2 o 3 llamadas de dibujo en vez de cien.
 // Las funciones puras (colores por temperatura, lectura tolerante del estado, ángulos) van aparte para probarlas con node:test.
 (function () {
@@ -78,16 +78,154 @@
     return 0xff3b30;                                    // ABIERTO, CORTO
   }
 
+  /* ---------- Calidad gráfica y materiales PBR ligeros ----------
+   * Dos niveles: 'alta' (MeshStandardMaterial con metal/rugosidad y mapa de entorno procedural, luz de nave y sombras suaves) y 'baja' (los materiales Lambert de
+   * siempre: sin mapa de entorno ni sombras; es el nivel del «modo lento» del visor). El nivel vigente es un estilo global que la escena fija ANTES de crear los
+   * módulos (cada módulo hace su propio crearKit), así ningún módulo cambia de firma. Sin estilo fijado (pruebas, otras escenas) todo es Lambert como antes. */
+  const ESTILO = { calidad: 'baja', envMap: null };
+  /** Fija el estilo de los kits que se creen a partir de ahora: { calidad: 'alta' | 'baja', envMap }. Con calidad baja el envMap se ignora. */
+  function fijarEstilo(estilo) {
+    ESTILO.calidad = estilo && estilo.calidad === 'alta' ? 'alta' : 'baja';
+    ESTILO.envMap = ESTILO.calidad === 'alta' && estilo.envMap ? estilo.envMap : null;
+  }
+  const estiloActual = () => ({ calidad: ESTILO.calidad, envMap: ESTILO.envMap });
+
+  /**
+   * Nivel de calidad (función pura). `forzada` ('alta' | 'baja', p. ej. de ?calidad= en la dirección) manda sobre todo; si no, el dibujo por software
+   * (sin tarjeta gráfica) o un visor ya declarado lento dan 'baja' y cualquier otro caso 'alta'.
+   */
+  function elegirCalidad({ forzada, porSoftware, lento } = {}) {
+    if (forzada === 'alta' || forzada === 'baja') return forzada;
+    return porSoftware || lento ? 'baja' : 'alta';
+  }
+
+  // Parámetros PBR por material de la paleta (metalness 0..1, roughness 0..1, intensidad del entorno). Todo lo no listado se trata como pintura/plástico.
+  const PBR = {
+    inox: { metalness: 0.92, roughness: 0.22, envMapIntensity: 1.5 },        // acero inoxidable satinado: refleja la nave
+    inoxMate: { metalness: 0.85, roughness: 0.38, envMapIntensity: 1.25 },     // inox cepillado
+    patin: { metalness: 0.82, roughness: 0.42, envMapIntensity: 0.95 },
+    laton: { metalness: 0.95, roughness: 0.34, envMapIntensity: 1.1 },
+    cobre: { metalness: 0.95, roughness: 0.32, envMapIntensity: 1.1 },
+    oscuro: { metalness: 0.45, roughness: 0.5, envMapIntensity: 0.8 },        // fundición / acero pintado oscuro
+    grisOscuro: { metalness: 0.5, roughness: 0.48, envMapIntensity: 0.85 },
+    negro: { metalness: 0.0, roughness: 0.55, envMapIntensity: 0.7 },         // plástico y goma negros
+    junta: { metalness: 0.0, roughness: 0.9, envMapIntensity: 0.35 },         // goma
+    vidrio: { metalness: 0.0, roughness: 0.08, envMapIntensity: 1.3 },
+    agua: { metalness: 0.0, roughness: 0.1, envMapIntensity: 1.2 },
+    suelo: { metalness: 0.0, roughness: 0.4, envMapIntensity: 0.9 },
+  };
+  const PINTURA = { metalness: 0.08, roughness: 0.48, envMapIntensity: 0.8 };
+  const LIQUIDO = { metalness: 0.0, roughness: 0.1, envMapIntensity: 1.2 };
+  const PLASTICO_CON_TEXTURA = { metalness: 0.0, roughness: 0.4, envMapIntensity: 0.8 };
+
+  /** ¿Un color 0xRRGGBB parece acero? Claro y casi gris con un punto azulado (los blancos cálidos y los colores vivos son pintura). */
+  function pareceAcero(color) {
+    const r = R(color), g = G(color), b = B(color);
+    return Math.max(r, g, b) - Math.min(r, g, b) < 36 && (r + g + b) / 3 > 120 && b >= r - 3;
+  }
+
+  /**
+   * Parámetros PBR de un material (función pura). `clave` es una clave de la paleta o un color 0xRRGGBB; `opciones` son las del material
+   * (transparent, map…). Un material translúcido es vidrio o líquido; uno con textura, plástico; un gris azulado claro, acero; el resto, pintura.
+   * Los parámetros explícitos de `opciones` (metalness, roughness…) siempre mandan: este resultado solo rellena lo que falta.
+   */
+  function parametrosPBR(clave, opciones = {}) {
+    let base;
+    if (typeof clave === 'string' && PBR[clave]) base = PBR[clave];
+    else if (opciones.transparent || (typeof opciones.opacity === 'number' && opciones.opacity < 1)) base = LIQUIDO;
+    else if (opciones.map) base = PLASTICO_CON_TEXTURA;
+    else {
+      const color = typeof clave === 'string' ? PALETA[clave] : clave;
+      base = typeof color === 'number' && pareceAcero(color) ? PBR.inox : PINTURA;
+    }
+    return Object.assign({}, base);
+  }
+
+  const PROPIEDADES_PBR = new Set(['metalness', 'roughness', 'envMapIntensity', 'roughnessMap', 'metalnessMap', 'normalMap', 'normalScale', 'bumpMap', 'bumpScale', 'envMap', 'clearcoat']);
+
+  /** Clase y propiedades del material que pide un color/clave con las opciones dadas, según la calidad (función pura, probada sin THREE). */
+  function especificacionMaterial(clave, opciones = {}, calidad = ESTILO.calidad) {
+    const color = typeof clave === 'string' && PALETA[clave] !== undefined ? PALETA[clave] : clave;
+    if (calidad !== 'alta') {                                                   // Lambert no tiene propiedades PBR: se descartan para no llenar la consola de avisos
+      const props = { color };
+      for (const k of Object.keys(opciones)) if (!PROPIEDADES_PBR.has(k)) props[k] = opciones[k];
+      return { clase: 'MeshLambertMaterial', props };
+    }
+    return { clase: 'MeshStandardMaterial', props: Object.assign({ color }, parametrosPBR(clave, opciones), opciones) };
+  }
+
+  /**
+   * Cubo de entorno de una nave industrial (sin red ni imágenes): seis caras de 128 px dibujadas con canvas 2D. Techo gris con dos filas de luminarias
+   * lineales, paredes de panel con una franja de ventanas y suelo de resina con su reflejo. Los metales reflejan esto, así que el acero «tiene nave».
+   * `pintarCara(ctx, cara, n)` es pura sobre un contexto 2D (se prueba con uno falso); `crearEntorno` necesita DOM.
+   */
+  const CARAS_ENTORNO = ['px', 'nx', 'py', 'ny', 'pz', 'nz'];
+  function pintarCaraEntorno(ctx, cara, n = 128) {
+    const degradado = (x0, y0, x1, y1, paradas) => { const d = ctx.createLinearGradient(x0, y0, x1, y1); for (const [t, c] of paradas) d.addColorStop(t, c); return d; };
+    if (cara === 'py') {                                                       // techo: oscuro, con tres filas de luminarias lineales muy brillantes
+      ctx.fillStyle = degradado(0, 0, 0, n, [[0, '#454c52'], [1, '#5d656c']]); ctx.fillRect(0, 0, n, n);
+      ctx.fillStyle = '#ffffff';
+      for (const x of [0.2, 0.5, 0.8]) ctx.fillRect(n * (x - 0.04), n * 0.06, n * 0.08, n * 0.88);
+      ctx.fillStyle = '#333a40'; for (let k = 1; k < 6; k++) ctx.fillRect(0, n * k / 6 - 1.5, n, 3);                // correas del techo
+    } else if (cara === 'ny') {                                                // suelo de resina: oscuro, con el reflejo alargado de las luminarias
+      ctx.fillStyle = '#2d343a'; ctx.fillRect(0, 0, n, n);
+      ctx.fillStyle = degradado(0, 0, n, 0, [[0, 'rgba(255,255,255,0)'], [0.2, 'rgba(255,255,255,0.45)'], [0.35, 'rgba(255,255,255,0)'], [0.5, 'rgba(255,255,255,0.45)'], [0.65, 'rgba(255,255,255,0)'], [0.8, 'rgba(255,255,255,0.45)'], [1, 'rgba(255,255,255,0)']]); ctx.fillRect(0, 0, n, n);
+    } else {                                                                   // paredes: claras arriba y oscuras abajo, con una franja de ventanas muy brillante
+      ctx.fillStyle = degradado(0, 0, 0, n, [[0, '#cfd6db'], [0.5, '#8d98a0'], [1, '#2f373d']]); ctx.fillRect(0, 0, n, n);
+      ctx.fillStyle = cara === 'pz' ? '#f3f7fa' : '#ffffff';
+      for (const x of (cara === 'px' || cara === 'nx') ? [0.1, 0.38, 0.66] : [0.06, 0.52]) ctx.fillRect(n * x, n * 0.14, n * (cara === 'pz' ? 0.34 : 0.24), n * 0.24);
+      ctx.fillStyle = 'rgba(40,48,54,0.55)'; for (let k = 1; k < 5; k++) ctx.fillRect(n * k / 5, 0, 2, n);          // juntas de paneles
+    }
+  }
+  function crearEntorno(THREE, n = 128) {
+    const lienzos = CARAS_ENTORNO.map(cara => {
+      const c = document.createElement('canvas'); c.width = c.height = n; pintarCaraEntorno(c.getContext('2d'), cara, n); return c;
+    });
+    const cubo = new THREE.CubeTexture(lienzos);
+    cubo.colorSpace = THREE.SRGBColorSpace; cubo.needsUpdate = true;
+    return cubo;
+  }
+
+  /**
+   * Ruido suave en un canvas (para suelo y pared: desgaste y manchas). Devuelve el canvas; `semilla` hace el resultado repetible y la textura enlosable
+   * (los puntos se dibujan también desplazados un tamaño para que los bordes casen).
+   */
+  function lienzoRuido({ n = 256, base = '#808080', manchas = 90, contraste = 14, rayas = 0, semilla = 7 } = {}) {
+    const c = document.createElement('canvas'); c.width = c.height = n;
+    const g = c.getContext('2d');
+    let s = semilla >>> 0;
+    const azar = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    g.fillStyle = base; g.fillRect(0, 0, n, n);
+    for (let i = 0; i < manchas; i++) {
+      const x = azar() * n, y = azar() * n, r = 6 + azar() * n * 0.16, d = (azar() - 0.5) * 2 * contraste;
+      g.fillStyle = d > 0 ? `rgba(255,255,255,${(d / 255).toFixed(3)})` : `rgba(0,0,0,${(-d / 255).toFixed(3)})`;
+      for (const [dx, dy] of [[0, 0], [n, 0], [-n, 0], [0, n], [0, -n]]) { g.beginPath(); g.arc(x + dx, y + dy, r, 0, Math.PI * 2); g.fill(); }
+    }
+    g.lineWidth = 1;
+    for (let i = 0; i < rayas; i++) {                                           // arañazos finos y cortos
+      const x = azar() * n, y = azar() * n, l = 6 + azar() * 22, a = azar() * Math.PI;
+      g.strokeStyle = `rgba(255,255,255,${(0.04 + azar() * 0.06).toFixed(3)})`; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
+    }
+    return c;
+  }
+
   function crearKit(THREE) {
     const recursos = [];
     const registrar = r => { recursos.push(r); return r; };
     const materiales = new Map();
+    const calidad = ESTILO.calidad, envMap = ESTILO.envMap;     // el estilo vigente al crear el kit: los materiales de este kit lo respetan siempre
+    // Material de la calidad vigente: Lambert (baja) o Standard con metal/rugosidad y entorno (alta).
+    const crearMaterial = (clave, opciones) => {
+      const { clase, props } = especificacionMaterial(clave, opciones, calidad);
+      if (clase === 'MeshStandardMaterial' && envMap && props.envMap === undefined) props.envMap = envMap;
+      return registrar(new THREE[clase](props));
+    };
     const mat = clave => {
-      if (!materiales.has(clave)) materiales.set(clave, registrar(new THREE.MeshLambertMaterial({ color: PALETA[clave] !== undefined ? PALETA[clave] : clave })));
+      if (!materiales.has(clave)) materiales.set(clave, crearMaterial(clave, {}));
       return materiales.get(clave);
     };
-    const matDinamico = (color, opciones = {}) => registrar(new THREE.MeshLambertMaterial(Object.assign({ color }, opciones)));
-    const matLed = color => registrar(new THREE.MeshBasicMaterial({ color }));
+    const matDinamico = (color, opciones = {}) => crearMaterial(color, opciones);
+    const matLed = color => registrar(new THREE.MeshBasicMaterial(calidad === 'alta' ? { color, toneMapped: false } : { color }));    // los LED no se apagan con el tone mapping
     const tmp = new THREE.Object3D();
 
     // Geometrías de poca resolución: el presupuesto es ≤ 150 000 triángulos en toda la planta.
@@ -148,6 +286,7 @@
 
   const api = { PALETA, VERDE_PRODUCTO, AZUL_AGUA, NARANJA_AGUA_CALIENTE, limitar, mezclarHex, colorLeche, colorProducto, colorAguaCaliente, colorTuboCaliente,
     nivelAguaCalientePct, temperaturaAguaCaliente, bancoEncendido, contactoLSL, valvulaAbierta, tanqueDesbordando, equipoDe, instrumentoDe, num, temperaturaDe, caudalLh,
-    nivelTanquePct, aperturaFDV, velocidadAngularVisual, colorLedCalidad, crearKit };
+    nivelTanquePct, aperturaFDV, velocidadAngularVisual, colorLedCalidad, crearKit,
+    PBR, fijarEstilo, estiloActual, elegirCalidad, parametrosPBR, especificacionMaterial, pareceAcero, CARAS_ENTORNO, pintarCaraEntorno, crearEntorno, lienzoRuido };
   if (typeof module !== 'undefined') module.exports = api; else { window.PCT = window.PCT || {}; PCT.htstKit = api; }
 })();

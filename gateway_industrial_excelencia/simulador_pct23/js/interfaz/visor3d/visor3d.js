@@ -247,10 +247,30 @@
     if (!sesion || sesion.lento) return;
     sesion.lento = true;
     sesion.renderer.setPixelRatio(0.6); ajustarTamano();
+    if (sesion.escena.ponerCalidad && sesion.escena.ponerCalidad('baja') === 'baja') aplicarAjustesEscena(true);      // modo lento: materiales sencillos, sin entorno ni sombras
     avisar(motivo);
   }
+
+  /** Calidad pedida en la dirección (?calidad=alta|baja) o undefined. */
+  function calidadDeLaDireccion() {
+    try { const c = new URLSearchParams(location.search).get('calidad'); return c === 'alta' || c === 'baja' ? c : undefined; } catch (error) { return undefined; }
+  }
+  /**
+   * Ajustes del renderizador que pide la escena para su calidad actual (escena.ajustesRender(): { toneMapping: 'ninguno' | 'aces' | 'neutral', exposicion, sombras }).
+   * Las escenas que no lo ofrecen (la maqueta) siguen como siempre. `recompilar`: tras un cambio en caliente los materiales deben compilarse de nuevo.
+   */
+  function aplicarAjustesEscena(recompilar) {
+    const { THREE, renderer, escena, threeEscena } = sesion;
+    const ajustes = escena.ajustesRender && escena.ajustesRender();
+    if (!ajustes) return;
+    const mapas = { ninguno: THREE.NoToneMapping, aces: THREE.ACESFilmicToneMapping, neutral: THREE.NeutralToneMapping !== undefined ? THREE.NeutralToneMapping : THREE.ACESFilmicToneMapping };
+    renderer.toneMapping = mapas[ajustes.toneMapping] !== undefined ? mapas[ajustes.toneMapping] : THREE.NoToneMapping;
+    renderer.toneMappingExposure = ajustes.exposicion || 1;
+    renderer.shadowMap.enabled = !!ajustes.sombras; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    if (recompilar) threeEscena.traverse(o => { for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (m) m.needsUpdate = true; });
+  }
   function vigilarRendimiento(ahora) {
-    if (sesion.lento) return;
+    if (sesion.lento || sesion.calidadForzada) return;
     if (sesion.ultimoDibujo) {
       sesion.sumaIntervalos = (sesion.sumaIntervalos || 0) + (ahora - sesion.ultimoDibujo); sesion.contados = (sesion.contados || 0) + 1;
       if (sesion.contados >= FOTOGRAMAS_PARA_JUZGAR) {
@@ -326,22 +346,28 @@
     renderer.localClippingEnabled = true;
     etapa('Paso 2 de 3: construyendo equipos, tuberías y válvulas…'); await pausa();
     const threeEscena = new THREE.Scene();
-    threeEscena.add(new THREE.HemisphereLight(0xdde8f5, 0x1b2330, 1.15));
-    const sol = new THREE.DirectionalLight(0xffffff, 1.6); sol.position.set(30, 55, 40); threeEscena.add(sol);
-    const contra = new THREE.DirectionalLight(0x8fb4ff, 0.7); contra.position.set(-40, 20, -30); threeEscena.add(contra);
     // Registro de escenas (PCT.visor3dEscenas): permite que otros simuladores (planta real HTST) añadan la suya sin tocar este archivo.
     const modulo = (PCT.visor3dEscenas && PCT.visor3dEscenas[MODELOS[clave].escena]) ||
       { intercambiador: PCT.visor3dEscenaIntercambiador, bomba: PCT.visor3dEscenaBomba, valvula: PCT.visor3dEscenaValvula, planta: PCT.planta3d }[MODELOS[clave].escena] || PCT.visor3dEscena;
-    const escena = modulo.crearEscena(THREE, clave);
+    // Calidad gráfica: ?calidad=alta|baja la fuerza (y desactiva el aviso automático de «dibuja despacio»); si no, la decide la escena (por software → baja).
+    const calidadForzada = calidadDeLaDireccion();
+    const escena = modulo.crearEscena(THREE, clave, { calidad: calidadForzada, porSoftware });
     threeEscena.add(escena.raiz);
+    if (escena.iluminacionPropia && escena.luces) threeEscena.add(escena.luces);          // la escena trae su propia luz (nave industrial: hemisférica, sol con sombras y luminarias)
+    else {
+      threeEscena.add(new THREE.HemisphereLight(0xdde8f5, 0x1b2330, 1.15));
+      const sol = new THREE.DirectionalLight(0xffffff, 1.6); sol.position.set(30, 55, 40); threeEscena.add(sol);
+      const contra = new THREE.DirectionalLight(0x8fb4ff, 0.7); contra.position.set(-40, 20, -30); threeEscena.add(contra);
+    }
     if (escena.sombras) activarSombras(THREE, renderer);
     etapa('Paso 3 de 3: preparando controles y etiquetas…'); await pausa();
     const camara = new THREE.PerspectiveCamera(38, 1, 1, escena.vistaInicial.far || Math.max(500, (escena.vistaInicial.maximo || 0) * 2));   // escenas grandes (planta real) piden más alcance
     const controles = new ControlesOrbita(lienzo, escena.vistaInicial, () => {});
     sesion = { THREE, renderer, camara, threeEscena, escena, controles, clave, obtenerEstado, seleccion: null, animacion: 0,
       raton: new THREE.Vector2(), rayo: new THREE.Raycaster(), seleccionables: escena.mallasSeleccionables(), etiquetas: crearEtiquetas(clave, escena),
-      observador: null, alPulsar: alPulsarEscena, lento: false };
-    if (porSoftware) activarModoLento('Tu navegador dibuja el 3D por software (sin la tarjeta gráfica): se ha bajado la calidad. Activa la aceleración por hardware en los ajustes del navegador (Ajustes → Sistema).');
+      observador: null, alPulsar: alPulsarEscena, lento: false, calidadForzada };
+    aplicarAjustesEscena();
+    if (porSoftware && calidadForzada !== 'alta') activarModoLento('Tu navegador dibuja el 3D por software (sin la tarjeta gráfica): se ha bajado la calidad. Activa la aceleración por hardware en los ajustes del navegador (Ajustes → Sistema).');
     sesion.observador = new ResizeObserver(ajustarTamano); sesion.observador.observe(modal.querySelector('.v3d-escena'));
     lienzo.addEventListener('pointerup', sesion.alPulsar);
     ajustarTamano();
@@ -431,7 +457,17 @@
   }
 
   // Para diagnosticar el rendimiento: llamadas de dibujo, triángulos, memoria y renderizador (consola: PCT.visor3d.info()).
-  const info = () => sesion && { render: Object.assign({}, sesion.renderer.info.render), memoria: Object.assign({}, sesion.renderer.info.memory), programas: (sesion.renderer.info.programs || []).length,
+  /** Mide el coste real de dibujar: n dibujos seguidos esperando a la tarjeta (gl.finish) y devuelve los milisegundos medios por dibujo. Consola: PCT.visor3d.medir(30). */
+  function medir(n = 30) {
+    if (!sesion) return null;
+    const gl = sesion.renderer.getContext();
+    sesion.renderer.render(sesion.threeEscena, sesion.camara); gl.finish();            // el primero compila: no cuenta
+    const t0 = performance.now();
+    for (let i = 0; i < n; i++) { sesion.renderer.render(sesion.threeEscena, sesion.camara); gl.finish(); }
+    return (performance.now() - t0) / n;
+  }
+  const info = () => sesion && { calidad: sesion.escena.calidad || null, lento: sesion.lento, sombras: sesion.renderer.shadowMap.enabled, toneMapping: sesion.renderer.toneMapping,
+    render: Object.assign({}, sesion.renderer.info.render), memoria: Object.assign({}, sesion.renderer.info.memory), programas: (sesion.renderer.info.programs || []).length,
     gpu: (() => { const gl = sesion.renderer.getContext(), x = gl.getExtension('WEBGL_debug_renderer_info'); return x ? gl.getParameter(x.UNMASKED_RENDERER_WEBGL) : 'desconocido'; })() };
   /** Abre el visor en una ventana aparte (se ve junto al sinóptico y sigue su estado). Si el navegador la bloquea, devuelve false. */
   function abrirEnVentana(clave, obtenerEstado, foco, solo) {
@@ -444,5 +480,5 @@
     return true;
   }
 
-  PCT.visor3d = { abrir, abrirEnVentana, cerrar, estaAbierto: () => !!modal && !modal.hidden, info, alCerrar: null };
+  PCT.visor3d = { abrir, abrirEnVentana, cerrar, estaAbierto: () => !!modal && !modal.hidden, info, medir, bajarCalidad: () => activarModoLento('Calidad bajada a mano: materiales sencillos, sin sombras ni reflejos.'), alCerrar: null };
 })();
