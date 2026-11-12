@@ -7,8 +7,8 @@
   const PM = () => (typeof require !== 'undefined' ? require('./panel_manual.js') : PCT.htstPanelManual);
 
   const ALIAS = { 'FDV-101': 'SV-101' };       // la válvula de desvío se acciona por su piloto
-  const LLENO_PCT = 99;
-  const NIVELES_INICIALES = { normal: { tanque: 60, aguaCaliente: 60 }, revision: { tanque: 0, aguaCaliente: 0 } };     // % de partida de cada modo                        // a partir de este nivel el depósito se da por lleno (el rebosadero empieza en el 100 %)
+  const LLENO_PCT = 99;                        // a partir de este nivel el depósito se da por lleno (el rebosadero empieza en el 100 %)
+  const NIVELES_INICIALES = { normal: { tanque: 100, aguaCaliente: 100 }, revision: { tanque: 0, aguaCaliente: 0 } };     // % de partida de cada modo
   const PULSADORES = ['PB-001', 'TSH-101'];    // se «pulsan»: rearme local del PLC y rearme del termostato de seguridad
 
   /**
@@ -54,6 +54,24 @@
       pendientes++; return [tag, 1];
     });
     return { ordenes, terminado: pendientes === 0, paro };
+  }
+
+  /**
+   * Las condiciones para que la FDV avance, con su valor actual: [{ id, texto, ok, valor }]. Son las del PLC (seguridad positiva): una sola que falle y la FDV se queda en desvío.
+   */
+  function condicionesFdv(estado) {
+    const e = estado || {}, I = e.instrumentos || {}, P = layout.PROCESO;
+    const valor = tag => (I[tag] && typeof I[tag].valorPLC === 'number' ? I[tag].valorPLC : null);
+    const sano = tag => !!I[tag] && (!I[tag].calidad || I[tag].calidad === 'OK');
+    const tt = valor('TT-103'), tRes = e.proceso && e.proceso.tiempoResidenciaS, p1 = valor('PT-101'), p2 = valor('PT-102'), dp = p1 !== null && p2 !== null ? p2 - p1 : null;
+    const lazos = ['TT-103', 'FT-101', 'PT-101', 'PT-102'], malos = lazos.filter(t => !sano(t));
+    return [
+      { id: 'temperatura', texto: `Temperatura TT-103 ≥ ${dec(P.temperaturaPasteurizacionC, 0)} °C`, ok: tt !== null && tt >= P.temperaturaPasteurizacionC, valor: tt === null ? '—' : `${dec(tt, 1)} °C` },
+      { id: 'residencia', texto: `Tiempo de residencia ≥ ${dec(P.tiempoResidenciaMinS, 0)} s`, ok: Number.isFinite(tRes) && tRes >= P.tiempoResidenciaMinS, valor: Number.isFinite(tRes) ? `${dec(tRes, 0)} s` : '—' },
+      { id: 'diferencial', texto: `Diferencial de la regeneración ≥ ${dec(P.diferencialMinimoRegeneracionBar, 2)} bar`, ok: dp !== null && dp >= P.diferencialMinimoRegeneracionBar, valor: dp === null ? '—' : `${dec(dp, 2)} bar` },
+      { id: 'aire', texto: 'Aire comprimido suficiente (PSL-201)', ok: !!(I['PSL-201'] && I['PSL-201'].nivel === 1), valor: I['PSL-201'] && I['PSL-201'].nivel === 1 ? 'sí' : 'bajo' },
+      { id: 'lazos', texto: 'Lazos de TT-103, FT-101, PT-101 y PT-102 sanos', ok: malos.length === 0, valor: malos.length ? malos.join(', ') : 'sanos' },
+    ];
   }
 
   /**
@@ -122,8 +140,7 @@
     if (!crear) { await window.HTST_CARGADOR.cargarScript('js/interfaz/simulacion_demo.js'); crear = PCT.htstDemo; enDemostracion = true; }
     layout = PCT.htstLayout;
     const sim = crear.crearSimulacion({ semilla: 1, valvulasManuales: true });       // las electroválvulas XV-* no las gobierna el PLC: se accionan a mano con el clic
-    // Nivel de partida de cada modo (el modelo arranca con el agua caliente llena): en Normal los depósitos a medias, para que se vea qué hace «Llenar»;
-    // en Revisión los dos vacíos, para llenarlos tú. Se aplica al abrir la página, al Restablecer y al cambiar de modo si la planta aún no ha arrancado.
+    // Nivel de partida de cada modo: en Normal los dos depósitos llenos; en Revisión los dos vacíos, para llenarlos tú. Se aplica al abrir la página, al Restablecer y al cambiar de modo si la planta aún no ha arrancado.
     const nivelesIniciales = modo => { if (sim.ordenes.nivelDeposito) for (const [cual, pct] of Object.entries(NIVELES_INICIALES[modo])) sim.ordenes.nivelDeposito(cual, pct); };
     nivelesIniciales('normal');
     const escena3dOk = PCT.htstVisor.registrar();
@@ -141,13 +158,32 @@
         <div class="derecha"><div class="velocidad" role="group" aria-label="Velocidad de simulación"><button type="button" data-v="1" aria-pressed="true">1×</button><button type="button" data-v="5" aria-pressed="false">5×</button><button type="button" data-v="20" aria-pressed="false">20×</button></div></div>
       </div>
       <div id="avisos"></div><p id="aviso-clic" class="aviso-clic" role="status" hidden></p>
-      <main class="escena"><div class="lienzo" id="esquema"></div>
-        <div class="ajustes-manual" id="ajustes-manual" role="group" aria-label="Ajustes del modo manual (solo en ${escapar(layout.PLANTA.modos.manual)})">
-          <h2>AJUSTES · ${escapar(layout.PLANTA.modos.manual.toUpperCase())}</h2>
-          <label><span>Velocidad de P-101</span><output id="o-vel-p101">0 %</output><input type="range" id="vel-p101" min="0" max="100" step="1" value="0"></label>
-          <label><span>Tanque de balance</span><output id="o-nivel-tanque">60 %</output><input type="range" id="nivel-tanque" min="0" max="100" step="1" value="60"></label>
-          <label><span>Agua caliente</span><output id="o-nivel-agua">60 %</output><input type="range" id="nivel-agua" min="0" max="100" step="1" value="60"></label>
-          <span class="botones-manual"><button type="button" id="m-caldera">Encender caldera</button><button type="button" id="m-llenar">Llenar los dos depósitos</button><button type="button" id="m-rearme">Rearme</button></span></div></main>`;
+      <div class="cuerpo-simple">
+        <main class="escena"><div class="lienzo" id="esquema"></div></main>
+        <aside class="lateral-simple" aria-label="Mando y lecturas">
+          <div class="pestanas" role="tablist" aria-label="Paneles"><button type="button" role="tab" id="t-mando" data-p="p-mando" aria-selected="true" aria-controls="p-mando">Mando</button><button type="button" role="tab" id="t-lecturas" data-p="p-lecturas" aria-selected="false" aria-controls="p-lecturas">Lecturas</button></div>
+          <div class="panel-pestana" id="p-mando" role="tabpanel" aria-labelledby="t-mando">
+            <div class="mando-normal" id="mando-normal" role="group" aria-label="Mando y consignas (modo ${escapar(layout.PLANTA.modos.normal)})">
+              <h2>MANDO Y CONSIGNAS</h2>
+              <div class="fila-consigna"><span>Caudal de leche<small id="mn-caudal-sub">consigna de P-101</small></span><span class="ctl"><button type="button" data-accion="caudal-menos" aria-label="Bajar la consigna de caudal">−</button><output id="mn-caudal">—</output><button type="button" data-accion="caudal-mas" aria-label="Subir la consigna de caudal">+</button></span></div>
+              <div class="fila-consigna"><span>Consigna TT-103<small>por debajo, la FDV-101 desvía</small></span><span class="ctl"><button type="button" data-accion="tt103-menos" aria-label="Bajar la consigna de pasteurización">−</button><output id="mn-tt103">—</output><button type="button" data-accion="tt103-mas" aria-label="Subir la consigna de pasteurización">+</button></span></div>
+              <div class="fila-consigna"><span>Agua caliente<small id="mn-agua-sub">consigna en cascada · TSH a 90 °C</small></span><span class="ctl"><output id="mn-agua">—</output></span></div>
+              <div class="botones-fila"><button type="button" data-accion="marcha">MARCHA</button><button type="button" data-accion="paro">PARO</button><button type="button" data-accion="rearme">REARME</button></div>
+              <button type="button" class="ancho" data-accion="llenar" id="mn-llenar">Llenar los dos depósitos</button>
+              <p class="estado-pie" id="mn-estado">—</p></div>
+            <div class="ajustes-manual" id="ajustes-manual" role="group" aria-label="Ajustes del modo manual (solo en ${escapar(layout.PLANTA.modos.manual)})">
+              <h2>AJUSTES · ${escapar(layout.PLANTA.modos.manual.toUpperCase())}</h2>
+              <label><span>Velocidad de P-101</span><output id="o-vel-p101">0 %</output><input type="range" id="vel-p101" min="0" max="100" step="1" value="0"></label>
+              <label><span>Tanque de balance</span><output id="o-nivel-tanque">100 %</output><input type="range" id="nivel-tanque" min="0" max="100" step="1" value="100"></label>
+              <label><span>Agua caliente</span><output id="o-nivel-agua">100 %</output><input type="range" id="nivel-agua" min="0" max="100" step="1" value="100"></label>
+              <span class="botones-manual"><button type="button" id="m-caldera">Encender caldera</button><button type="button" id="m-llenar">Llenar los dos depósitos</button><button type="button" id="m-rearme">Rearme</button></span></div></div>
+          <div class="panel-pestana" id="p-lecturas" role="tabpanel" aria-labelledby="t-lecturas" hidden>
+            <section class="condiciones" aria-label="Condiciones de la FDV"><h2 id="cond-titulo">LA FDV…</h2><ul id="lista-condiciones"></ul></section>
+            <section class="contadores" aria-label="Contadores"><h2>CONTADORES</h2><dl id="lista-contadores"></dl></section>
+            <div id="lecturas"></div></div>
+        </aside>
+      </div>
+      <section class="graficas-simple" aria-label="Gráficas de tendencia"><h2>GRÁFICAS</h2><div id="graficas"></div></section>`;
     const $ = id => document.getElementById(id);
     const avisos = [];
     if (enDemostracion) avisos.push('Modelo de demostración: el modelo real de la planta todavía no está cargado.');
@@ -157,15 +193,13 @@
 
     // SCADA 2D
     const { Canvas } = PCT.canvas, canvas = new Canvas(PCT.htstEsquema.ESQUEMA_HTST);
-    canvas.svg.setAttribute('preserveAspectRatio', 'xMinYMid meet');       // el esquema pegado a la izquierda (el sobrante queda a la derecha), no centrado
     $('esquema').replaceChildren(canvas.svg);
     const PROC = layout.PROCESO;
     const consignasPanel = { caudalLh: PROC.caudalNominalLh, tt103C: PROC.consignaTT103C, llenando: false };
     const objetos = PCT.htstEsquema.crearObjetos(canvas, { consignas: () => consignasPanel });
-    // Ajustes del modo Revisión: van dentro del esquema, en el hueco de «Mando y consignas» (mismas coordenadas que ese panel: x 20, y 480, 400 × 312), para que escalen con él
-    const fo = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
-    for (const [k, v] of Object.entries({ class: 'fo-manual', x: 20, y: 480, width: 400, height: 312 })) fo.setAttribute(k, String(v));
-    fo.appendChild($('ajustes-manual')); canvas.svg.appendChild(fo);
+    // Gráficas debajo del esquema y tabla de lecturas en la pestaña del panel lateral
+    const historial = PCT.htstGrafica.crearHistorial(), graficas = PCT.htstGrafica.crearGraficas($('graficas'), { historial });
+    const lecturas = PCT.htstPanelLecturas.crearPanelLecturas($('lecturas'));
 
     // Estado de la página
     let corriendo = false, velocidad = 1, llenando = false, temporizadorAviso = null;
@@ -222,6 +256,7 @@
       paro: () => { sim.ordenes.parar(); },
       rearme: () => { if (sim.ordenes.paroEmergencia) sim.ordenes.paroEmergencia(false); sim.ordenes.pulsador('PB-001'); sim.ordenes.pulsador('TSH-101'); },
       llenar: alternarLlenado,
+      calefactor: () => alternarCaldera(),
     };
     function cambiarCaudal(signo) {
       if (enManual()) { const v = Math.min(100, Math.max(0, Math.round(((sim.estado().salidasPLC.AO || {})['VFD-101'] || 0) + 10 * signo))); sim.ordenes.manual('VFD-101', v); }
@@ -233,6 +268,12 @@
       sim.ordenes.consignaTemperaturaC(consignasPanel.tt103C);
     }
     const pulsarPanel = boton => { const f = accionesPanel[boton.dataset.accion]; if (!f) return; f(); aplicarAhora(); refrescar(); };
+    $('mando-normal').addEventListener('click', ev => { const b = ev.target.closest('button[data-accion]'); if (b) pulsarPanel(b); });
+    document.querySelector('.lateral-simple .pestanas').addEventListener('click', ev => {
+      const b = ev.target.closest('[data-p]'); if (!b) return;
+      document.querySelectorAll('.lateral-simple [role="tab"]').forEach(t => t.setAttribute('aria-selected', String(t === b)));
+      document.querySelectorAll('.lateral-simple .panel-pestana').forEach(p => { p.hidden = p.id !== b.dataset.p; });
+    });
     canvas.svg.addEventListener('click', ev => { const b = ev.target.closest('.panel-boton'); if (b) { ev.stopPropagation(); pulsarPanel(b); } }, true);
     canvas.svg.addEventListener('keydown', ev => { const b = ev.target.closest('.panel-boton'); if (b && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); ev.stopPropagation(); pulsarPanel(b); } }, true);
 
@@ -244,7 +285,7 @@
       const si = await confirmar({ titulo: '¿Restablecer la planta?', mensaje: 'Vuelve al estado inicial: depósitos en su nivel de partida, todo parado. No se puede deshacer.', ok: 'Restablecer' });
       if (!si) return;
       const eraManual = enManual();
-      sim.reiniciar(); nivelesIniciales(eraManual ? 'revision' : 'normal'); llenando = false; consignasPanel.llenando = false;
+      sim.reiniciar(); historial.limpiar(); nivelesIniciales(eraManual ? 'revision' : 'normal'); llenando = false; consignasPanel.llenando = false;
       if (eraManual) { corriendo = true; actualizarBotones(); ponerModo('MANUAL'); }          // en Manual sigue en Manual y con el reloj en marcha
       else { corriendo = false; actualizarBotones(); refrescar(); }
     });
@@ -265,7 +306,9 @@
     }
     $('vel-p101').addEventListener('input', () => { sim.ordenes.manual('VFD-101', Number($('vel-p101').value)); $('o-vel-p101').textContent = `${$('vel-p101').value} %`; aplicarAhora(); refrescar(); });
     $('m-llenar').addEventListener('click', () => { alternarLlenado(); aplicarAhora(); refrescar(); });
-    $('m-caldera').addEventListener('click', async () => {
+    $('m-caldera').addEventListener('click', alternarCaldera);
+    // Enciende o apaga el calefactor (P-102 y los dos bancos). Lo usan el botón del panel y el botón dibujado junto al calentador HW-101 del esquema.
+    async function alternarCaldera() {
       const plan = planCaldera(sim.estado());
       if (plan.accion === 'bloqueado') { avisar(plan.texto); return; }
       if (plan.accion === 'encender' && plan.peligro) {
@@ -275,7 +318,7 @@
       for (const [tag, valor] of plan.ordenes) sim.ordenes.manual(tag, valor);
       avisar(plan.accion === 'encender' ? 'Caldera encendida: P-102 en marcha y los dos bancos conectados.' : 'Caldera apagada.');
       aplicarAhora(); refrescar();
-    });
+    }
     $('m-rearme').addEventListener('click', () => { accionesPanel.rearme(); aplicarAhora(); refrescar(); });
 
     // Ventanas aparte (se siguen moviendo con la planta: leen su estado de esta ventana)
@@ -314,16 +357,44 @@
         if (typeof nivel !== 'number' || document.activeElement === $(id)) continue;
         const v = String(Math.round(nivel)); if ($(id).value !== v) $(id).value = v; $(`o-${id}`).textContent = `${v} %`;
       }
+      // Mando de Normal (panel lateral)
+      const poner = (id, t) => { const el = $(id); if (el.textContent !== t) el.textContent = t; };
+      const paro = !!(e.plc && e.plc.paro), pos = e.equipos && e.equipos['FDV-101'] && e.equipos['FDV-101'].posicion;
+      poner('mn-caudal', `${Math.round(consignasPanel.caudalLh)} L/h`); poner('mn-tt103', `${dec(consignasPanel.tt103C, 1)} °C`);
+      poner('mn-agua', e.plc && typeof e.plc.consignaAguaC === 'number' ? `${dec(e.plc.consignaAguaC, 1)} °C` : '—');
+      poner('mn-agua-sub', `TT-105: ${PCT.htstEsquema.textoInstrumento(e, 'TT-105')} · TSH a 90 °C`);
+      poner('mn-caudal-sub', `consigna de P-101 · FT-101: ${PCT.htstEsquema.textoInstrumento(e, 'FT-101')}`);
+      poner('mn-estado', paro ? `PARO: ${((e.plc && e.plc.motivosParo) || []).join(', ') || 'pulsa REARME'}` : `${nombreModo(e.modo)} · FDV ${pos === 'AVANCE' ? 'en avance' : pos === 'DESVIO' ? 'en desvío' : 'moviéndose'}`);
+      const bot = a => document.querySelector(`#mando-normal [data-accion="${a}"]`);
+      bot('marcha').classList.toggle('activo', e.modo !== 'PARADA' && !paro); bot('paro').classList.toggle('activo', e.modo === 'PARADA' && !paro);
+      bot('rearme').classList.toggle('alarma', paro || (e.instrumentos && e.instrumentos['TSH-101'] && e.instrumentos['TSH-101'].nivel === 0));
+      bot('llenar').classList.toggle('activo', llenando); poner('mn-llenar', llenando ? 'Llenando… (cancelar)' : 'Llenar los dos depósitos');
+      // Lecturas: condiciones de la FDV, contadores y tabla de instrumentos
+      const conds = condicionesFdv(e), todas = conds.every(c => c.ok);
+      poner('cond-titulo', todas ? 'LA FDV PUEDE AVANZAR' : 'LA FDV SE QUEDA EN DESVÍO');
+      const lista = $('lista-condiciones'), firma = conds.map(c => `${c.ok}|${c.valor}`).join('#');
+      if (lista.dataset.firma !== firma) { lista.dataset.firma = firma; lista.innerHTML = conds.map(c => `<li class="${c.ok ? 'ok' : 'falta'}"><span class="simbolo" aria-hidden="true">${c.ok ? '✔' : '✖'}</span><span>${escapar(c.texto)}</span><b>${escapar(c.valor)}</b></li>`).join(''); }
+      const k = e.contadores || {}, filas = [['Producido', `${dec(k.producidoL, 0)} L`], ['Desviado', `${dec(k.desviadoL, 0)} L`], ['No conforme', `${dec(k.noConformeL, 0)} L`], ['Energía', `${dec(k.energiaKWh, 2)} kWh`]];
+      const cont = $('lista-contadores'), firmaC = filas.map(f => f[1]).join('|');
+      if (cont.dataset.firma !== firmaC) { cont.dataset.firma = firmaC; cont.innerHTML = filas.map(([n, v]) => `<div><dt>${n}</dt><dd>${v}</dd></div>`).join(''); }
+      lecturas.actualizar(e);
       document.body.dataset.estado = e.alarmas && e.alarmas.some(a => a.nivel !== 'estado') ? 'alarma' : corriendo ? 'marcha' : 'reposo';
     }
-    setInterval(() => { if (corriendo) sim.paso(0.25 * velocidad); if (llenando) pasoLlenado(); refrescar(); }, 250);
+    let ultimaGrafica = 0;
+    setInterval(() => {
+      if (corriendo) sim.paso(0.25 * velocidad);
+      if (llenando) pasoLlenado();
+      refrescar();
+      if (corriendo) { const e = sim.estado(), v = {}; for (const [tag, i] of Object.entries(e.instrumentos || {})) if (i && typeof i.valorPLC === 'number') v[tag] = i.valorPLC; historial.registrar(e.tiempoS, v); }
+      if (performance.now() - ultimaGrafica > 1000) { ultimaGrafica = performance.now(); graficas.redibujar(); }
+    }, 250);
     refrescar();
 
     // Para las ventanas aparte (3D, Fuerza y Mando) y para las pruebas
     PCT.htstApp = { estadoActual: () => sim.estado(), sim, enDemostracion, nivel: () => 3, ponerModo, accionarEquipo: accionar, llenarDepositos: alternarLlenado };
   }
 
-  const api = { ALIAS, LLENO_PCT, NIVELES_INICIALES, decidirClic, planLlenado, planCaldera, textoEstado, formatoReloj, nombreModo, iniciar };
+  const api = { ALIAS, LLENO_PCT, NIVELES_INICIALES, decidirClic, planLlenado, planCaldera, condicionesFdv, textoEstado, formatoReloj, nombreModo, iniciar };
   if (typeof module !== 'undefined') module.exports = api;
   else { window.HTST_PAGINA_SIMPLE = api; if (document.getElementById('app')) iniciar().catch(error => { console.error(error); document.getElementById('app').innerHTML = `<p class="aviso-planta">No se pudo iniciar la planta: ${escapar(error.message || error)}</p>`; }); }
 })();

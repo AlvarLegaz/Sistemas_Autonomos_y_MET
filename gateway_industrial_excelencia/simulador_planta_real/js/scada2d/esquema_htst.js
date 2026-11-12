@@ -302,6 +302,9 @@
         ['rect', { class: 'banner-alarma', id: 'banner-HW', x: HW.x + 15, y: HW.y + 30, width: 150, height: 16, rx: 3 }], txt(1050, HW.y + 42, 'NIVEL BAJO: BLOQUEADO', 'ht-tag ht-banner', { id: 't-banner-HW' }),
         ['path', { class: 'resis', id: 'res-1', d: 'M981 108 L989 88 L997 108 L1005 88 L1013 108 L1021 88 L1029 108'.replace(/(\d+) (\d+)/g, (m, x, y) => `${x} ${Number(y) + 370}`) }], txt(1005, 500, 'B1 · KM-201', 'ht-tag', n1('Resistencia 1')),
         ['path', { class: 'resis', id: 'res-2', d: 'M1071 108 L1079 88 L1087 108 L1095 88 L1103 108 L1111 88 L1119 108'.replace(/(\d+) (\d+)/g, (m, x, y) => `${x} ${Number(y) + 370}`) }], txt(1095, 500, 'B2 · KM-202', 'ht-tag', n1('Resistencia 2'))),
+      // Botón del calefactor junto al calentador: solo se ve en la pantalla sencilla, en Revisión (planta_simple.css). Lo conecta la página (accion «calefactor»).
+      ['g', { class: 'panel-boton', 'data-accion': 'calefactor', tabindex: 0, role: 'button', 'aria-label': 'Encender o apagar el calefactor: arranca P-102 y conecta los dos bancos de 30 kW' },
+        ['rect', { x: HW.x - 40, y: HW.y + HW.alto + 36, width: 160, height: 30, rx: 6 }], txt(HW.x + 40, HW.y + HW.alto + 56, 'ENCENDER CALEFACTOR', 'ht-tag ht-fuerte', { id: 'btn-calefactor-txt' })],
       instr('TSH-101', HW.x, 480, 'izquierda', false, 17),
       instr('LSH-301', HW.x + HW.ancho, 400, 'derecha', false, 17),
       instr('LSL-301', HW.x + HW.ancho, 455, 'derecha', false, 17),
@@ -411,6 +414,7 @@
       if (bot('paro')) bot('paro').classList.toggle('activo', e.modo === 'PARADA' && !paro);
       if (bot('rearme')) bot('rearme').classList.toggle('alarma', !!paro || digital(e, 'TSH-101') === 0);
       for (const a of ['tt103-menos', 'tt103-mas']) if (bot(a)) bot(a).classList.toggle('inactivo', manual);
+      if (bot('calefactor')) { const on = !!(e.salidasPLC && e.salidasPLC.DO && (e.salidasPLC.DO['KM-201'] || e.salidasPLC.DO['KM-202'])); bot('calefactor').classList.toggle('activo', on); poner('btn-calefactor-txt', on ? 'APAGAR CALEFACTOR' : 'ENCENDER CALEFACTOR'); }
       if (bot('llenar')) { bot('llenar').classList.toggle('activo', !!c.llenando); poner('panel-llenar-txt', c.llenando ? 'LLENANDO… (pulsa para cancelar)' : 'LLENAR LOS DOS DEPÓSITOS'); }
     } });
 

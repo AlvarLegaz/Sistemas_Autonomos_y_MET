@@ -133,8 +133,8 @@ test('caldera: con poco nivel de agua no se enciende y dice por qué', () => {
   assert.equal(plan.accion, 'bloqueado'); assert.match(plan.texto, /nivel bajo/);
 });
 
-test('niveles de partida: Normal con los depósitos a medias y Revisión con los dos vacíos', () => {
-  assert.deepEqual(simple.NIVELES_INICIALES.normal, { tanque: 60, aguaCaliente: 60 });
+test('niveles de partida: Normal con los dos depósitos llenos y Revisión con los dos vacíos', () => {
+  assert.deepEqual(simple.NIVELES_INICIALES.normal, { tanque: 100, aguaCaliente: 100 });
   assert.deepEqual(simple.NIVELES_INICIALES.revision, { tanque: 0, aguaCaliente: 0 });
   const sim = crearSimulacion({ semilla: 1 });
   for (const [cual, pct] of Object.entries(simple.NIVELES_INICIALES.revision)) sim.ordenes.nivelDeposito(cual, pct);

@@ -107,6 +107,8 @@ g[data-tag]:has(> .instr.on) text.ht-mini, g[data-tag]:has(> .instr.alarma) text
 .panel-boton.alarma rect { fill: var(--aviso); stroke: var(--aviso); animation: panel-parpadeo 1s steps(2) infinite; }
 .panel-boton.alarma text { fill: #111; }
 .panel-boton.inactivo { opacity: .4; }
+.panel-boton[data-accion="calefactor"] { display: none; }                  /* solo en la pantalla sencilla y en Revisión (planta_simple.css) */
+.panel-boton[data-accion="calefactor"].activo rect { fill: var(--caliente); stroke: var(--caliente); }
 @keyframes panel-parpadeo { 50% { opacity: .5; } }
 @media (prefers-reduced-motion: reduce) { .panel-boton.alarma rect { animation: none; } }
 .enlace { fill: none; stroke: var(--tubo); stroke-width: 1.5; stroke-dasharray: 3 3; }
