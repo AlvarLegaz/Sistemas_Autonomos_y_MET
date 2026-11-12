@@ -1,3 +1,4 @@
+import math
 import threading
 import time
 
@@ -10,21 +11,33 @@ NUM_CHANNELS = 8
 PWM_GPIO_PIN = None
 
 # Salidas de potencia por el expansor de transistores (J7, PCF8574A 0x3A). Un hilo
-# propio las modula cada POWER_TICK_MS; el expansor no admite un PWM rapido.
-POWER_TICK_MS = 5
-CICLO_RED_TICKS = 4          # un ciclo de red (50 Hz = 20 ms) son 4 ticks de 5 ms
+# propio las modula por flancos: no despierta a pasos fijos, sino justo cuando una salida tiene que cambiar (el inicio de
+# cada periodo de PWM, el flanco de bajada de cada bomba y cada ciclo de red de la resistencia). Asi el PWM de las bombas
+# sube de 10 Hz a cientos de Hz con el mismo hardware: el limite ya no es el paso sino el bus I2C (PCF8574 a 100 kHz,
+# 0,3-0,5 ms por escritura) y la puntualidad del hilo.
+PWM_BOMBAS_HZ = 400.0        # frecuencia del PWM de las bombas (OUT07 y OUT08). Si en la maqueta regula mal, bajar a 200 o 100
+PWM_BOMBAS_HZ_MAX = 500.0    # tope por software: a 500 Hz ya son hasta 1500 escrituras/s, el limite del bus I2C. El L298
+                             # conmuta hasta 25 kHz (40 kHz maximo), asi que por ese lado sobra un factor 50.
+PWM_BOMBAS_HZ_MIN = 5.0
+CICLO_RED_S = 0.020          # un ciclo de red (50 Hz)
 BURST_CICLOS = 50            # ventana de rafaga: 50 ciclos = 1 s
-PWM_PERIODO_TICKS = 20       # PWM de bombas: 20 ticks = 100 ms (pasos del 5 %)
+ESPERA_MAXIMA_S = 0.005      # el hilo de potencia revisa las ordenes (paro, apagados) como mucho cada 5 ms
+RETRASO_GRAVE_S = 0.002      # un despertar mas tardio que esto se cuenta en scan_overruns
+_EPS = 1e-6                  # 1 us: margen para que un flanco calculado nunca quede en el pasado por redondeo
 OUT_RESISTENCIA = 3          # OUT03 (J7 pin 4, PCF P2): resistencia (230 V, dos de 120 V en serie), por rafagas
 OUT_BOMBA_HEAT = 7           # OUT07: bomba heat unit, PWM = PWMOut2
 OUT_BOMBA_FEED = 8           # OUT08: bomba feed unit, PWM = PWMOut1
 OUT_SENTIDO_HEAT = 5         # OUT05: sentido de giro de la bomba heat unit
 OUT_SENTIDO_FEED = 6         # OUT06: sentido de giro de la bomba feed unit
-# Proteccion del driver de las bombas (puente en H): ni se invierte el sentido con la bomba girando (la contracorriente del motor
-# es muy alta) ni se arranca de golpe a plena potencia (pico de corriente de arranque).
+# Proteccion del driver de las bombas (puente en H): no se invierte el sentido con la bomba girando (la contracorriente del motor
+# es muy alta) y el motor nunca se deja con un PWM tan bajo que no llegue a girar: un motor parado con tension es un rotor
+# bloqueado y se come la corriente maxima de forma continua. Por eso se arranca a tope (un pico corto que el motor vence
+# enseguida) y el PWM de una bomba en marcha nunca baja de PWM_MINIMO_BOMBA.
 BOMBAS = {OUT_BOMBA_HEAT: OUT_SENTIDO_HEAT, OUT_BOMBA_FEED: OUT_SENTIDO_FEED}   # OUT de encendido -> OUT de sentido
-RAMPA_ARRANQUE_S = 2.0       # el PWM de una bomba sube de 0 a su valor en este tiempo al encenderla
-RAMPA_PARADA_S = 1.0         # al apagar una bomba (parada normal) su PWM baja hasta 0 en este tiempo; el paro de emergencia no la usa
+ARRANQUE_A_TOPE_S = 0.3      # al encender una bomba va al 100 % este tiempo (despega el rotor) y luego pasa a su consigna
+PWM_MINIMO_BOMBA = 50.0      # % minimo de PWM con la bomba en marcha: por debajo el motor puede quedarse clavado
+RAMPA_PARADA_S = 1.0         # al apagar una bomba (parada normal) su PWM baja hasta PWM_MINIMO_BOMBA en este tiempo y luego se corta;
+                             # el paro de emergencia no la usa
 ESPERA_CAMBIO_SENTIDO_S = 1.5  # tras apagar una bomba, hasta que se acepta cambiar su sentido
 SENTIDO_INVERSO_PERMITIDO = False   # las bombas N1 y N2 solo giran hacia delante: se rechaza cualquier orden de sentido inverso (protege el driver)
 PWM_DE_BOMBA = {OUT_BOMBA_HEAT: "PWMOut2_value", OUT_BOMBA_FEED: "PWMOut1_value"}   # canal PWM de cada bomba
@@ -56,10 +69,25 @@ def burst_activo(ciclo, porcentaje, ciclos=BURST_CICLOS):
     return (k + 1) * n // ciclos > k * n // ciclos
 
 
-def pwm_activo(tick, porcentaje, periodo=PWM_PERIODO_TICKS):
-    """PWM lento por ticks: activo durante round(porcentaje * periodo / 100) ticks de cada periodo."""
-    n = round(min(max(float(porcentaje), 0.0), 100.0) * periodo / 100)
-    return (tick % periodo) < n
+def frecuencia_pwm_valida(hz):
+    """La frecuencia pedida, dentro de lo que el bus I2C puede dar (y muy por debajo del limite del L298)."""
+    return min(max(float(hz), PWM_BOMBAS_HZ_MIN), PWM_BOMBAS_HZ_MAX)
+
+
+def pwm_por_flancos(t, porcentaje, periodo_s):
+    """PWM por tiempo. Devuelve (activo, instante del proximo cambio de esta salida) en el instante `t` (segundos).
+    Cada periodo empieza activo y baja al cumplirse el porcentaje; al 0 % y al 100 % no hay flancos."""
+    fraccion = min(max(float(porcentaje), 0.0), 100.0) / 100.0
+    inicio = math.floor((t + _EPS) / periodo_s) * periodo_s
+    fin_periodo = inicio + periodo_s
+    if fraccion <= 0.0:
+        return False, fin_periodo
+    if fraccion >= 1.0:
+        return True, fin_periodo
+    bajada = inicio + fraccion * periodo_s
+    if t + _EPS < bajada:
+        return True, bajada
+    return False, fin_periodo
 
 
 def _canales(prefijo, valor_inicial):
@@ -85,10 +113,16 @@ class Runtime:
     rapido (125 us) solo existe si hay un GPIO de PWM configurado.
     """
 
-    def __init__(self, pwm_pin=PWM_GPIO_PIN, simular=False, caducidad_calefactor_s=None):
+    def __init__(self, pwm_pin=PWM_GPIO_PIN, simular=False, caducidad_calefactor_s=None, pwm_bombas_hz=None):
         """caducidad_calefactor_s: si no es None, la orden de calentar caduca a los N segundos de la ultima vez que se
         recibio (quien la manda tiene que repetirla): si cae el servidor o el broker, la resistencia se apaga sola."""
         self.pwm_pin = pwm_pin
+        self.pwm_bombas_hz = frecuencia_pwm_valida(PWM_BOMBAS_HZ if pwm_bombas_hz is None else pwm_bombas_hz)
+        self._reloj = time.monotonic      # reloj y espera del hilo de potencia (las pruebas los sustituyen)
+        self._esperar = None              # None = stop_event.wait
+        self.retraso_potencia_ms = 0.0    # media movil de lo tarde que despierta el hilo de potencia
+        self.retraso_potencia_max_ms = 0.0
+        self.escrituras_potencia_s = 0.0  # escrituras por segundo al expansor de transistores (ultimo segundo)
         self.simular = simular
         self.caducidad_calefactor_s = caducidad_calefactor_s
         self._calefactor_hasta = 0.0
@@ -240,6 +274,9 @@ class Runtime:
             motivos = self._motivos_bloqueo()
             return {"running": en_marcha, "io_ok": self.io_ok,
                     "io_errors": self.io_errors, "scan_overruns": self.scan_overruns,
+                    "pwm_bombas_hz": self.pwm_bombas_hz, "retraso_potencia_ms": round(self.retraso_potencia_ms, 3),
+                    "retraso_potencia_max_ms": round(self.retraso_potencia_max_ms, 3),
+                    "escrituras_potencia_s": round(self.escrituras_potencia_s, 1),
                     "calefactor_bloqueado": bool(motivos), "motivos_bloqueo": motivos,
                     "paro_emergencia": self._paro_emergencia}
 
@@ -295,6 +332,9 @@ class Runtime:
                 nuevos[nombre] = _a_bool(valor)
             elif nombre.startswith("PWMOut"):
                 nuevos[nombre] = min(max(float(valor), 0.0), 100.0)
+                if nombre in PWM_DE_BOMBA.values() and 0.0 < nuevos[nombre] < PWM_MINIMO_BOMBA:
+                    print(f"{nombre} = {nuevos[nombre]:g} % subido a {PWM_MINIMO_BOMBA:g} %: por debajo la bomba puede no girar")
+                    nuevos[nombre] = PWM_MINIMO_BOMBA
             else:
                 nuevos[nombre] = float(valor)
 
@@ -334,18 +374,25 @@ class Runtime:
                     self._bomba_inicio[salida_bomba] = ahora
                     self._bomba_frenando.pop(salida_bomba, None)
                 else:
-                    llevaba = self.outputs[PWM_DE_BOMBA[salida_bomba]] * self._factor_rampa(salida_bomba, ahora)
-                    if RAMPA_PARADA_S > 0 and llevaba > 0:
+                    llevaba = self._pwm_en_marcha(salida_bomba, self.outputs[PWM_DE_BOMBA[salida_bomba]], ahora)
+                    if RAMPA_PARADA_S > 0 and llevaba > PWM_MINIMO_BOMBA:
                         self._bomba_frenando[salida_bomba] = (ahora, llevaba)
                     self._bomba_inicio.pop(salida_bomba, None)
                     self._bomba_parada[salida_bomba] = ahora
 
-    def _factor_rampa(self, salida_bomba, ahora):
-        """0..1: cuanto de su PWM puede dar la bomba ahora. Sin instante de arranque registrado (ordenes directas) no hay rampa."""
+    def _pwm_en_marcha(self, salida_bomba, consigna, ahora):
+        """PWM real de una bomba encendida: 100 % los primeros ARRANQUE_A_TOPE_S tras encenderla y luego su consigna,
+        nunca por debajo de PWM_MINIMO_BOMBA. Una consigna de 0 deja el motor sin tension (no hay corriente)."""
+        if consigna <= 0:
+            return 0.0
         inicio = self._bomba_inicio.get(salida_bomba)
-        if inicio is None or RAMPA_ARRANQUE_S <= 0:
-            return 1.0
-        return min(1.0, max(0.0, (ahora - inicio) / RAMPA_ARRANQUE_S))
+        if inicio is not None and ahora - inicio < ARRANQUE_A_TOPE_S:
+            return 100.0
+        return max(consigna, PWM_MINIMO_BOMBA)
+
+    def _pwm_frenando(self, llevaba, transcurrido):
+        """Rampa de parada: de `llevaba` hasta PWM_MINIMO_BOMBA en RAMPA_PARADA_S (luego se corta)."""
+        return llevaba - (llevaba - PWM_MINIMO_BOMBA) * transcurrido / RAMPA_PARADA_S
 
     def _escribir_grupo(self, prefijo, valores):
         if len(valores) != NUM_CHANNELS:
@@ -433,8 +480,14 @@ class Runtime:
     # Scan de potencia: transistores (J7), con rafagas en OUT03 y PWM en OUT07/OUT08
     # ============================================================
 
-    def transistores_efectivos(self, tick, ahora=None):
-        """Nivel fisico de OUT01..OUT08 en el tick dado, a partir de la imagen. `ahora` (monotonic) solo se pasa en pruebas."""
+    def niveles_potencia(self, t, ahora=None):
+        """Nivel fisico de OUT01..OUT08 en el instante `t` (segundos del reloj del hilo de potencia), a partir de la imagen.
+        `ahora` (monotonic) solo se pasa en pruebas."""
+        return self._plan_potencia(t, ahora)[0]
+
+    def _plan_potencia(self, t, ahora=None):
+        """(niveles de OUT01..OUT08 en `t`, instante en que hay que volver a mirar): el proximo flanco de una bomba o el
+        proximo ciclo de red, y como mucho ESPERA_MAXIMA_S despues para atender pronto un paro o un apagado."""
         ahora = time.monotonic() if ahora is None else ahora
         with self.lock:
             cmd = [self.outputs[f"TransistorOut{i}_value"] for i in range(1, NUM_CHANNELS + 1)]
@@ -443,9 +496,10 @@ class Runtime:
             feed = self.outputs["PWMOut1_value"]
             bloqueada = bool(self._motivos_bloqueo())
             paro = self._paro_emergencia
-            heat *= self._factor_rampa(OUT_BOMBA_HEAT, ahora)
-            feed *= self._factor_rampa(OUT_BOMBA_FEED, ahora)
-            # Rampa de parada: la bomba ya apagada en la imagen sigue empujando con un PWM que baja hasta 0 (el relé de sentido no se toca).
+            heat = self._pwm_en_marcha(OUT_BOMBA_HEAT, heat, ahora)
+            feed = self._pwm_en_marcha(OUT_BOMBA_FEED, feed, ahora)
+            # Rampa de parada: la bomba ya apagada en la imagen sigue empujando con un PWM que baja hasta el minimo y se corta
+            # (el relé de sentido no se toca).
             for salida_bomba in BOMBAS:
                 frenando = self._bomba_frenando.get(salida_bomba)
                 if frenando is None:
@@ -456,44 +510,64 @@ class Runtime:
                     continue
                 cmd[salida_bomba - 1] = True
                 if salida_bomba == OUT_BOMBA_HEAT:
-                    heat = frenando[1] * (1.0 - transcurrido / RAMPA_PARADA_S)
+                    heat = self._pwm_frenando(frenando[1], transcurrido)
                 else:
-                    feed = frenando[1] * (1.0 - transcurrido / RAMPA_PARADA_S)
+                    feed = self._pwm_frenando(frenando[1], transcurrido)
+        siguiente = t + ESPERA_MAXIMA_S
         if paro:
-            return [False] * NUM_CHANNELS
+            return [False] * NUM_CHANNELS, siguiente
         if not SENTIDO_INVERSO_PERMITIDO:
             for salida_sentido in BOMBAS.values():
                 cmd[salida_sentido - 1] = False
-        cmd[OUT_RESISTENCIA - 1] = cmd[OUT_RESISTENCIA - 1] and not bloqueada and burst_activo(tick // CICLO_RED_TICKS, potencia)
-        cmd[OUT_BOMBA_HEAT - 1] = cmd[OUT_BOMBA_HEAT - 1] and pwm_activo(tick, heat)
-        cmd[OUT_BOMBA_FEED - 1] = cmd[OUT_BOMBA_FEED - 1] and pwm_activo(tick, feed)
-        return cmd
+        ciclo = math.floor((t + _EPS) / CICLO_RED_S)
+        if cmd[OUT_RESISTENCIA - 1]:
+            cmd[OUT_RESISTENCIA - 1] = not bloqueada and burst_activo(ciclo, potencia)
+            siguiente = min(siguiente, (ciclo + 1) * CICLO_RED_S)
+        periodo = 1.0 / self.pwm_bombas_hz
+        for salida_bomba, porcentaje in ((OUT_BOMBA_HEAT, heat), (OUT_BOMBA_FEED, feed)):
+            if cmd[salida_bomba - 1]:
+                cmd[salida_bomba - 1], cambio = pwm_por_flancos(t, porcentaje, periodo)
+                siguiente = min(siguiente, cambio)
+        return cmd, max(siguiente, t + _EPS)
 
     def _bucle_potencia(self):
-        periodo = POWER_TICK_MS / 1000
-        siguiente = time.monotonic()
-        tick = 0
-        ultimo = None
+        reloj = self._reloj
+        esperar = self._esperar or self.stop_event.wait
+        refresco = SLOW_SCAN_MS / 1000
+        t0 = reloj()
+        ultimo, escrito = None, -refresco
+        objetivo = None                  # instante en que se queria despertar
+        ventana, escrituras = 0.0, 0
 
         while not self.stop_event.is_set():
-            niveles = self.transistores_efectivos(tick)
+            ahora = reloj()
+            t = ahora - t0
+            if objetivo is not None:
+                retraso = max(0.0, t - objetivo)
+                with self.lock:
+                    self.retraso_potencia_ms += (retraso * 1000 - self.retraso_potencia_ms) * 0.01
+                    self.retraso_potencia_max_ms = max(self.retraso_potencia_max_ms, retraso * 1000)
+                    if retraso > RETRASO_GRAVE_S:
+                        self.scan_overruns += 1
+            niveles, siguiente = self._plan_potencia(t, ahora)
             # Se escribe al cambiar y, aunque no cambie, cada 100 ms (recupera un fallo del bus).
-            if niveles != ultimo or tick % (SLOW_SCAN_MS // POWER_TICK_MS) == 0:
+            if niveles != ultimo or t - escrito >= refresco:
                 try:
                     self.transistor_output_driver.write_outputs(*niveles)
-                    ultimo = niveles
+                    ultimo, escrito = niveles, t
+                    escrituras += 1
                 except OSError as e:
                     self._error_io("scan de potencia", e)
-                    ultimo = None
-            tick += 1
-
-            siguiente += periodo
-            ahora = time.monotonic()
-            if ahora > siguiente:
+                    ultimo, escrito = None, t
+            if t - ventana >= 1.0:
                 with self.lock:
-                    self.scan_overruns += 1
-                siguiente = ahora
-            self.stop_event.wait(siguiente - ahora if siguiente > ahora else 0)
+                    self.escrituras_potencia_s = escrituras / (t - ventana)
+                ventana, escrituras = t, 0
+
+            objetivo = siguiente
+            falta = siguiente - (reloj() - t0)
+            if falta > 0:
+                esperar(falta)
 
     # ============================================================
     # Scan rápido: PWM por software cada 125 us

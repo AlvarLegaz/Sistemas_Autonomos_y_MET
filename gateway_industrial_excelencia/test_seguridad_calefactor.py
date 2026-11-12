@@ -11,7 +11,7 @@ from runtime import (MOTIVO_PARO, MOTIVO_SONDA_T2, MOTIVO_TERMOSTATO_ABIERTO, MO
 
 def conduce(rt):
     """True si la resistencia conduce en algun tick de una ventana de rafagas completa (100 % de potencia)."""
-    return any(rt.transistores_efectivos(tick)[OUT_RESISTENCIA - 1] for tick in range(0, 400, 4))
+    return any(rt.niveles_potencia(ciclo * 0.020 + 0.001)[OUT_RESISTENCIA - 1] for ciclo in range(100))
 
 
 def esperar_scan(segundos=0.35):
@@ -178,7 +178,7 @@ class ParoDeEmergencia(unittest.TestCase):
         self.rt.paro_emergencia(True)
         salidas = self.rt.readOutputs()
         self.assertFalse(any(v for k, v in salidas.items() if k.startswith(("DigitalOut", "TransistorOut"))))
-        self.assertFalse(any(self.rt.transistores_efectivos(t)[i] for t in range(0, 400, 4) for i in range(8)))
+        self.assertFalse(any(self.rt.niveles_potencia(c * 0.020 + 0.001)[i] for c in range(100) for i in range(8)))
         self.rt.update_outputs({SALIDA_RESISTENCIA: True, "TransistorOut7_value": True, "DigitalOut3_value": True})
         salidas = self.rt.readOutputs()
         self.assertFalse(any(v for k, v in salidas.items() if k.startswith(("DigitalOut", "TransistorOut"))))

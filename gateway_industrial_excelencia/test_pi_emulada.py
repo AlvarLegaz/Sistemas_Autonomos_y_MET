@@ -140,15 +140,15 @@ class PiEmulada(unittest.TestCase):
     # -- PWM de las bombas en OUT07 (heat) y OUT08 (feed) --------------------
     def test_pwm_independiente_en_cada_bomba(self):
         self.rt.update_outputs({"TransistorOut7_value": True, "TransistorOut8_value": True,
-                                "PWMOut2_value": 100, "PWMOut1_value": 25})
-        time.sleep(rt.RAMPA_ARRANQUE_S + 0.3)      # pasada la rampa de arranque de las bombas
+                                "PWMOut2_value": 100, "PWMOut1_value": 60})
+        time.sleep(rt.ARRANQUE_A_TOPE_S + 0.3)     # pasado el arranque a tope de las bombas
         t0 = time.monotonic()
         time.sleep(3.0)
         t1 = time.monotonic()
         heat = tramos(7, t0, t1)
         feed = tramos(8, t0, t1)
         self.assertGreater(heat[0] / heat[1], 0.97)                      # heat unit al 100 %
-        self.assertAlmostEqual(feed[0] / feed[1], 0.25, delta=0.10)      # feed unit al 25 %
+        self.assertAlmostEqual(feed[0] / feed[1], 0.60, delta=0.10)      # feed unit al 60 %
 
     def test_bomba_sin_orden_no_gira_aunque_pwm_al_100(self):
         self.assertLess(ciclo_de_trabajo(8, 1.0), 0.01)
@@ -167,7 +167,7 @@ class PiEmulada(unittest.TestCase):
 
     def test_fallo_i2c_se_marca_y_se_recupera(self):
         self.rt.update_outputs({"TransistorOut8_value": True})
-        time.sleep(rt.RAMPA_ARRANQUE_S + 0.3)      # pasada la rampa de arranque de la bomba
+        time.sleep(rt.ARRANQUE_A_TOPE_S + 0.3)     # pasado el arranque a tope de la bomba
         FALLO_I2C.set()
         time.sleep(0.5)
         d = self.rt.diagnostico()
@@ -214,10 +214,11 @@ class Reparto(unittest.TestCase):
         self.assertEqual(sum(rt.burst_activo(c, 250) for c in range(50)), 50)
         self.assertEqual(sum(rt.burst_activo(c, -5) for c in range(50)), 0)
 
-    def test_pwm_ticks(self):
+    def test_pwm_por_flancos(self):
+        periodo = 0.010
         for p in range(0, 101, 5):
-            self.assertEqual(sum(rt.pwm_activo(t, p) for t in range(rt.PWM_PERIODO_TICKS)),
-                             round(p * rt.PWM_PERIODO_TICKS / 100), p)
+            activas = sum(rt.pwm_por_flancos((k + 0.5) * periodo / 20, p, periodo)[0] for k in range(20))
+            self.assertEqual(activas, round(p * 20 / 100), p)
 
 
 if __name__ == "__main__":

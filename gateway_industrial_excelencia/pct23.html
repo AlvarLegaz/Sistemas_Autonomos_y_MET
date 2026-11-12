@@ -716,7 +716,7 @@ for (const [titulo, id, bomba] of PANEL) {
   const fila = document.createElement('div');
   fila.className = 'fila-ctl';
   fila.innerHTML = `<div class="cab-ctl"><span>${titulo}</span><button type="button" class="ctl-boton"></button></div>
-    <div class="ctl-desl"><input type="range" min="0" max="100" step="1" value="100" aria-label="${c.nombre}"><output>100 %</output></div>`;
+    <div class="ctl-desl"><input type="range" min="${id === 'RES' ? 0 : 50}" max="100" step="1" value="100" aria-label="${c.nombre}"><output>100 %</output></div>`;   // bombas: no bajan del 50 % (se pararian)
   $('panel-ctl').appendChild(fila);
   const [boton, r, o] = [fila.querySelector('button'), fila.querySelector('input'), fila.querySelector('output')];
   let temporizador;
@@ -931,7 +931,7 @@ const AJUSTES_CONTROL = [   // [clave en el servidor, nombre, unidad, mínimo, m
   ['consigna_t1', 'Consigna de T1', '°C', 20, 80, 1],
   ['t2_max', 'T2 máxima', '°C', 30, 65, 1],
   ['histeresis', 'Histéresis de T2 (±)', '°C', 0.5, 10, 0.5],
-  ['velocidad_n1', 'Velocidad de N1', '%', 10, 100, 5],
+  ['velocidad_n1', 'Velocidad de N1', '%', 50, 100, 5],
 ];
 const DESCRIPCION_MODO = {
   manual: 'Manual: gobiernas las bombas y el calefactor desde el esquema.',

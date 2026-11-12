@@ -36,7 +36,7 @@ LIMITES = {                                    # (mínimo, máximo) de cada ajus
     "consigna_t1": (20.0, 80.0),
     "t2_max": (30.0, 65.0),                    # el termostato salta a 70 °C y T2 sigue subiendo unos grados al cortar
     "histeresis": (0.5, 10.0),
-    "velocidad_n1": (10.0, 100.0),
+    "velocidad_n1": (50.0, 100.0),   # por debajo del 50 % la peristaltica puede no girar (ver PWM_MINIMO_BOMBA en runtime.py)
 }
 POR_DEFECTO = {"consigna_t1": 45.0, "t2_max": 60.0, "histeresis": 2.0, "velocidad_n1": 50.0}
 
