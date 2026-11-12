@@ -40,6 +40,15 @@
 .planta-simple .ajustes-manual label output { font-size: 15px; text-align: right; font-variant-numeric: tabular-nums; }
 .planta-simple .ajustes-manual input[type="range"] { grid-column: 1 / -1; width: 100%; height: 22px; margin: 0; accent-color: var(--agua); }
 .planta-simple .ajustes-manual #vel-p101 { accent-color: var(--producto); }
+.planta-simple .ctl-temp { margin: 4px 0 0; padding: 10px 12px 12px; border: 1px solid var(--borde); border-radius: 6px; display: flex; flex-direction: column; gap: 8px; }
+.planta-simple .ctl-temp legend { padding: 0 6px; font-size: 12px; font-weight: 800; letter-spacing: .04em; color: var(--tenue); }
+.planta-simple .ctl-temp label { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 700; color: var(--texto); }
+.planta-simple .ctl-temp select, .planta-simple .ctl-temp input[type="number"] { min-height: 32px; padding: 0 8px; border: 1px solid var(--borde); border-radius: 6px; background: var(--fondo); color: var(--texto); font: 700 13px var(--fuente); }
+.planta-simple .ctl-temp input[type="number"] { width: 5.2em; text-align: right; }
+.planta-simple .ctl-temp .num { display: inline-flex; align-items: center; gap: 6px; }
+.planta-simple .ctl-temp .ct-pid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.planta-simple .ctl-temp .ct-pid label { flex-direction: column; align-items: stretch; gap: 3px; } .planta-simple .ctl-temp .ct-pid input { width: 100%; }
+.planta-simple .ctl-temp [hidden] { display: none; }
 .planta-simple .botones-manual { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .planta-simple .botones-manual #m-caldera { grid-column: 1 / -1; }
 .planta-simple .botones-manual button.activo { background: color-mix(in srgb, var(--caliente) 28%, var(--panel)); border-color: var(--caliente); }

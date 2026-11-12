@@ -16,7 +16,7 @@
    *   'seta' | 'liberar-seta'  → pulsa o libera la seta ES-001 (vale en cualquier modo)
    *   'pulsador'               → pulsa PB-001 o TSH-201 (rearme)
    *   'orden'                  → { tag, valor } orden manual al actuador
-   *   'confirmar'              → igual que orden pero peligrosa: { tag, valor, texto } (hay que confirmar)
+   *   (una orden peligrosa lleva además `aviso` con su consecuencia: se muestra, pero no se pide confirmación)
    *   'bloqueado' | 'aviso' | 'info' → { texto } mensaje para el operador, sin orden
    */
   function decidirClic(tag, estado) {
@@ -33,7 +33,7 @@
       const bloqueo = pm.bloqueo(e, mando);
       if (bloqueo) return { tipo: 'bloqueado', tag: mando, texto: `${mando} bloqueado: ${bloqueo}` };
       const riesgo = pm.peligro(e, mando);
-      if (riesgo) return { tipo: 'confirmar', tag: mando, valor: 1, texto: riesgo };
+      if (riesgo) return { tipo: 'orden', tag: mando, valor: 1, aviso: riesgo };      // en Revisión el operador manda: se avisa de la consecuencia pero no se pregunta
     }
     return { tipo: 'orden', tag: mando, valor: nuevo ? 1 : 0 };
   }
@@ -84,6 +84,42 @@
       { id: 'aire', texto: 'Aire comprimido suficiente (PSL-501)', ok: !!(I['PSL-501'] && I['PSL-501'].nivel === 1), valor: I['PSL-501'] && I['PSL-501'].nivel === 1 ? 'sí' : 'bajo' },
       { id: 'lazos', texto: 'Lazos de TT-103, FT-101, PT-101 y PT-102 sanos', ok: malos.length === 0, valor: malos.length ? malos.join(', ') : 'sanos' },
     ];
+  }
+
+  /** Histéresis (todo/nada) del calentador: enciende por debajo de consigna − banda/2 y apaga por encima de consigna + banda/2; dentro de la banda mantiene el estado anterior. */
+  function histeresis(medida, consigna, banda, encendido) {
+    if (medida <= consigna - banda / 2) return true;
+    if (medida >= consigna + banda / 2) return false;
+    return !!encendido;
+  }
+
+  /**
+   * PID de la temperatura del agua: salida 0-100 %. Anti-windup por integración condicional (no integra con la salida saturada en el sentido del error) y con separación
+   * de la integral (solo integra con el error por debajo de `bandaIntegral` °C: así no se pasa de temperatura al calentar desde frío). Derivada sobre el error.
+   */
+  function crearPid({ kp = 10, ki = 0.05, kd = 0, bandaIntegral = 8 } = {}) {
+    let integral = 0, ultimoError = null;
+    return {
+      reiniciar() { integral = 0; ultimoError = null; },
+      integral: () => integral,
+      paso(error, dt) {
+        const p = kp * error, d = ultimoError === null || !(dt > 0) ? 0 : kd * (error - ultimoError) / dt;
+        const sinSaturar = u => !((u >= 100 && error > 0) || (u <= 0 && error < 0));
+        if (Math.abs(error) < bandaIntegral && sinSaturar(p + integral + d) && dt > 0) integral = Math.max(0, Math.min(100, integral + ki * error * dt));
+        ultimoError = error;
+        return Math.max(0, Math.min(100, p + integral + d));
+      },
+    };
+  }
+
+  /**
+   * Reparte una salida de 0-100 % entre los dos bancos de 30 kW con modulación por tiempo (ventana de `ventanaS` s): hasta el 50 % solo el banco 1 (a ciclo u/50) y por encima
+   * el banco 1 fijo y el 2 a ciclo (u−50)/50. Devuelve [banco1, banco2] (true = conectado) en el instante `tS`.
+   */
+  function repartoBancos(u, tS, ventanaS = 30) {
+    const x = Math.max(0, Math.min(100, u)), fase = ((tS % ventanaS) + ventanaS) % ventanaS / ventanaS;
+    const ciclo1 = x >= 50 ? 1 : x / 50, ciclo2 = x <= 50 ? 0 : (x - 50) / 50;
+    return [fase < ciclo1, fase < ciclo2];
   }
 
   /**
@@ -198,7 +234,13 @@
               <label><span>Velocidad de P-101</span><output id="o-vel-p101">0 %</output><input type="range" id="vel-p101" min="0" max="100" step="1" value="0"></label>
               <label><span>Tanque de balance</span><output id="o-nivel-tanque">100 %</output><input type="range" id="nivel-tanque" min="0" max="100" step="1" value="100"></label>
               <label><span>Agua caliente</span><output id="o-nivel-agua">nivel alto</output><input type="range" id="nivel-agua" min="0" max="100" step="1" value="100"></label>
-              <span class="botones-manual"><button type="button" id="m-caldera">Encender caldera</button><button type="button" id="m-llenar">Llenar los dos depósitos</button><button type="button" id="m-rearme">Rearme</button></span></div></div>
+              <span class="botones-manual"><button type="button" id="m-caldera">Encender caldera</button><button type="button" id="m-llenar">Llenar los dos depósitos</button><button type="button" id="m-rearme">Rearme</button></span>
+              <fieldset class="ctl-temp" id="ctl-temp"><legend>Temperatura del agua (TT-201)</legend>
+                <label>Control <select id="ct-modo"><option value="off">Desactivado</option><option value="histeresis">Histéresis (todo/nada)</option><option value="pid">PID</option></select></label>
+                <label>Objetivo <span class="num"><input type="number" id="ct-consigna" min="20" max="85" step="0.5" value="70"> °C</span></label>
+                <label data-solo="histeresis">Histéresis (±½ banda) <span class="num"><input type="number" id="ct-banda" min="0.5" max="20" step="0.5" value="4"> °C</span></label>
+                <div class="ct-pid" data-solo="pid"><label>Kp <input type="number" id="ct-kp" min="0" max="100" step="0.5" value="10"></label><label>Ki <input type="number" id="ct-ki" min="0" max="5" step="0.01" value="0.05"></label><label>Kd <input type="number" id="ct-kd" min="0" max="500" step="1" value="0"></label></div>
+                <p id="ct-estado" class="estado-pie">Desactivado: calientas tú con la caldera.</p></fieldset></div></div>
           <div class="panel-pestana" id="p-lecturas" role="tabpanel" aria-labelledby="t-lecturas" hidden>
             <section class="condiciones" aria-label="Condiciones de la FDV"><h2 id="cond-titulo">LA FDV…</h2><ul id="lista-condiciones"></ul></section>
             <section class="contadores" aria-label="Contadores"><h2>CONTADORES</h2><dl id="lista-contadores"></dl></section>
@@ -247,8 +289,7 @@
       if (d.tipo === 'seta') { if (sim.ordenes.paroEmergencia) sim.ordenes.paroEmergencia(true); else sim.ordenes.pulsador('ES-001'); avisar('Seta ES-001 pulsada: paro de emergencia. Para volver a arrancar, REARME en el panel del esquema.'); }
       else if (d.tipo === 'liberar-seta') { if (sim.ordenes.paroEmergencia) sim.ordenes.paroEmergencia(false); avisar('Seta ES-001 liberada. Falta REARME (PB-001) para salir del paro.'); }
       else if (d.tipo === 'pulsador') { sim.ordenes.pulsador(d.tag); avisar(`${d.tag} pulsado.`); }
-      else if (d.tipo === 'orden') sim.ordenes.manual(d.tag, d.valor);
-      else if (d.tipo === 'confirmar') { confirmar({ titulo: `¿Activar ${d.tag}?`, mensaje: d.texto, ok: 'Activar' }).then(si => { if (si) { sim.ordenes.manual(d.tag, d.valor); aplicarAhora(); refrescar(); } }); return; }
+      else if (d.tipo === 'orden') { sim.ordenes.manual(d.tag, d.valor); if (d.aviso) avisar(`⚠ ${d.tag}: ${d.aviso}`); }
       else avisar(d.texto);
       aplicarAhora(); refrescar();
     }
@@ -319,7 +360,7 @@
     // Manual: el reloj corre siempre (no hay «Iniciar»: lo que mandas ocurre al momento, como en una planta de verdad) y se restablece con «Restablecer».
     // Automático: el PLC lleva la planta; se pasa a parada y se arranca con «Iniciar» (el estado, niveles incluidos, se conserva).
     $('modo-manual').addEventListener('click', () => { if (enManual()) return; if (sim.estado().tiempoS < 1) nivelesIniciales('revision'); llenando = false; consignasPanel.llenando = false; corriendo = true; actualizarBotones(); ponerModo('MANUAL'); });
-    $('modo-auto').addEventListener('click', () => { if (!enManual()) return; if (sim.estado().tiempoS < 1) nivelesIniciales('normal'); llenando = false; consignasPanel.llenando = false; corriendo = false; actualizarBotones(); ponerModo('PARADA'); });
+    $('modo-auto').addEventListener('click', () => { if (!enManual()) return; if (sim.estado().tiempoS < 1) nivelesIniciales('normal'); ponerControl('off'); for (const t of ['KM-201', 'KM-202', 'P-201']) sim.ordenes.manual(t, null); llenando = false; consignasPanel.llenando = false; corriendo = false; actualizarBotones(); ponerModo('PARADA'); });
     document.querySelector('.velocidad').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; velocidad = Number(b.dataset.v); document.querySelectorAll('.velocidad button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
 
     // Ajustes del modo Manual: velocidad de P-101 y nivel de los depósitos por barra (el nivel sirve de nivel inicial); sin tocarlas, las barras siguen el valor real
@@ -331,17 +372,42 @@
     $('m-caldera').addEventListener('click', alternarCaldera);
     // Enciende o apaga el calefactor (P-201 y los dos bancos). Lo usan el botón del panel y el botón dibujado junto al calentador HW-201 del esquema.
     async function alternarCaldera() {
+      if (ctrl.modo !== 'off') ponerControl('off');                              // el botón manda sobre el control automático de la temperatura
       const plan = planCaldera(sim.estado());
       if (plan.accion === 'bloqueado') { avisar(plan.texto); return; }
-      if (plan.accion === 'encender' && plan.peligro) {
-        const si = await confirmar({ titulo: '¿Encender la caldera?', mensaje: `${plan.peligro} Se arranca P-201 y se conectan los dos bancos de resistencias.`, ok: 'Encender' });
-        if (!si) return;
-      }
       for (const [tag, valor] of plan.ordenes) sim.ordenes.manual(tag, valor);
-      avisar(plan.accion === 'encender' ? 'Caldera encendida: P-201 en marcha y los dos bancos conectados.' : 'Caldera apagada.');
+      avisar(plan.accion === 'encender' ? `Caldera encendida: P-201 en marcha y los dos bancos conectados. ⚠ ${plan.peligro}` : 'Caldera apagada.');
       aplicarAhora(); refrescar();
     }
     $('m-rearme').addEventListener('click', () => { accionesPanel.rearme(); aplicarAhora(); refrescar(); });
+
+    // Control de temperatura del agua en Revisión: objetivo para TT-201 con histéresis (todo/nada) o PID, que manda P-201 y los dos bancos (KM-201, KM-202) como lo haría un operador.
+    // Las protecciones del PLC (termostato, nivel bajo, sin circulación…) siguen cortando por encima de todo.
+    const ctrl = { modo: 'off', encendido: false, salida: 0, pid: crearPid(), texto: 'Desactivado: calientas tú con la caldera.' };
+    const leerNumero = (id, defecto) => { const n = Number($(id).value); return Number.isFinite(n) ? n : defecto; };
+    const bancos = (b1, b2) => { sim.ordenes.manual('KM-201', b1 ? 1 : 0); sim.ordenes.manual('KM-202', b2 ? 1 : 0); };
+    function mostrarCamposControl() { for (const el of document.querySelectorAll('#ctl-temp [data-solo]')) el.hidden = el.dataset.solo !== ctrl.modo; }
+    function ponerControl(modo) {
+      ctrl.modo = modo; ctrl.encendido = false; ctrl.salida = 0; ctrl.pid = crearPid({ kp: leerNumero('ct-kp', 10), ki: leerNumero('ct-ki', 0.05), kd: leerNumero('ct-kd', 0) });
+      $('ct-modo').value = modo; mostrarCamposControl();
+      if (modo === 'off') { bancos(false, false); ctrl.texto = 'Desactivado: calientas tú con la caldera.'; }
+    }
+    $('ct-modo').addEventListener('change', () => { ponerControl($('ct-modo').value); aplicarAhora(); refrescar(); });
+    for (const id of ['ct-kp', 'ct-ki', 'ct-kd']) $(id).addEventListener('change', () => { if (ctrl.modo === 'pid') ponerControl('pid'); });
+    mostrarCamposControl();
+    function pasoControlTemperatura(e, dtS) {
+      if (ctrl.modo === 'off') return;
+      const tt = e.instrumentos && e.instrumentos['TT-201'];
+      if (!tt || typeof tt.valorPLC !== 'number' || (tt.calidad && tt.calidad !== 'OK')) { bancos(false, false); ctrl.texto = 'Sin lectura válida de TT-201: bancos apagados.'; return; }
+      const consigna = Math.max(20, Math.min(85, leerNumero('ct-consigna', 70))), T = tt.valorPLC;
+      let b1, b2;
+      if (ctrl.modo === 'histeresis') { ctrl.encendido = histeresis(T, consigna, Math.max(0.5, leerNumero('ct-banda', 4)), ctrl.encendido); b1 = b2 = ctrl.encendido; ctrl.salida = b1 ? 100 : 0; }
+      else { ctrl.salida = ctrl.pid.paso(consigna - T, dtS); [b1, b2] = repartoBancos(ctrl.salida, e.tiempoS); }
+      sim.ordenes.manual('P-201', 1); bancos(b1, b2);
+      const conectados = (PCT.htstPanelManual.ordenDe(e, 'KM-201') ? 1 : 0) + (PCT.htstPanelManual.ordenDe(e, 'KM-202') ? 1 : 0);
+      const bloqueo = PCT.htstPanelManual.bloqueo(e, 'KM-201');
+      ctrl.texto = `${ctrl.modo === 'pid' ? `PID: salida ${dec(ctrl.salida, 0)} %` : `Histéresis: ${ctrl.encendido ? 'calentando' : 'esperando'}`} · objetivo ${dec(consigna, 1)} °C · medida ${dec(T, 1)} °C · bancos ${conectados}/2${bloqueo && !conectados ? ` · bloqueado: ${bloqueo}` : ''}`;
+    }
 
     // Ventanas aparte (se siguen moviendo con la planta: leen su estado de esta ventana)
     $('v-3d').addEventListener('click', () => PCT.visor3d.abrirEnVentana('HTST', () => sim.estado()));
@@ -371,6 +437,7 @@
       if (manual) $('modo-manual').setAttribute('aria-current', 'page'); else $('modo-manual').removeAttribute('aria-current');
       if (!manual) $('modo-auto').setAttribute('aria-current', 'page'); else $('modo-auto').removeAttribute('aria-current');
       document.body.dataset.modo = manual ? 'manual' : 'auto';
+      if ($('ct-estado').textContent !== ctrl.texto) $('ct-estado').textContent = ctrl.texto;
       const calderaOn = !!(PCT.htstPanelManual.ordenDe(e, 'KM-201') || PCT.htstPanelManual.ordenDe(e, 'KM-202'));
       const textoCaldera = calderaOn ? 'Apagar caldera' : 'Encender caldera'; if ($('m-caldera').textContent !== textoCaldera) $('m-caldera').textContent = textoCaldera;
       $('m-caldera').classList.toggle('activo', calderaOn);
@@ -409,6 +476,7 @@
     setInterval(() => {
       if (corriendo) sim.paso(0.25 * velocidad);
       if (llenando) pasoLlenado();
+      if (corriendo && enManual()) pasoControlTemperatura(sim.estado(), 0.25 * velocidad);
       refrescar();
       if (corriendo) { const e = sim.estado(), v = {}; for (const [tag, i] of Object.entries(e.instrumentos || {})) if (i && typeof i.valorPLC === 'number') v[tag] = i.valorPLC; historial.registrar(e.tiempoS, Object.assign(v, estadosDigitales(e))); }
       if (performance.now() - ultimaGrafica > 1000) { ultimaGrafica = performance.now(); graficas.redibujar(); }
@@ -419,7 +487,7 @@
     PCT.htstApp = { estadoActual: () => sim.estado(), sim, enDemostracion, nivel: () => 3, ponerModo, accionarEquipo: accionar, llenarDepositos: alternarLlenado };
   }
 
-  const api = { ALIAS, LLENO_PCT, NIVELES_INICIALES, decidirClic, planLlenado, planCaldera, condicionesFdv, estadosDigitales, nivelAgua, textoEstado, formatoReloj, nombreModo, iniciar };
+  const api = { ALIAS, LLENO_PCT, NIVELES_INICIALES, decidirClic, planLlenado, histeresis, crearPid, repartoBancos, planCaldera, condicionesFdv, estadosDigitales, nivelAgua, textoEstado, formatoReloj, nombreModo, iniciar };
   if (typeof module !== 'undefined') module.exports = api;
   else { window.HTST_PAGINA_SIMPLE = api; if (document.getElementById('app')) iniciar().catch(error => { console.error(error); document.getElementById('app').innerHTML = `<p class="aviso-planta">No se pudo iniciar la planta: ${escapar(error.message || error)}</p>`; }); }
 })();

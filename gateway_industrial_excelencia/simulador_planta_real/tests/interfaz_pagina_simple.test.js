@@ -27,10 +27,10 @@ test('clic izquierdo: en Manual alterna la orden de una bomba y la válvula de d
   assert.equal(simple.decidirClic('FDV-101', sim.estado()).tag === undefined || simple.decidirClic('FDV-101', sim.estado()).tag === 'SV-101', true);
 });
 
-test('clic izquierdo: lo peligroso pide confirmación y lo bloqueado dice el motivo', () => {
+test('clic izquierdo: lo peligroso se ejecuta avisando de su consecuencia y lo bloqueado dice el motivo', () => {
   const sim = enManual();
   const vaciar = simple.decidirClic('XV-102', sim.estado());
-  assert.equal(vaciar.tipo, 'confirmar'); assert.equal(vaciar.valor, 1); assert.match(vaciar.texto, /vaciar/);
+  assert.equal(vaciar.tipo, 'orden'); assert.equal(vaciar.valor, 1); assert.match(vaciar.aviso, /vaciar/);              // se avisa de la consecuencia, pero no se pide confirmación
   const calentar = simple.decidirClic('KM-201', sim.estado());                 // sin P-201 en marcha las resistencias están protegidas
   assert.equal(calentar.tipo, 'bloqueado'); assert.match(calentar.texto, /P-201/);
 });
@@ -170,6 +170,50 @@ test('el depósito de agua caliente no da porcentaje: solo bajo, normal o alto s
   sim.ordenes.nivelDeposito('aguaCaliente', 55); sim.paso(1); assert.equal(simple.nivelAgua(sim.estado()), 'normal');
   sim.ordenes.nivelDeposito('aguaCaliente', 95); sim.paso(1); assert.equal(simple.nivelAgua(sim.estado()), 'alto');
   assert.doesNotMatch(simple.textoEstado(sim.estado(), true), /agua caliente[^·]*%/);
+});
+
+test('histéresis: enciende por debajo de la banda, apaga por encima y dentro de la banda mantiene', () => {
+  assert.equal(simple.histeresis(66, 70, 4, false), true);
+  assert.equal(simple.histeresis(74, 70, 4, true), false);
+  assert.equal(simple.histeresis(70, 70, 4, true), true); assert.equal(simple.histeresis(70, 70, 4, false), false);
+});
+
+test('reparto en bancos: hasta el 50 % solo el banco 1, por encima el 1 fijo y el 2 modulado', () => {
+  const duty = (u, bancoN) => { let n = 0; for (let t = 0; t < 30; t += 0.5) if (simple.repartoBancos(u, t, 30)[bancoN]) n++; return n / 60; };
+  assert.equal(duty(0, 0), 0); assert.equal(duty(100, 1), 1);
+  assert.ok(Math.abs(duty(25, 0) - 0.5) < 0.02); assert.equal(duty(25, 1), 0);
+  assert.equal(duty(75, 0), 1); assert.ok(Math.abs(duty(75, 1) - 0.5) < 0.02);
+});
+
+test('PID: la salida se limita a 0-100 y la integral no se dispara con la salida saturada ni con el error grande', () => {
+  const pid = simple.crearPid({ kp: 10, ki: 0.5, kd: 0 });
+  for (let i = 0; i < 200; i++) assert.equal(pid.paso(50, 1), 100);            // error de 50 °C: saturado
+  assert.equal(pid.integral(), 0);                                              // fuera de la banda de integración no integra
+  for (let i = 0; i < 400; i++) pid.paso(1, 1);
+  assert.ok(pid.integral() <= 100);
+  assert.equal(pid.paso(-50, 1), 0);
+});
+
+function calentarConControl(modo, consigna, minutos) {
+  const sim = crearSimulacion({ semilla: 1, valvulasManuales: true }); sim.ordenes.modo('MANUAL'); sim.paso(0.5); sim.paso(0.5);
+  const pid = simple.crearPid({ kp: 10, ki: 0.05, kd: 0 }); let encendido = false, maxT = 0;
+  for (let t = 0; t < minutos * 60; t += 0.25) {
+    const e = sim.estado(), T = e.instrumentos['TT-201'].valorPLC;
+    maxT = Math.max(maxT, T);
+    let b1, b2;
+    if (modo === 'histeresis') { encendido = simple.histeresis(T, consigna, 4, encendido); b1 = b2 = encendido; }
+    else { [b1, b2] = simple.repartoBancos(pid.paso(consigna - T, 0.25), e.tiempoS); }
+    sim.ordenes.manual('P-201', 1); sim.ordenes.manual('KM-201', b1 ? 1 : 0); sim.ordenes.manual('KM-202', b2 ? 1 : 0);
+    sim.paso(0.25);
+  }
+  return { final: sim.estado().instrumentos['TT-201'].valorPLC, maxT };
+}
+
+test('el control de temperatura lleva el agua al objetivo con histéresis y con PID, sin pasarse mucho', () => {
+  const h = calentarConControl('histeresis', 65, 40);
+  assert.ok(Math.abs(h.final - 65) < 4.5, `histéresis final ${h.final}`); assert.ok(h.maxT < 65 + 6, `histéresis máx ${h.maxT}`);
+  const p = calentarConControl('pid', 65, 40);
+  assert.ok(Math.abs(p.final - 65) < 2, `PID final ${p.final}`); assert.ok(p.maxT < 65 + 5, `PID máx ${p.maxT}`);
 });
 
 test('reloj con horas, minutos y segundos', () => { assert.equal(simple.formatoReloj(3725.9), '01:02:05'); assert.equal(simple.formatoReloj(), '00:00:00'); });
