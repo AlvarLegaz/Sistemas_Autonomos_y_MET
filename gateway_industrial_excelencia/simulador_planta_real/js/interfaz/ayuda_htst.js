@@ -11,7 +11,8 @@
     return null;
   }
 
-  /** Activa las fichas sobre `svg`. contexto: { sim(), alVer3d(tag), alMedir(tag), mandoFicha(tag) → { nodo, actualizar(estado) } | null, nivel(), niveles }. */
+  /** Activa las fichas sobre `svg`. contexto: { sim(), alVer3d(tag), alMedir(tag), mandoFicha(tag) → { nodo, actualizar(estado) } | null, nivel(), niveles,
+   *  clicIzquierdo(tag, evento) (opcional: si está, el clic izquierdo acciona y solo el derecho abre la ficha) }. */
   function iniciarAyuda(svg, contexto) {
     const ELEMENTOS = textos.construirElementos();
     const ventana = document.createElement('div');
@@ -56,13 +57,24 @@
     ventana.querySelector('.ficha-3d').addEventListener('click', () => { const t = actual; cerrar(); if (contexto.alVer3d) contexto.alVer3d(t); });
     ventana.querySelector('.ficha-medir').addEventListener('click', () => { const t = actual; cerrar(); if (contexto.alMedir) contexto.alMedir(t); });
     const alPulsar = evento => { const tag = tagDelElemento(evento.target, svg); if (tag && ELEMENTOS[tag]) { evento.preventDefault(); abrir(tag, evento.target.closest ? evento.target.closest('g[data-tag]') : null); } };
-    svg.addEventListener('click', alPulsar);
+    // Con `clicIzquierdo(tag, evento)` en el contexto, el clic izquierdo (y Intro o Espacio) ACCIONA el equipo y solo el clic derecho abre su ficha
+    // (como en el simulador de la maqueta). Sin él, todo abre la ficha.
+    const alClicIzquierdo = evento => {
+      const tag = tagDelElemento(evento.target, svg);
+      if (!tag || !ELEMENTOS[tag]) return;
+      if (!contexto.clicIzquierdo) { alPulsar(evento); return; }
+      if (evento.target.closest && evento.target.closest('.panel-boton')) return;     // los botones del panel de mando los atiende la página
+      contexto.clicIzquierdo(tag, evento);
+    };
+    svg.addEventListener('click', alClicIzquierdo);
     svg.addEventListener('contextmenu', alPulsar);
-    // Teclado: Intro o Espacio sobre un equipo enfocado abre su ficha
+    // Teclado: Intro o Espacio sobre un equipo enfocado abre su ficha (o lo acciona, si hay `clicIzquierdo`); la tecla de menú contextual abre la ficha
     svg.addEventListener('keydown', evento => {
       if (evento.key !== 'Enter' && evento.key !== ' ') return;
       const g = evento.target.closest && evento.target.closest('g[data-tag]');
-      if (g && ELEMENTOS[g.dataset.tag]) { evento.preventDefault(); abrir(g.dataset.tag, g); }
+      if (!g || !ELEMENTOS[g.dataset.tag]) return;
+      evento.preventDefault();
+      if (contexto.clicIzquierdo) contexto.clicIzquierdo(g.dataset.tag, evento); else abrir(g.dataset.tag, g);
     });
     // Esc cierra; el foco se queda dentro de la ficha mientras está abierta (Tab da la vuelta entre sus controles)
     document.addEventListener('keydown', e => {

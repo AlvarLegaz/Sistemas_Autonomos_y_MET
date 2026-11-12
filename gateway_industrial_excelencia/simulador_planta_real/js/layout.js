@@ -3,6 +3,8 @@
 // Unidades: cm. Ejes (como simulador_pct23/js/interfaz/visor3d/planta3d/layout.js): X a la derecha, Z hacia la cámara, Y hacia arriba.
 // El origen es el centro del patín; el suelo del patín está en Y = 0. Valores típicos de la literatura: ilustrativos, no de una instalación concreta.
 (function () {
+  // Nombre de la fábrica y de la estación (ficticios, para el aula): salen en la cabecera, los títulos de las ventanas y el rótulo del 3D.
+  const PLANTA = { fabrica: 'Lácteos Politécnico', estacion: 'Estación de pasteurización EP-01', corto: 'EP-01' };
   const SKID = { ancho: 320, fondo: 150, alto: 20 };       // bancada de acero inoxidable sobre la que va todo menos el armario
   const ALTURA_TUBO_CM = 55;                               // eje de las tuberías sobre el suelo del patín
   const DIAMETRO_TUBO_CM = 3.8;                            // tubo sanitario de 1,5" (DN40), con abrazaderas tri-clamp
@@ -203,7 +205,7 @@
    * Cada módulo es un IIFE con doble exportación (module.exports / PCT.htst<Nombre>) y deja las funciones puras (cálculos, trayectorias, textos) exportadas
    * aparte para probarlas con node:test.
    */
-  const api = { SKID, ALTURA_TUBO_CM, DIAMETRO_TUBO_CM, PROCESO, EQUIPOS, POSICIONES_CM, SENALES, MODOS, MODOS_INFO, POSICIONES_FDV, CALIDAD_SENAL,
+  const api = { PLANTA, SKID, ALTURA_TUBO_CM, DIAMETRO_TUBO_CM, PROCESO, EQUIPOS, POSICIONES_CM, SENALES, MODOS, MODOS_INFO, POSICIONES_FDV, CALIDAD_SENAL,
     LIMITES_LAZO_MA, aMilisamperios, deMilisamperios, equipo, senal, posicion };
   if (typeof module !== 'undefined') module.exports = api; else { window.PCT = window.PCT || {}; PCT.htstLayout = api; }
 })();

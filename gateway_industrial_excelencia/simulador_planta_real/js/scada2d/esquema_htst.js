@@ -166,14 +166,14 @@
   const ruta = (clase, destino, dd) => ['path', Object.assign({ class: `tubo ${clase}`.trim(), 'data-ruta': destino, d: dd }, RUTAS_NIVEL_2.includes(destino) ? solo2 : {})];
 
   /** Instrumento ISA unido al tubo por un vástago: letras arriba y número abajo; el valor (si lo tiene) por fuera, en el lado del globo. */
-  const instr = (tag, x, y, lado, conValor = true, r = 16) => {
+  const instr = (tag, x, y, lado, conValor = true, r = 18) => {
     const s = 22 + r;
     const [cx, cy] = lado === 'arriba' ? [x, y - s] : lado === 'abajo' ? [x, y + s] : lado === 'izquierda' ? [x - s, y] : [x + s, y];
     const vastago = lado === 'arriba' ? `M${x} ${y} V${cy + r}` : lado === 'abajo' ? `M${x} ${y} V${cy - r}` : lado === 'izquierda' ? `M${x} ${y} H${cx + r}` : `M${x} ${y} H${cx - r}`;
     const [letras, numero] = tag.split('-'), id = `v-${tag}`;
     const valor = !conValor ? [] : [lado === 'arriba' ? txt(cx, cy - r - 8, '—', 'ht-valor', { id }) : lado === 'abajo' ? txt(cx, cy + r + 18, '—', 'ht-valor', { id })
       : lado === 'izquierda' ? txt(cx - r - 8, cy + 5, '—', 'ht-valor', { id, style: 'text-anchor:end' }) : txt(cx + r + 8, cy + 5, '—', 'ht-valor', { id, style: 'text-anchor:start' })];
-    return g(tag, ['path', { class: 'vastago', d: vastago }], ['circle', { class: 'instr', cx, cy, r, id: `c-${tag}` }], txt(cx, cy - 1, letras), txt(cx, cy + 12, numero), ...valor);
+    return g(tag, ['path', { class: 'vastago', d: vastago }], ['circle', { class: 'instr', cx, cy, r, id: `c-${tag}` }], txt(cx, cy - 2, letras, 'ht-tag ht-mini'), txt(cx, cy + 11, numero, 'ht-tag ht-mini'), ...valor);
   };
   /** Bomba: círculo con el triángulo en el sentido del flujo ('derecha' o 'izquierda'); el tag debajo. */
   const bomba = (tag, x, y, fluido, sentido, nombre1) => {
@@ -217,7 +217,7 @@
   const ondas = (c, rutaA, claseA, rutaB, claseB) => [ruta(claseA, rutaA, d(W.trazado(c, 'A'))), ruta(claseB, rutaB, d(W.trazado(c, 'B')))];
 
   /** Panel de mando y consignas (niveles 2 y 3): lo que no se hace pulsando un equipo. Los botones los conecta pagina.js (data-accion). */
-  const PANEL = { x: 20, y: 480, ancho: 400, alto: 290 };
+  const PANEL = { x: 20, y: 480, ancho: 400, alto: 312 };
   const botonPanel = (accion, x, y, w, rotulo, aria) => ['g', { class: 'panel-boton', 'data-accion': accion, tabindex: 0, role: 'button', 'aria-label': aria },
     ['rect', { x, y, width: w, height: 32, rx: 6 }], txt(x + w / 2, y + 21, rotulo, 'ht-tag ht-fuerte')];
   function panelMando() {
@@ -234,7 +234,10 @@
       botonPanel('marcha', X, 690, 110, 'MARCHA', 'Marcha: arranca la planta (recirculación y, si cumple, producción)'),
       botonPanel('paro', X + 120, 690, 110, 'PARO', 'Paro: lleva la planta a parada'),
       botonPanel('rearme', X + 240, 690, 128, 'REARME', 'Rearme: libera la seta, pulsa PB-001 y rearma el termostato TSH-101'),
-      txt(X, 750, '—', 'ht-tag ht-fuerte', Object.assign({ id: 'panel-estado' }, izq))];
+      // Llena los dos depósitos (tanque de balance y agua caliente): abre XV-101 y XV-302 hasta que estén llenos. Lo conecta la página (accion «llenar»).
+      ['g', { class: 'panel-boton', 'data-accion': 'llenar', tabindex: 0, role: 'button', 'aria-label': 'Llenar los dos depósitos: abre XV-101 y XV-302 hasta que estén llenos' },
+        ['rect', { x: X, y: 728, width: 368, height: 32, rx: 6 }], txt(X + 184, 749, 'LLENAR LOS DOS DEPÓSITOS', 'ht-tag ht-fuerte', { id: 'panel-llenar-txt' })],
+      txt(X, 782, '—', 'ht-tag ht-fuerte', Object.assign({ id: 'panel-estado' }, izq))];
   }
 
   function construirEsquema() {
@@ -279,9 +282,9 @@
       ['rect', { class: 'liquido producto', id: 'nivel-TK-101', x: TK.x + 2, y: TK.y + TK.alto - 50, width: TK.ancho - 4, height: 48 }],
       g('TK-101', txt(650, TK.y + 22, 'TK-101', 'ht-tag ht-fuerte', n1('Tanque|de leche', 650, TK.y + 20)), txt(650, TK.y + 84, '—', 'ht-valor', { id: 'v-LT-101' }),
         ['rect', { class: 'banner-alarma', id: 'banner-TK', x: TK.x + 6, y: TK.y + 38, width: TK.ancho - 12, height: 18, rx: 3 }], txt(650, TK.y + 51, 'REBOSA', 'ht-tag ht-banner', { id: 't-banner-TK' })),
-      instr('LSH-101', TK.x, 370, 'izquierda', false, 14),
-      instr('LSL-101', TK.x, 450, 'izquierda', false, 14),
-      instr('LT-101', TK.x, 515, 'izquierda', false, 14),
+      instr('LSH-101', TK.x, 370, 'izquierda', false, 17),
+      instr('LSL-101', TK.x, 450, 'izquierda', false, 17),
+      instr('LT-101', TK.x, 515, 'izquierda', false, 17),
       valvula('XV-101', 760, 300, 'fl-producto', ['XV-101', 'llenado'], 'debajo'),
       txt(848, 304, 'RECEPCIÓN', 'ht-tag ht-fuerte', Object.assign({ 'data-n': 2 }, izq)),
       valvula('XV-102', 680, 590, 'fl-producto', ['XV-102', 'vaciado'], 'derecha', true),
@@ -299,9 +302,9 @@
         ['rect', { class: 'banner-alarma', id: 'banner-HW', x: HW.x + 15, y: HW.y + 30, width: 150, height: 16, rx: 3 }], txt(1050, HW.y + 42, 'NIVEL BAJO: BLOQUEADO', 'ht-tag ht-banner', { id: 't-banner-HW' }),
         ['path', { class: 'resis', id: 'res-1', d: 'M981 108 L989 88 L997 108 L1005 88 L1013 108 L1021 88 L1029 108'.replace(/(\d+) (\d+)/g, (m, x, y) => `${x} ${Number(y) + 370}`) }], txt(1005, 500, 'B1 · KM-201', 'ht-tag', n1('Resistencia 1')),
         ['path', { class: 'resis', id: 'res-2', d: 'M1071 108 L1079 88 L1087 108 L1095 88 L1103 108 L1111 88 L1119 108'.replace(/(\d+) (\d+)/g, (m, x, y) => `${x} ${Number(y) + 370}`) }], txt(1095, 500, 'B2 · KM-202', 'ht-tag', n1('Resistencia 2'))),
-      instr('TSH-101', HW.x, 480, 'izquierda', false, 14),
-      instr('LSH-301', HW.x + HW.ancho, 400, 'derecha', false, 14),
-      instr('LSL-301', HW.x + HW.ancho, 455, 'derecha', false, 14),
+      instr('TSH-101', HW.x, 480, 'izquierda', false, 17),
+      instr('LSH-301', HW.x + HW.ancho, 400, 'derecha', false, 17),
+      instr('LSL-301', HW.x + HW.ancho, 455, 'derecha', false, 17),
       bomba('P-102', 1215, 490, 'bomba-caliente', 'derecha', ['Bomba de agua|caliente', 1215, 528]),
       instr('TT-105', 1290, 320, 'derecha'),
       valvula('XV-302', 1110, 350, 'fl-agua', ['XV-302', 'llenado'], 'encima'), txt(1250, 336, 'AGUA DE RED', 'ht-tag', Object.assign({ 'data-n': 2 }, der)),
@@ -312,11 +315,11 @@
       instr('TT-103', 1372, FDV.y, 'abajo'),
       g('FDV-101', ['path', { class: 'valvula fl-producto', id: 's-FDV-101', d: `M${FDV.x - 11} ${FDV.y - 10} L${FDV.x} ${FDV.y} L${FDV.x - 11} ${FDV.y + 10} Z M${FDV.x + 11} ${FDV.y - 10} L${FDV.x} ${FDV.y} L${FDV.x + 11} ${FDV.y + 10} Z M${FDV.x - 9} ${FDV.y + 18} L${FDV.x} ${FDV.y} L${FDV.x + 9} ${FDV.y + 18} Z` }],
         txt(1408, 248, 'FDV-101', 'ht-tag ht-fuerte', Object.assign(n1('Válvula de desvío'), der)), txt(1408, 264, '—', 'ht-tag ht-fuerte', { id: 't-FDV-estado', style: 'text-anchor:end' })),
-      g('SV-101', ['circle', { class: 'instr', cx: FDV.x, cy: 70, r: 14, id: 'c-SV-101' }], txt(FDV.x, 69, 'SV'), txt(FDV.x, 82, '101')),
+      g('SV-101', ['circle', { class: 'instr', cx: FDV.x, cy: 70, r: 17, id: 'c-SV-101' }], txt(FDV.x, 68, 'SV', 'ht-tag ht-mini'), txt(FDV.x, 81, '101', 'ht-tag ht-mini')),
       g('FRL-101', ['rect', { class: 'manual', x: 1352, y: 54, width: 32, height: 32 }], txt(1368, 69, 'FRL'), txt(1368, 82, '101')),
       ['path', { class: 'enlace', 'data-n': 2, d: `M${FDV.x} 84 V${FDV.y - 10} M1384 70 H${FDV.x - 14}` }],
-      g('ZS-101', ['circle', { class: 'instr', cx: 1450, cy: 172, r: 14, id: 'c-ZS-101' }], txt(1450, 171, 'ZS'), txt(1450, 184, '101')),
-      g('ZS-102', ['circle', { class: 'instr', cx: 1450, cy: 222, r: 14, id: 'c-ZS-102' }], txt(1450, 221, 'ZS'), txt(1450, 234, '102')),
+      g('ZS-101', ['circle', { class: 'instr', cx: 1450, cy: 172, r: 17, id: 'c-ZS-101' }], txt(1450, 170, 'ZS', 'ht-tag ht-mini'), txt(1450, 183, '101', 'ht-tag ht-mini')),
+      g('ZS-102', ['circle', { class: 'instr', cx: 1450, cy: 222, r: 17, id: 'c-ZS-102' }], txt(1450, 220, 'ZS', 'ht-tag ht-mini'), txt(1450, 233, '102', 'ht-tag ht-mini')),
       txt(1300, 612, 'DESVÍO: vuelve a TK-101', 'ht-tag ht-fuerte', n1('Desvío: la leche vuelve al tanque')),
       // --- limpieza CIP ---
       txt(440, 690, 'SOLUCIÓN CIP →', 'ht-tag ht-fuerte', Object.assign({ 'data-n': 2 }, izq)),
@@ -408,6 +411,7 @@
       if (bot('paro')) bot('paro').classList.toggle('activo', e.modo === 'PARADA' && !paro);
       if (bot('rearme')) bot('rearme').classList.toggle('alarma', !!paro || digital(e, 'TSH-101') === 0);
       for (const a of ['tt103-menos', 'tt103-mas']) if (bot(a)) bot(a).classList.toggle('inactivo', manual);
+      if (bot('llenar')) { bot('llenar').classList.toggle('activo', !!c.llenando); poner('panel-llenar-txt', c.llenando ? 'LLENANDO… (pulsa para cancelar)' : 'LLENAR LOS DOS DEPÓSITOS'); }
     } });
 
     // Niveles

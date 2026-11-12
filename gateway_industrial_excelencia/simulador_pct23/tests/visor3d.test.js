@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { GEOMETRIA, MODELOS } = require('../js/interfaz/visor3d/especificaciones.js');
 const { lecturasModelo } = require('../js/interfaz/visor3d/lecturas.js');
-const { posicionOrbita } = require('../js/interfaz/visor3d/controles_orbita.js');
+const { posicionOrbita, desplazarObjetivo } = require('../js/interfaz/visor3d/controles_orbita.js');
 const { ELEMENTOS } = require('../js/interfaz/ayuda_textos.js');
 const estadoPlanta = require('../js/modelo/estado_planta.js');
 const planta = require('../js/modelo/planta.js');
@@ -137,4 +137,34 @@ test('planta: T2 y la resistencia llevan su lectura para la etiqueta', () => {
   const l = lecturas('PLANTA', e => { e.aguaCalienteC = 61.5; e.salidas.RES = true; e.consignas.potenciaPct = 40; });
   assert.equal(l.sensores.T2.texto, '61,5 °C');
   assert.match(l.sensores.RES.texto, /ON · 40,0 %/);
+});
+
+test('desplazar la cámara: de frente, arrastrar a la derecha lleva el objetivo a la izquierda y arrastrar hacia abajo lo sube', () => {
+  const vista = { azimut: 0, elevacion: 0, distancia: 100, objetivo: { x: 0, y: 0, z: 0 } };
+  desplazarObjetivo(vista, 100, 0, 600);
+  assert.ok(vista.objetivo.x < 0 && Math.abs(vista.objetivo.y) < 1e-9 && Math.abs(vista.objetivo.z) < 1e-9);
+  const antes = vista.objetivo.x;
+  desplazarObjetivo(vista, 0, 100, 600);
+  assert.equal(vista.objetivo.x, antes);
+  assert.ok(vista.objetivo.y > 0);
+});
+
+test('desplazar la cámara: el movimiento es del tamaño de la pantalla (más lejos, más cm por píxel) y no cambia la distancia ni el giro', () => {
+  const cerca = { azimut: 0.7, elevacion: 0.3, distancia: 100, objetivo: { x: 0, y: 0, z: 0 } };
+  const lejos = { azimut: 0.7, elevacion: 0.3, distancia: 300, objetivo: { x: 0, y: 0, z: 0 } };
+  desplazarObjetivo(cerca, 50, 20, 600); desplazarObjetivo(lejos, 50, 20, 600);
+  const paso = v => Math.hypot(v.objetivo.x, v.objetivo.y, v.objetivo.z);
+  assert.ok(Math.abs(paso(lejos) / paso(cerca) - 3) < 1e-9);
+  assert.equal(cerca.distancia, 100); assert.equal(cerca.azimut, 0.7); assert.equal(cerca.elevacion, 0.3);
+  // un píxel arrastrado a lo largo de la pantalla mueve exactamente alto_visible / alto_lienzo
+  const v = { azimut: 1.1, elevacion: 0.5, distancia: 200, objetivo: { x: 5, y: 6, z: 7 } };
+  desplazarObjetivo(v, 30, 40, 800);
+  const d = Math.hypot(v.objetivo.x - 5, v.objetivo.y - 6, v.objetivo.z - 7);
+  assert.ok(Math.abs(d - Math.hypot(30, 40) * 2 * 200 * Math.tan(19 * Math.PI / 180) / 800) < 1e-9);
+});
+
+test('desplazar la cámara: el objetivo no se pierde más allá del límite', () => {
+  const vista = { azimut: 0, elevacion: 0, distancia: 500, objetivo: { x: 0, y: 0, z: 0 } };
+  for (let i = 0; i < 400; i++) desplazarObjetivo(vista, -500, 500, 600);
+  for (const c of ['x', 'y', 'z']) assert.ok(Math.abs(vista.objetivo[c]) <= 1500);
 });

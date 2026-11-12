@@ -1,4 +1,5 @@
-// Controles de órbita para el visor 3D: arrastrar gira, rueda o pellizco acercan, doble clic reinicia. Sin dependencias.
+// Controles de órbita para el visor 3D: arrastrar gira, botón derecho (o Mayús + arrastrar, o dos dedos) desplaza la cámara de lado, rueda o pellizco acercan,
+// doble clic reinicia. Sin dependencias.
 (function () {
   const limitar = (valor, minimo, maximo) => Math.max(minimo, Math.min(maximo, valor));
   const ELEVACION_MAXIMA = 1.45;   // rad: sin llegar al cénit para no voltear la cámara
@@ -14,6 +15,26 @@
     };
   }
 
+  const TAN_MEDIO_CAMPO = Math.tan((38 / 2) * Math.PI / 180);   // la cámara del visor es de 38° de campo vertical
+  const LIMITE_OBJETIVO = 1500;                                  // cm: el objetivo no se aleja más de esto del origen (no perderse)
+
+  /**
+   * Desplazamiento lateral: mueve `vista.objetivo` por el plano de la pantalla. dx y dy son píxeles arrastrados (a la derecha y hacia abajo) y `altoPx` el alto
+   * del lienzo; la escena sigue al dedo: arrastrar a la derecha lleva la escena a la derecha. Devuelve la misma vista (se modifica).
+   */
+  function desplazarObjetivo(vista, dx, dy, altoPx) {
+    const porPixel = 2 * vista.distancia * TAN_MEDIO_CAMPO / Math.max(1, altoPx);
+    const sa = Math.sin(vista.azimut), ca = Math.cos(vista.azimut), se = Math.sin(vista.elevacion), ce = Math.cos(vista.elevacion);
+    const derecha = { x: ca, y: 0, z: -sa }, arriba = { x: -sa * se, y: ce, z: -ca * se };      // ejes de la pantalla en el mundo
+    const o = vista.objetivo;
+    vista.objetivo = {
+      x: limitar(o.x - derecha.x * dx * porPixel + arriba.x * dy * porPixel, -LIMITE_OBJETIVO, LIMITE_OBJETIVO),
+      y: limitar(o.y - derecha.y * dx * porPixel + arriba.y * dy * porPixel, -LIMITE_OBJETIVO, LIMITE_OBJETIVO),
+      z: limitar(o.z - derecha.z * dx * porPixel + arriba.z * dy * porPixel, -LIMITE_OBJETIVO, LIMITE_OBJETIVO),
+    };
+    return vista;
+  }
+
   class ControlesOrbita {
     constructor(elemento, vistaInicial, alCambiar) {
       this.elemento = elemento;
@@ -23,6 +44,9 @@
       this.punteros = new Map();
       this.distanciaPellizco = 0;
       this.arrastre = 0;
+      this.desplazando = false;        // el gesto de un solo puntero desplaza en lugar de girar (botón derecho o Mayús)
+      this.centroPellizco = null;      // centro de los dos dedos en el último movimiento (para desplazar con dos dedos)
+      this.alMenu = e => e.preventDefault();      // sin el menú del navegador sobre el visor: el botón derecho es para desplazar
       this.alPulsar = e => this.pulsar(e);
       this.alMover = e => this.mover(e);
       this.alSoltar = e => this.soltar(e);
@@ -35,6 +59,7 @@
       elemento.addEventListener('pointercancel', this.alSoltar);
       elemento.addEventListener('wheel', this.alRueda, { passive: false });
       elemento.addEventListener('dblclick', this.alDobleClic);
+      elemento.addEventListener('contextmenu', this.alMenu);
     }
 
     /** True si el último gesto fue un arrastre (para no tomarlo por un clic de selección). */
@@ -43,8 +68,8 @@
     pulsar(e) {
       this.elemento.setPointerCapture(e.pointerId);
       this.punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (this.punteros.size === 1) this.arrastre = 0;
-      if (this.punteros.size === 2) this.distanciaPellizco = this.distanciaEntrePunteros();
+      if (this.punteros.size === 1) { this.arrastre = 0; this.desplazando = e.button === 2 || e.shiftKey || e.ctrlKey || e.metaKey; }
+      if (this.punteros.size === 2) { this.distanciaPellizco = this.distanciaEntrePunteros(); this.centroPellizco = this.centroEntrePunteros(); }
     }
 
     mover(e) {
@@ -54,19 +79,29 @@
       this.punteros.set(e.pointerId, { x: e.clientX, y: e.clientY });
       this.arrastre += Math.abs(dx) + Math.abs(dy);
       if (this.punteros.size === 1) {
-        this.vista.azimut -= dx * SENSIBILIDAD_GIRO;
-        this.vista.elevacion = limitar(this.vista.elevacion + dy * SENSIBILIDAD_GIRO, -ELEVACION_MAXIMA, ELEVACION_MAXIMA);
+        if (this.desplazando) desplazarObjetivo(this.vista, dx, dy, this.elemento.clientHeight || 600);
+        else {
+          this.vista.azimut -= dx * SENSIBILIDAD_GIRO;
+          this.vista.elevacion = limitar(this.vista.elevacion + dy * SENSIBILIDAD_GIRO, -ELEVACION_MAXIMA, ELEVACION_MAXIMA);
+        }
       } else if (this.punteros.size === 2) {
-        const distancia = this.distanciaEntrePunteros();
+        const distancia = this.distanciaEntrePunteros(), centro = this.centroEntrePunteros();
         if (this.distanciaPellizco > 0 && distancia > 0) this.acercar(this.distanciaPellizco / distancia);
-        this.distanciaPellizco = distancia;
+        if (this.centroPellizco) desplazarObjetivo(this.vista, centro.x - this.centroPellizco.x, centro.y - this.centroPellizco.y, this.elemento.clientHeight || 600);   // dos dedos que se mueven a la vez: desplazar
+        this.distanciaPellizco = distancia; this.centroPellizco = centro;
       }
       this.alCambiar();
     }
 
     soltar(e) {
       this.punteros.delete(e.pointerId);
-      this.distanciaPellizco = 0;
+      this.distanciaPellizco = 0; this.centroPellizco = null;
+      if (this.punteros.size === 0) this.desplazando = false;
+    }
+
+    centroEntrePunteros() {
+      const [a, b] = Array.from(this.punteros.values());
+      return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     }
 
     distanciaEntrePunteros() {
@@ -96,9 +131,10 @@
       e.removeEventListener('pointercancel', this.alSoltar);
       e.removeEventListener('wheel', this.alRueda);
       e.removeEventListener('dblclick', this.alDobleClic);
+      e.removeEventListener('contextmenu', this.alMenu);
     }
   }
 
-  const api = { ControlesOrbita, posicionOrbita, ELEVACION_MAXIMA };
+  const api = { ControlesOrbita, posicionOrbita, desplazarObjetivo, ELEVACION_MAXIMA };
   if (typeof module !== 'undefined') module.exports = api; else PCT.controlesOrbita = api;
 })();

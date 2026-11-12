@@ -85,7 +85,7 @@
     if (!PCT.visor3dEspecificaciones) return false;
     PCT.visor3dRutaThree = '/simulador/js/vendor/three.js';       // Three.js es el de simulador_pct23 (misma ruta en local y en el aula)
     PCT.visor3dEspecificaciones.MODELOS.HTST = {
-      escena: 'htst', panel: 'planta', pesada: true, titulo: 'Planta real HTST de leche',
+      escena: 'htst', panel: 'planta', pesada: true, titulo: `${layout.PLANTA.fabrica} · ${layout.PLANTA.estacion}`,
       captadores: [], conexiones: [], lecturas: lecturasHtst, observaciones: () => ({}), sinEtiqueta, nombreEtiqueta, visibleEnLista,
     };
     // Lo que depende del nivel se calcula al pedirlo (el nivel puede cambiar con el visor ya registrado)

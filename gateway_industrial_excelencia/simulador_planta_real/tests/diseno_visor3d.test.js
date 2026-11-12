@@ -337,3 +337,10 @@ test('los puertos nuevos caben en el patín y las válvulas de llenado no se sol
     assert.ok(Math.hypot(pa.x - pq.x, pa.z - pq.z) > 7, `${a} pisa a ${q.tag}`);
   }
 });
+
+test('la pared del fondo de la nave queda lejos del patín y el suelo llega hasta delante de la canaleta', () => {
+  const { NAVE } = require('../js/visor3d_htst/escena_planta.js');
+  const { SKID } = require('../js/layout.js');
+  assert.ok(-SKID.fondo / 2 - NAVE.zPared >= 300, 'al menos 3 m de la pared al borde trasero del patín');
+  assert.ok(NAVE.zPared + NAVE.fondo >= NAVE.canaleta.z + NAVE.canaleta.ancho / 2 + 100, 'el suelo cubre la canaleta y el pasillo de delante');
+});

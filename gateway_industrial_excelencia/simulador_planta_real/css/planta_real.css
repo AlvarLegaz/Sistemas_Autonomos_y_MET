@@ -67,6 +67,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .lienzo { position: relative; }
 .ht-tag { font: 600 12px var(--fuente); fill: var(--tenue); text-anchor: middle; }
 .ht-fuerte { font-weight: 800; fill: var(--texto); }
+.ht-tag.ht-mini { font-size: 10.5px; font-weight: 700; }     /* letras y número dentro de los globos de instrumento: con holgura respecto al círculo */
 .ht-valor { font: 700 14px var(--fuente); fill: var(--texto); text-anchor: middle; font-variant-numeric: tabular-nums; }
 .ht-zona { font: 800 12px var(--fuente); letter-spacing: .06em; fill: var(--tenue); }
 .ht-banner { fill: #fff; font-weight: 800; }

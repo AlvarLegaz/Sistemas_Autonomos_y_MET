@@ -24,7 +24,7 @@
   if (!nivel) { try { const o = window.opener; if (o && !o.closed && o.PCT && o.PCT.htstApp && o.PCT.htstApp.nivel) nivel = N.nivelValido(o.PCT.htstApp.nivel()); } catch (error) { /* sin ventana de origen */ } }
   if (!nivel) { try { nivel = N.nivelValido(localStorage.getItem(N.CLAVE_ALMACEN)); } catch (error) { /* sin almacenamiento */ } }
   N.fijarNivel(nivel || N.NIVEL_POR_DEFECTO);
-  const clave = parametros.get('modelo') || 'HTST', foco = parametros.get('foco') || undefined;
+  const clave = parametros.get('modelo') || 'HTST', foco = parametros.get('foco') || undefined, solo = parametros.get('solo') === '1';
   let ultimo = null;
   if (!window.opener) {                                   // abierta directamente (sin SCADA detrás): una planta de demostración parada
     await HTST_CARGADOR.cargarScript('js/interfaz/simulacion_demo.js');
@@ -35,7 +35,7 @@
     return ultimo;
   }
   PCT.visor3d.alCerrar = () => window.close();
-  PCT.visor3d.abrir(clave, estadoDelSimulador, foco);
+  PCT.visor3d.abrir(clave, estadoDelSimulador, foco, undefined, solo);
 })();
 </script>
 </body>

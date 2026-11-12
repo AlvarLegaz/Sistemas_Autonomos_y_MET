@@ -5,16 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="author" content="Álvar Legaz Aparicio">
 <meta name="copyright" content="© 2026 Álvar Legaz Aparicio. Todos los derechos reservados.">
-<title>PCT23 · Planta real HTST</title>
+<title>Lácteos Politécnico · EP-01 · Planta real HTST</title>
 <link rel="icon" type="image/png" href="/simulador/img/favicon.png">
 <link rel="stylesheet" href="/simulador/css/interfaz.css">
 <link rel="stylesheet" href="css/planta_real.css">
+<link rel="stylesheet" href="css/planta_simple.css">
 </head>
-<body>
-<div id="app"><p class="aviso-planta" role="status">Cargando la planta real HTST…</p></div>
+<body class="planta-simple" data-nivel="3">
+<div id="app"><p class="aviso-planta" role="status">Cargando la planta…</p></div>
 <noscript><p class="aviso-planta">Esta página necesita JavaScript.</p></noscript>
-<!-- El cargador trae, en orden, el código compartido de simulador_pct23 (/simulador/js/...), el modelo, el 3D y la interfaz; pagina.js arranca todo. -->
+<!-- Pantalla sencilla, como la del simulador de la maqueta: clic izquierdo acciona, clic derecho da la ficha. La versión con niveles, alarmas, gráficas, hojas y averías está en completo.html. -->
 <script src="js/interfaz/cargador.js"></script>
-<script src="js/interfaz/pagina.js"></script>
+<script src="js/interfaz/pagina_simple.js"></script>
 </body>
 </html>

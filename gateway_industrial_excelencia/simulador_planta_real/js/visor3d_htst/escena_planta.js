@@ -13,7 +13,7 @@
   const { SKID } = layout;
 
   /* ---------- Nave: canaleta de desagüe delante del patín y pasillo marcado (cm; el suelo de la nave está en y = -SKID.alto) ---------- */
-  const NAVE = { ancho: 900, fondo: 640, zPared: -240, altoPared: 360, canaleta: { z: SKID.fondo / 2 + 32, ancho: 22, largo: SKID.ancho + 40 } };
+  const NAVE = { ancho: 900, fondo: 800, zPared: -400, altoPared: 360, canaleta: { z: SKID.fondo / 2 + 32, ancho: 22, largo: SKID.ancho + 40 } };
 
   // Distancia en planta (x, z) de un punto a un segmento.
   function distanciaPlanta(px, pz, a, b) {
@@ -197,7 +197,11 @@
     caja(76, SKID.alto + 1, 46, matViga, pos.x, -SKID.alto / 2 - 0.5, pos.z);
     // rótulo de la planta en el frente del patín
     const lienzo = document.createElement('canvas'); lienzo.width = 1024; lienzo.height = 96;
-    const c2 = lienzo.getContext('2d'); c2.fillStyle = '#aeb8c2'; c2.font = '700 54px system-ui, sans-serif'; c2.textBaseline = 'middle'; c2.fillText('PASTEURIZADOR HTST · LECHE', 12, 50);
+    const c2 = lienzo.getContext('2d'); c2.fillStyle = '#aeb8c2'; c2.textBaseline = 'middle';
+    const textoRotulo = `${layout.PLANTA.fabrica} · ${layout.PLANTA.corto}`.toLocaleUpperCase('es');        // «LÁCTEOS POLITÉCNICO · EP-01»
+    let tamanoRotulo = 54;
+    do { c2.font = `700 ${tamanoRotulo}px system-ui, sans-serif`; tamanoRotulo -= 2; } while (c2.measureText(textoRotulo).width > lienzo.width - 24 && tamanoRotulo > 20);      // si no cabe, más pequeño
+    c2.fillText(textoRotulo, 12, 50);
     const textura = guardar(new THREE.CanvasTexture(lienzo)); textura.colorSpace = THREE.SRGBColorSpace;
     const rotulo = new THREE.Mesh(guardar(new THREE.PlaneGeometry(130, 12)), guardar(new THREE.MeshBasicMaterial({ map: textura, transparent: true })));
     rotulo.position.set(-90, 0.05, SKID.fondo / 2 - 8); rotulo.rotation.x = -Math.PI / 2; rotulo.raycast = () => {}; raiz.add(rotulo);
@@ -226,11 +230,34 @@
       contorno = new THREE.Box3Helper(new THREE.Box3().setFromObject(elementos[id].grupo).expandByScalar(0.8), 0xf68b11);
       raiz.add(contorno);
     }
+    // Un solo equipo (botón «Ver en 3D» de la ficha): se oculta todo lo demás de la nave y de la planta, menos el equipo y las ramas que lo llevan.
+    // Las luces están fuera de `raiz`, así que no se tocan. `restaurar` lo devuelve todo a su sitio.
+    const ocultados = [];
+    function restaurar() { for (const o of ocultados) o.visible = true; ocultados.length = 0; }
+    function aislar(id) {
+      const el = elementos[id];
+      if (!el || !el.grupo) return false;
+      restaurar();
+      for (let n = el.grupo; n !== raiz && n.parent; n = n.parent) {
+        for (const hermano of n.parent.children) if (hermano !== n && hermano.visible) { hermano.visible = false; ocultados.push(hermano); }
+      }
+      return true;
+    }
+    /** Vista (como `vistaInicial`) centrada en un equipo y a la distancia justa para verlo entero; null si no existe. */
+    function vistaDe(id) {
+      const el = elementos[id];
+      if (!el || !el.grupo) return null;
+      raiz.updateMatrixWorld(true);
+      const caja = new THREE.Box3().setFromObject(el.grupo), centro = caja.getCenter(new THREE.Vector3()), radio = Math.max(8, caja.getSize(new THREE.Vector3()).length() / 2);
+      const distancia = radio * 3.2;      // la cámara es de 38° de campo vertical: con 3,2 radios cabe la esfera que rodea al equipo
+      return { azimut: 0.5, elevacion: 0.4, distancia, minimo: Math.max(6, radio * 0.5), maximo: distancia * 3, far: 1100, objetivo: { x: centro.x, y: centro.y, z: centro.z } };
+    }
+    const visibleEnCadena = o => { for (let n = o; n; n = n.parent) if (!n.visible) return false; return true; };
     function mallasSeleccionables() {
       const lista = [];
       for (const e of Object.values(elementos)) e.grupo.traverse(o => { if ((o.isMesh || o.isInstancedMesh) && o.userData.id) lista.push(o); });
       for (const parte of partes) parte.grupo.traverse(o => { if ((o.isMesh || o.isInstancedMesh) && o.userData.id && !lista.includes(o)) lista.push(o); });
-      return lista;
+      return ocultados.length ? lista.filter(visibleEnCadena) : lista;       // aislado: lo oculto no se puede seleccionar
     }
     function liberar() {
       interiores.liberar();
@@ -241,7 +268,7 @@
 
     // La planta mide 420 cm de punta a punta (con el armario): hace falta una cámara con far ≥ 1100. `vistaInicial.far` lo indica; el visor de la maqueta
     // usa far = 500 fijo, así que el programador de interfaz debe leer `escena.vistaInicial.far || 500` al crear la cámara.
-    return { raiz, elementos, actualizar, resaltar, ponerCorte() {}, ponerTapa() {}, mallasSeleccionables, liberar, sombras: false,
+    return { raiz, elementos, actualizar, resaltar, aislar, restaurar, vistaDe, ponerCorte() {}, ponerTapa() {}, mallasSeleccionables, liberar, sombras: false,
       vistaInicial: { azimut: 0.4, elevacion: 0.5, distancia: 470, minimo: 60, maximo: 600, far: 1100, objetivo: { x: 35, y: 35, z: 0 } } };
   }
 

@@ -44,7 +44,7 @@
           '<button type="button" data-accion="ventana" title="Abrir el 3D en otra ventana para verlo junto al sinóptico">Ventana aparte ⧉</button>' +
         '</div><button type="button" class="v3d-cerrar" aria-label="Cerrar (Esc)" title="Cerrar (Esc)">×</button></header>' +
         '<div class="v3d-cuerpo"><div class="v3d-escena"><canvas></canvas><div class="v3d-etiquetas"></div>' +
-          '<p class="v3d-aviso" hidden></p><p class="v3d-pista">Arrastra para girar · rueda o pellizco para acercar · doble clic: vista inicial · pulsa un captador para ver su estado</p></div>' +
+          '<p class="v3d-aviso" hidden></p><p class="v3d-pista">Arrastra para girar · botón derecho (o Mayús + arrastrar, o dos dedos) para desplazar · rueda o pellizco para acercar · doble clic: vista inicial · pulsa un captador para ver su estado</p></div>' +
         '<aside class="v3d-panel" aria-live="polite"></aside></div>' +
       '</div>';
     document.body.appendChild(modal);
@@ -74,8 +74,8 @@
       const { origen, obtenerEstado, clave } = sesion;
       abrir(origen, obtenerEstado, clave === origen ? undefined : undefined);
     } else if (accion === 'ventana') {
-      const { clave, obtenerEstado, seleccion } = sesion;
-      if (abrirEnVentana(clave, obtenerEstado, seleccion || undefined)) cerrar();
+      const { clave, obtenerEstado, seleccion, solo } = sesion;
+      if (abrirEnVentana(clave, obtenerEstado, seleccion || undefined, solo)) cerrar();
     }
   }
 
@@ -211,6 +211,7 @@
   /* ---------- selección ---------- */
   function seleccionar(id) {
     if (!sesion) return;
+    if (sesion.solo && id !== sesion.solo) return;               // equipo aislado: no se selecciona nada más (ni se quita la selección)
     sesion.seleccion = id || null;
     sesion.escena.resaltar(id);
     construirPanel(sesion.clave, sesion.seleccion);
@@ -218,7 +219,7 @@
   }
 
   function alPulsarEscena(evento) {
-    if (!sesion || sesion.controles.seArrastro()) return;
+    if (!sesion || sesion.controles.seArrastro() || evento.button > 0) return;      // el botón derecho desplaza la cámara: no selecciona
     const lienzo = sesion.renderer.domElement, caja = lienzo.getBoundingClientRect();
     sesion.raton.set(((evento.clientX - caja.left) / caja.width) * 2 - 1, -((evento.clientY - caja.top) / caja.height) * 2 + 1);
     sesion.rayo.setFromCamera(sesion.raton, sesion.camara);
@@ -367,15 +368,15 @@
     sesion = null;
   }
 
-  /** clave: 'TANKA', 'TANKB', 'HEAT', 'EXCH', 'BOMBA_N1', 'BOMBA_N2' o 'PLANTA'; obtenerEstado() devuelve el estado de la planta; foco: id de un captador para seleccionarlo al abrir. */
-  async function abrir(clave, obtenerEstado, foco, origen) {
+  /** clave: 'TANKA', 'TANKB', 'HEAT', 'EXCH', 'BOMBA_N1', 'BOMBA_N2' o 'PLANTA'; obtenerEstado() devuelve el estado de la planta; foco: id de un captador para seleccionarlo al abrir; solo (con foco): muestra únicamente ese equipo, si la escena sabe aislarlo. */
+  async function abrir(clave, obtenerEstado, foco, origen, solo) {
     if (!MODELOS[clave]) return;
     if (sesion) cerrar();
     crearModal();
     modal.querySelector('.v3d-titulo').textContent = `Modelo 3D · ${MODELOS[clave].titulo}`;
     modal.querySelector('.v3d-panel').innerHTML = '<p>Cargando el modelo 3D…</p>';
     modal.querySelectorAll('[data-vista]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.vista === 'transparente')));
-    modal.querySelectorAll('[data-opcion]').forEach(b => b.setAttribute('aria-pressed', 'true'));
+    modal.querySelectorAll('[data-opcion]').forEach(b => { b.setAttribute('aria-pressed', 'true'); b.hidden = false; });
     modal.querySelector('.v3d-etiquetas').hidden = false;
     avisar('');
     modal.dataset.modelo = MODELOS[clave].escena || 'deposito';
@@ -401,6 +402,7 @@
       if (!sesion) return;
       sesion.escena.ponerCorte(false);
       seleccionar(foco || null);
+      if (solo && foco && sesion.escena.aislar && sesion.escena.aislar(foco)) aislarEquipo(foco);
       fotograma();
     } catch (error) {
       console.error('[visor3d]', error);
@@ -410,10 +412,21 @@
     console.info(`[visor3d] ${clave}: descarga ${Math.round(t1 - t0)} ms, escena ${Math.round(performance.now() - t1)} ms`);
   }
 
+  /** Deja la sesión mostrando un solo equipo: sin etiquetas flotantes, solo seleccionable él y con su vista como vista inicial (el doble clic vuelve a ella). */
+  function aislarEquipo(foco) {
+    sesion.solo = foco;
+    sesion.seleccionables = sesion.escena.mallasSeleccionables();
+    modal.querySelector('.v3d-etiquetas').hidden = true;
+    modal.querySelectorAll('[data-opcion="etiquetas"]').forEach(b => { b.hidden = true; });
+    const vista = sesion.escena.vistaDe && sesion.escena.vistaDe(foco);
+    if (vista) { sesion.controles.inicial = Object.assign({}, vista); sesion.controles.reiniciar(); }
+  }
+
   function alPulsarPanel(evento) {
     const abrirOtro = evento.target.closest('button[data-abrir]');
     if (abrirOtro) { const { obtenerEstado } = sesion; abrir(abrirOtro.dataset.abrir, obtenerEstado, abrirOtro.dataset.foco || undefined, sesion.clave === 'PLANTA' ? 'PLANTA' : sesion.origen); return; }
     const boton = evento.target.closest('button[data-id]');
+    if (boton && sesion.solo && boton.classList.contains('v3d-volver')) { const { clave, obtenerEstado, origen } = sesion; abrir(clave, obtenerEstado, undefined, origen); return; }     // aislado: «Toda la planta» abre la planta entera
     if (boton) seleccionar(boton.dataset.id);
   }
 
@@ -421,12 +434,12 @@
   const info = () => sesion && { render: Object.assign({}, sesion.renderer.info.render), memoria: Object.assign({}, sesion.renderer.info.memory), programas: (sesion.renderer.info.programs || []).length,
     gpu: (() => { const gl = sesion.renderer.getContext(), x = gl.getExtension('WEBGL_debug_renderer_info'); return x ? gl.getParameter(x.UNMASKED_RENDERER_WEBGL) : 'desconocido'; })() };
   /** Abre el visor en una ventana aparte (se ve junto al sinóptico y sigue su estado). Si el navegador la bloquea, devuelve false. */
-  function abrirEnVentana(clave, obtenerEstado, foco) {
+  function abrirEnVentana(clave, obtenerEstado, foco, solo) {
     if (!MODELOS[clave]) return false;
-    const url = `visor3d.html?modelo=${encodeURIComponent(clave)}` + (foco ? `&foco=${encodeURIComponent(foco)}` : '');
+    const url = `visor3d.html?modelo=${encodeURIComponent(clave)}` + (foco ? `&foco=${encodeURIComponent(foco)}` : '') + (foco && solo ? '&solo=1' : '');
     let ventana = null;
     try { ventana = window.open(url, 'pct23_visor3d', 'popup=yes,width=1180,height=780'); } catch (error) { ventana = null; }
-    if (!ventana) { abrir(clave, obtenerEstado, foco); return false; }   // sin ventanas emergentes: se abre encima de la página
+    if (!ventana) { abrir(clave, obtenerEstado, foco, undefined, solo); return false; }   // sin ventanas emergentes: se abre encima de la página
     try { ventana.focus(); } catch (error) { /* sin permiso para enfocar: no importa */ }
     return true;
   }
