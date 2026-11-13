@@ -5,13 +5,13 @@
 <section class="formulario">
   <h1>Cambiar mi contraseña</h1>
   <p class="ayuda">{{ a['nombre'] }} {{ a['apellidos'] }} · {{ a['correo'] }}</p>
-  <p class="ayuda">El profesor puede ver tu actividad en el simulador: el tiempo de uso y las acciones que haces (iniciar, parar, accionar válvulas...).</p>
+  <p class="ayuda">El profesor ve tu tiempo de uso y lo que haces en el simulador.</p>
   <form method="post" action="{{ url_for('cuenta') }}" autocomplete="off">
     <input type="hidden" name="csrf" value="{{ csrf() }}">
     <label>Contraseña actual
       <input type="password" name="clave_actual" autocomplete="current-password" required maxlength="200">
     </label>
-    <label>Contraseña nueva (mínimo 8 caracteres)
+    <label>Contraseña nueva (mín. 8 caracteres)
       <input type="password" name="clave_nueva" autocomplete="new-password" required minlength="8" maxlength="200">
     </label>
     <label>Repite la contraseña nueva
@@ -19,6 +19,6 @@
     </label>
     <button class="primario" type="submit">Cambiar contraseña</button>
   </form>
-  <p class="pie">¿Se te ha olvidado? Pide al profesor una clave nueva. <a href="{{ url_for('inicio') }}">Volver</a></p>
+  <p class="pie">¿La has olvidado? Pide una clave nueva al profesor. <a href="{{ url_for('inicio') }}">Volver</a></p>
 </section>
 {% endblock %}

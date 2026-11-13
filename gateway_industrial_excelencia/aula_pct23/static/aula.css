@@ -1,164 +1,181 @@
-/* Aula PCT23: registro, acceso y aula del profesor. Mismo lenguaje que el simulador (sala de control). */
-:root {
-  --fondo: #E2E7EB; --panel: #F5F7F8; --texto: #16202A; --tenue: #56636F; --borde: #BAC4CC;
-  --acento: #F68B11; --acento-texto: #A85200; --sobre-acento: #16202A; --marca-gris: #5A5758; --ok: #1A7F4B; --error: #C0262D; --aviso: #9A5B00;
-  --fuente: Bahnschrift, "DIN Alternate", "Segoe UI", system-ui, -apple-system, sans-serif;
-  color-scheme: light dark;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --fondo: #0F1418; --panel: #182027; --texto: #E8EDF1; --tenue: #9AA7B2; --borde: #34414B;
-    --acento: #F68B11; --acento-texto: #FFA640; --sobre-acento: #16202A; --marca-gris: #C9C5C6; --ok: #4CC28A; --error: #F0605F; --aviso: #E0A33A;
-  }
-}
+/* Aula PCT23: registro, acceso y aula del profesor. Identidad del CIFP Politécnico de Cartagena (comun/UX_IDENTIDAD.md):
+   siempre en claro, como la web del centro. Las variables (--pol-*, --estado-* y sus alias) vienen de identidad.css, que se carga antes. */
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-body { margin: 0; background: var(--fondo); color: var(--texto); font: 15px/1.5 var(--fuente); }
-a { color: var(--acento-texto); }
-:focus-visible { outline: 3px solid var(--acento-texto); outline-offset: 2px; }
+html { background: var(--pol-gris-claro); }
+body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; background: var(--pol-gris-claro); color: var(--pol-texto); font: 15px/1.5 var(--pol-fuente); }
+h1, h2, h3 { color: var(--pol-titulo); }
+a { color: var(--pol-naranja-texto); }
+:focus-visible { outline: 3px solid var(--pol-foco); outline-offset: 2px; }
 button, input, select { font: inherit; color: inherit; }
 
-.cab { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; padding: 12px 20px; background: var(--panel); border-bottom: 3px solid var(--acento); }
-.marca { font-size: 19px; font-weight: 700; color: var(--texto); text-decoration: none; letter-spacing: .01em; }
-.seccion { color: var(--tenue); }
+/* ---------- cabecera: logo, nombre, mención del centro y línea naranja ---------- */
+.cab { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; padding: 12px 20px; background: var(--pol-blanco); border-bottom: 3px solid var(--pol-naranja); }
+.marca { display: flex; align-items: center; gap: 14px; color: var(--pol-titulo); text-decoration: none; }
+.logo { display: block; height: 60px; width: auto; }
+.marca .sim { display: flex; flex-direction: column; gap: 2px; padding-left: 14px; border-left: 1px solid var(--pol-borde); font-size: 22px; font-weight: 300; line-height: 1.15; color: var(--pol-gris); }
+.marca .mencion { font-size: 13px; font-weight: 500; line-height: 1.3; color: var(--pol-texto-suave); }
+.seccion { color: var(--pol-texto-suave); }
 .cab-nav { margin-left: auto; display: flex; align-items: center; gap: 16px; }
 .cab-nav form { margin: 0; }
-.quien { color: var(--tenue); max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-button.enlace { background: none; border: 0; padding: 0; color: var(--acento-texto); text-decoration: underline; cursor: pointer; }
+.quien { color: var(--pol-texto-suave); max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.enlace { background: none; border: 0; padding: 0; color: var(--pol-naranja-texto); text-decoration: underline; cursor: pointer; }
 
-.contenido { max-width: 1100px; margin: 0 auto; padding: 28px 20px 56px; }
-.formulario { max-width: 520px; margin: 0 auto; padding: 26px; background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; }
-.formulario h1 { margin: 0 0 4px; font-size: 24px; }
-.ayuda { margin: 0 0 16px; color: var(--tenue); font-size: 14px; }
-form label { display: block; margin: 12px 0 0; font-weight: 600; font-size: 14px; }
+/* ---------- contenido y formularios ---------- */
+.contenido { flex: 1 0 auto; width: 100%; max-width: 1100px; margin: 0 auto; padding: 28px 20px 56px; }
+.formulario { max-width: 520px; margin: 0 auto; padding: 26px; background: var(--pol-blanco); border: 1px solid var(--pol-borde); border-radius: var(--pol-radio-panel); }
+.formulario h1 { margin: 0 0 4px; font-size: 28px; font-weight: 800; }
+.ayuda { margin: 0 0 16px; color: var(--pol-texto-suave); font-size: 13px; font-weight: 500; }
+form label { display: block; margin: 12px 0 0; font-weight: 600; font-size: 14px; color: var(--pol-titulo); }
 form input[type="text"], form input[type="email"], form input[type="password"], form input[type="search"], form select {
-  display: block; width: 100%; min-height: 42px; margin-top: 4px; padding: 8px 10px; background: var(--fondo); border: 1px solid var(--borde); border-radius: 6px; font-weight: 400; }
-form input:focus, form select:focus { border-color: var(--acento); }
+  display: block; width: 100%; min-height: 42px; margin-top: 4px; padding: 8px 10px; background: var(--pol-blanco); color: var(--pol-texto); border: 1px solid var(--pol-borde-fuerte); border-radius: var(--pol-radio-boton); font-weight: 400; }
+form input:focus, form select:focus { border-color: var(--pol-foco); outline: 2px solid var(--pol-foco); outline-offset: 0; }
 .dos { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
-.primario, .boton { display: inline-block; min-height: 42px; margin-top: 18px; padding: 10px 20px; background: var(--acento); color: var(--sobre-acento); border: 1px solid var(--acento);
-  border-radius: 6px; font-weight: 700; cursor: pointer; text-decoration: none; }
-.primario:hover, .boton:hover { filter: brightness(1.08); }
+
+/* botón primario: naranja de marca con texto oscuro (contraste 6,6:1; el blanco no llega) */
+.primario, .boton { display: inline-block; min-height: 42px; margin-top: 18px; padding: 10px 20px; background: var(--pol-naranja); color: var(--pol-sobre-naranja); border: 0;
+  border-radius: var(--pol-radio-boton); font-weight: 600; cursor: pointer; text-decoration: none; }
+.primario:hover, .boton:hover { background: var(--pol-naranja-hover); }
 .formulario .primario { width: 100%; }
-.pie { margin: 18px 0 0; color: var(--tenue); font-size: 14px; }
+.pie { margin: 18px 0 0; color: var(--pol-texto-suave); font-size: 14px; }
 .datos { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 16px 0; }
-.datos dt { color: var(--tenue); } .datos dd { margin: 0; font-weight: 600; word-break: break-word; }
+.datos dt { color: var(--pol-texto-suave); } .datos dd { margin: 0; font-weight: 600; color: var(--pol-titulo); word-break: break-word; }
 
-.aviso { max-width: 760px; margin: 0 auto 16px; padding: 11px 14px; border-radius: 6px; border: 1px solid var(--borde); background: var(--panel); }
-.aviso-error { border-color: var(--error); color: var(--error); font-weight: 600; }
-.aviso-ok { border-color: var(--ok); }
-.etiqueta { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 13px; font-weight: 700; border: 1px solid currentColor; text-transform: capitalize; }
-.etiqueta-pendiente { color: var(--aviso); } .etiqueta-autorizado { color: var(--ok); } .etiqueta-rechazado { color: var(--error); }
+/* avisos: fondo blanco con banda izquierda del color que toque */
+.aviso { max-width: 760px; margin: 0 auto 16px; padding: 11px 14px; border-radius: var(--pol-radio-panel); border: 1px solid var(--pol-borde); border-left: 4px solid var(--pol-naranja); background: var(--pol-blanco); }
+.aviso-error { border-left-color: var(--estado-alarma); color: var(--estado-alarma); font-weight: 600; }
+.aviso-ok { border-left-color: var(--estado-servicio); }
+.aviso-aviso { border-left-color: var(--estado-aviso); }
+.etiqueta { display: inline-block; padding: 1px 9px; border-radius: var(--pol-radio-panel); font-size: 13px; font-weight: 700; border: 1px solid currentColor; text-transform: capitalize; }
+.etiqueta-pendiente { color: var(--estado-aviso); } .etiqueta-autorizado { color: var(--estado-servicio); } .etiqueta-rechazado { color: var(--estado-alarma); }
 
-/* aula del profesor */
-.pestanas { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--borde); margin-bottom: 16px; }
-.pestanas a { padding: 10px 14px; margin-bottom: -1px; border-bottom: 3px solid transparent; color: var(--tenue); text-decoration: none; font-weight: 600; }
-.pestanas a[aria-current="page"] { color: var(--texto); border-bottom-color: var(--acento); }
-.pestanas .n { display: inline-block; min-width: 1.6em; padding: 0 6px; margin-left: 4px; border-radius: 999px; background: var(--fondo); text-align: center; font-size: 13px; }
+/* ---------- aula del profesor ---------- */
+.pestanas { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--pol-borde); margin-bottom: 16px; }
+.pestanas a { padding: 10px 14px; margin-bottom: -1px; border-bottom: 3px solid transparent; color: var(--pol-texto-suave); text-decoration: none; font-weight: 600; }
+.pestanas a[aria-current="page"] { color: var(--pol-titulo); border-bottom-color: var(--pol-naranja); }
+.pestanas .n { display: inline-block; min-width: 1.6em; padding: 0 6px; margin-left: 4px; border-radius: var(--pol-radio-panel); background: var(--pol-gris-claro); text-align: center; font-size: 13px; }
 .filtros { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; margin-bottom: 14px; }
 .filtros label { margin: 0; } .filtros select, .filtros input[type="search"] { min-width: 200px; }
-.filtros button { min-height: 42px; padding: 0 18px; border-radius: 6px; border: 1px solid var(--borde); background: var(--panel); font-weight: 600; cursor: pointer; }
+.filtros button { min-height: 42px; padding: 0 18px; border-radius: var(--pol-radio-boton); border: 1px solid var(--pol-naranja); background: transparent; color: var(--pol-naranja-texto); font-weight: 600; cursor: pointer; }
+.filtros button:hover { background: var(--pol-naranja-suave); }
 .masivo { margin: 0 0 14px; } .masivo .primario { margin-top: 0; }
-.vacio { padding: 28px; text-align: center; color: var(--tenue); background: var(--panel); border: 1px dashed var(--borde); border-radius: 6px; }
-.tabla { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--borde); }
-.tabla th, .tabla td { padding: 10px 12px; text-align: left; border-top: 1px solid var(--borde); vertical-align: middle; }
-.tabla thead th { border-top: 0; font-size: 13px; color: var(--tenue); background: var(--fondo); }
+.vacio { padding: 28px; text-align: center; color: var(--pol-texto-suave); background: var(--pol-blanco); border: 1px dashed var(--pol-borde-fuerte); border-radius: var(--pol-radio-panel); }
+.tabla { width: 100%; border-collapse: collapse; background: var(--pol-blanco); border: 1px solid var(--pol-borde); }
+.tabla th, .tabla td { padding: 10px 12px; text-align: left; border-top: 1px solid var(--pol-borde); vertical-align: middle; }
+.tabla thead th { border-top: 0; font-size: 13px; font-weight: 600; color: var(--pol-titulo); background: var(--pol-gris-claro); }
 .acciones { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .acciones form { margin: 0; }
-.acciones button, .mas summary { min-height: 34px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--borde); background: var(--panel); font-weight: 600; cursor: pointer; }
-.acciones button.primario { margin: 0; background: var(--acento); color: var(--sobre-acento); border-color: var(--acento); }
-.acciones button.peligro { color: var(--error); border-color: var(--error); }
+.acciones button, .mas summary { min-height: 40px; padding: 0 12px; border-radius: var(--pol-radio-boton); border: 1px solid var(--pol-borde-fuerte); background: var(--pol-blanco); color: var(--pol-titulo); font-weight: 600; cursor: pointer; }
+.acciones button:hover, .mas summary:hover { border-color: var(--pol-naranja); }
+.acciones button.primario { margin: 0; background: var(--pol-naranja); color: var(--pol-sobre-naranja); border-color: var(--pol-naranja); }
+.acciones button.primario:hover { background: var(--pol-naranja-hover); }
+.acciones button.peligro { color: var(--estado-alarma); border-color: var(--estado-alarma); }
 .mas { position: relative; } .mas summary { list-style: none; display: inline-flex; align-items: center; } .mas summary::-webkit-details-marker { display: none; }
-.mas-menu { position: absolute; right: 0; z-index: 5; display: grid; gap: 6px; margin-top: 4px; padding: 8px; min-width: 190px; background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,.2); }
+.mas-menu { position: absolute; right: 0; z-index: 5; display: grid; gap: 6px; margin-top: 4px; padding: 8px; min-width: 190px; background: var(--pol-blanco); border: 1px solid var(--pol-borde); border-radius: var(--pol-radio-panel); box-shadow: var(--pol-sombra-flotante); }
 .mas-menu button { width: 100%; text-align: left; }
-.clave-nueva { max-width: 760px; margin: 0 auto 18px; padding: 16px 20px; border: 2px solid var(--acento); border-radius: 6px; background: var(--panel); }
-.clave-nueva h2 { margin: 0 0 6px; font-size: 17px; }
-.clave { margin: 4px 0 8px; padding: 10px 14px; display: inline-block; font: 700 26px/1.2 Consolas, "Courier New", monospace; letter-spacing: .06em; background: var(--fondo); border-radius: 6px; user-select: all; }
+.clave-nueva { max-width: 760px; margin: 0 auto 18px; padding: 16px 20px; border: 1px solid var(--pol-borde); border-left: 4px solid var(--pol-naranja); border-radius: var(--pol-radio-panel); background: var(--pol-blanco); }
+.clave-nueva h2 { margin: 0 0 6px; font-size: 20px; }
+.clave { margin: 4px 0 8px; padding: 10px 14px; display: inline-block; font: 700 26px/1.2 var(--pol-mono); letter-spacing: .06em; color: var(--pol-titulo); background: var(--pol-gris-claro); border-radius: var(--pol-radio-panel); user-select: all; }
 
 @media (max-width: 760px) {
   .dos { grid-template-columns: 1fr; }
   .formulario { padding: 20px 16px; }
+  .formulario h1 { font-size: 24px; }
+  .logo { height: 44px; }
+  .marca .sim { font-size: 18px; }
   .tabla thead { display: none; }
   .tabla, .tabla tbody, .tabla tr, .tabla td { display: block; width: 100%; }
-  .tabla tr { border-top: 8px solid var(--fondo); padding: 8px 0; }
+  .tabla tr { border-top: 8px solid var(--pol-gris-claro); padding: 8px 0; }
   .tabla td { border: 0; padding: 4px 12px; }
-  .tabla td::before { content: attr(data-etiqueta) ": "; color: var(--tenue); font-size: 13px; }
+  .tabla td::before { content: attr(data-etiqueta) ": "; color: var(--pol-texto-suave); font-size: 13px; }
   .tabla td.acciones::before { content: none; }
   .mas-menu { position: static; box-shadow: none; }
 }
 
-/* ---------- identidad CIFP Politécnico Cartagena (naranja #F68B11, gris #5A5758) ---------- */
-.logo { display: block; height: 60px; width: auto; }
-.marca { display: flex; align-items: center; gap: 14px; }
-.marca .sim { font-size: 24px; padding-left: 14px; border-left: 2px solid var(--borde); color: var(--marca-gris); }
+/* ---------- pie: banda gris oscuro con el lema y el copyright ---------- */
+.pie-centro { flex: none; padding: 18px 20px 22px; background: var(--pol-gris-oscuro); color: var(--pol-sobre-oscuro); text-align: center; font-size: 13px; }
+.pie-centro p { margin: 0; }
+.pie-centro .lema { font-size: 15px; font-weight: 600; }
+.pie-centro .web { margin-top: 2px; }
+.pie-centro a { color: var(--pol-sobre-oscuro); }
+.pie-centro .copy { margin-top: 10px; font-size: 12px; }
 
-/* ---------- aviso de copyright ---------- */
-.copy { margin: 8px 20px 24px; font-size: 12px; color: var(--tenue); text-align: center; }
-
-.cambiar-pin { max-width: 760px; margin: 28px auto 0; padding: 14px 16px; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); }
-.cambiar-pin h2 { margin: 0 0 10px; font-size: 17px; }
+.cambiar-pin { max-width: 760px; margin: 28px auto 0; padding: 14px 16px; border: 1px solid var(--pol-borde); border-radius: var(--pol-radio-panel); background: var(--pol-blanco); }
+.cambiar-pin h2 { margin: 0 0 10px; font-size: 20px; }
 .cambiar-pin label { display: block; margin: 8px 0; font-weight: 600; }
 .cambiar-pin input { display: block; width: 100%; max-width: 320px; margin-top: 4px; }
 
-.boton-enlace { display: inline-block; padding: 6px 12px; border: 1px solid var(--borde); border-radius: 6px; color: inherit; text-decoration: none; font-weight: 600; }
-.boton-enlace:hover { border-color: var(--acento); }
+/* botón secundario: borde naranja y texto naranja oscuro */
+.boton-enlace { display: inline-flex; align-items: center; min-height: 40px; padding: 6px 14px; border: 1px solid var(--pol-naranja); border-radius: var(--pol-radio-boton); background: transparent; color: var(--pol-naranja-texto); text-decoration: none; font-weight: 600; }
+.boton-enlace:hover { background: var(--pol-naranja-suave); }
 .actividad { max-width: 900px; margin: 0 auto; }
-.actividad h2 { margin: 26px 0 8px; font-size: 18px; }
-.actividad h2 small { font-weight: 400; color: var(--tenue); }
+.actividad h2 { margin: 26px 0 8px; font-size: 20px; }
+.actividad h2 small { font-weight: 400; color: var(--pol-texto-suave); }
 .resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 14px; }
-.resumen div { padding: 12px 14px; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); }
-.resumen b { display: block; font-size: 20px; }
-.resumen span { color: var(--tenue); font-size: 13px; }
+.resumen div { padding: 12px 14px; border: 1px solid var(--pol-borde); border-radius: var(--pol-radio-panel); background: var(--pol-blanco); }
+.resumen b { display: block; font-size: 20px; color: var(--pol-titulo); }
+.resumen span { color: var(--pol-texto-suave); font-size: 13px; }
 
 .pestanas .pestana-pin { margin-left: auto; }
 
 /* Elección de simulador: una tarjeta por simulador con la imagen de su modelo 3D */
-.titulo-sims { margin: 0 0 4px; font-size: 26px; }
+.titulo-sims { margin: 0 0 4px; font-size: 28px; font-weight: 800; }
 .sims { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 22px; margin-top: 22px; }
-.sim-tarjeta { display: flex; flex-direction: column; overflow: hidden; background: var(--panel); border: 1px solid var(--borde); border-top: 4px solid var(--acento);
-  border-radius: 8px; color: var(--texto); text-decoration: none; transition: transform .15s, box-shadow .15s, border-color .15s; }
-.sim-tarjeta:hover, .sim-tarjeta:focus-visible { border-color: var(--acento); transform: translateY(-3px); box-shadow: 0 8px 22px rgba(0,0,0,.22); }
-.sim-imagen { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; background: #0F1418; }
+.sim-tarjeta { display: flex; flex-direction: column; overflow: hidden; background: var(--pol-blanco); border: 1px solid var(--pol-borde); border-radius: var(--pol-radio-panel);
+  color: var(--pol-texto); text-decoration: none; transition: border-color .15s; }
+.sim-tarjeta:hover, .sim-tarjeta:focus-visible { border-color: var(--pol-naranja); }
+.sim-imagen { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; background: var(--pol-gris-oscuro); }
 .sim-texto { display: flex; flex-direction: column; flex: 1; gap: 6px; padding: 18px 20px 20px; }
 .sim-texto h2 { margin: 0; font-size: 20px; }
-.sim-texto p { margin: 0 0 10px; color: var(--tenue); }
+.sim-texto p { margin: 0 0 10px; color: var(--pol-texto-suave); }
 .sim-texto .boton-enlace { align-self: flex-start; margin-top: auto; }
-.sim-etiqueta { color: var(--acento-texto); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
-@media (prefers-reduced-motion: reduce) { .sim-tarjeta { transition: none; } .sim-tarjeta:hover { transform: none; } }
+.sim-tarjeta:hover .boton-enlace { background: var(--pol-naranja-suave); }
+.sim-etiqueta { color: var(--pol-naranja-texto); font-size: 13px; font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .sim-tarjeta { transition: none; } }
 
 /* Asignación de simuladores por alumno (aula del profesor) */
 .casilla { display: inline-flex; align-items: center; gap: 6px; margin: 4px 12px 4px 0; font-weight: 400; }
-.casilla input { width: 18px; height: 18px; }
+.casilla input { width: 18px; height: 18px; accent-color: var(--pol-naranja); }
 .asignar-lista { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
 .sims-fila .mas-menu { min-width: 190px; }
 
 /* Retos de diagnóstico (averías ocultas del simulador fotovoltaico) */
-.reto-form { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px 14px; margin: 0 0 14px; padding: 12px 14px; background: var(--panel);
-  border: 1px solid var(--borde); border-left: 4px solid var(--acento); border-radius: 6px; }
+.reto-form { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px 14px; margin: 0 0 14px; padding: 12px 14px; background: var(--pol-blanco);
+  border: 1px solid var(--pol-borde); border-left: 4px solid var(--pol-naranja); border-radius: var(--pol-radio-panel); }
 .reto-form .reto-titulo, .reto-form .reto-nota { flex: 1 1 100%; }
-.reto-form .reto-nota { color: var(--tenue); font-size: 13px; }
+.reto-form .reto-nota { color: var(--pol-texto-suave); font-size: 13px; }
 .reto-form label { flex: 1 1 240px; margin: 0; min-width: 0; }
 .reto-form label.casilla { flex: 0 0 auto; min-height: 44px; margin: 0; font-weight: 600; }
 .reto-form label.casilla input { width: 22px; height: 22px; }
 .reto-form select, .reto-form input[type="text"] { min-height: 44px; }
-.reto-form button, .tabla .acciones button.peligro, .hoja summary { min-height: 44px; padding: 0 18px; border-radius: 6px; border: 1px solid var(--borde); background: var(--panel);
-  font-weight: 700; cursor: pointer; }
-.reto-form button { background: var(--acento); color: var(--sobre-acento); border-color: var(--acento); }
+.reto-form button, .tabla .acciones button.peligro, .hoja summary { min-height: 44px; padding: 0 18px; border-radius: var(--pol-radio-boton); border: 1px solid var(--pol-borde-fuerte); background: var(--pol-blanco);
+  font-weight: 600; cursor: pointer; }
+.reto-form button { background: var(--pol-naranja); color: var(--pol-sobre-naranja); border-color: var(--pol-naranja); }
+.reto-form button:hover:not(:disabled) { background: var(--pol-naranja-hover); }
 .reto-form button:disabled { opacity: .5; cursor: not-allowed; }
+.tabla .acciones button.peligro { color: var(--estado-alarma); border-color: var(--estado-alarma); }
 .retos-fila { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 6px 0; text-decoration: none; }
 .retos-fila .etiqueta { text-transform: none; white-space: nowrap; }
-.acierto-2 { color: var(--ok); } .acierto-1 { color: var(--aviso); } .acierto-0 { color: var(--error); }
+.acierto-2 { color: var(--estado-servicio); } .acierto-1 { color: var(--estado-aviso); } .acierto-0 { color: var(--estado-alarma); }
 .etiqueta[class*="acierto-"] { text-transform: none; white-space: nowrap; }
-.tabla small { color: var(--tenue); }
-.hoja summary { display: inline-flex; align-items: center; list-style: none; white-space: nowrap; }
+.tabla small { color: var(--pol-texto-suave); }
+.hoja summary { display: inline-flex; align-items: center; list-style: none; white-space: nowrap; color: var(--pol-titulo); }
+.hoja summary:hover { border-color: var(--pol-naranja); }
 .hoja summary::-webkit-details-marker { display: none; }
 .hoja dl { margin: 8px 0 0; min-width: 220px; max-width: 420px; }
-.hoja dt { margin-top: 6px; color: var(--tenue); font-size: 13px; }
+.hoja dt { margin-top: 6px; color: var(--pol-texto-suave); font-size: 13px; }
 .hoja dd { margin: 0; overflow-wrap: anywhere; }
 .hoja ul { margin: 0; padding-left: 18px; }
 .actividad .tabla-diag { font-size: 14px; }
 .diagnostico h2 { margin: 0 0 4px; font-size: 20px; }
-.sim-reto { padding: 8px 10px; border: 1px solid var(--acento); border-radius: 6px; color: var(--texto) !important; font-weight: 600; }
+.sim-reto { padding: 8px 10px; border: 1px solid var(--pol-borde); border-left: 4px solid var(--pol-naranja); border-radius: var(--pol-radio-panel); background: var(--pol-naranja-suave); color: var(--pol-titulo) !important; font-weight: 600; }
 @media (max-width: 760px) {
   .reto-form label { flex-basis: 100%; }
   .reto-form button { width: 100%; }
 }
+/* Línea de tiempo de una sesión (aula_sesion.html) */
+.sesion code { font: 13px/1.4 var(--pol-mono); color: var(--pol-texto-suave); overflow-wrap: anywhere; }
+.sesion > .acciones { margin: 12px 0 0; }
+.tabla-sesion td:first-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tabla-sesion tr.ev-abandono td:nth-child(2) b { color: var(--estado-alarma); }
+.tabla-sesion tr.ev-completo td:nth-child(2) b, .tabla-sesion tr.ev-entrego td:nth-child(2) b { color: var(--estado-servicio); }

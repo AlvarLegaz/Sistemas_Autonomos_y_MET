@@ -16,7 +16,7 @@ test('el nombre de la fábrica y de la estación está en el contrato', () => {
 test('clic izquierdo: en automático un actuador no se acciona y avisa de pasar a Manual', () => {
   const sim = crearSimulacion({ semilla: 1 }); sim.paso(0.5);
   const d = simple.decidirClic('P-201', sim.estado());
-  assert.equal(d.tipo, 'aviso'); assert.match(d.texto, /Revisión \(modo manual\)/);
+  assert.equal(d.tipo, 'aviso'); assert.match(d.texto, /pasa a Revisión\./); assert.doesNotMatch(d.texto, /modo manual/);
 });
 
 test('clic izquierdo: en Manual alterna la orden de una bomba y la válvula de desvío se acciona por su piloto SV-101', () => {
@@ -46,57 +46,9 @@ test('clic izquierdo: la velocidad se cambia en el panel; los instrumentos y la 
   assert.equal(simple.decidirClic('ES-001', sim.estado()).tipo, 'liberar-seta');
 });
 
-test('llenado: abre la válvula de cada depósito que no está lleno y cierra la del que sí', () => {
-  const plan = simple.planLlenado({ tanque: { nivelPct: 60 }, aguaCaliente: { nivelPct: 100 }, plc: {} }, true);
-  assert.deepEqual(plan.ordenes, [['XV-101', 1], ['XV-201', 0]]);
-  assert.equal(plan.terminado, false);
-  const lleno = simple.planLlenado({ tanque: { nivelPct: 99.5 }, aguaCaliente: { nivelPct: 100 }, plc: {} }, false);
-  assert.deepEqual(lleno.ordenes, [['XV-101', 0], ['XV-201', 0]]);               // las electroválvulas son manuales: se cierran y el PLC no las vuelve a abrir
-  assert.equal(lleno.terminado, true);
-});
-
-test('llenado: con el paro de emergencia no abre nada y se da por terminado', () => {
-  const plan = simple.planLlenado({ tanque: { nivelPct: 10 }, aguaCaliente: { nivelPct: 10 }, plc: { paro: true } }, true);
-  assert.deepEqual(plan.ordenes, [['XV-101', 0], ['XV-201', 0]]);
-  assert.equal(plan.terminado, true); assert.equal(plan.paro, true);
-});
-
-function llenarConLaSimulacion(sim, segundos) {
-  let terminado = false;
-  for (let t = 0; t < segundos && !terminado; t += 0.25) {
-    const plan = simple.planLlenado(sim.estado(), sim.estado().modo === 'MANUAL');
-    for (const [tag, valor] of plan.ordenes) sim.ordenes.manual(tag, valor);
-    terminado = plan.terminado;
-    sim.paso(0.25);
-  }
-  return terminado;
-}
-
-test('llenado con la simulación real en Manual: los dos depósitos suben hasta lleno y las válvulas quedan cerradas', () => {
-  const sim = enManual();
-  sim.ordenes.manual('XV-102', 1); sim.ordenes.manual('XV-202', 1);              // se vacían los dos
-  for (let i = 0; i < 240; i++) sim.paso(0.5);                                   // 2 minutos: el tanque baja ~40 % y el agua caliente ~35 %
-  sim.ordenes.manual('XV-102', 0); sim.ordenes.manual('XV-202', 0); sim.paso(0.5); sim.paso(0.5);
-  const e0 = sim.estado(); assert.ok(e0.tanque.nivelPct < 60 && e0.aguaCaliente.nivelPct < 80, `vaciado: ${e0.tanque.nivelPct} / ${e0.aguaCaliente.nivelPct}`);
-  assert.equal(llenarConLaSimulacion(sim, 600), true);
-  for (let i = 0; i < 4; i++) sim.paso(0.5);
-  const e = sim.estado();
-  assert.ok(e.tanque.nivelPct >= simple.LLENO_PCT, `tanque ${e.tanque.nivelPct}`);
-  assert.equal(simple.nivelAgua(e), 'alto', `agua caliente ${e.aguaCaliente.nivelPct}`);                 // el depósito de agua se da por lleno cuando salta LSH-201
-  assert.equal(e.equipos['XV-101'].abierta, false); assert.equal(e.equipos['XV-201'].abierta, false);
-  assert.equal(!!e.equipos['TK-101'].desbordando, false);                          // se cerró antes de rebosar
-});
-
-test('llenado con la simulación real en automático: cierra el forzado al llegar y el PLC vuelve a mandar', () => {
-  const sim = crearSimulacion({ semilla: 1 }); sim.paso(0.5);
-  sim.ordenes.manual('XV-202', 1); for (let i = 0; i < 40; i++) sim.paso(0.5); sim.ordenes.manual('XV-202', null);
-  assert.equal(llenarConLaSimulacion(sim, 900), true);
-  const e = sim.estado(); assert.equal(simple.nivelAgua(e), 'alto');
-});
-
 test('texto de estado: modo, niveles y la alarma más grave; el paro de emergencia manda sobre todo', () => {
   const e = { modo: 'MANUAL', tanque: { nivelPct: 60.2 }, aguaCaliente: { nivelPct: 100 }, alarmas: [], plc: {} };
-  assert.match(simple.textoEstado(e, true), /Revisión \(modo manual\) · en marcha · tanque 60 % · agua caliente: nivel normal · sin alarmas/);
+  assert.match(simple.textoEstado(e, true), /Revisión · en marcha · tanque 60 % · agua: normal · sin alarmas/);
   const a = Object.assign({}, e, { alarmas: [{ nivel: 'alarma', tag: 'TT-103', texto: 'Temperatura baja' }] });
   assert.match(simple.textoEstado(a, false), /detenida .* 1 alarma: TT-103 Temperatura baja/);
   assert.match(simple.textoEstado(Object.assign({}, e, { plc: { paro: true } }), true), /PARO DE EMERGENCIA/);
@@ -170,50 +122,6 @@ test('el depósito de agua caliente no da porcentaje: solo bajo, normal o alto s
   sim.ordenes.nivelDeposito('aguaCaliente', 55); sim.paso(1); assert.equal(simple.nivelAgua(sim.estado()), 'normal');
   sim.ordenes.nivelDeposito('aguaCaliente', 95); sim.paso(1); assert.equal(simple.nivelAgua(sim.estado()), 'alto');
   assert.doesNotMatch(simple.textoEstado(sim.estado(), true), /agua caliente[^·]*%/);
-});
-
-test('histéresis: enciende por debajo de la banda, apaga por encima y dentro de la banda mantiene', () => {
-  assert.equal(simple.histeresis(66, 70, 4, false), true);
-  assert.equal(simple.histeresis(74, 70, 4, true), false);
-  assert.equal(simple.histeresis(70, 70, 4, true), true); assert.equal(simple.histeresis(70, 70, 4, false), false);
-});
-
-test('reparto en bancos: hasta el 50 % solo el banco 1, por encima el 1 fijo y el 2 modulado', () => {
-  const duty = (u, bancoN) => { let n = 0; for (let t = 0; t < 30; t += 0.5) if (simple.repartoBancos(u, t, 30)[bancoN]) n++; return n / 60; };
-  assert.equal(duty(0, 0), 0); assert.equal(duty(100, 1), 1);
-  assert.ok(Math.abs(duty(25, 0) - 0.5) < 0.02); assert.equal(duty(25, 1), 0);
-  assert.equal(duty(75, 0), 1); assert.ok(Math.abs(duty(75, 1) - 0.5) < 0.02);
-});
-
-test('PID: la salida se limita a 0-100 y la integral no se dispara con la salida saturada ni con el error grande', () => {
-  const pid = simple.crearPid({ kp: 10, ki: 0.5, kd: 0 });
-  for (let i = 0; i < 200; i++) assert.equal(pid.paso(50, 1), 100);            // error de 50 °C: saturado
-  assert.equal(pid.integral(), 0);                                              // fuera de la banda de integración no integra
-  for (let i = 0; i < 400; i++) pid.paso(1, 1);
-  assert.ok(pid.integral() <= 100);
-  assert.equal(pid.paso(-50, 1), 0);
-});
-
-function calentarConControl(modo, consigna, minutos) {
-  const sim = crearSimulacion({ semilla: 1, valvulasManuales: true }); sim.ordenes.modo('MANUAL'); sim.paso(0.5); sim.paso(0.5);
-  const pid = simple.crearPid({ kp: 10, ki: 0.05, kd: 0 }); let encendido = false, maxT = 0;
-  for (let t = 0; t < minutos * 60; t += 0.25) {
-    const e = sim.estado(), T = e.instrumentos['TT-201'].valorPLC;
-    maxT = Math.max(maxT, T);
-    let b1, b2;
-    if (modo === 'histeresis') { encendido = simple.histeresis(T, consigna, 4, encendido); b1 = b2 = encendido; }
-    else { [b1, b2] = simple.repartoBancos(pid.paso(consigna - T, 0.25), e.tiempoS); }
-    sim.ordenes.manual('P-201', 1); sim.ordenes.manual('KM-201', b1 ? 1 : 0); sim.ordenes.manual('KM-202', b2 ? 1 : 0);
-    sim.paso(0.25);
-  }
-  return { final: sim.estado().instrumentos['TT-201'].valorPLC, maxT };
-}
-
-test('el control de temperatura lleva el agua al objetivo con histéresis y con PID, sin pasarse mucho', () => {
-  const h = calentarConControl('histeresis', 65, 40);
-  assert.ok(Math.abs(h.final - 65) < 4.5, `histéresis final ${h.final}`); assert.ok(h.maxT < 65 + 6, `histéresis máx ${h.maxT}`);
-  const p = calentarConControl('pid', 65, 40);
-  assert.ok(Math.abs(p.final - 65) < 2, `PID final ${p.final}`); assert.ok(p.maxT < 65 + 5, `PID máx ${p.maxT}`);
 });
 
 test('reloj con horas, minutos y segundos', () => { assert.equal(simple.formatoReloj(3725.9), '01:02:05'); assert.equal(simple.formatoReloj(), '00:00:00'); });

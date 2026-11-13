@@ -25,7 +25,7 @@
 
   /** Tabla de solo lectura dentro de `contenedor`; actualizar(estado) solo toca las celdas que cambian. */
   function crearPanelLecturas(contenedor) {
-    contenedor.innerHTML = '<h2>Lecturas de los instrumentos</h2><p class="nota-lecturas">Solo lectura: es lo que ve el PLC. Las herramientas de medida (multímetro y osciloscopio) están en el nivel 3.</p>' +
+    contenedor.innerHTML = '<h2>Lecturas de los instrumentos</h2><p class="nota-lecturas">Lo que ve el PLC. Multímetro y osciloscopio: nivel 3.</p>' +
       '<table class="tabla-lecturas"><thead><tr><th scope="col">Instrumento</th><th scope="col">Valor</th><th scope="col">Estado</th></tr></thead><tbody></tbody></table>';
     const cuerpo = contenedor.querySelector('tbody'), celdas = new Map();
     return {

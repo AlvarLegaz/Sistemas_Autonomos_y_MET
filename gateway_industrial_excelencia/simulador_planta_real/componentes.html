@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-tema="sistema">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,13 +7,14 @@
 <meta name="copyright" content="© 2026 Álvar Legaz Aparicio. Todos los derechos reservados.">
 <title>PCT23 · Componentes 2D · Intercambiador</title>
 <link rel="icon" type="image/png" href="/simulador/img/favicon.png">
+<link rel="stylesheet" href="/comun/css/identidad.css">
 <link rel="stylesheet" href="/simulador/css/interfaz.css">
 <link rel="stylesheet" href="css/planta_real.css">
 </head>
 <body>
 <main class="galeria">
   <h1>Intercambiador de calor</h1>
-  <p>Un intercambiador reducido a lo esencial: una caja con <strong>dos flujos</strong> que la cruzan en onda, el de <strong>servicio</strong> arriba y el de <strong>producto</strong> abajo, cada uno en un sentido (<strong>contracorriente</strong>), sin tocarse ni mezclarse. Las temperaturas de entrada y salida se añadirán cuando la planta tenga esas sondas. Es la pieza base: con ella se hacen el calentamiento, la regeneración y el enfriamiento de la planta, que solo se diferencian en qué fluido lleva cada circuito.</p>
+  <p>Caja con <strong>dos flujos</strong> sin mezclarse: <strong>servicio</strong> arriba y <strong>producto</strong> abajo, en <strong>contracorriente</strong>. Es la pieza base del calentamiento, la regeneración y el enfriamiento; solo cambia el fluido de cada circuito.</p>
 
   <h2>Pruébalo</h2>
   <div class="galeria-vivo">
@@ -36,18 +37,18 @@
         <li><span class="muestra" style="background:var(--agua)"></span>Agua fría (servicio)</li>
       </ul></section>
     <section><h3>Principio de funcionamiento</h3>
-      <p>El calor pasa de un fluido a otro a través de una pared metálica, sin que se mezclen. A contracorriente, el fluido que sale más frío se cruza con el que entra más frío y el que sale más caliente con el que entra más caliente: así la diferencia de temperatura se mantiene en todo el recorrido y se aprovecha mejor el calor.</p></section>
+      <p>El calor pasa de un fluido a otro por una pared metálica, sin mezclarse. A contracorriente, la diferencia de temperatura se mantiene en todo el recorrido y se aprovecha mejor el calor.</p></section>
   </div>
 
   <h2>Variantes</h2>
   <div class="galeria-rejilla" id="variantes"></div>
 
   <h2>Los tres bloques de la planta, unidos</h2>
-  <p>Cada bloque es el mismo widget con otros fluidos, y se unen por sus <strong>puertos</strong> (solo salida con entrada y del mismo fluido). Recorrido de la leche: entra cruda en la <strong>regeneración</strong> (abajo), pasa al <strong>calentamiento</strong>, recorre el <strong>tubo de retención</strong>, vuelve a la regeneración por arriba para ceder su calor a la leche que entra, y termina en el <strong>enfriamiento</strong>. Es una demostración: la planta todavía usa su propio esquema.</p>
+  <p>Mismo widget con otros fluidos, unido por <strong>puertos</strong> (salida con entrada, mismo fluido). La leche entra cruda en la <strong>regeneración</strong>, pasa al <strong>calentamiento</strong> y al <strong>tubo de retención</strong>, vuelve a la regeneración a ceder calor y acaba en el <strong>enfriamiento</strong>. Demostración: la planta aún usa su propio esquema.</p>
   <figure id="tres-bloques" style="margin:0;padding:10px;border:1px solid var(--borde);border-radius:8px;background:var(--fondo)"></figure>
 
   <h2>Boceto del pasteurizador: leche por arriba, agua por abajo</h2>
-  <p>Propuesta para el SCADA de la planta real. La <strong>leche cruda</strong> sale del depósito impulsada por la bomba <strong>P-101</strong> (con variador), se precalienta en la <strong>regeneración</strong>, se calienta en el <strong>calentamiento</strong> y recorre el <strong>tubo de retención</strong>. Al final, la sonda TT-103 vigila la temperatura y la <strong>válvula de desvío FDV-101</strong> (de 3 vías, con solenoide) decide: si la temperatura es la correcta, la leche pasa (<strong>avance</strong>) a la regeneración, donde cede su calor a la leche cruda, y después al <strong>enfriamiento</strong> y a envasado; si no, se <strong>desvía</strong> de vuelta al depósito. El agua va siempre por abajo: la caliente con su depósito y su bomba <strong>P-201</strong> (con contactor), y la fría desde la red hasta el desagüe. Las sondas TT-101, TT-106 y TT-104 miden la leche antes de la regeneración, antes del enfriamiento y a la salida, y el caudalímetro FT-101 mide el caudal de leche a la salida de la bomba. El depósito de leche tiene un transmisor de nivel continuo <strong>LT-101</strong> (da el nivel exacto, en %) y el de agua caliente, dos interruptores: nivel <strong>alto LSH-201</strong> y <strong>bajo LSL-201</strong>. Cada depósito tiene una electroválvula de <strong>llenado</strong> y otra de <strong>purga</strong> para la limpieza, en un circuito aparte. El agua fría de la red entra por la electroválvula <strong>XV-401</strong>, y el agua caliente se calienta con la resistencia <strong>R-301</strong>, vigilada por el termopar <strong>TE-301</strong>, que la corta si el agua pasa de 95 °C (y LSL-201 la corta si falta agua). Pruébalo con los botones: abre o cierra válvulas, enciende la resistencia y mira qué pasa (por ejemplo, cierra XV-401 y verás subir TT-104). Ninguna línea se cruza.</p>
+  <p>Propuesta para el SCADA. La <strong>leche cruda</strong> sale del depósito con la bomba <strong>P-101</strong> (variador), se precalienta en la <strong>regeneración</strong>, se calienta y recorre el <strong>tubo de retención</strong>. TT-103 vigila la temperatura y la <strong>FDV-101</strong> (3 vías, solenoide) decide: si es correcta, <strong>avance</strong> a la regeneración, al <strong>enfriamiento</strong> y a envasado; si no, <strong>desvío</strong> al depósito. El agua va por abajo: la caliente con su depósito y la bomba <strong>P-201</strong> (contactor); la fría, de red a desagüe. TT-101, TT-106 y TT-104 miden la leche antes de la regeneración, antes del enfriamiento y a la salida; FT-101, el caudal tras la bomba. Depósito de leche: nivel continuo <strong>LT-101</strong> (%). Agua caliente: <strong>LSH-201</strong> (alto) y <strong>LSL-201</strong> (bajo). Cada depósito tiene electroválvula de <strong>llenado</strong> y de <strong>purga</strong>. El agua fría entra por <strong>XV-401</strong>; la resistencia <strong>R-301</strong> la vigila el termopar <strong>TE-301</strong>, que la corta por encima de 95 °C (y LSL-201 si falta agua). Prueba los botones: cierra XV-401 y verás subir TT-104.</p>
   <figure id="boceto-planta" style="margin:0;padding:10px;border:1px solid var(--borde);border-radius:8px;background:var(--fondo)"></figure>
   <div class="boceto-controles" role="group" aria-label="Llenado y purga de los depósitos">
     <button type="button" data-valvula="XV-101" aria-pressed="false">XV-101 · Llenar leche</button>

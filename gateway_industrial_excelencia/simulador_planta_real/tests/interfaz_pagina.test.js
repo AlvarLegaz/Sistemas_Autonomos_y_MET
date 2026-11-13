@@ -284,7 +284,7 @@ test('rebosadero: el aviso derivado aparece con TK-101 desbordando, conserva su 
 /* --- niveles: el nivel 1 no solapa nada con sus nombres sencillos y las tarjetas de valores (también con los valores más largos posibles) --- */
 test('esquema nivel 1: nombres sencillos y tarjetas de valores sin solapes, incluso con los textos más largos', () => {
   const peor = { 'n1-temp-linea': 'Temperatura al salir del tubo: 100,0 °C', 'n1-caudal-linea': 'Caudal de leche: 2000 litros por hora', 'n1-nivel-linea': 'Tanque de leche: 100 % lleno',
-    'n1-temp-estado': '⚠ Atención: aún no llega a 72 °C', 'n1-caudal-estado': '⚠ Atención: no circula leche', 'n1-nivel-estado': '⚠ Atención: casi vacío',
+    'n1-temp-estado': '⚠ Atención: menos de 72 °C', 'n1-caudal-estado': '⚠ Atención: no circula leche', 'n1-nivel-estado': '⚠ Atención: casi vacío',
     't-FDV-estado': 'Deja pasar la leche', 'v-HW-nivel': 'Nivel 100 %', 'v-HW-bancos': '2 de 2 resistencias', 'v-LT-101': '100,0 %' };
   const cajas = cajasDelEsquema(peor, 1), textos = cajas.filter(c => c.tipo === 'texto'), simbolos = cajas.filter(c => c.tipo === 'simbolo'), choques = [];
   assert.ok(textos.some(x => x.texto === 'Tanque') && textos.some(x => x.texto === 'Tubo de residencia') && textos.some(x => x.texto === 'Válvula de desvío'), 'nombres sencillos');

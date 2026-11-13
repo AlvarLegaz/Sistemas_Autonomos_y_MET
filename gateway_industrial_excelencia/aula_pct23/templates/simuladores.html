@@ -2,9 +2,9 @@
 {% block titulo %}Elegir simulador · Aula PCT23{% endblock %}
 {% block seccion %}Simuladores{% endblock %}
 {% block contenido %}
-<h1 class="titulo-sims">¿Qué simulador quieres usar?</h1>
+<h1 class="titulo-sims">Elige simulador</h1>
 {% if lista %}
-<p class="ayuda">Elige uno. Puedes cambiar de simulador cuando quieras desde el enlace «Simuladores» de la barra inferior.</p>
+<p class="ayuda">Para cambiar, usa «Simuladores» en la barra inferior.</p>
 <div class="sims">
   {% for s in lista %}
   <a class="sim-tarjeta" href="{{ s['ruta'] }}" aria-label="Abrir {{ s['titulo'] }}">
@@ -13,13 +13,13 @@
       <span class="sim-etiqueta">{{ s['etiqueta'] }}</span>
       <h2>{{ s['titulo'] }}</h2>
       <p>{{ s['descripcion'] }}</p>
-      {% if retos_pendientes and s['id'] == reto_sim %}<p class="sim-reto">Tienes {{ retos_pendientes }} reto{{ 's' if retos_pendientes != 1 }} de diagnóstico pendiente{{ 's' if retos_pendientes != 1 }}: hay una avería oculta que encontrar.</p>{% endif %}
+      {% if retos_pendientes and s['id'] == reto_sim %}<p class="sim-reto">Tienes {{ retos_pendientes }} reto{{ 's' if retos_pendientes != 1 }} de diagnóstico pendiente{{ 's' if retos_pendientes != 1 }}: busca la avería oculta.</p>{% endif %}
       <span class="boton-enlace">Abrir simulador</span>
     </div>
   </a>
   {% endfor %}
 </div>
 {% else %}
-<p class="aviso" role="status">El profesor todavía no te ha asignado ningún simulador. Cuando lo haga aparecerá aquí; si tienes la página abierta, recárgala.</p>
+<p class="aviso" role="status">Aún no tienes simuladores. Cuando el profesor te los asigne, recarga la página.</p>
 {% endif %}
 {% endblock %}

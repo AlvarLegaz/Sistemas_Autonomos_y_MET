@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-tema="sistema">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,12 +7,18 @@
 <meta name="copyright" content="© 2026 Álvar Legaz Aparicio. Todos los derechos reservados.">
 <title>CIFP Politécnico · FV-01 · Instalación fotovoltaica de la cubierta</title>
 <link rel="icon" type="image/png" href="/simulador/img/favicon.png">
+<link rel="stylesheet" href="/comun/css/identidad.css">
 <link rel="stylesheet" href="/simulador/css/interfaz.css">
 <link rel="stylesheet" href="css/planta_fv.css">
 <link rel="stylesheet" href="css/instrumentos_fv.css">
 </head>
 <body class="planta-fv" data-modo="normal">
-<div id="app"><p class="aviso-planta" role="status">Cargando la instalación…</p></div>
+<div id="app">
+<!-- Cabecera y pie mientras carga: pagina_simple.js los sustituye por los suyos (iguales, con los modos y las ventanas). -->
+<header class="cab"><h1><img class="logo" src="/simulador/img/logo-politecnico.png" alt="CIFP Politécnico Cartagena" width="166" height="60"><span class="sim">CIFP POLITÉCNICO DE CARTAGENA · FV-01<small>Instalación fotovoltaica de la cubierta</small><small class="mencion">Red Estatal de Centros de Excelencia de Formación Profesional · Sector Químico</small></span></h1></header>
+<p class="aviso-planta" role="status">Cargando la instalación…</p>
+<footer class="pie-copyright">© 2026 Álvar Legaz Aparicio · Todos los derechos reservados.</footer>
+</div>
 <noscript><p class="aviso-planta">Esta página necesita JavaScript.</p></noscript>
 <!-- Clic izquierdo acciona (en Revisión), clic derecho da la ficha. Unifilar, Cableado y el 3D son ventanas aparte.
      Instrumentos de medida (maletín) y modo Diagnóstico con avería oculta: js/interfaz/panel_instrumentos.js y panel_diagnostico.js. -->

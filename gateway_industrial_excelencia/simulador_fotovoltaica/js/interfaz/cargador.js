@@ -10,11 +10,16 @@
     '/simulador/js/interfaz/scada/sensor.js', '/simulador/js/interfaz/scada/tuberia.js',
     '/simulador/js/interfaz/visor3d/especificaciones.js', '/simulador/js/interfaz/visor3d/lecturas.js', '/simulador/js/interfaz/visor3d/controles_orbita.js', '/simulador/js/interfaz/visor3d/visor3d.js', '/simulador/js/interfaz/pulsacion_larga.js',
   ];
+  const NUCLEO = [      // núcleo común (comun/): tipos, azar, paso fijo, eventos, registro y contrato (ruta absoluta, como COMPARTIDO). Si falta alguno, no se carga el adaptador del contrato
+    '/comun/tipos.js', '/comun/js/nucleo/congelar.js', '/comun/js/nucleo/azar.js', '/comun/js/nucleo/paso_fijo.js', '/comun/js/nucleo/eventos.js', '/comun/js/nucleo/registro.js', '/comun/js/nucleo/contrato.js',
+    '/comun/js/diagnostico/logica_diagnostico.js',
+  ];
   const MODELO = [      // AGENTE-MODELO (rutas relativas), en el orden de sus dependencias; simulacion.js siempre al final
     'js/layout.js', 'js/configuracion/constantes.js', 'js/modelo/sol.js', 'js/modelo/panel.js', 'js/modelo/cadena.js', 'js/modelo/seguidor.js', 'js/modelo/bateria.js',
     'js/modelo/inversor_easun.js', 'js/modelo/inversor_zcs.js', 'js/modelo/protecciones.js', 'js/modelo/red_cargas.js', 'js/averias/catalogo.js', 'js/averias/motor.js',
     'js/modelo/medidas.js', 'js/modelo/simulacion.js',
   ];
+  const CONTRATO = ['js/modelo/contrato_fv.js'];   // adaptador del contrato común: después del modelo y solo si el núcleo cargó entero
   const DISENO3D = [    // AGENTE-3D (js/visor3d_fv/), en el orden de sus dependencias; escena_planta al final
     'js/visor3d_fv/kit.js', 'js/visor3d_fv/efectos_averias.js', 'js/visor3d_fv/base_fv.js', 'js/visor3d_fv/disposicion.js', 'js/visor3d_fv/paneles.js', 'js/visor3d_fv/escena_planta.js',
   ];
@@ -23,7 +28,7 @@
   ];
   const INTERFAZ = [    // AGENTE-INTERFAZ
     'js/interfaz/formato_fv.js', 'js/scada2d/esquema_fv.js', 'js/interfaz/diagnostico_fv.js', 'js/interfaz/toque_largo_fv.js', 'js/interfaz/ayuda_fv.js', 'js/interfaz/grafica_fv.js', 'js/interfaz/panel_revision.js', 'js/interfaz/panel_lecturas.js',
-    'js/interfaz/cuaderno_fv.js', 'js/interfaz/instrumentos_fv.js', 'js/interfaz/reto_fv.js', 'js/interfaz/panel_instrumentos.js', 'js/interfaz/panel_diagnostico.js',      // instrumentos de medida y modo Diagnóstico
+    'js/interfaz/cuaderno_fv.js', 'js/interfaz/instrumentos_fv.js', 'js/interfaz/reto_fv.js', 'js/interfaz/telemetria_fv.js', 'js/interfaz/panel_instrumentos.js', 'js/interfaz/panel_diagnostico.js',      // instrumentos de medida y modo Diagnóstico
   ];
 
   function cargarScript(ruta) {
@@ -50,7 +55,11 @@
   async function cargarTodo({ conInterfaz = true, conDiseno3d = false, conDocumentacion = true } = {}) {
     const faltan = [];
     await cargarLista(COMPARTIDO, faltan);
+    const faltanNucleo = [];
+    await cargarLista(NUCLEO, faltanNucleo);   // un módulo común que falte no rompe la página: se anota y el adaptador del contrato no se carga
+    faltan.push(...faltanNucleo);
     await cargarLista(MODELO, faltan);      // el modelo usa su lista fija (sin índice: evita una petición que daba 404)
+    if (!faltanNucleo.filter(r => r !== NUCLEO[NUCLEO.length - 1]).length) await cargarLista(CONTRATO, faltan);
     if (conDiseno3d) await cargarLista(await listaDe('js/visor3d_fv/indice.js', 'FV_DISENO3D', DISENO3D), faltan);
     if (conDocumentacion) await cargarLista(DOCUMENTACION, faltan);
     if (conInterfaz) await cargarLista(INTERFAZ, faltan);
@@ -58,5 +67,5 @@
     return { faltan };
   }
 
-  window.FV_CARGADOR = { COMPARTIDO, MODELO, DISENO3D, DOCUMENTACION, INTERFAZ, cargarScript, cargarTodo };
+  window.FV_CARGADOR = { COMPARTIDO, NUCLEO, CONTRATO, MODELO, DISENO3D, DOCUMENTACION, INTERFAZ, cargarScript, cargarTodo };
 })();

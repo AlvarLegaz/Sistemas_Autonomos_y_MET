@@ -66,7 +66,7 @@
   /** Fichas de ayuda del panel con el texto «Cómo funciona» añadido a los equipos que se abren por dentro (al pulsarlos en el 3D). */
   function ayudasConComoFunciona() {
     const ayudas = textos.construirElementos();
-    if (comoFunciona) for (const tag of comoFunciona.TAGS_CON_INTERIOR) if (ayudas[tag]) ayudas[tag].queEs = `${ayudas[tag].queEs} Cómo funciona (se abre por dentro al pulsarlo): ${comoFunciona.textoComoFunciona(tag)}`;
+    if (comoFunciona) for (const tag of comoFunciona.TAGS_CON_INTERIOR) if (ayudas[tag]) ayudas[tag].queEs = `${ayudas[tag].queEs} Cómo funciona (púlsalo para verlo por dentro):${comoFunciona.textoComoFunciona(tag)}`;
     return ayudas;
   }
 
@@ -77,8 +77,8 @@
     return ayudas;
   }
 
-  const RESUMEN = 'Pasteurizador HTST completo sobre su patín, con el armario eléctrico. Sigue el estado del SCADA y muestra las averías que el profesor provoque. Pulsa una pieza para ver qué es; las medidas y los tamaños son típicos e ilustrativos.';
-  const RESUMEN_NIVEL_1 = 'La leche va del tanque al intercambiador, espera en el tubo y la válvula de desvío decide si sale o vuelve al tanque. Pulsa una pieza para saber qué es y qué hace.';
+  const RESUMEN = 'Pasteurizador HTST sobre patín, con armario eléctrico. Sigue al SCADA y muestra las averías provocadas. Pulsa una pieza para ver qué es. Medidas típicas e ilustrativas.';
+  const RESUMEN_NIVEL_1 = 'La leche pasa por el intercambiador y el tubo; la válvula de desvío decide si sale o vuelve al tanque. Pulsa una pieza para ver qué es.';
 
   /** Registra el modelo y la escena en el visor de simulador_pct23. Devuelve false si el visor o la escena del diseñador no están cargados. */
   function registrar() {

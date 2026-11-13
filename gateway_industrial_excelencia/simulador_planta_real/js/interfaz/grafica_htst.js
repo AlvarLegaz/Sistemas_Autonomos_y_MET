@@ -1,6 +1,8 @@
 // Gráficas de tendencia de la planta real: temperaturas, caudal y presiones. No reutiliza grafica.js de la maqueta (está atado a sus series T1, T2, T3).
 // El historial y la escala son puros (se prueban sin navegador); el dibujo en canvas va al final.
 (function () {
+  /** Fuente de los rótulos del canvas: la de la identidad (--pol-fuente de comun/css/identidad.css); el canvas no entiende var(). */
+  const fuenteCanvas = () => { try { return getComputedStyle(document.documentElement).getPropertyValue('--pol-fuente').trim() || 'sans-serif'; } catch (error) { return 'sans-serif'; } };
   const GRUPOS = [
     { id: 'temperaturas', titulo: 'Temperaturas (°C)', unidad: '°C', series: [['TT-101', '#2d80c7'], ['TT-102', '#22a2a0'], ['TT-103', '#d66d2b'], ['TT-104', '#8f6bd6'], ['TT-201', '#c9a227']] },
     { id: 'caudal', titulo: 'Caudal (L/h)', unidad: 'L/h', series: [['FT-101', '#46b07c']] },
@@ -68,7 +70,7 @@
     function dibujarDigital(c, filas, grupo, w, h, css) {
       const padIzq = 190, ancho = w - padIzq - 8, alto = h - 16 - 6, fila = alto / grupo.series.length;
       const tMin = filas[0].t, tMax = filas[filas.length - 1].t, span = Math.max(tMax - tMin, 1e-9), xDe = t => padIzq + (t - tMin) / span * ancho;
-      c.font = '11px system-ui,sans-serif'; c.textBaseline = 'middle';
+      c.font = `11px ${fuenteCanvas()}`; c.textBaseline = 'middle';
       grupo.series.forEach(([tag, color, etiqueta], i) => {
         const y0 = 3 + i * fila, centro = y0 + fila / 2;
         c.strokeStyle = css.getPropertyValue('--borde').trim() || '#555'; c.lineWidth = 1; c.beginPath(); c.moveTo(padIzq, y0 + fila - 0.5); c.lineTo(padIzq + ancho, y0 + fila - 0.5); c.stroke();
@@ -96,7 +98,7 @@
         const padIzq = 44, padAbajo = 16, ancho = w - padIzq - 8, alto = h - padAbajo - 8;
         const rango = rangoDe(filas.flatMap(f => grupo.series.map(([tag]) => f.v[tag])), grupo.unidad === '°C' ? 10 : grupo.unidad === 'bar' ? 0.5 : 50);
         const tMin = filas[0].t, tMax = filas[filas.length - 1].t;
-        c.strokeStyle = css.getPropertyValue('--borde').trim() || '#555'; c.fillStyle = css.getPropertyValue('--tenue').trim() || '#999'; c.font = '11px system-ui,sans-serif'; c.lineWidth = 1;
+        c.strokeStyle = css.getPropertyValue('--borde').trim() || '#555'; c.fillStyle = css.getPropertyValue('--tenue').trim() || '#999'; c.font = `11px ${fuenteCanvas()}`; c.lineWidth = 1;
         for (let i = 0; i <= 4; i++) { const y = 8 + alto * i / 4; c.beginPath(); c.moveTo(padIzq, y); c.lineTo(padIzq + ancho, y); c.stroke(); c.fillText((rango.maximo - (rango.maximo - rango.minimo) * i / 4).toFixed(grupo.unidad === 'L/h' ? 0 : 1), 4, y + 4); }
         c.fillText(`${Math.round(tMax - tMin)} s`, padIzq, h - 3);
         for (const [tag, color] of grupo.series) {

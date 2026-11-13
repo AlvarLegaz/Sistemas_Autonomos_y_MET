@@ -61,7 +61,7 @@ test('una pulsación nueva reinicia la cuenta y no deja dos temporizadores', () 
 
 test('la ayuda de la página menciona la pulsación larga de 3 s y el cargador la carga', () => {
   const fs = require('node:fs'), path = require('node:path'), base = path.join(__dirname, '..', 'js', 'interfaz');
-  assert.match(fs.readFileSync(path.join(base, 'pagina_simple.js'), 'utf8'), /mantén pulsado 3 s/);
+  assert.match(fs.readFileSync(path.join(base, 'pagina_simple.js'), 'utf8'), /mantén 3 s/);
   const car = fs.readFileSync(path.join(base, 'cargador.js'), 'utf8'); assert.match(car, /pulsacion_larga\.js/); assert.match(car, /toque_largo_fv\.js/);
   assert.match(fs.readFileSync(path.join(base, 'ventana_diagrama.js'), 'utf8'), /pulsacion_larga\.js/);
 });

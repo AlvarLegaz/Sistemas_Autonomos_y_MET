@@ -466,6 +466,20 @@
     sim.puntos = Medidas.PUNTOS;
     Object.defineProperty(sim, 'medidas', { get() { if (!medidasCache) medidasCache = Medidas.crearMedidas(ctxMedidas()).medidas(); return medidasCache; }, enumerable: true });
 
+    // Acceso del adaptador del contrato (contrato_fv.js), no enumerable para no cambiar la API antigua:
+    //   paso(dt)   un micro-paso de dt EXACTO (sin trocear: R1) y el refresco del MPP por tiempo de simulación (no por cuándo se publica), así el estado
+    //              no depende de cómo se reparta el tiempo entre llamadas;
+    //   publicar() reconstruye `estado` sin avanzar nada (R2: avanzar(0) no pasa por la física);
+    //   alarmas() y protecciones() se leen después de cada paso para los eventos del contrato.
+    Object.defineProperty(sim, '_contrato', { enumerable: false, value: {
+      paso(dt) { micro(dt); if (mppSucio || S.t - S.tMpp >= 30) refrescarMpp(); },
+      publicar,
+      alarmas: () => alarmasActuales(S.res),
+      protecciones: () => S.prot.estados,
+      hayAveria: id => motor.hay(id),
+      parametroAveria: (id, nombre) => motor.parametro(id, nombre, undefined),
+    } });
+
     construir(inicio);
     refrescar();
     return sim;

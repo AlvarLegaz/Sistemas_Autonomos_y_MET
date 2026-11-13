@@ -1,13 +1,17 @@
 /* Pantalla sencilla de la planta real (index.html): cabecera, barra y SCADA a pantalla completa, como el simulador de la maqueta. Se apoya en
    /simulador/css/interfaz.css (cabecera, barra, velocidad) y en planta_real.css (esquema, fichas y diálogos). */
+/* Colores de dibujo e instrumentos (sin cambio de valor): aquí, en :root, para que las reglas solo usen variables. */
+:root {
+  --htst-c-111: #111; --htst-c-fff: #fff;
+}
 .planta-simple .cab { gap: 10px 22px; }
-.planta-simple .cab .sim { display: flex; flex-direction: column; gap: 1px; font-size: 22px; line-height: 1.1; }
-.planta-simple .cab .sim small { font-size: 13px; font-weight: 600; letter-spacing: 0; color: var(--tenue); }
-.planta-simple .modos button { padding: 6px 16px; min-height: 36px; border: 0; border-radius: 6px; background: none; color: var(--tenue); font-weight: 600; cursor: pointer; }
+.planta-simple .cab .sim { display: flex; flex-direction: column; gap: 1px; padding-left: 14px; border-left: 1px solid var(--borde); font-size: 22px; font-weight: 300; line-height: 1.1; color: var(--marca-gris); }
+.planta-simple .cab .sim small { font-size: 13px; font-weight: 500; color: var(--marco-cabecera-mencion); }
+.planta-simple .modos button { padding: 6px 16px; min-height: 36px; border: 0; border-radius: var(--pol-radio-boton); background: none; color: var(--tenue); font-weight: 600; cursor: pointer; }
 .planta-simple .modos button:hover { color: var(--texto); }
-.planta-simple .modos button[aria-current="page"] { background: var(--panel); color: var(--texto); box-shadow: 0 0 0 1px var(--borde); }
+.planta-simple .modos button[aria-current="page"] { background: var(--panel); color: var(--titulo); box-shadow: none; border: 1px solid var(--borde); }
 .planta-simple .ventanas { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
-.planta-simple .ventanas button { min-height: 36px; padding: 0 16px; border: 1px solid var(--acento); border-radius: 999px; background: none; color: var(--acento-texto, var(--acento)); font-weight: 600; cursor: pointer; }
+.planta-simple .ventanas button { min-height: 36px; padding: 0 16px; border: 1px solid var(--acento); border-radius: var(--pol-radio-boton); background: none; color: var(--acento-texto); font-weight: 600; cursor: pointer; }
 .planta-simple .ventanas button:hover { background: color-mix(in srgb, var(--acento) 12%, var(--panel)); }
 
 .planta-simple .barra { position: static; padding: 8px 20px; }
@@ -17,33 +21,33 @@
 /* Panel lateral (a la derecha del esquema) con pestañas Mando y Lecturas; las gráficas van debajo del esquema.
    En Normal el mando es «Mando y consignas»; en Revisión, las barras de velocidad de P-101 y de los niveles, la caldera, Llenar y Rearme. */
 .planta-simple .cuerpo-simple { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 0 12px; align-items: start; padding-right: 16px; }
-.planta-simple .lateral-simple { margin-top: 10px; background: var(--panel); border: 1px solid var(--borde); border-radius: 6px; overflow: hidden; position: sticky; top: 8px; max-height: calc(100vh - 24px); overflow-y: auto; }
+.planta-simple .lateral-simple { margin-top: 10px; background: var(--panel); border: 1px solid var(--borde); border-radius: var(--pol-radio-panel); overflow: hidden; position: sticky; top: 8px; max-height: calc(100vh - 24px); overflow-y: auto; }
 .planta-simple .lateral-simple .pestanas { padding: 0 8px; }
 .planta-simple .lateral-simple .pestanas button { padding: 11px 12px; font-size: 14px; }
 .planta-simple .lateral-simple .panel-pestana { padding: 14px 14px 16px; }
-.planta-simple .lateral-simple h2 { margin: 0 0 8px; font-size: 12px; font-weight: 800; letter-spacing: .06em; color: var(--tenue); }
+.planta-simple .lateral-simple h2 { margin: 0 0 8px; font-size: 15px; font-weight: 700; color: var(--titulo); }
 .planta-simple .mando-normal, .planta-simple .ajustes-manual { display: flex; flex-direction: column; gap: 12px; }
 .planta-simple .fila-consigna { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; font-weight: 700; }
 .planta-simple .fila-consigna small { display: block; margin-top: 1px; font-size: 12px; font-weight: 500; color: var(--tenue); }
 .planta-simple .fila-consigna .ctl { display: inline-flex; align-items: center; gap: 6px; }
 .planta-simple .fila-consigna output { min-width: 5.4em; text-align: center; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.planta-simple .fila-consigna .ctl button { width: 34px; min-height: 34px; padding: 0; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); color: var(--texto); font-weight: 800; font-size: 16px; cursor: pointer; }
+.planta-simple .fila-consigna .ctl button { width: 34px; min-height: 34px; padding: 0; border: 1px solid var(--borde); border-radius: var(--pol-radio-boton); background: var(--panel); color: var(--texto); font-weight: 800; font-size: 16px; cursor: pointer; }
 .planta-simple .botones-fila { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.planta-simple .mando-normal button:not(.ctl button), .planta-simple .botones-manual button { min-height: 36px; padding: 0 8px; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); color: var(--texto); font: 700 13px var(--fuente); cursor: pointer; }
+.planta-simple .mando-normal button:not(.ctl button), .planta-simple .botones-manual button { min-height: 36px; padding: 0 8px; border: 1px solid var(--borde); border-radius: var(--pol-radio-boton); background: var(--panel); color: var(--texto); font: 700 13px var(--fuente); cursor: pointer; }
 .planta-simple .mando-normal .fila-consigna .ctl button { font-size: 16px; }
 .planta-simple .mando-normal button:hover, .planta-simple .botones-manual button:hover, .planta-simple .fila-consigna .ctl button:hover { border-color: var(--acento); }
-.planta-simple .mando-normal button.activo { background: var(--ok); border-color: var(--ok); color: #fff; }
+.planta-simple .mando-normal button.activo { background: var(--ok); border-color: var(--ok); color: var(--htst-c-fff); }
 .planta-simple .mando-normal [data-accion="paro"].activo { background: var(--error); border-color: var(--error); }
-.planta-simple .mando-normal button.alarma { background: var(--aviso); border-color: var(--aviso); color: #111; }
+.planta-simple .mando-normal button.alarma { background: var(--aviso); border-color: var(--aviso); color: var(--htst-c-111); }
 .planta-simple .estado-pie { margin: 0; font-size: 13px; font-weight: 700; color: var(--tenue); }
 .planta-simple .ajustes-manual label { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 4px 8px; font-size: 14px; font-weight: 700; color: var(--texto); }
 .planta-simple .ajustes-manual label output { font-size: 15px; text-align: right; font-variant-numeric: tabular-nums; }
 .planta-simple .ajustes-manual input[type="range"] { grid-column: 1 / -1; width: 100%; height: 22px; margin: 0; accent-color: var(--agua); }
 .planta-simple .ajustes-manual #vel-p101 { accent-color: var(--producto); }
-.planta-simple .ctl-temp { margin: 4px 0 0; padding: 10px 12px 12px; border: 1px solid var(--borde); border-radius: 6px; display: flex; flex-direction: column; gap: 8px; }
-.planta-simple .ctl-temp legend { padding: 0 6px; font-size: 12px; font-weight: 800; letter-spacing: .04em; color: var(--tenue); }
+.planta-simple .ctl-temp { margin: 4px 0 0; padding: 10px 12px 12px; border: 1px solid var(--borde); border-radius: var(--pol-radio-panel); display: flex; flex-direction: column; gap: 8px; }
+.planta-simple .ctl-temp legend { padding: 0 6px; font-size: 13px; font-weight: 700; color: var(--titulo); }
 .planta-simple .ctl-temp label { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 700; color: var(--texto); }
-.planta-simple .ctl-temp select, .planta-simple .ctl-temp input[type="number"] { min-height: 32px; padding: 0 8px; border: 1px solid var(--borde); border-radius: 6px; background: var(--fondo); color: var(--texto); font: 700 13px var(--fuente); }
+.planta-simple .ctl-temp select, .planta-simple .ctl-temp input[type="number"] { min-height: 32px; padding: 0 8px; border: 1px solid var(--borde); border-radius: var(--pol-radio-panel); background: var(--fondo); color: var(--texto); font: 700 13px var(--fuente); }
 .planta-simple .ctl-temp input[type="number"] { width: 5.2em; text-align: right; }
 .planta-simple .ctl-temp .num { display: inline-flex; align-items: center; gap: 6px; }
 .planta-simple .ctl-temp .ct-pid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -54,19 +58,19 @@
 .planta-simple .botones-manual button.activo { background: color-mix(in srgb, var(--caliente) 28%, var(--panel)); border-color: var(--caliente); }
 /* Lecturas */
 .planta-simple .condiciones ul { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 6px; }
-.planta-simple .condiciones li { display: grid; grid-template-columns: 1.4em 1fr auto; gap: 6px; align-items: baseline; font-size: 13px; padding: 7px 8px; border-radius: 6px; background: var(--fondo); border-left: 5px solid var(--borde); }
+.planta-simple .condiciones li { display: grid; grid-template-columns: 1.4em 1fr auto; gap: 6px; align-items: baseline; font-size: 13px; padding: 7px 8px; border-radius: var(--pol-radio-panel); background: var(--fondo); border-left: 5px solid var(--borde); }
 .planta-simple .condiciones li.ok { border-left-color: var(--ok); } .planta-simple .condiciones li.falta { border-left-color: var(--error); }
 .planta-simple .condiciones li.ok .simbolo { color: var(--ok); } .planta-simple .condiciones li.falta .simbolo { color: var(--error); }
 .planta-simple .condiciones li b { font-variant-numeric: tabular-nums; }
 #cond-titulo { font-size: 13px !important; color: var(--texto) !important; }
 .planta-simple .contadores dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 16px; }
-.planta-simple .contadores dl > div { padding: 8px 10px; border-radius: 6px; background: var(--fondo); }
+.planta-simple .contadores dl > div { padding: 8px 10px; border-radius: var(--pol-radio-panel); background: var(--fondo); }
 .planta-simple .contadores dt { font-size: 12px; color: var(--tenue); } .planta-simple .contadores dd { margin: 2px 0 0; font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .planta-simple #lecturas .nota-lecturas, .planta-simple #lecturas h2 { display: none; }
 .planta-simple #lecturas table { width: 100%; font-size: 12.5px; }
 /* Gráficas debajo del esquema */
 .planta-simple .graficas-simple { padding: 10px 0 28px; }      /* debajo del esquema, con su mismo ancho (el panel lateral queda a la derecha al desplazarse) */
-.planta-simple .graficas-simple h2 { margin: 6px 0 8px; font-size: 12px; font-weight: 800; letter-spacing: .06em; color: var(--tenue); }
+.planta-simple .graficas-simple h2 { margin: 6px 0 8px; font-size: 15px; font-weight: 700; color: var(--titulo); }
 /* a todo lo ancho del esquema: una fila las temperaturas, otra el caudal y la presión, y otra el cronograma de motores y electroválvulas */
 .planta-simple #graficas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .planta-simple #graficas .graf-barra { grid-column: 1 / -1; }
@@ -89,7 +93,7 @@ body[data-estado="alarma"].planta-simple .barra { box-shadow: inset 0 -4px 0 var
 
 .pie-copyright { margin: 0; padding: 4px 16px 56px; text-align: center; font-size: 12px; color: var(--tenue); }
 .aviso-clic { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 60; margin: 0; max-width: min(92vw, 80ch); padding: 10px 16px;
-              border: 1px solid var(--acento); border-radius: 8px; background: var(--panel); color: var(--texto); font-weight: 600; box-shadow: 0 4px 18px rgba(0, 0, 0, .35); }
+              border: 1px solid var(--acento); border-radius: var(--pol-radio-panel); background: var(--panel); color: var(--texto); font-weight: 600; box-shadow: var(--pol-sombra-flotante); }
 .aviso-clic[hidden] { display: none; }
 
 @media (max-width: 1099px) {
@@ -102,3 +106,13 @@ body[data-estado="alarma"].planta-simple .barra { box-shadow: inset 0 -4px 0 var
   .planta-simple .lienzo { overflow-x: auto; }
   .planta-simple .lienzo svg { min-width: 900px; height: auto; }
 }
+
+/* ---------- marco con la identidad del CIFP Politécnico (comun/UX_IDENTIDAD.md): cabecera, barra y botones. El esquema no cambia. ---------- */
+.planta-simple .cab .sim small.mencion { display: none; }
+@media (min-width: 1600px) { .planta-simple .cab .sim small { display: none; } .planta-simple .cab .sim small.mencion { display: block; max-width: 38ch; line-height: 1.3; } }
+.planta-simple .modos { border-radius: var(--pol-radio-panel); }
+.planta-simple .modos button { border: 1px solid transparent; }
+.planta-simple .ventanas button:hover { background: var(--acento-suave); }
+.planta-simple .acciones button, .planta-simple .velocidad button { border-radius: var(--pol-radio-boton); }
+.planta-simple #sim-play:hover:not(:disabled) { background: var(--acento-hover); }
+.planta-simple .pestanas button[aria-selected="true"] { color: var(--titulo); }

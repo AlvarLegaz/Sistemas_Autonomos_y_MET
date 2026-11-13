@@ -13,6 +13,10 @@
   const medidas = esNode ? require('./medidas.js') : PCT.htstMedidas;
   const { limitar } = termica;
   const P = C.proceso;
+  const LLENO_PCT = 99;                                   // un depósito se da por lleno a partir de aquí (el rebosadero empieza en el 100 %)
+  const CONTROLES = ['off', 'histeresis', 'pid'];
+  const RANGOS_CONTROL = { consignaC: [20, 85], bandaC: [0.5, 20], kp: [0, 100], ki: [0, 5], kd: [0, 500] };
+  const BANDA_INTEGRAL_C = 8, VENTANA_BANCOS_S = 30;
 
   /** `valvulasManuales`: las electroválvulas XV-* no las gobierna el PLC (ni reposición de niveles ni agua fría): solo se abren y cierran a mano con `ordenes.manual`. */
   function crearSimulacion({ semilla = 1, valvulasManuales = false } = {}) {
@@ -123,6 +127,9 @@
       for (const [tag, nivel] of Object.entries(entradas.DI)) estado.instrumentos[tag] = { nivel };
       eq['PB-001'].pulsado = pbRestoS > 0;
 
+      // ---- 3b. Automatismos del operador (llenado y control de temperatura): en cada paso fijo, no al ritmo de la interfaz (R6) ----
+      automatismos(dt);
+
       // ---- 4. Programa del PLC ----
       const ordenes = { arrancar: ord.arrancar, parar: ord.parar, modo: ord.modo, pulsadores: ord.pulsadores.slice(), manual: Object.assign({}, ord.manual),
         consignaTT103C: ord.consignaTT103C, consignaCaudalLh: ord.consignaCaudalLh };
@@ -130,11 +137,66 @@
       const res = plc.ejecutarPLC({ AI: entradas.AI, DI: entradas.DI }, mem, ordenes, dt);
       salidas = { DO: res.DO, AO: res.AO };
       estado.salidasPLC = { DO: Object.assign({}, res.DO), AO: Object.assign({}, res.AO) };
-      if (modoAnterior === 'MANUAL' && res.modo !== 'MANUAL') ord.manual = {};            // al volver a automático el PLC recupera el mando
+      if (modoAnterior === 'MANUAL' && res.modo !== 'MANUAL') {            // al volver a automático el PLC recupera el mando
+        ord.manual = {}; ponerControl({ modo: 'off' }, false);
+        if (estado.operador.llenado.activo) { estado.operador.llenado.activo = false; estado.operador.llenado.final = 'cancelado'; }   // el llenado también se cancela
+      }
       modoAnterior = res.modo;
       estado.modo = res.modo; estado.alarmas = res.alarmas; estado.averiasActivas = motor.activas();
       eq['HL-001'].encendida = res.DO['HL-001'] === 1;
       estado.plc = { paro: res.paro, motivosParo: res.motivosParo, consignaAguaC: res.consignaAguaC, cip: res.cip, cumpleCondiciones: res.cumpleCondiciones };
+    }
+
+    /**
+     * Automatismos del operador, en cada paso de 0,1 s (antes los hacía la interfaz cada 250 ms y dependían de la velocidad: R6 del contrato).
+     *   Llenado: abre XV-101 y XV-201 (órdenes manuales) hasta que cada depósito está lleno (TK-101 ≥ 99 %, HW-201 con LSH-201) y la cierra; con paro de seguridad
+     *     cierra las dos y lo da por terminado.
+     *   Control de temperatura (solo en MANUAL): histéresis o PID sobre TT-201 que manda P-201 y los dos bancos KM-201/KM-202 como lo haría un operador. Las
+     *     protecciones del PLC siguen cortando por encima. Sin lectura válida de TT-201, bancos apagados.
+     */
+    function automatismos(dt) {
+      const op = estado.operador, I = estado.instrumentos || {};
+      if (op.llenado.activo) {
+        const aguaLlena = I['LSH-201'] && typeof I['LSH-201'].nivel === 'number' ? I['LSH-201'].nivel === 1 : estado.aguaCaliente.nivelPct >= LLENO_PCT;
+        const paro = !!(estado.plc && estado.plc.paro);
+        let pendientes = 0;
+        for (const [tag, lleno] of [['XV-101', estado.tanque.nivelPct >= LLENO_PCT], ['XV-201', aguaLlena]]) {
+          if (lleno || paro) ord.manual[tag] = 0; else { ord.manual[tag] = 1; pendientes++; }
+        }
+        if (!pendientes) { op.llenado.activo = false; op.llenado.final = paro ? 'paro' : 'lleno'; }
+      }
+      const c = op.control;
+      if (c.modo === 'off' || estado.modo !== 'MANUAL') return;
+      const tt = I['TT-201'];
+      if (!tt || typeof tt.valorPLC !== 'number' || (tt.calidad && tt.calidad !== 'OK')) {
+        ord.manual['KM-201'] = 0; ord.manual['KM-202'] = 0; c.salidaPct = 0; c.sinLectura = true; return;
+      }
+      c.sinLectura = false;
+      const T = tt.valorPLC;
+      let b1, b2;
+      if (c.modo === 'histeresis') {
+        c.encendido = T <= c.consignaC - c.bandaC / 2 ? true : T >= c.consignaC + c.bandaC / 2 ? false : !!c.encendido;
+        b1 = b2 = c.encendido; c.salidaPct = b1 ? 100 : 0;
+      } else {
+        // PID con anti-windup por integración condicional y separación de la integral (solo integra con |error| < 8 °C); derivada sobre el error
+        const error = c.consignaC - T, p = c.kp * error, d = c.ultimoError === null ? 0 : c.kd * (error - c.ultimoError) / dt;
+        const u0 = p + c.integral + d, saturada = (u0 >= 100 && error > 0) || (u0 <= 0 && error < 0);
+        if (Math.abs(error) < BANDA_INTEGRAL_C && !saturada) c.integral = limitar(c.integral + c.ki * error * dt, 0, 100);
+        c.ultimoError = error;
+        c.salidaPct = limitar(p + c.integral + d, 0, 100);
+        // Reparto en dos bancos de 30 kW por modulación de tiempo en ventanas de 30 s: hasta el 50 % solo el banco 1; por encima, el 1 fijo y el 2 a ciclo
+        const fase = ((estado.tiempoS % VENTANA_BANCOS_S) + VENTANA_BANCOS_S) % VENTANA_BANCOS_S / VENTANA_BANCOS_S;
+        b1 = fase < (c.salidaPct >= 50 ? 1 : c.salidaPct / 50); b2 = fase < (c.salidaPct <= 50 ? 0 : (c.salidaPct - 50) / 50);
+      }
+      ord.manual['P-201'] = 1; ord.manual['KM-201'] = b1 ? 1 : 0; ord.manual['KM-202'] = b2 ? 1 : 0;
+    }
+    /** Cambia el control de temperatura (vuelve a empezar: PID sin memoria). Con 'off' apaga los dos bancos si `apagarBancos`. */
+    function ponerControl(cfg, apagarBancos) {
+      const c = estado.operador.control;
+      if (CONTROLES.includes(cfg.modo)) c.modo = cfg.modo;
+      for (const [k, [min, max]] of Object.entries(RANGOS_CONTROL)) if (Number.isFinite(cfg[k])) c[k] = limitar(cfg[k], min, max);
+      c.encendido = false; c.salidaPct = 0; c.integral = 0; c.ultimoError = null; c.sinLectura = false;
+      if (c.modo === 'off' && apagarBancos) { ord.manual['KM-201'] = 0; ord.manual['KM-202'] = 0; }
     }
 
     /** Avanza el tiempo simulado dtS segundos (se trocea en pasos de 0,1 s). */
@@ -165,6 +227,17 @@
           estado.aguaCaliente.volumenL = hw.volumenL; estado.aguaCaliente.nivelPct = n; estado.equipos['LSL-201'].contactoCerrado = n > C.aguaCaliente.nivelBajoPct;
         }
       },
+      /**
+       * Control de temperatura del agua en MANUAL (lo ejecuta el modelo en cada paso): { modo: 'off'|'histeresis'|'pid', consignaC (20-85), bandaC (0,5-20, histéresis),
+       * kp (0-100), ki (0-5), kd (0-500) }; lo que falte se conserva. Cada orden reinicia el controlador. Con 'off' apaga los bancos.
+       */
+      controlTemperatura(cfg) { ponerControl(cfg || {}, true); },
+      /** Llenado de los dos depósitos: true abre XV-101 y XV-201 hasta que estén llenos (y las cierra); false lo cancela y las cierra. */
+      llenarDepositos(activo) {
+        const l = estado.operador.llenado;
+        if (activo) { l.activo = true; l.final = ''; }
+        else { if (l.activo) l.final = 'cancelado'; l.activo = false; ord.manual['XV-101'] = 0; ord.manual['XV-201'] = 0; }
+      },
     };
 
     const senales = () => {
@@ -181,9 +254,12 @@
       motor.reloj(0);
     }
 
-    return { estado: () => estado, paso, ordenes, senales, alarmas: () => estado.alarmas, averias: motor, reiniciar,
+    const sim = { estado: () => estado, paso, ordenes, senales, alarmas: () => estado.alarmas, averias: motor, reiniciar,
       // Al medir se ven siempre las averías de ahora mismo (aunque se hayan inyectado hace un instante, antes del siguiente paso)
       medidas: { medir: (instrumento, puntoA, puntoB, modo) => medidas.medir(instrumento, puntoA, puntoB, modo, Object.assign({}, estado, { averiasActivas: motor.activas() })), puntos: medidas.PUNTOS } };
+    // Acceso del adaptador del contrato (contrato_htst.js), no enumerable: un paso fijo exacto, sin el acumulador propio de paso().
+    Object.defineProperty(sim, '_contrato', { enumerable: false, value: { tick: () => tick(C.PASO_S) } });
+    return sim;
   }
 
   const api = { crearSimulacion };

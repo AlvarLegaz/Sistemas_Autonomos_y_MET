@@ -83,9 +83,9 @@ test('firma de diagnóstico: las 18 averías tienen síntoma, tres pistas y expl
 
 test('condiciones del reto: dicen fecha, hora, cielo, batería, modo y cargas, pero nunca las sombras ni la avería', () => {
   const t = R.textoEscenario({ diaAnio: 172, horaSolar: 23, nubosidad: 0, socInicialPct: 70, esperaS: 120, modoEasun: 'BATERIA_PRIMERO', cargas: { 'LOAD-302': 500 }, sombras: { 'PV-203': 0.3 } });
-  assert.equal(t, '21 jun · 23:00 (hora solar), de noche · cielo despejado · batería al 70 % · EASun en modo bateria primero · LOAD-302 consumiendo 500 W');
+  assert.equal(t, '21 jun · 23:00 solar, de noche · despejado · batería 70 % · EASun: batería primero · LOAD-302: 500 W');
   assert.doesNotMatch(t, /PV-203|sombra/); assert.match(R.textoEscenario({ horaSolar: 11, esperaS: 2400 }), /40 min/); assert.equal(R.textoEscenario(null), '');
-  for (const a of layout.AVERIAS) { const x = R.textoEscenario(R.firmaDe(a.id, catalogo).escenario); assert.doesNotMatch(x, new RegExp(a.tag.replace('-', '\\-') + '(?! consumiendo)'), a.id); assert.doesNotMatch(x, /sombra|aver/i, a.id); }
+  for (const a of layout.AVERIAS) { const x = R.textoEscenario(R.firmaDe(a.id, catalogo).escenario); assert.doesNotMatch(x, new RegExp(a.tag.replace('-', '\\-') + '(?!: \\d+ W)'), a.id); assert.doesNotMatch(x, /sombra|aver/i, a.id); }
 });
 
 test('el escenario de cada avería se aplica y la avería se manifiesta sin romper la simulación (las 18)', () => {

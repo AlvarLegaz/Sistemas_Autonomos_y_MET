@@ -90,11 +90,11 @@ test('nivel 1: franja de estado en lenguaje claro (parada, preparando, todo bien
   assert.doesNotMatch(niveles.estadoSimple(sim.estado()).texto, /desvía/);               // preparando es lo normal: no se habla de desvío
   assert.equal(niveles.tarjetasNivel1(sim.estado())[0].clase === 'atencion', false);       // y la temperatura aún baja no es «atención»
   const prod = produciendo(), s = niveles.estadoSimple(prod.estado());
-  assert.equal(s.clase, 'ok'); assert.match(s.texto, /^Todo bien: la leche llega a 7\d,\d °C y pasa a la salida\.$/);
+  assert.equal(s.clase, 'ok'); assert.match(s.texto, /^Bien: 7\d,\d °C, la leche sale\.$/);
   prod.averias.inyectar('AV-LAZO-ABIERTO', { tag: 'TT-103' }); prod.paso(2);
   assert.equal(niveles.estadoSimple(prod.estado()).clase, 'atencion');
   const desviando = { modo: 'PRODUCCION', instrumentos: { 'TT-103': { valorPLC: 70.1, calidad: 'OK' } }, equipos: { 'FDV-101': { posicion: 'DESVIO' } }, alarmas: [] };
-  assert.equal(niveles.estadoSimple(desviando).texto, 'Atención: la leche no llega a 72 °C, se está desviando.');
+  assert.equal(niveles.estadoSimple(desviando).texto, 'Atención: menos de 72 °C, se desvía.');
   assert.equal(niveles.estadoSimple({ modo: 'PRODUCCION', plc: { paro: true }, alarmas: [] }).clase, 'atencion');
   for (const t of [s.texto, niveles.estadoSimple(desviando).texto]) assert.doesNotMatch(t, /\b[A-Z]{1,3}-\d{3}\b/);
 });
@@ -108,7 +108,7 @@ test('nivel 1: tres tarjetas en palabras, con símbolo y texto de normal o atenc
   assert.ok(parada.every(c => c.clase === 'reposo' || c.id === 'n1-nivel'));
   const caliente = niveles.tarjetasNivel1({ modo: 'PRODUCCION', instrumentos: { 'TT-103': { valorPLC: 60, calidad: 'OK' } }, proceso: { caudalLh: 0 }, tanque: { nivelPct: 8 } });
   assert.deepEqual(caliente.map(c => c.clase), ['atencion', 'atencion', 'atencion']);
-  assert.match(caliente[0].estado, /aún no llega a 72/);
+  assert.match(caliente[0].estado, /menos de 72/);
 });
 
 test('nivel 1: «Estado ahora» de cada ficha en una frase y la guía de 5 pasos', () => {

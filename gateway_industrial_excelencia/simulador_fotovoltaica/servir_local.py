@@ -12,7 +12,8 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-PREFIJOS = {"/simulador/": RAIZ / "simulador_pct23", "/planta-real/": RAIZ / "simulador_planta_real", "/fotovoltaica/": RAIZ / "simulador_fotovoltaica"}
+PREFIJOS = {"/simulador/": RAIZ / "simulador_pct23", "/planta-real/": RAIZ / "simulador_planta_real", "/fotovoltaica/": RAIZ / "simulador_fotovoltaica",
+            "/comun/": RAIZ / "comun"}
 
 
 class Manejador(http.server.SimpleHTTPRequestHandler):

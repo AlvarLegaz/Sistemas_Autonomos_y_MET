@@ -160,6 +160,143 @@
       alarmasEsperadas: ['A170'], pistas: ['¿Está el agua realmente caliente?', 'Comprueba la continuidad del contacto en frío.'] },
   ];
 
+  // FIRMAS DE DIAGNÓSTICO (contrato v1, comun/CONTRATO.md §5.4): escenario donde se ve la avería, medidas clave con rangos numéricos de `medir`
+  // (con la avería y sin ella, comprobados con el modelo: criterio C37), 3 pistas de menos a más concretas, explicación y averías que despistan.
+  // Se cuelgan de cada avería como `firma`; el resto del catálogo no cambia. Rango: { min, max, unidad } con null = sin límite (OL cumple max:null).
+  const r = (min, max, unidad) => ({ min, max, unidad });
+  const mm = (magnitud, a) => ({ instrumento: 'multimetro', magnitud, a });
+  const termometro = elemento => ({ instrumento: 'termometro', magnitud: 'temperatura', elemento });
+  const manometro = elemento => ({ instrumento: 'manometro', magnitud: 'presion', elemento });
+  const clave = (peticion, sano, averia, texto, extra) => Object.assign({ peticion }, extra || {}, { esperadoSano: sano, esperadoAveria: averia, texto });
+  const guion = (tipo, destino, valores) => Object.assign({ tipo }, destino ? { destino } : {}, valores ? { valores } : {}, { origen: 'guion' });
+  const llenar = () => [guion('nivelDeposito', 'TK-101', { pct: 100 }), guion('nivelDeposito', 'HW-201', { pct: 100 })];
+  // Escenario 1: depósitos llenos y MARCHA; a los 15 min la planta sana está en producción con agua a unos 75 °C.
+  const enMarcha = () => ({ simulador: 'planta_real', versionContrato: 1, id: 'htst_en_marcha', titulo: 'Planta en marcha con agua',
+    condiciones: {}, ordenesIniciales: llenar().concat([guion('arrancar')]), esperaS: 900 });
+  // Escenario 2: depósitos llenos y planta parada; todo el circuito está casi a la misma temperatura y el PLC no manda ninguna salida de potencia.
+  const parada = () => ({ simulador: 'planta_real', versionContrato: 1, id: 'htst_parada', titulo: 'Planta parada con los depósitos llenos',
+    condiciones: {}, ordenesIniciales: llenar(), esperaS: 60 });
+  const firma = (escenario, sintoma, medidasClave, pistas, explicacion, distractores) => ({ sintoma, escenario, esperaS: escenario.esperaS, medidasClave, pistas, explicacion, distractores });
+
+  const FIRMAS = {
+    'AV-LAZO-ABIERTO': firma(enMarcha(), 'TT-103 marca 0 mA, salta A101 y la planta no pasa a producción.', [
+      clave(mm('corriente', 'TT-103:LAZO'), r(12, 20.5, 'mA'), r(null, 0.5, 'mA'), 'En serie con el lazo de TT-103: 0 mA. No circula corriente.'),
+      clave(mm('tension', 'TT-103:+'), r(12, 24, 'V'), r(null, 1, 'V'), 'En las bornas del transmisor: 0 V. No le llega alimentación.'),
+      clave(mm('tension', 'QE-001:AI-TT-103'), r(22, 26, 'V'), r(22, 26, 'V'), 'En la entrada del PLC sí hay 24 V: la alimentación sale bien y el corte está en el cable.'),
+    ],['Mira qué corriente circula por el lazo de TT-103.', '¿Llega tensión a las bornas del transmisor?', 'Compara la tensión en la entrada del PLC (QE-001:AI-TT-103) con la de las bornas del transmisor: si en el PLC hay 24 V, el corte está en el cable.'],
+    'El cable del lazo 4-20 mA de TT-103 está cortado o una borna está floja. Sin corriente el PLC lee 0 mA, da A101 y no deja producir. Se repara reconectando el cable y apretando las bornas.',
+    ['AV-PT100-CORTO', 'AV-FUSIBLE-F201']),
+
+    'AV-PT100-ABIERTA': firma(enMarcha(), 'TT-103 marca fondo de escala (más de 21 mA) y salta A102.', [
+      clave(mm('corriente', 'TT-103:LAZO'), r(12, 20.5, 'mA'), r(21, null, 'mA'), 'Lazo de TT-103: más de 21 mA. El transmisor avisa de sonda abierta (burnout alto).'),
+      clave(mm('resistencia', 'TT-103:PT100'), r(110, 140, 'Ω'), r(1000, null, 'Ω'), 'Sonda desconectada: OL. La Pt100 está abierta.'),
+    ], ['El valor es imposible: más de 20 mA.', 'El transmisor está bien alimentado; mira la sonda.', 'Desconecta la Pt100 de TT-103 y mide su resistencia: debería dar unos 100 Ω más 0,385 Ω por °C.'],
+    'La Pt100 de TT-103 está abierta. El transmisor lo detecta y lleva el lazo a más de 21 mA (burnout alto) para que el PLC lo vea como fallo. Se sustituye la sonda.',
+    ['AV-FUENTE-24V', 'AV-LAZO-ABIERTO']),
+
+    'AV-PT100-CORTO': firma(enMarcha(), 'TT-103 marca menos de 4 mA y salta A102.', [
+      clave(mm('corriente', 'TT-103:LAZO'), r(12, 20.5, 'mA'), r(null, 3.8, 'mA'), 'Lazo de TT-103: unos 3,5 mA, por debajo del mínimo.'),
+      clave(mm('resistencia', 'TT-103:PT100'), r(110, 140, 'Ω'), r(null, 1, 'Ω'), 'Sonda desconectada: casi 0 Ω. La Pt100 está en corto.'),
+    ], ['La temperatura que marca es imposible: muy por debajo de la real.', 'El lazo funciona: hay corriente, pero por debajo de 4 mA.', 'Desconecta la Pt100 de TT-103 y mide su resistencia.'],
+    'La Pt100 de TT-103 está en cortocircuito. El transmisor lee una resistencia casi nula y baja el lazo por debajo de 4 mA. Se sustituye la sonda.',
+    ['AV-LAZO-ABIERTO', 'AV-PT100-ABIERTA']),
+
+    'AV-DERIVA-TT103': firma(parada(), 'Sin alarmas. Con la planta parada, TT-103 marca más que TT-102.', [
+      clave(mm('corriente', 'TT-103:LAZO'), r(-0.3, 0.3, 'mA'), r(0.4, 1.5, 'mA'), 'Diferencia entre los lazos de TT-103 y TT-102 con la planta parada: casi medio mA, unos 3 °C.',
+        { referencia: mm('corriente', 'TT-102:LAZO') }),
+    ], ['No hay alarma: tienes que comparar con otra medida.', 'Con la planta parada, TT-102 y TT-103 están casi a la misma temperatura.', 'Mide la corriente de los lazos de TT-102 y TT-103 y compáralas. Confírmalo con TT-103 en baño patrón.'],
+    'El transmisor de TT-103 se ha descalibrado y lee unos grados de más. Es grave: es el termómetro legal y el producto puede salir sin pasteurizar sin que salte ninguna alarma. Se recalibra o se sustituye; nunca se compensa en el PLC.',
+    ['AV-PT100-CORTO', 'AV-RUIDO-4-20']),
+
+    'AV-RUIDO-4-20': firma(enMarcha(), 'FT-101 da saltos y la FDV conmuta sola a desvío.', [
+      clave(mm('continuidad', 'FT-101:MALLA'), r(null, 1, 'Ω'), r(1000, null, 'Ω'), 'Malla del cable de FT-101: sin continuidad a tierra.'),
+    ], ['Con el multímetro la media del lazo parece normal.', 'Mira el lazo de FT-101 con el osciloscopio: hay picos a la frecuencia del variador.', 'Comprueba la continuidad de la malla del cable de FT-101 a tierra.'],
+    'El cable de FT-101 recoge la interferencia del variador porque su malla no está a tierra. Los picos hacen saltar el caudal y la FDV pasa a desvío. Se conecta la malla a tierra por un extremo y se separa el cable de la potencia.',
+    ['AV-LAZO-ABIERTO', 'AV-FUENTE-24V']),
+
+    'AV-FUSIBLE-F201': firma(enMarcha(), 'Todos los lazos a 0 mA a la vez, A140 y paro de seguridad.', [
+      clave(mm('tension', 'F-001:SALIDA'), r(22, 26, 'V'), r(null, 1, 'V'), 'Después del fusible F-001: 0 V.'),
+      clave(mm('continuidad', 'F-001:FUSIBLE'), r(null, 1, 'Ω'), r(1000, null, 'Ω'), 'Fusible F-001 sin tensión: circuito abierto. Está fundido.'),
+    ], ['Fallan todos los lazos a la vez: busca algo común a todos.', 'Mide la tensión antes y después del fusible F-001.', 'Antes del fusible hay 24 V y después 0 V: comprueba la continuidad del fusible sin tensión.'],
+    'El fusible F-001 de los 24 V de instrumentos se ha fundido. Todos los transmisores y entradas se quedan sin alimentación y el PLC para la planta. Busca la causa del corto y cambia el fusible por otro igual.',
+    ['AV-FUENTE-24V', 'AV-LAZO-ABIERTO']),
+
+    'AV-FUENTE-24V': firma(enMarcha(), 'Todos los lazos saturados por encima de 21 mA, A140 y paro de seguridad.', [
+      clave(mm('tension', 'PS-001:SALIDA'), r(23, 25.5, 'V'), r(15, 20, 'V'), 'Salida de la fuente PS-001: unos 18 V en lugar de 24 V.'),
+      clave(mm('tension', 'QE-001:AI-TT-103'), r(23, 25.5, 'V'), r(15, 20, 'V'), 'Entrada del PLC de TT-103: unos 18 V. Les llega poca tensión a todos los lazos.'),
+    ], ['Fallan todos los lazos a la vez, pero no a 0 mA.', 'Mide la tensión de salida de la fuente de 24 V.', 'Mira la salida de PS-001 con el osciloscopio: hay mucho rizado.'],
+    'La fuente PS-001 está degradada: da unos 18 V con mucho rizado. Los transmisores no tienen tensión suficiente y saturan. Se sustituye la fuente.',
+    ['AV-FUSIBLE-F201', 'AV-PT100-ABIERTA']),
+
+    'AV-KM-PEGADO': firma(parada(), 'Con la planta parada, el calentador sigue alimentado y salta A130.', [
+      clave(mm('tension', 'KM-201:CARGA'), r(null, 1, 'V'), r(300, null, 'V'), 'En la carga de KM-201 hay 400 V aunque el PLC no lo manda.'),
+      clave(mm('resistencia', 'KM-201:CONTACTOS'), r(1000, null, 'Ω'), r(null, 1, 'Ω'), 'Contactos de KM-201 sin orden: casi 0 Ω. Están soldados.'),
+    ], ['El PLC no da la orden y el auxiliar dice que el contactor está cerrado.', 'Mide la tensión en la bobina y en la carga de KM-201.', 'Bobina a 0 V y carga a 400 V: corta la potencia y mide los contactos.'],
+    'Los contactos de KM-201 se han soldado. El banco del calentador sigue conectado aunque el PLC lo apague y el agua puede subir hasta disparar TSH-201. Se corta la alimentación y se sustituye el contactor.',
+    ['AV-KM-NO-CIERRA', 'AV-TSH-DISPARADO']),
+
+    'AV-KM-NO-CIERRA': firma(enMarcha(), 'A130: el PLC manda cerrar KM-203 y no cierra. P-201 parada y el agua no se calienta.', [
+      clave(mm('tension', 'KM-203:BOBINA'), r(22, 26, 'V'), r(22, 26, 'V'), 'Bobina de KM-203: 24 V. El PLC sí da la orden.'),
+      clave(mm('tension', 'KM-203:CARGA'), r(300, null, 'V'), r(null, 1, 'V'), 'En la carga de KM-203: 0 V aunque la bobina tiene orden.'),
+      clave(mm('resistencia', 'KM-203:CONTACTOS'), r(null, 1, 'Ω'), r(1000, null, 'Ω'), 'Contactos de KM-203: abiertos.'),
+    ], ['El PLC ordena cerrar y el auxiliar dice que no.', 'Mide la tensión en la bobina de KM-203: ¿le llega la orden?', 'Bobina a 24 V y carga a 0 V: el contactor no cierra.'],
+    'El contactor KM-203 no cierra: contactos quemados o bobina sin fuerza. La bomba P-201 no arranca y el agua caliente no circula. Se sustituye el contactor.',
+    ['AV-KM-PEGADO', 'AV-TSH-DISPARADO']),
+
+    'AV-BOBINA-ABIERTA': firma(enMarcha(), 'A120: la FDV no llega nunca a avance y no hay producción.', [
+      clave(mm('resistencia', 'SV-101:BOBINA'), r(150, 300, 'Ω'), r(10000, null, 'Ω'), 'Bobina de SV-101 desconectada: OL. Está abierta.'),
+      clave(mm('continuidad', 'FDV-101:ZS-101'), r(null, 1, 'Ω'), r(1000, null, 'Ω'), 'Final de carrera de avance ZS-101: abierto. La FDV no ha llegado a avance.'),
+    ], ['El PLC pide avance y la FDV no se mueve.', '¿Llegan los 24 V al piloto SV-101 cuando el PLC da la orden?', 'Desconecta la bobina de SV-101 y mide su resistencia: debería dar unos 220 Ω.'],
+    'La bobina del piloto SV-101 está abierta. Aunque el PLC le dé 24 V, no se energiza, el aire no llega a la FDV y la válvula se queda en desvío. Se sustituye la bobina.',
+    ['AV-FDV-ATASCADA', 'AV-AIRE-BAJO']),
+
+    'AV-FDV-ATASCADA': firma(enMarcha(), 'A120: al pedir desvío la FDV no vuelve. Paro de seguridad y P-101 parada.', [
+      clave(mm('tension', 'SV-101:BORNAS'), r(22, 26, 'V'), r(null, 1, 'V'), 'Piloto SV-101 sin tensión: el PLC pide desvío.'),
+      clave(mm('corriente', 'FT-101:LAZO'), r(10, null, 'mA'), r(null, 4.5, 'mA'), 'Lazo de FT-101: unos 4 mA. No hay caudal: P-101 está parada.'),
+      clave(mm('continuidad', 'FDV-101:ZS-101'), r(null, 1, 'Ω'), r(null, 1, 'Ω'), 'Final de carrera de avance ZS-101: cerrado. La FDV sigue en avance sin aire en el piloto.'),
+    ],['El piloto está sin tensión y la válvula no vuelve a desvío.', 'Comprueba los finales de carrera: ZS-101 sigue cerrado y ZS-102 no llega.', 'Mira el manómetro del aire: si está a 6 bar, el fallo es mecánico.'],
+    'El vástago de la FDV está atascado en avance. Con el piloto sin tensión el muelle debería llevarla a desvío y no lo hace. El PLC lo detecta y para la planta. Se desmonta y se repara la válvula.',
+    ['AV-BOBINA-ABIERTA', 'AV-AIRE-BAJO']),
+
+    'AV-AIRE-BAJO': firma(enMarcha(), 'A160: presostato de aire abierto; la planta no pasa a producción.', [
+      clave(manometro('FRL-501:MANOMETRO'), r(5.5, 6.5, 'bar'), r(null, 4.5, 'bar'), 'Manómetro de la unidad de aire: menos de 4,5 bar.'),
+      clave(mm('continuidad', 'PSL-501:CONTACTO'), r(null, 1, 'Ω'), r(1000, null, 'Ω'), 'Contacto del presostato PSL-501: abierto.'),
+    ], ['La alarma es del aire comprimido.', 'Mira el manómetro de la unidad FRL-501.', 'Con menos de 4,5 bar el presostato se abre y la FDV no puede ir a avance.'],
+    'La presión de aire es baja por una fuga o por el regulador mal ajustado. La FDV no tiene fuerza para ir a avance y el presostato bloquea la producción. Se repara la fuga y se ajusta el regulador a 6 bar.',
+    ['AV-FDV-ATASCADA', 'AV-BOBINA-ABIERTA']),
+
+    'AV-VFD-SOBRETEMP': firma(enMarcha(), 'A150 a los pocos minutos: P-101 se para y el caudal cae a 0.', [
+      clave(termometro('VFD-101:DISIPADOR'), r(null, 70, '°C'), r(80, null, '°C'), 'Disipador del variador: más de 80 °C.'),
+      clave(mm('tension', 'VFD-101:VENTILADOR'), r(22, 26, 'V'), r(null, 1, 'V'), 'Ventilador del variador: 0 V. Está parado.'),
+    ], ['El variador ha disparado por temperatura.', 'Mide la temperatura del disipador del variador.', '¿Gira el ventilador? Mide su alimentación.'],
+    'El ventilador del variador está parado o el filtro sucio. El disipador se calienta hasta 80 °C y el variador dispara. Se limpia el filtro y se cambia el ventilador.',
+    ['AV-FILTRO-OBSTRUIDO', 'AV-KM-NO-CIERRA']),
+
+    'AV-PLACA-FUGA': firma(enMarcha(), 'A110: el diferencial de presión de la regeneración es bajo o se invierte.', [
+      clave(mm('corriente', 'PT-102:LAZO'), r(0.8, null, 'mA'), r(null, 0.3, 'mA'), 'PT-102 menos PT-101: casi 0 mA o negativo. El lado pasteurizado ya no está por encima.',
+        { referencia: mm('corriente', 'PT-101:LAZO') }),
+      clave(mm('corriente', 'FT-101:LAZO'), r(13, 16, 'mA'), r(13, 16, 'mA'), 'Lazo de FT-101: caudal normal. La bomba y la aspiración van bien.'),
+    ],['Compara las dos presiones de la regeneración.', 'El lado pasteurizado (PT-102) debe estar siempre por encima del crudo (PT-101).', 'Mide los dos lazos y réstalos: si la diferencia es casi 0 o negativa, hay paso entre los dos lados.'],
+    'Una placa de la regeneración está perforada. La presión de los dos lados se iguala y el crudo puede contaminar el producto pasteurizado. El PLC lo detecta y desvía. Se localiza la placa con una prueba de presión y se cambia con sus juntas.',
+    ['AV-FILTRO-OBSTRUIDO', 'AV-DERIVA-TT103']),
+
+    'AV-FILTRO-OBSTRUIDO': firma(enMarcha(), 'Sin alarmas: el caudal baja con el variador a la misma velocidad.', [
+      clave(manometro('FLT-101:PRESION-DESPUES'), r(-0.1, 0.1, 'bar'), r(null, -0.15, 'bar'), 'Después del colador hay bastante menos presión que antes: pérdida de carga.',
+        { referencia: manometro('FLT-101:PRESION-ANTES') }),
+      clave(mm('corriente', 'FT-101:LAZO'), r(13, 16, 'mA'), r(null, 11, 'mA'), 'Lazo de FT-101: menos caudal del que pide la consigna.'),
+    ], ['Con la misma velocidad de la bomba hay menos caudal.', 'El problema está en la aspiración de P-101.', 'Mide la presión antes y después del colador FLT-101.'],
+    'El colador de aspiración está obstruido. La bomba no puede aspirar todo el caudal y la presión cae después del colador. Se desmonta y se limpia.',
+    ['AV-VFD-SOBRETEMP', 'AV-PLACA-FUGA']),
+
+    'AV-TSH-DISPARADO': firma(enMarcha(), 'A170 y paro de seguridad con el agua fría. El rearme no sirve.', [
+      clave(mm('continuidad', 'TSH-201:CONTACTO'), r(null, 1, 'Ω'), r(1000, null, 'Ω'), 'Contacto NC de TSH-201 en frío: abierto.'),
+      clave(mm('corriente', 'TT-201:LAZO'), r(10, null, 'mA'), r(null, 8, 'mA'), 'Lazo de TT-201: el agua está fría. No hay sobretemperatura real.'),
+    ], ['¿Está el agua realmente caliente?', 'Mira TT-201: si el agua está fría, el disparo es falso.', 'Comprueba la continuidad del contacto de TSH-201 en frío: debe estar cerrado.'],
+    'El termostato de seguridad TSH-201 se ha quedado abierto aunque el agua está fría. El PLC saca el calentador y para la planta. Se sustituye el termostato; nunca se puentea.',
+    ['AV-KM-PEGADO', 'AV-KM-NO-CIERRA']),
+  };
+  for (const a of CATALOGO) if (FIRMAS[a.id]) a.firma = FIRMAS[a.id];
+
   const porId = id => CATALOGO.find(a => a.id === id) || null;
   const api = { CATALOGO, porId, TAGS_AI, TAGS_TT };
   if (typeof module !== 'undefined') module.exports = api; else { window.PCT = window.PCT || {}; PCT.htstCatalogo = api; }

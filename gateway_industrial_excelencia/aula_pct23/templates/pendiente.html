@@ -4,10 +4,10 @@
 <section class="formulario">
   {% if a['estado'] == 'rechazado' %}
     <h1>Acceso no concedido</h1>
-    <p>El profesor no ha autorizado esta cuenta. Habla con él si crees que es un error.</p>
+    <p>El profesor no ha autorizado esta cuenta. Si es un error, habla con él.</p>
   {% else %}
     <h1>Esperando autorización</h1>
-    <p>Tu registro está enviado. Cuando el profesor lo autorice podrás usar el simulador; esta página se actualiza al volver a entrar.</p>
+    <p>Registro enviado. Podrás usar el simulador cuando el profesor lo autorice.</p>
   {% endif %}
   <dl class="datos">
     <dt>Nombre</dt><dd>{{ a['nombre'] }} {{ a['apellidos'] }}</dd>

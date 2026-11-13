@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { SIMBOLOS_PERMITIDOS } = require('../../comun/tipos.js');
 const layout = require('../js/layout.js');
 const I = require('../js/interfaz/instrumentos_fv.js');
 const K = require('../js/interfaz/cuaderno_fv.js');
@@ -51,7 +52,12 @@ test('multímetro Ω: con tensión entre las puntas es PELIGRO (no hay lectura y
   s.ordenes.averias.activar('FUSIBLE_F101'); s.ordenes.protecciones.abrir('QS-101'); marcha(s, 20);
   const roto = I.lecturaMultimetro(s, 'OHM', 'F-101.1', 'F-101.2'), sano = I.lecturaMultimetro(s, 'OHM', 'F-102.1', 'F-102.2');
   assert.equal(roto.pantalla, 'OL'); assert.equal(roto.valor, Infinity); assert.ok(!roto.peligro);
-  assert.ok(sano.valor < 50); assert.match(sano.unidad, /♪/); assert.match(sano.texto, /continuidad/);
+  assert.ok(sano.valor < 50); assert.match(sano.texto, /continuidad/);
+  // La unidad distingue «continuidad con pitido» de una resistencia cualquiera, sin atarse a un carácter: ♪ está prohibido (C45); vale un texto
+  // («cont.») o un símbolo de SIMBOLOS_PERMITIDOS.
+  assert.ok(!/♪/.test(sano.unidad), 'el símbolo ♪ está prohibido en la interfaz (C45)');
+  assert.notEqual(String(sano.unidad).trim(), 'Ω', 'la unidad de continuidad debe distinguirse de la de una resistencia');
+  assert.ok(/cont/i.test(sano.unidad) || SIMBOLOS_PERMITIDOS.some(c => sano.unidad.includes(c)), `la unidad de continuidad debe llevar un texto («cont.») o un símbolo permitido: «${sano.unidad}»`);
 });
 
 test('un modelo sin las funciones nuevas no rompe los instrumentos: responden «no disponible»', () => {
@@ -223,6 +229,6 @@ test('el cargador y la página incluyen los instrumentos, y la ayuda explica có
   for (const m of ['cuaderno_fv.js', 'instrumentos_fv.js', 'reto_fv.js', 'panel_instrumentos.js', 'panel_diagnostico.js']) { assert.match(car, new RegExp(m.replace('.', '\\.'))); assert.ok(fs.existsSync(path.join(base, 'js/interfaz', m)), m); }
   assert.match(fs.readFileSync(path.join(base, 'index.html'), 'utf8'), /css\/instrumentos_fv\.css/); assert.ok(fs.existsSync(path.join(base, 'css/instrumentos_fv.css')));
   const pag = fs.readFileSync(path.join(base, 'js/interfaz/pagina_simple.js'), 'utf8');
-  for (const t of ['Cómo diagnosticar', 'IEC 62446-1', 'Inspección visual', 'Continuidad de las tierras', 'Polaridad', 'Voc', 'Aislamiento', 'Curva I-V', 'Termografía', 'Riesgos de cada medida', 'id="v-instrumentos"', 'id="modo-diagnostico"']) assert.ok(pag.includes(t), t);
+  for (const t of ['Cómo diagnosticar', 'IEC 62446-1', 'Inspección visual', 'Continuidad de tierras', 'Polaridad', 'Voc', 'Aislamiento', 'Curva I-V', 'Termografía', 'Riesgos de cada medida', 'id="v-instrumentos"', 'id="modo-diagnostico"']) assert.ok(pag.includes(t), t);
   assert.ok(layout.EQUIPOS.length > 30);
 });

@@ -44,7 +44,7 @@
           <label class="fila-select"><span>Modo del EASun</span><select id="r-modo">${MODOS_EASUN.map(([v, n]) => `<option value="${v}">${n}</option>`).join('')}</select></label>
           <div class="botones-fila dos"><button type="button" data-inv="INV-101" id="r-inv101">Apagar EASun</button><button type="button" data-inv="INV-201" id="r-inv201">Apagar ZCS</button></div>
           <div class="grupo-mando no-diagnostico">${fila('r-soc', 'SoC inicial de la batería', 0, 100, 1, 80, ' %')}
-          <div class="botones-fila"><button type="button" id="r-soc-aplicar">Poner la batería a ese SoC</button></div></div></section>
+          <div class="botones-fila"><button type="button" id="r-soc-aplicar">Aplicar el SoC</button></div></div></section>
         <section class="grupo-mando" aria-label="Red y cargas"><h2>RED Y CARGAS</h2>
           <div class="botones-fila"><button type="button" data-red="1" id="r-red">Cortar la red</button></div>
           ${fila('r-vred', 'Tensión de red', 180, 270, 1, 230, ' V')}
@@ -59,9 +59,9 @@
           <label class="fila-check"><input type="checkbox" id="r-tamb-auto" checked> Temperatura automática (ciclo del día)</label>
           <details class="sombras"><summary>Sombras por panel</summary><div class="rejilla-sombras">${paneles().map(t => `<label><span>${t}</span><output id="o-sh-${t}">0 %</output><input type="range" data-sombra="${t}" id="sh-${t}" min="0" max="100" step="5" value="0" aria-label="Sombra sobre ${t}"></label>`).join('')}</div></details></section>
         <section class="grupo-mando" aria-label="Averías del profesor"><h2>AVERÍAS DEL PROFESOR</h2>
-          <p class="aviso-profesor">Activa una avería y el alumno la diagnostica con las lecturas, los LEDs y las gráficas. Los efectos salen de la física del modelo.</p>
+          <p class="aviso-profesor">Activa una avería; el alumno la diagnostica con lecturas, LED y gráficas.</p>
           <ul class="lista-averias" id="lista-averias">${layout.AVERIAS.map(a => `<li><label><input type="checkbox" data-averia="${a.id}"> <span>${escapar(a.titulo)}<small>${a.tag}</small></span></label></li>`).join('')}</ul>
-          <div class="botones-fila"><button type="button" id="r-averias-limpiar">Quitar todas las averías</button></div></section>
+          <div class="botones-fila"><button type="button" id="r-averias-limpiar">Quitar las averías</button></div></section>
       </div>`;
     const $ = id => contenedor.querySelector(`#${id}`);
     const enfocado = el => document.activeElement === el;
@@ -92,7 +92,7 @@
       if (c.checked) sim().ordenes.averias.activar(c.dataset.averia); else sim().ordenes.averias.desactivar(c.dataset.averia);
       ctx.avisar(`${c.checked ? 'Avería activada' : 'Avería quitada'}: ${(layout.AVERIAS.find(a => a.id === c.dataset.averia) || {}).titulo || c.dataset.averia}`); cambio();
     }));
-    $('r-averias-limpiar').addEventListener('click', () => { sim().ordenes.averias.limpiar(); ctx.avisar('Todas las averías quitadas.'); cambio(); });
+    $('r-averias-limpiar').addEventListener('click', () => { sim().ordenes.averias.limpiar(); ctx.avisar('Averías quitadas.'); cambio(); });
 
     const poner = (el, t) => { if (el && el.textContent !== t) el.textContent = t; };
     /** Pone los controles al día con el estado (los que se están tocando no se mueven). */

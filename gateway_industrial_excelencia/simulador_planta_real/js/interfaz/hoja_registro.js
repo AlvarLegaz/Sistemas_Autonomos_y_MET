@@ -55,11 +55,11 @@
   }
 
   const TEXTO_DIAGNOSTICO_LAZO = {
-    ok: 'Lazo correcto dentro de la tolerancia.',
-    hilo_roto: 'Menos de 3,6 mA: hilo roto, borna floja o transmisor sin alimentación (¿hay 24 V en las bornas?).',
-    sobreescala: 'Más de 21 mA: sobreescala o cortocircuito (¿Pt100 abierta con burnout alto, o cable en corto?).',
-    transmisor_o_sonda: 'Los mA no corresponden al patrón: deriva de la sonda o del transmisor. Hay que recalibrar o sustituir.',
-    escalado_o_entrada_plc: 'Los mA son correctos pero el SCADA no coincide: revisar el escalado de la entrada analógica del PLC.',
+    ok: 'Lazo correcto, dentro de tolerancia.',
+    hilo_roto: '< 3,6 mA: hilo roto, borna floja o transmisor sin alimentación (¿24 V en bornas?).',
+    sobreescala: '> 21 mA: sobreescala o corto (¿Pt100 abierta con burnout alto o cable en corto?).',
+    transmisor_o_sonda: 'Los mA no cuadran con el patrón: deriva de sonda o transmisor. Recalibra o sustituye.',
+    escalado_o_entrada_plc: 'mA correctos pero el SCADA no coincide: revisa el escalado de la entrada analógica.',
   };
 
   /* ---------- pruebas de enclavamientos ---------- */
@@ -81,10 +81,10 @@
       esperado: 'Calentador fuera y alarma A170; el rearme es manual.',
       comprobar: e => resultado(alarmasDe(e).includes('A170') && bancosFuera(e), 'A170 y bancos fuera') },
     { id: 'TT-103', nombre: 'Fallo de TT-103 → desvío', condicion: 'Con producción, provoca un lazo abierto o una Pt100 abierta en TT-103.',
-      esperado: 'La FDV pasa a desvío (seguridad positiva) y sale la alarma de lazo (A101 o A102).',
+      esperado: 'FDV en desvío (seguridad positiva) y alarma de lazo (A101 o A102).',
       comprobar: e => resultado((alarmasDe(e).includes('A101') || alarmasDe(e).includes('A102')) && fdvEnDesvio(e), 'alarma de lazo y FDV en desvío') },
     { id: 'DP-REGEN', nombre: 'Diferencial de la regeneración', condicion: 'Provoca una fuga de placa o baja la presión del lado pasteurizado.',
-      esperado: 'Alarma A110 y FDV en desvío (no se avanza producto con ΔP insuficiente).',
+      esperado: 'Alarma A110 y FDV en desvío (con ΔP insuficiente no avanza producto).',
       comprobar: e => resultado(alarmasDe(e).includes('A110') && fdvEnDesvio(e), 'A110 y FDV en desvío') },
     { id: 'AIRE', nombre: 'Aire comprimido bajo (PSL-501)', condicion: 'Baja la presión de aire (avería «aire bajo»).',
       esperado: 'Alarma A160 y FDV en desvío: sin aire, el muelle la lleva a desvío.',
@@ -130,7 +130,7 @@
     const registro = contexto.registro, lazos = lazosCalibrables();
     contenedor.innerHTML = `
       <section class="hoja" aria-labelledby="h-calibracion"><h3 id="h-calibracion">Calibración de lazos 4-20 mA</h3>
-        <p>Con la sonda en un patrón (baño o simulador de temperatura), mide los mA en serie y anota lo que muestra el SCADA.</p>
+        <p>Sonda en el patrón (baño o simulador): mide los mA en serie y anota el valor del SCADA.</p>
         <div class="fila-form">
           <label>Lazo <select class="cal-lazo">${lazos.map(l => `<option value="${l.tag}">${l.tag} · ${l.descripcion}</option>`).join('')}</select></label>
           <label>Patrón <input class="cal-patron" type="number" step="any"><span class="cal-unidad"></span></label>
@@ -142,7 +142,7 @@
         <ul class="lista-pruebas">${PRUEBAS_ENCLAVAMIENTO.map(p => `<li data-id="${p.id}"><b>${p.nombre}</b><br><small>${p.condicion} Esperado: ${p.esperado}</small>
           <button type="button" class="enc-comprobar">Comprobar</button> <span class="enc-resultado" aria-live="polite"></span></li>`).join('')}</ul></section>
       <section class="hoja" aria-labelledby="h-diagnostico"><h3 id="h-diagnostico">Diagnóstico y reparación</h3>
-        <p>Cuando creas saber dónde está el fallo, indica el equipo y la acción. Si te equivocas, queda anotado.</p>
+        <p>Indica el equipo y la acción. Los errores quedan anotados.</p>
         <div class="fila-form">
           <label>Equipo <select class="dia-tag">${layout.EQUIPOS.map(e => `<option value="${e.tag}">${e.tag} · ${e.nombre}</option>`).join('')}</select></label>
           <label>Acción <select class="dia-accion">${ACCIONES_REPARACION.map(a => `<option value="${a[0]}">${a[1]}</option>`).join('')}</select></label>

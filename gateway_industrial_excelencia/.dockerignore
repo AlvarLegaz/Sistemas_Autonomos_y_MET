@@ -13,5 +13,8 @@ simulador_planta_real/servir_local.py
 !simulador_fotovoltaica
 simulador_fotovoltaica/tests
 simulador_fotovoltaica/servir_local.py
+!comun
+comun/tests
+comun/*.md
 **/__pycache__
 **/*.pyc

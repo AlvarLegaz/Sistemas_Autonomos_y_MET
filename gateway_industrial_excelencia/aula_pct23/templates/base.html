@@ -7,11 +7,12 @@
 <meta name="copyright" content="© 2026 Álvar Legaz Aparicio. Todos los derechos reservados.">
 <title>{% block titulo %}Aula PCT23{% endblock %}</title>
 <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+<link rel="stylesheet" href="/comun/css/identidad.css">
 <link rel="stylesheet" href="{{ url_for('static', filename='aula.css') }}">
 </head>
 <body>
 <header class="cab">
-  <a class="marca" href="{{ url_for('inicio') }}"><img class="logo" src="{{ url_for('static', filename='img/logo-politecnico.png') }}" alt="CIFP Politécnico Cartagena" width="166" height="60"><span class="sim">GEMELO DIGITAL PCT23+</span></a>
+  <a class="marca" href="{{ url_for('inicio') }}"><img class="logo" src="{{ url_for('static', filename='img/logo-politecnico.png') }}" alt="CIFP Politécnico Cartagena" width="166" height="60"><span class="sim">GEMELO DIGITAL PCT23+<small class="mencion">Red Estatal de Centros de Excelencia de Formación Profesional · Sector Químico</small></span></a>
   <span class="seccion">{% block seccion %}Aula{% endblock %}</span>
   <nav class="cab-nav">
     {% if alumno_sesion %}
@@ -31,6 +32,10 @@
   {% endwith %}
   {% block contenido %}{% endblock %}
 </main>
-<footer class="copy">© 2026 Álvar Legaz Aparicio · Todos los derechos reservados. Prohibida la copia y la distribución sin autorización.</footer>
+<footer class="pie-centro">
+  <p class="lema">Formando profesionales desde 1902</p>
+  <p class="web"><a href="https://elpolitecnico.es">elpolitecnico.es</a></p>
+  <p class="copy">© 2026 Álvar Legaz Aparicio · Todos los derechos reservados. Prohibida la copia y la distribución sin autorización.</p>
+</footer>
 </body>
 </html>

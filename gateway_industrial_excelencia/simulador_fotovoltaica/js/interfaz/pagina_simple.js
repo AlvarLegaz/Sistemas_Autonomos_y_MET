@@ -42,8 +42,8 @@
    */
   function decidirClic(tag, estado, modo = 'normal') {
     const e = estado || {}, diag = modo === 'diagnostico', revision = modo === 'revision' || diag, M = nombresModos();      // en Diagnóstico se maniobra como en Revisión, pero no se repara ni se ve la curva sin el trazador
-    const pedirRevision = () => ({ tipo: 'aviso', texto: `Para accionar ${tag} pasa a ${M.manual}. Con el botón derecho ves su ficha.` });
-    if (CADENAS.includes(tag)) return diag ? { tipo: 'aviso', texto: `En Diagnóstico la curva de ${tag} se mide con el trazador I-V del maletín (botón «Instrumentos»).` } : { tipo: 'cadena', tag };
+    const pedirRevision = () => ({ tipo: 'aviso', texto: `Para accionar ${tag}, pasa a ${M.manual}. Clic derecho: ficha.` });
+    if (CADENAS.includes(tag)) return diag ? { tipo: 'aviso', texto: `En Diagnóstico, la curva de ${tag} se mide con el trazador I-V.` } : { tipo: 'cadena', tag };
     if (PROTECCIONES.includes(tag)) {
       if (!revision) return pedirRevision();
       const est = (e.protecciones && e.protecciones[tag] && e.protecciones[tag].estado) || 'CERRADO';
@@ -53,9 +53,9 @@
       return { tipo: 'info', texto: `${tag}: ${est.toLowerCase()}.` };
     }
     if (SUSTITUIBLES.includes(tag)) {
-      if (diag) return { tipo: 'aviso', texto: `${tag}: sustituirlo es reparar. Primero entrega tu hoja de diagnóstico; para saber si está bien, mídelo.` };      // el mismo texto esté sano o no: no delata la avería
+      if (diag) return { tipo: 'aviso', texto: `${tag}: sustituirlo es reparar. Entrega antes la hoja; para saber si está bien, mídelo.` };      // el mismo texto esté sano o no: no delata la avería
       const est = (e.protecciones && e.protecciones[tag] && e.protecciones[tag].estado) || 'CERRADO';
-      if (est !== 'FUNDIDO' && est !== 'AGOTADO') return { tipo: 'info', texto: `${tag} está sano: no se acciona. Si falla (fusible fundido, testigo del descargador en rojo) se sustituye con un clic en Revisión.` };
+      if (est !== 'FUNDIDO' && est !== 'AGOTADO') return { tipo: 'info', texto: `${tag} está sano. Si falla (fusible fundido, testigo en rojo), se sustituye con un clic en Revisión.` };
       return revision ? { tipo: 'orden', tag, accion: 'rearmar' } : pedirRevision();
     }
     if (INVERSORES.includes(tag)) {
@@ -73,11 +73,11 @@
       if (!revision) return pedirRevision();
       const p = (e.campos && ['A', 'B'].map(c => e.campos[c]).filter(Boolean).flatMap(c => c.cadenas).flatMap(c => c.paneles).find(x => x.tag === tag)) || {}, s = Number.isFinite(p.sombra01) ? p.sombra01 : 0;
       const valor = s < 0.25 ? 0.5 : s < 0.75 ? 1 : 0;
-      return { tipo: 'sombra', tag, valor, texto: valor === 0 ? `${tag}: sin sombra.` : `${tag}: sombra del ${Math.round(valor * 100)} %. Toca otra vez para cambiarla.` };
+      return { tipo: 'sombra', tag, valor, texto: valor === 0 ? `${tag}: sin sombra.` : `${tag}: sombra del ${Math.round(valor * 100)} %.` };
     }
-    if (tag === 'BAT-101') return { tipo: 'info', texto: 'El SoC inicial de la batería se pone en el panel Mando (Revisión). Con el botón derecho ves su ficha.' };
-    if (tag === 'LOAD-301' || tag === 'LOAD-302') return { tipo: 'info', texto: `La potencia de ${tag} se pone en el panel Mando (Revisión). Con el botón derecho ves su ficha.` };
-    return { tipo: 'info', texto: `${tag} no se acciona. Con el botón derecho ves su ficha.` };
+    if (tag === 'BAT-101') return { tipo: 'info', texto: 'El SoC inicial se ajusta en Mando (Revisión). Clic derecho: ficha.' };
+    if (tag === 'LOAD-301' || tag === 'LOAD-302') return { tipo: 'info', texto: `La potencia de ${tag} se ajusta en Mando (Revisión). Clic derecho: ficha.` };
+    return { tipo: 'info', texto: `${tag} no se acciona. Clic derecho: ficha.` };
   }
 
   /** Texto del botón de la ficha para una decisión de tipo 'orden'. */
@@ -121,9 +121,9 @@
     if (!e) return '—';
     const f = enNode ? F : PCT.fvFormato, M = nombresModos();
     const prod = ((e.campos && e.campos.A && e.campos.A.p) || 0) + ((e.campos && e.campos.B && e.campos.B.p) || 0);
-    if (modo === 'diagnostico') return `Diagnóstico (avería oculta) · ${corriendo ? 'en marcha' : 'en pausa'} · ${e.reloj && e.reloj.esDia ? 'de día' : 'de noche'} · sin lecturas ni alarmas explicadas: mide con los instrumentos`;
+    if (modo === 'diagnostico') return `Diagnóstico · ${corriendo ? 'en marcha' : 'en pausa'} · mide con los instrumentos`;
     const al = (e.alarmas || []).filter(a => a.severidad !== 'info');
-    const base = `${modo === 'revision' ? `${M.manual} (todo en tus manos)` : M.normal} · ${corriendo ? 'en marcha' : 'en pausa'} · ${e.reloj && e.reloj.esDia ? 'de día' : 'de noche'} · FV ${f.formatoPotencia(prod)} · batería ${f.formatoPorcentaje(e.bateria && e.bateria.soc01)}`;
+    const base = `${modo === 'revision' ? M.manual : M.normal} · ${corriendo ? 'en marcha' : 'en pausa'} · FV ${f.formatoPotencia(prod)} · batería ${f.formatoPorcentaje(e.bateria && e.bateria.soc01)}`;
     if (!al.length) return `${base} · sin alarmas`;
     const a = al[0];
     return `${base} · ${al.length} ${al.length === 1 ? 'alarma' : 'alarmas'}: ${a.tag ? a.tag + ' ' : ''}${a.texto || a.codigo || ''}`;
@@ -135,17 +135,17 @@
   const VENTANA = 'popup=yes,width=1180,height=780';
 
   const guia = () => { const M = nombresModos(); return [
-    ['Cómo se maneja', '<p><b>Clic izquierdo</b> sobre un equipo lo acciona (en Revisión: interruptores, fusibles, descargadores, inversores y la red) o, en una cadena de paneles, la elige para la curva I-V. <b>Clic derecho</b> abre su ficha: qué es, qué hace, su estado en vivo, qué mirar al mantenerlo y «Ver en 3D», que abre solo esa pieza. Con el teclado: Intro o Espacio acciona; la tecla de menú abre la ficha. En pantalla táctil, <b>mantén pulsado 3 s</b> un equipo para ver su descripción.</p>'],
-    [`${M.normal}`, '<p>La instalación funciona sola. Pulsa <b>Iniciar</b> y elige la <b>fecha</b>, la <b>hora solar</b> y la <b>nubosidad</b> en el panel Mando: observa cómo cambian la producción de cada campo, la carga de la batería y el reparto con la red. Las <b>velocidades</b> (×1, ×60, ×600, ×3600) aceleran el reloj solar: a ×3600 un día entero pasa en 24 s.</p>'],
-    [`${M.manual}`, '<p>Controlas tú: sombras por panel, suciedad, temperatura, interruptores y protecciones, red, cargas, modo del EASun, SoC inicial y el panel de <b>averías del profesor</b>. No hay cuadros de confirmación: el aviso de la consecuencia aparece abajo y la orden se ejecuta. Al volver a Normal se restaura la instalación.</p>'],
-    ['Cómo leer el sinóptico', '<p>Los <b>cables</b> se animan con el sentido de la potencia (flecha y puntos) y son más gruesos cuanto más potencia llevan: amarillo = solar, verde = batería, azul = red, violeta = consumo y producción del ZCS. Las <b>burbujas</b> dan tensión, corriente y potencia de cada tramo. El <b>color</b> de cada equipo (y su forma: palanca abierta, fusible roto, testigo) dice su estado: verde en servicio, ámbar aviso, rojo alarma, gris parado.</p>'],
-    ['Cómo se numeran los equipos', `<p>Las letras dicen qué es (PV panel, STR cadena, QS seccionador, QB, QF y ID protecciones, INV inversor, BAT batería, LOAD carga) y la <b>centena</b> del número, a qué circuito pertenece: ${Object.entries(layout.CIRCUITOS).map(([n, c]) => `<b>${n}xx</b> ${escapar(c.toLowerCase())}`).join('; ')}.</p>`],
-    ['En el iPad', '<p>Un <b>toque corto</b> acciona el equipo; <b>mantén pulsado 3 s</b> un equipo para ver su descripción (un anillo se va llenando; si mueves el dedo se cancela). No hace falta pasar el ratón por nada. Con los botones − / + del sinóptico lo acercas y lo desplazas con el dedo.</p>'],
-    ['Instrumentos de medida', '<p>El botón <b>Instrumentos</b> (y la pestaña del mismo nombre) abre el maletín. Coge uno y queda «en la mano», en una ventanita con su pantalla; mientras lo tienes, <b>un toque en el sinóptico mide</b> en vez de accionar (el botón <b>Maniobrar</b> de la ventanita deja pasar los toques para abrir un interruptor sin soltarlo).</p><ul><li><b>Multímetro</b> (V⎓, V∿, Ω-continuidad): toca un punto para la punta roja y otro para la negra. Si el toque cae entre varios puntos, o tocas un equipo, te pregunta en cuál. Signo negativo = puntas al revés.</li><li><b>Pinza amperimétrica</b> (A⎓, A∿): toca la marca de un cable; da la corriente con su signo y sentido.</li><li><b>Megóhmetro</b>: aislamiento de cada polo de una cadena a tierra; exige el seccionador abierto.</li><li><b>Trazador I-V</b>: curva medida frente a la de referencia, con Voc, Isc, Pmpp, factor de forma, desviación y escalones.</li><li><b>Cámara termográfica</b>: vista térmica con su escala; toca una zona para leer su temperatura.</li></ul><p>Cada medida se apunta sola en el <b>cuaderno</b> (pestaña Instrumentos), donde puedes anotarla, marcarla como evidencia y borrarla.</p>'],
-    ['Modo Diagnóstico', '<p>La instalación tiene una <b>avería oculta</b>: la que te asigna tu profesor o, si no hay ninguna, una al azar para practicar. Desaparecen las ayudas que la delatarían (lecturas, alarmas explicadas, burbujas, gráficas, colores de estado): quedan las pantallas y los LED de los equipos, las palancas y los testigos, como en la realidad. Puedes cambiar la fecha, la hora y la nubosidad (hace falta sol para muchas medidas), abrir y cerrar interruptores, apagar inversores y sombrear paneles. Rellena la <b>hoja</b> (síntoma, medidas que lo demuestran, elemento, avería y reparación) y pulsa <b>Entregar</b>: se corrige al momento con nota de 0 a 10. Cuentan el acierto, las medidas clave que hayas hecho, la hoja completa y el tiempo; restan las pistas, las maniobras peligrosas y los intentos anteriores. Después puedes reintentar o ver la avería y repararla.</p>'],
-    ['Cómo diagnosticar (orden de la norma IEC 62446-1)', '<ol><li><b>Inspección visual</b>: palancas, testigos de los descargadores, pantallas y LED de los inversores, sombras y suciedad. Sin tocar nada.</li><li><b>Continuidad de las tierras</b> y de los conductores de protección (óhmetro, sin tensión; pinza en el conductor de tierra: no debe pasar corriente).</li><li><b>Polaridad</b> de cada cadena con el multímetro en V⎓: signo positivo con la punta roja en el «+».</li><li><b>Tensión en vacío (Voc)</b> de cada cadena con el seccionador abierto: cadenas iguales deben dar lo mismo (± 5 %). Un tercio de panel de menos = un diodo de paso; 0 V = cadena abierta.</li><li><b>Corriente</b> (Isc o de trabajo) con la pinza: cadenas iguales con el mismo sol, la misma corriente. 0 A con tensión = circuito abierto aguas abajo (fusible, seccionador).</li><li><b>Aislamiento</b> de cada polo a tierra con el megóhmetro, con el seccionador abierto: por encima del mínimo (1 MΩ; 0,5 MΩ en campos de menos de 120 V).</li><li><b>Curva I-V</b> con más de 400 W/m²: compara con la de referencia. Escalones = diodos de paso; poca corriente = suciedad o sombra; curva «tumbada» = resistencia en serie.</li><li><b>Termografía</b> con la instalación en carga: conectores, bornas y células más calientes que sus iguales.</li></ol><p>Ve siempre de lo general a lo concreto: primero qué campo o qué inversor falla, luego qué cadena y por último qué elemento. Compara con el elemento igual que sí funciona.</p>'],
-    ['Riesgos de cada medida', '<ul><li><b>Continua</b>: los paneles dan tensión siempre que hay luz, aunque el seccionador esté abierto. En continua el arco no se apaga solo: <b>nunca abras un seccionador ni un conector MC4 con carga</b> (apaga antes el inversor).</li><li><b>Multímetro</b>: categoría CAT III 1000 V, puntas con protección, una sola mano. <b>Nunca midas continuidad ni resistencia con tensión</b>. No uses la entrada de amperios en paralelo.</li><li><b>Pinza</b>: abraza un solo conductor; haz el cero en continua. No abre el circuito: es la forma segura de medir corriente.</li><li><b>Megóhmetro</b>: inyecta de 250 a 1000 V. Seccionador abierto, inversor y descargadores desconectados, nadie tocando los paneles; al acabar, descarga la cadena.</li><li><b>Trazador I-V</b>: se conecta a la cadena aislada del inversor y la pone en cortocircuito un instante: conectores bien enchufados y polaridad comprobada antes.</li><li><b>Termografía</b>: sin contacto, pero con la instalación en carga y las tapas abiertas: distancia de seguridad y cuidado con los reflejos del sol.</li><li><b>Batería</b>: corriente de cortocircuito de miles de amperios. Herramienta aislada y nada metálico encima.</li></ul>'],
-    ['Ventanas aparte', '<p><b>Unifilar</b> y <b>Cableado</b> son los planos eléctricos con el estado en vivo; <b>Instalación 3D</b> es la cubierta y la caseta. Se siguen moviendo con la instalación.</p>'],
+    ['Cómo se maneja', '<p><b>Clic izquierdo</b>: acciona el equipo (en Revisión) o elige la cadena para la curva I-V. <b>Clic derecho</b>: ficha con su estado en vivo, mantenimiento y «Ver en 3D». Teclado: Intro o Espacio acciona; la tecla de menú abre la ficha.</p>'],
+    [`${M.normal}`, '<p>La instalación funciona sola. Pulsa <b>Iniciar</b> y cambia <b>fecha</b>, <b>hora solar</b> y <b>nubosidad</b> en Mando. Velocidades ×1, ×60, ×600 y ×3600: a ×3600 un día pasa en 24 s.</p>'],
+    [`${M.manual}`, '<p>Lo controlas todo: sombras, suciedad, temperatura, protecciones, red, cargas, modo del EASun, SoC inicial y <b>averías del profesor</b>. Las órdenes no piden confirmación; la consecuencia sale en el aviso. Al volver a Normal, la instalación se restaura.</p>'],
+    ['Cómo leer el sinóptico', '<p><b>Cables</b>: la animación marca el sentido de la potencia y el grosor, cuánta. Amarillo solar, verde batería, azul red, violeta consumo y ZCS. Las <b>burbujas</b> dan V, A y W de cada tramo. <b>Color del equipo</b>: verde en servicio, ámbar aviso, rojo alarma, gris parado.</p>'],
+    ['Cómo se numeran los equipos', `<p>Letras: PV panel, STR cadena, QS seccionador, QB/QF/ID protecciones, INV inversor, BAT batería, LOAD carga. La <b>centena</b> indica el circuito: ${Object.entries(layout.CIRCUITOS).map(([n, c]) => `<b>${n}xx</b> ${escapar(c.toLowerCase())}`).join('; ')}.</p>`],
+    ['En el iPad', '<p><b>Toque corto</b>: acciona; <b>mantén 3 s</b>: descripción del equipo (si mueves el dedo, se cancela). − / + acercan el sinóptico; arrastra para desplazarlo.</p>'],
+    ['Instrumentos de medida', '<p><b>Instrumentos</b> abre el maletín. Con un instrumento en la mano, <b>tocar el sinóptico mide</b> en vez de accionar; <b>Maniobrar</b> deja pasar el toque sin soltarlo.</p><ul><li><b>Multímetro</b> (V⎓, V∿, Ω): toca el punto de la punta roja y luego el de la negra. Signo negativo = puntas al revés.</li><li><b>Pinza</b> (A⎓, A∿): toca la marca de un cable; da la corriente con su sentido.</li><li><b>Megóhmetro</b>: aislamiento de cada polo a tierra, con el seccionador abierto.</li><li><b>Trazador I-V</b>: curva frente a la de referencia, con Voc, Isc, Pmpp, factor de forma, desviación y escalones.</li><li><b>Cámara termográfica</b>: toca una zona para leer su temperatura.</li></ul><p>Cada medida va al <b>cuaderno</b>: puedes anotarla, marcarla como evidencia o borrarla.</p>'],
+    ['Modo Diagnóstico', '<p>Hay una <b>avería oculta</b>: la de tu profesor o, si no hay, una al azar. Se quitan lecturas, alarmas, burbujas, gráficas y colores de estado; quedan pantallas, LED, palancas y testigos, como en la realidad. Puedes cambiar fecha, hora y nubosidad (muchas medidas necesitan sol), maniobrar y sombrear paneles. Rellena la <b>hoja</b> y pulsa <b>Entregar</b>: nota de 0 a 10. Suman acierto, medidas clave, hoja completa y tiempo; restan pistas, maniobras peligrosas e intentos anteriores. Luego puedes reintentar o ver la avería y repararla.</p>'],
+    ['Cómo diagnosticar (IEC 62446-1)', '<ol><li><b>Inspección visual</b>, sin tocar: palancas, testigos, pantallas y LED, sombras y suciedad.</li><li><b>Continuidad de tierras</b> y conductores de protección (óhmetro, sin tensión). Por el de tierra no debe pasar corriente (pinza).</li><li><b>Polaridad</b> de cada cadena (V⎓): positivo con la roja en el «+».</li><li><b>Voc</b> de cada cadena, seccionador abierto: cadenas iguales, mismo valor (± 5 %). Un tercio de panel menos = diodo de paso; 0 V = cadena abierta.</li><li><b>Corriente</b> con la pinza: cadenas iguales y mismo sol, misma corriente. 0 A con tensión = circuito abierto aguas abajo (fusible, seccionador).</li><li><b>Aislamiento</b> de cada polo a tierra, seccionador abierto: mínimo 1 MΩ (0,5 MΩ en campos de menos de 120 V).</li><li><b>Curva I-V</b> con más de 400 W/m², frente a la de referencia. Escalones = diodos de paso; poca corriente = suciedad o sombra; curva «tumbada» = resistencia en serie.</li><li><b>Termografía</b> en carga: conectores, bornas y células más calientes que sus iguales.</li></ol><p>De lo general a lo concreto: campo o inversor, luego cadena, luego elemento. Compara con el gemelo que funciona.</p>'],
+    ['Riesgos de cada medida', '<ul><li><b>Continua</b>: con luz, los paneles dan tensión aunque el seccionador esté abierto. El arco en continua no se apaga solo: <b>nunca abras un seccionador ni un MC4 con carga</b>; apaga antes el inversor.</li><li><b>Multímetro</b>: CAT III 1000 V, puntas protegidas, una sola mano. <b>Nunca midas continuidad ni resistencia con tensión</b>. No uses la entrada de amperios en paralelo.</li><li><b>Pinza</b>: un solo conductor; haz el cero en continua. Es la forma segura de medir corriente.</li><li><b>Megóhmetro</b>: inyecta de 250 a 1000 V. Seccionador abierto, inversor y descargadores desconectados, nadie en los paneles; al acabar, descarga la cadena.</li><li><b>Trazador I-V</b>: cadena aislada del inversor; la cortocircuita un instante. Antes, conectores firmes y polaridad comprobada.</li><li><b>Termografía</b>: sin contacto, pero en carga y con tapas abiertas: guarda distancia y ojo con los reflejos.</li><li><b>Batería</b>: miles de amperios en cortocircuito. Herramienta aislada y nada metálico encima.</li></ul>'],
+    ['Ventanas aparte', '<p><b>Unifilar</b> y <b>Cableado</b>: planos con el estado en vivo. <b>Instalación 3D</b>: cubierta y caseta.</p>'],
   ]; };
 
   async function iniciar() {
@@ -161,9 +161,9 @@
     const I = layout.INSTALACION, M = I.modos;
 
     raiz.innerHTML = `<header class="cab">
-        <h1><img class="logo" src="/simulador/img/logo-politecnico.png" alt="CIFP Politécnico Cartagena" width="166" height="60"><span class="sim">${escapar(I.centro.toUpperCase())} · ${escapar(I.corto)}<small>${escapar(I.nombre)}</small></span></h1>
-        <nav class="modos" aria-label="Modo de funcionamiento"><button type="button" id="modo-normal" title="La instalación funciona sola: tú eliges día, hora y nubosidad">${escapar(M.normal)}</button><button type="button" id="modo-revision" title="Tú controlas todo: sombras, interruptores, red, cargas y averías">${escapar(M.manual)}</button><button type="button" id="modo-diagnostico" title="Avería oculta: la encuentras midiendo con los instrumentos y entregas una hoja con nota">Diagnóstico</button></nav>
-        <div class="ventanas" role="group" aria-label="Instrumentos y ventanas aparte"><button type="button" id="v-instrumentos" class="destacado" title="Maletín: multímetro, pinza, megóhmetro, trazador I-V y cámara termográfica">Instrumentos</button><button type="button" id="v-unifilar">Unifilar</button><button type="button" id="v-cableado">Cableado</button><button type="button" id="v-3d">Instalación 3D</button><button type="button" id="v-ayuda">? Ayuda</button></div>
+        <h1><img class="logo" src="/simulador/img/logo-politecnico.png" alt="CIFP Politécnico Cartagena" width="166" height="60"><span class="sim">${escapar(I.centro.toUpperCase())} · ${escapar(I.corto)}<small>${escapar(I.nombre)}</small><small class="mencion">Red Estatal de Centros de Excelencia de Formación Profesional · Sector Químico</small></span></h1>
+        <nav class="modos" aria-label="Modo de funcionamiento"><button type="button" id="modo-normal" title="Funciona sola; tú eliges día, hora y nubosidad">${escapar(M.normal)}</button><button type="button" id="modo-revision" title="Lo controlas todo, averías incluidas">${escapar(M.manual)}</button><button type="button" id="modo-diagnostico" title="Avería oculta: mide, encuéntrala y entrega la hoja">Diagnóstico</button></nav>
+        <div class="ventanas" role="group" aria-label="Instrumentos y ventanas aparte"><button type="button" id="v-instrumentos" class="destacado" title="Maletín: multímetro, pinza, megóhmetro, trazador I-V y cámara termográfica">Instrumentos</button><button type="button" id="v-unifilar">Unifilar</button><button type="button" id="v-cableado">Cableado</button><button type="button" id="v-3d">Instalación 3D</button><button type="button" id="v-ayuda">Ayuda</button></div>
       </header>
       <div class="barra" role="region" aria-label="Operación de la simulación">
         <div class="acciones"><button id="sim-play" type="button">Iniciar</button><button id="sim-pause" type="button" disabled>Pausar</button><button id="sim-reset" type="button">Restablecer</button></div>
@@ -187,7 +187,7 @@
       <footer class="pie-copyright">© 2026 Álvar Legaz Aparicio · Todos los derechos reservados.</footer>`;
     const $ = id => document.getElementById(id);
     const avisos = [];
-    if (enDemostracion) avisos.push('Modelo de demostración: el modelo real de la instalación todavía no está cargado.');
+    if (enDemostracion) avisos.push('Modelo de demostración: el modelo real no está cargado.');
     if (faltan.length) console.info('[fotovoltaica] módulos no cargados:', faltan.join(', '));
     $('avisos').innerHTML = avisos.map(a => `<p class="aviso-planta" role="status">${escapar(a)}</p>`).join('');
 
@@ -249,9 +249,10 @@ let anchoPrevio = $('esquema').clientWidth;
     reiniciarBaseEnergia();
     function accionar(tag) {
       const d = decidirClic(tag, estado(), modoClic());
-      const peligro = modo === 'diagnostico' ? PCT.fvReto.peligroManiobra(d, estado()) : '';
+      const peligro = modo === 'diagnostico' && PCT.fvReto ? PCT.fvReto.peligroManiobra(d, estado()) : '';
+      if (modo === 'diagnostico' && d.tipo === 'orden') diag.anotarAccion(d.tag, d.accion);      // evento `acciono` del reto en curso (solo con aula)
       if (peligro) { ejecutarOrden(sim, d); avisar(`⚠ ${peligro}`); diag.anotarPeligro(peligro); }
-      else if (d.tipo === 'cadena') { graficas.seleccionarCadena(d.tag); avisar(`Curva I-V de ${d.tag} (más abajo, en las gráficas).`); }
+      else if (d.tipo === 'cadena') { graficas.seleccionarCadena(d.tag); avisar(`Curva I-V de ${d.tag}: en las gráficas.`); }
       else if (d.tipo === 'orden') avisar(ejecutarOrden(sim, d));
       else if (d.tipo === 'sombra') { sim.ordenes.ambiente.sombra(d.tag, d.valor); avisar(d.texto); }
       else avisar(d.texto);
@@ -287,7 +288,12 @@ let anchoPrevio = $('esquema').clientWidth;
       historial.limpiar(); reiniciarBaseEnergia(); panelMando.restablecer();
     }
     let almacen = null; try { almacen = window.localStorage; } catch (error) { almacen = null; }
-    diag = PCT.fvPanelDiagnostico.crear($('p-diagnostico'), { cuaderno, catalogo, avisar, almacen,
+    // Telemetría hacia el aula (eventos y registro de la sesión): solo si hay aula (#aula-barra con csrf); en local no envía nada
+    const barraAula = () => document.getElementById('aula-barra'), tokenAula = () => { const i = barraAula() && barraAula().querySelector('input[name=csrf]'); return i ? i.value : null; };
+    const telemetria = PCT.fvTelemetria ? PCT.fvTelemetria.crear({ csrf: tokenAula }) : null;
+    if (telemetria) telemetria.iniciar();
+    if (!PCT.fvReto || !PCT.fvPanelDiagnostico) diag = { entrar() {}, salir() {}, fase: () => 'inicio', averia: () => null, firma: () => null, oculto: () => false, anotarPeligro() {}, anotarAccion() {}, actualizar() {} };      // falta comun/: sin modo Diagnóstico
+    else diag = PCT.fvPanelDiagnostico.crear($('p-diagnostico'), { cuaderno, catalogo, avisar, almacen, telemetria, tSim: () => sim.estado.t, registro: () => (typeof sim.registro === 'function' ? sim.registro() : null),
       empezar: (reto, firma) => { ponerAveriaOculta(reto.averia, firma); corriendo = true; actualizarBotones(); refrescar(); },
       revelar: () => { refrescar(); graficas.redibujar(); },
       terminar: () => { restaurarNormal(sim); panelMando.restablecer(); aplicarAhora(); refrescar(); },
@@ -301,7 +307,7 @@ let anchoPrevio = $('esquema').clientWidth;
       const averia = modo === 'diagnostico' && oculto() ? diag.averia() : null;      // en un reto, restablecer vuelve al comienzo PERO la avería oculta sigue
       sim.reiniciar(); panelMando.restablecer(); historial.limpiar(); sim.paso(0.2); reiniciarBaseEnergia(); corriendo = false;
       if (averia) { ponerAveriaOculta(averia, diag.firma()); corriendo = true; }
-      actualizarBotones(); avisar(averia ? 'Instalación restablecida al comienzo del reto (la avería sigue ahí).' : 'Instalación restablecida.'); refrescar();
+      actualizarBotones(); avisar(averia ? 'Reto restablecido. La avería sigue.' : 'Instalación restablecida.'); refrescar();
     });
     document.querySelector('.velocidad').addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
@@ -310,11 +316,11 @@ let anchoPrevio = $('esquema').clientWidth;
     // Modos
     function ponerModo(nuevo) {
       if (nuevo === modo) return;
-      if (modo === 'revision' && nuevo === 'normal') { restaurarNormal(sim); panelMando.restablecer(); avisar('Modo Normal: la instalación vuelve a funcionar sola (cargas automáticas, protecciones cerradas, sin averías ni sombras).'); }
+      if (modo === 'revision' && nuevo === 'normal') { restaurarNormal(sim); panelMando.restablecer(); avisar('Modo Normal: instalación sana y en automático.'); }
       if (modo === 'diagnostico' || nuevo === 'diagnostico') {      // al entrar y al salir de Diagnóstico la instalación queda sana: el reto en curso se abandona y no se puede «mirar» la avería desde Revisión
         const habia = modo === 'diagnostico' && diag.fase() !== 'inicio';
         restaurarNormal(sim); panelMando.restablecer(); if (modo === 'diagnostico') diag.salir();
-        avisar(nuevo === 'diagnostico' ? 'Modo Diagnóstico: empieza un reto en la pestaña Diagnóstico. Las lecturas y las alarmas se ocultan: se mide con los instrumentos.' : habia ? 'Has salido de Diagnóstico: el reto queda abandonado y la instalación vuelve a estar sana.' : 'La instalación vuelve a funcionar con normalidad.');
+        avisar(nuevo === 'diagnostico' ? 'Modo Diagnóstico: empieza un reto en su pestaña. Sin lecturas ni alarmas: mide.' : habia ? 'Reto abandonado. La instalación vuelve a estar sana.' : 'La instalación vuelve a funcionar con normalidad.');
       }
       modo = nuevo; aplicarAhora();
       if (nuevo === 'diagnostico') { diag.entrar(); $('t-diagnostico').hidden = false; elegirPestana($('t-diagnostico')); }
@@ -351,12 +357,12 @@ let anchoPrevio = $('esquema').clientWidth;
       const dg = ['INV-101', 'INV-201'].map(t => [t, D.diagnosticoInversor(e, t)]), fd = JSON.stringify(dg);
       if (fd !== firmaDiag) {
         firmaDiag = fd;
-        $('diagnostico').innerHTML = '<h2>¿POR QUÉ PRODUCE O NO PRODUCE CADA INVERSOR?</h2>' + dg.map(([t, d]) => `<div class="diag e-${d.nivel}"><p class="diag-cab"><b>${t === 'INV-101' ? 'EASun INV-101 · campo A' : 'ZCS INV-201 · campo B'}</b><span class="diag-estado">${escapar(NIVEL[d.nivel])} · ${escapar(d.estado)}</span></p><p><b>Causa:</b> ${escapar(d.causa)}</p>${d.efecto ? `<p><b>Efecto:</b> ${escapar(d.efecto)}</p>` : ''}</div>`).join('');
+        $('diagnostico').innerHTML = '<h2>¿POR QUÉ PRODUCE O NO CADA INVERSOR?</h2>' + dg.map(([t, d]) => `<div class="diag e-${d.nivel}"><p class="diag-cab"><b>${t === 'INV-101' ? 'EASun INV-101 · campo A' : 'ZCS INV-201 · campo B'}</b><span class="diag-estado">${escapar(NIVEL[d.nivel])} · ${escapar(d.estado)}</span></p><p><b>Causa:</b> ${escapar(d.causa)}</p>${d.efecto ? `<p><b>Efecto:</b> ${escapar(d.efecto)}</p>` : ''}</div>`).join('');
       }
       const r = D.resumenEnergia(e, baseEnergia), fe = JSON.stringify(D.filasEnergia(r)) + Math.round(r.cubiertoPct) + (diaAnterior ? diaAnterior.fecha : '');
       if (fe !== firmaEnergia) {
         firmaEnergia = fe;
-        $('energia-dia').innerHTML = `<h2>ENERGÍA DEL DÍA <small>(desde las ${escapar(PCT.fvFormato.formatoHora(baseEnergia && baseEnergia.hora !== undefined ? baseEnergia.hora : 0))} del ${escapar(PCT.fvFormato.textoFecha(e.reloj.diaAnio))})</small></h2><dl>${D.filasEnergia(r).map(([n, v]) => `<div><dt>${escapar(n)}</dt><dd>${escapar(v)}</dd></div>`).join('')}</dl><p class="nota">Cubre el sol el ${Math.round(r.cubiertoPct)} % del consumo. Autoconsumo = lo producido que no se vierte a la red; ahorro a ${String(D.TARIFA_EUR_KWH).replace('.', ',')} €/kWh.</p>${diaAnterior ? `<p class="nota ayer"><b>Día anterior (${escapar(diaAnterior.fecha)}):</b> producida ${escapar(PCT.fvFormato.formatoEnergia(diaAnterior.fin.produccion))}, consumida ${escapar(PCT.fvFormato.formatoEnergia(diaAnterior.fin.consumo))}, importada ${escapar(PCT.fvFormato.formatoEnergia(diaAnterior.fin.importada))}, exportada ${escapar(PCT.fvFormato.formatoEnergia(diaAnterior.fin.exportada))}, autoconsumo ${Math.round(diaAnterior.fin.autoconsumoPct)} %, ahorro ${PCT.fvFormato.dec(diaAnterior.fin.ahorroEuros, 2)} €.</p>` : ''}`;
+        $('energia-dia').innerHTML = `<h2>ENERGÍA DEL DÍA <small>(desde las ${escapar(PCT.fvFormato.formatoHora(baseEnergia && baseEnergia.hora !== undefined ? baseEnergia.hora : 0))} del ${escapar(PCT.fvFormato.textoFecha(e.reloj.diaAnio))})</small></h2><dl>${D.filasEnergia(r).map(([n, v]) => `<div><dt>${escapar(n)}</dt><dd>${escapar(v)}</dd></div>`).join('')}</dl><p class="nota">El sol cubre el ${Math.round(r.cubiertoPct)} % del consumo. Autoconsumo: lo producido que no se vierte. Ahorro a ${String(D.TARIFA_EUR_KWH).replace('.', ',')} €/kWh.</p>${diaAnterior ? `<p class="nota ayer"><b>Día anterior (${escapar(diaAnterior.fecha)}):</b> producida ${escapar(PCT.fvFormato.formatoEnergia(diaAnterior.fin.produccion))}, consumida ${escapar(PCT.fvFormato.formatoEnergia(diaAnterior.fin.consumo))}, importada ${escapar(PCT.fvFormato.formatoEnergia(diaAnterior.fin.importada))}, exportada ${escapar(PCT.fvFormato.formatoEnergia(diaAnterior.fin.exportada))}, autoconsumo ${Math.round(diaAnterior.fin.autoconsumoPct)} %, ahorro ${PCT.fvFormato.dec(diaAnterior.fin.ahorroEuros, 2)} €.</p>` : ''}`;
       }
     }
 

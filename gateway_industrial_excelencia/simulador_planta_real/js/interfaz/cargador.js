@@ -9,10 +9,15 @@
     '/simulador/js/interfaz/scada/sensor.js', '/simulador/js/interfaz/scada/tuberia.js',
     '/simulador/js/interfaz/visor3d/especificaciones.js', '/simulador/js/interfaz/visor3d/lecturas.js', '/simulador/js/interfaz/visor3d/controles_orbita.js', '/simulador/js/interfaz/visor3d/visor3d.js',
   ];
+  const NUCLEO = [      // núcleo común (comun/): tipos, azar, paso fijo, eventos, registro y contrato (ruta absoluta, como COMPARTIDO). Si falta alguno, no se carga el adaptador del contrato
+    '/comun/tipos.js', '/comun/js/nucleo/congelar.js', '/comun/js/nucleo/azar.js', '/comun/js/nucleo/paso_fijo.js', '/comun/js/nucleo/eventos.js', '/comun/js/nucleo/registro.js', '/comun/js/nucleo/contrato.js',
+    '/comun/js/diagnostico/logica_diagnostico.js',
+  ];
   const MODELO = [      // PROGRAMADOR-MODELO (propios, rutas relativas), en el orden de sus dependencias
     'js/layout.js', 'js/configuracion/constantes.js', 'js/plc/calidad_senal.js', 'js/modelo/estado.js', 'js/modelo/fisica_termica.js', 'js/modelo/fisica_hidraulica.js',
     'js/modelo/instrumentos.js', 'js/plc/alarmas.js', 'js/plc/programa.js', 'js/averias/catalogo.js', 'js/averias/motor.js', 'js/modelo/medidas.js', 'js/modelo/simulacion.js',
   ];
+  const CONTRATO = ['js/modelo/contrato_htst.js'];   // adaptador del contrato común: después del modelo y solo si el núcleo cargó entero
   const DISENO = [      // DISEÑADOR (js/visor3d_htst/), en el orden de sus dependencias: efectos antes que la base; escena_planta al final
     'js/visor3d_htst/kit.js', 'js/visor3d_htst/efectos_averias.js', 'js/visor3d_htst/puertos.js', 'js/visor3d_htst/base_equipo.js', 'js/visor3d_htst/equipos_proceso.js',
     'js/visor3d_htst/tuberias.js', 'js/visor3d_htst/instrumentos.js', 'js/visor3d_htst/armario.js', 'js/visor3d_htst/cargador_modelos.js', 'js/visor3d_htst/como_funciona.js', 'js/visor3d_htst/interiores.js', 'js/visor3d_htst/entorno_planta.js', 'js/visor3d_htst/escena_planta.js',
@@ -42,11 +47,15 @@
   async function cargarTodo({ conInterfaz = true } = {}) {
     const faltan = [];
     await cargarLista(COMPARTIDO, faltan);
+    const faltanNucleo = [];
+    await cargarLista(NUCLEO, faltanNucleo);   // un módulo común que falte no rompe la página: se anota y el adaptador del contrato no se carga
+    faltan.push(...faltanNucleo);
     await cargarLista(MODELO, faltan);
+    if (!faltanNucleo.filter(r => r !== NUCLEO[NUCLEO.length - 1]).length) await cargarLista(CONTRATO, faltan);
     await cargarLista(DISENO, faltan);
     await cargarLista(conInterfaz ? INTERFAZ : ['js/interfaz/niveles.js', 'js/interfaz/textos_ayuda.js', 'js/interfaz/visor_htst.js'], faltan);
     return { faltan };
   }
 
-  window.HTST_CARGADOR = { COMPARTIDO, MODELO, DISENO, INTERFAZ, cargarScript, cargarTodo };
+  window.HTST_CARGADOR = { COMPARTIDO, NUCLEO, CONTRATO, MODELO, DISENO, INTERFAZ, cargarScript, cargarTodo };
 })();

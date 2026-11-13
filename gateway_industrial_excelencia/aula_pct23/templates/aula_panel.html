@@ -7,13 +7,13 @@
 {% endblock %}
 {% block contenido %}
 {% if pin_por_defecto %}
-<p class="aviso" role="status">PIN por defecto en uso ({{ pin_defecto_valor }}): vale para pruebas. Antes de usarlo con una clase <a href="{{ url_for('aula', vista='pin') }}">cámbialo en la pestaña «Cambiar PIN»</a>, porque cualquiera que conozca el PIN puede autorizar alumnos.</p>
+<p class="aviso" role="status">PIN por defecto en uso ({{ pin_defecto_valor }}): solo para pruebas. <a href="{{ url_for('aula', vista='pin') }}">Cámbialo</a> antes de usarlo con una clase; con el PIN se autorizan alumnos.</p>
 {% endif %}
 {% if clave_nueva %}
 <section class="clave-nueva" role="alert">
   <h2>Clave nueva para {{ clave_nueva.nombre }}</h2>
   <p class="clave">{{ clave_nueva.clave }}</p>
-  <p>Cópiala y dásela al alumno ({{ clave_nueva.correo }}). No se volverá a mostrar. Podrá cambiarla él mismo en «Mi cuenta».</p>
+  <p>Dásela al alumno ({{ clave_nueva.correo }}). No se vuelve a mostrar; puede cambiarla en «Mi cuenta».</p>
 </section>
 {% endif %}
 
@@ -27,8 +27,8 @@
 </nav>
 {% if vista_diag %}
 <section class="diagnostico">
-  <h2>Diagnóstico de averías · resumen por avería</h2>
-  <p class="ayuda">Todas las hojas de diagnóstico entregadas en el simulador fotovoltaico (retos y práctica libre). Arriba, las averías que más cuestan (peor nota media).</p>
+  <h2>Resumen por avería</h2>
+  <p class="ayuda">Hojas entregadas en el simulador fotovoltaico (retos y práctica libre). Arriba, las de peor nota media.</p>
   {% if resumen_averias %}
   <table class="tabla">
     <thead><tr><th>Avería</th><th>Entregas</th><th>Alumnos</th><th>Acierto</th><th>Nota media</th><th>Pistas</th><th>Medidas</th><th>Tiempo medio</th></tr></thead>
@@ -48,9 +48,9 @@
     </tbody>
   </table>
   {% else %}
-  <p class="vacio">Todavía no se ha entregado ningún diagnóstico. Asigna un reto desde la lista de alumnos autorizados o desde la ficha de un alumno.</p>
+  <p class="vacio">Sin diagnósticos. Asigna un reto desde la lista o desde la ficha del alumno.</p>
   {% endif %}
-  <p class="pie"><a href="{{ url_for('aula_diagnosticos_csv') }}">Descargar las notas de diagnóstico (CSV)</a> · <a href="{{ url_for('aula_diagnosticos_averias_csv') }}">Descargar este resumen por avería (CSV)</a></p>
+  <p class="pie"><a href="{{ url_for('aula_diagnosticos_csv') }}">Notas de diagnóstico (CSV)</a> · <a href="{{ url_for('aula_diagnosticos_averias_csv') }}">Resumen por avería (CSV)</a></p>
 </section>
 {% elif not vista_pin %}
 
@@ -82,28 +82,28 @@
 <form method="post" action="{{ url_for('aula_accion') }}" class="masivo asignar-lista" onsubmit="return confirm('¿Cambiar los simuladores de los {{ filas|length }} alumnos de esta lista?')">
   <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="accion" value="simuladores_lista">
   <input type="hidden" name="estado" value="{{ estado }}"><input type="hidden" name="modulo" value="{{ modulo }}"><input type="hidden" name="q" value="{{ q }}">
-  <strong>Simuladores para los {{ filas|length }} alumnos de esta lista:</strong>
+  <strong>Simuladores para los {{ filas|length }} de la lista:</strong>
   {% for s in simuladores %}<label class="casilla"><input type="checkbox" name="sim_{{ s['id'] }}" value="1" checked> {{ s['etiqueta'] }}</label>{% endfor %}
-  <button type="submit">Asignar a toda la lista</button>
+  <button type="submit">Asignar a la lista</button>
 </form>
 {% if averias %}
 <form method="post" action="{{ url_for('aula_reto') }}" class="masivo reto-form" id="reto-lista"
-      onsubmit="return confirm('¿Asignar este reto de diagnóstico a los alumnos de esta lista que estén autorizados y tengan el simulador fotovoltaico ({{ con_reto }} de {{ filas|length }})?')">
+      onsubmit="return confirm('¿Asignar el reto a {{ con_reto }} de {{ filas|length }} alumnos (autorizados con el simulador fotovoltaico)?')">
   <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="accion" value="asignar_lista">
   <input type="hidden" name="estado" value="{{ estado }}"><input type="hidden" name="modulo" value="{{ modulo }}"><input type="hidden" name="q" value="{{ q }}">
-  <strong class="reto-titulo">Reto de diagnóstico fotovoltaico para los {{ filas|length }} alumnos de esta lista:</strong>
+  <strong class="reto-titulo">Reto fotovoltaico para los {{ filas|length }} de la lista:</strong>
   <label>Avería oculta
     <select name="averia" required>
-      <option value="azar">Al azar, distinta para cada alumno</option>
+      <option value="azar">Al azar (una por alumno)</option>
       {% for a in averias %}<option value="{{ a['id'] }}">{{ a['titulo'] }}</option>{% endfor %}
     </select>
   </label>
-  <label>Título (opcional, lo ve el alumno)
+  <label>Título para el alumno (opcional)
     <input type="text" name="titulo" maxlength="80" placeholder="Práctica de diagnóstico" autocomplete="off">
   </label>
   <label class="casilla"><input type="checkbox" name="pistas" value="1" checked> Permitir pistas</label>
-  <button type="submit" {% if not con_reto %}disabled title="Ningún alumno de esta lista está autorizado y tiene el simulador fotovoltaico"{% endif %}>Asignar reto</button>
-  <span class="reto-nota">Lo reciben {{ con_reto }} de {{ filas|length }}: solo alumnos autorizados con el simulador fotovoltaico asignado. El alumno no ve qué avería es.</span>
+  <button type="submit" {% if not con_reto %}disabled title="Nadie de la lista está autorizado con el simulador fotovoltaico"{% endif %}>Asignar reto</button>
+  <span class="reto-nota">Lo reciben {{ con_reto }} de {{ filas|length }} (autorizados con el simulador fotovoltaico). El alumno no ve la avería.</span>
 </form>
 {% endif %}
 <table class="tabla">
@@ -163,24 +163,24 @@
 </table>
 {% else %}
 <p class="vacio">
-  {% if estado == 'pendiente' %}No hay alumnos pendientes. Cuando alguien se registre aparecerá aquí.{% else %}No hay cuentas con este filtro.{% endif %}
+  {% if estado == 'pendiente' %}No hay alumnos pendientes.{% else %}No hay cuentas con este filtro.{% endif %}
 </p>
 {% endif %}
-<p class="pie"><a href="{{ url_for('aula_resumen_csv') }}">Descargar resumen de actividad (CSV)</a>{% if hay_diagnostico %} · <a href="{{ url_for('aula_diagnosticos_csv') }}">Notas de diagnóstico (CSV)</a> · <a href="{{ url_for('aula', vista='diagnostico') }}">Resumen por avería</a>{% endif %}</p>
+<p class="pie"><a href="{{ url_for('aula_resumen_csv') }}">Resumen de actividad (CSV)</a>{% if hay_diagnostico %} · <a href="{{ url_for('aula_diagnosticos_csv') }}">Notas de diagnóstico (CSV)</a> · <a href="{{ url_for('aula', vista='diagnostico') }}">Resumen por avería</a>{% endif %}</p>
 {% else %}
 <section id="cambiar-pin" class="cambiar-pin">
   <h2>Cambiar el PIN del aula</h2>
   <form method="post" action="{{ url_for('aula_cambiar_pin') }}" autocomplete="off">
     <input type="hidden" name="csrf" value="{{ csrf() }}">
     <label>PIN actual <input type="password" name="pin_actual" required maxlength="100" autocomplete="off"></label>
-    <label>PIN nuevo (mínimo 6 caracteres) <input type="password" name="pin_nuevo" required minlength="6" maxlength="100" autocomplete="new-password"></label>
+    <label>PIN nuevo (mín. 6 caracteres) <input type="password" name="pin_nuevo" required minlength="6" maxlength="100" autocomplete="new-password"></label>
     <label>Repite el PIN nuevo <input type="password" name="pin_repetido" required minlength="6" maxlength="100" autocomplete="new-password"></label>
     <button class="primario" type="submit">Cambiar PIN</button>
   </form>
-  <p class="sec-aviso">El PIN nuevo se guarda cifrado en los datos del aula y sustituye al del archivo <code>.env</code>. Si lo olvidas, arranca el servidor con <code>AULA_PIN_RESTABLECER=1</code> y volverá a valer el del <code>.env</code>.</p>
+  <p class="sec-aviso">El PIN nuevo se guarda cifrado y sustituye al del <code>.env</code>. Si lo olvidas, arranca el servidor con <code>AULA_PIN_RESTABLECER=1</code> y vuelve a valer el del <code>.env</code>.</p>
 </section>
 {% endif %}
-<p class="pie">Sesión de profesor activa hasta las <span id="hasta" data-hasta="{{ hasta|int }}"></span>.</p>
+<p class="pie">Sesión de profesor hasta las <span id="hasta" data-hasta="{{ hasta|int }}"></span>.</p>
 <script>
   (function () {
     var el = document.getElementById('hasta');

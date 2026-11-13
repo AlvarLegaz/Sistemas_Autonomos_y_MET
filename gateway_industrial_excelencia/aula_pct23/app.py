@@ -23,8 +23,10 @@ import secrets
 import sqlite3
 import threading
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import quote as url_quote
 
 from flask import (Flask, Response, abort, flash, g, redirect, render_template, request,
                    send_from_directory, session, url_for)
@@ -58,6 +60,9 @@ ETIQUETAS_PAGINA = {"index": "Inicio de la maqueta", "manual": "Modo manual", "a
 # Páginas que no llevan la barra del aula (son ventanas auxiliares) y archivos que nunca se sirven (bancos de pruebas de desarrollo).
 SIN_BARRA = {"visor3d", "unifilar", "cableado"}
 NUNCA_SERVIR = {"banco_pruebas.html"}
+# Núcleo común de los simuladores (css, js, tipos.js): público y de solo lectura (la hoja de identidad la necesitan también las pantallas de entrada)
+CARPETA_COMUN = Path(os.environ.get("AULA_COMUN", Path(__file__).resolve().parent.parent / "comun"))
+EXTENSIONES_COMUN = {".js", ".css", ".woff2"}
 SEGUNDOS_MAX_POR_ENVIO = 120
 EVENTOS_MAX_POR_ENVIO = 30
 EVENTOS_MAX_POR_ALUMNO = 3000
@@ -74,6 +79,32 @@ DIAGNOSTICOS_MAX_POR_ALUMNO = 1000
 ETIQUETAS_DETALLE = {"sintoma": "Síntoma", "medidas": "Medidas marcadas", "reparacion": "Reparación propuesta", "observaciones": "Observaciones",
                      "pistas": "Pistas usadas", "causa": "Causa", "intento": "Intento (según el simulador)", "peligros": "Maniobras peligrosas",
                      "titulo": "Título del reto"}
+# Eventos de aprendizaje (comun/CONTRATO.md §8). Las listas cerradas son copia de comun/tipos.js (Python no lee el JS): si cambian allí, cambian aquí.
+SIMULADORES_CONTRATO = ("planta_real", "fotovoltaica", "maqueta", "uxs")
+VERBOS = ("inicio", "acciono", "midio", "pidio_pista", "entrego", "completo", "abandono")
+VERBOS_SOLO_SERVIDOR = ("entrego",)
+VERBOS_XAPI = {
+    "inicio": "http://adlnet.gov/expapi/verbs/initialized",
+    "acciono": "http://adlnet.gov/expapi/verbs/interacted",
+    "midio": "http://adlnet.gov/expapi/verbs/interacted",
+    "pidio_pista": "http://adlnet.gov/expapi/verbs/asked",
+    "entrego": "http://adlnet.gov/expapi/verbs/answered",
+    "completo": "http://adlnet.gov/expapi/verbs/completed",
+    "abandono": "https://w3id.org/xapi/adl/verbs/abandoned",
+}
+EVENTOS_MAX_POR_LOTE = 50
+EVENTO_MAX_CARACTERES = 1000
+LOTE_MAX_CARACTERES = 24000
+EVENTOS_MAX_GUARDADOS_POR_ALUMNO = 20000
+EVENTOS_DIAS_RETENCION = 365            # decisión abierta 2 del contrato: se borran los recibidos hace más de un año
+TEXTO_MAX_CARACTERES = 120
+ID_EVENTO = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
+ID_SESION = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+MARCA_ISO = re.compile(r"^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:\d{2}))?$")
+SESION_DESCONOCIDA = "sin_sesion"
+# Registro de la sesión (las órdenes de la simulación, para repetirla): va en su propia petición, con su propio límite, no en el lote de eventos.
+REGISTRO_SESION_MAX_CARACTERES = 1024 * 1024
+REGISTROS_SESION_MAX_POR_ALUMNO = 50
 
 
 # ---------------------------------------------------------------------------------------------
@@ -213,6 +244,35 @@ CREATE TABLE IF NOT EXISTS diagnosticos (
     intento             INTEGER NOT NULL DEFAULT 1
 );
 CREATE INDEX IF NOT EXISTS diagnosticos_usuario ON diagnosticos(usuario_id, id);
+CREATE TABLE IF NOT EXISTS eventos (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id  INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    sesion      TEXT NOT NULL,
+    evento_id   TEXT NOT NULL,
+    verbo       TEXT NOT NULL,
+    simulador   TEXT NOT NULL,
+    reto_id     INTEGER REFERENCES retos(id) ON DELETE SET NULL,
+    escenario   TEXT NOT NULL DEFAULT '',
+    elemento    TEXT NOT NULL DEFAULT '',
+    resultado   TEXT NOT NULL DEFAULT '{}',
+    intento     INTEGER NOT NULL DEFAULT 1,
+    t_sim_s     REAL NOT NULL DEFAULT 0,
+    marca       TEXT NOT NULL,
+    recibido    TEXT NOT NULL,
+    orden_lote  INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (usuario_id, sesion, evento_id)
+);
+CREATE INDEX IF NOT EXISTS eventos_antiguedad ON eventos(usuario_id, marca, recibido, orden_lote, id);
+CREATE INDEX IF NOT EXISTS eventos_marca ON eventos(marca, recibido, orden_lote, id);
+CREATE TABLE IF NOT EXISTS registros_sesion (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id  INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    sesion      TEXT NOT NULL,
+    simulador   TEXT NOT NULL,
+    recibido    TEXT NOT NULL,
+    registro    TEXT NOT NULL,
+    UNIQUE (usuario_id, sesion, simulador)
+);
 """
 
 
@@ -447,6 +507,123 @@ def limpiar(texto, maximo):
     return " ".join(texto.split())[:maximo]
 
 
+def leer_marca(texto):
+    """Fecha ISO 8601 ('2026-11-13T09:30:00Z', con o sin fracción y zona; o solo '2026-11-13') como datetime en UTC, o None."""
+    if not isinstance(texto, str) or len(texto) > 40 or not MARCA_ISO.match(texto):
+        return None
+    try:
+        d = datetime.fromisoformat(texto.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return (d if d.tzinfo else d.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
+
+
+def iso_ms(d):
+    """datetime → '2026-11-13T09:30:00.000Z' (siempre con milisegundos: así se ordena bien como texto)."""
+    return d.strftime("%Y-%m-%dT%H:%M:%S.") + f"{d.microsecond // 1000:03d}Z"
+
+
+def _es_numero(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def validar_evento(e, asignados, ahora):
+    """Un EventoAprendizaje del navegador (comun/CONTRATO.md §8.1-8.2) ya normalizado para guardarlo, o None si hay que descartarlo.
+    asignados: simuladores que el alumno tiene asignados; ahora: datetime UTC del servidor. Los campos desconocidos se ignoran."""
+    if not isinstance(e, dict):
+        return None
+    try:
+        if len(json.dumps(e, ensure_ascii=False, separators=(",", ":"))) > EVENTO_MAX_CARACTERES:
+            return None
+    except (TypeError, ValueError):
+        return None
+    objeto, contexto, resultado = e.get("objeto"), e.get("contexto"), e.get("resultado", {})
+    if not (isinstance(e.get("id"), str) and ID_EVENTO.match(e["id"])):
+        return None
+    if e.get("verbo") not in VERBOS or e.get("verbo") in VERBOS_SOLO_SERVIDOR:
+        return None
+    if not isinstance(objeto, dict) or objeto.get("simulador") not in SIMULADORES_CONTRATO or objeto.get("simulador") not in asignados:
+        return None
+    if not isinstance(contexto, dict) or not (isinstance(contexto.get("sesion"), str) and ID_SESION.match(contexto["sesion"])):
+        return None
+    intento, t_sim = contexto.get("intento"), contexto.get("tSimS")
+    if not (isinstance(intento, int) and not isinstance(intento, bool) and 1 <= intento <= 999):
+        return None
+    if not (_es_numero(t_sim) and 0 <= t_sim <= 1e7):
+        return None
+    marca = leer_marca(e.get("marca"))
+    if marca is None or marca > ahora + timedelta(hours=24):
+        return None
+    if resultado is None:
+        resultado = {}
+    if not isinstance(resultado, dict):
+        return None
+    limpio = {}
+    if "nota" in resultado:
+        if not (_es_numero(resultado["nota"]) and 0 <= resultado["nota"] <= 10):
+            return None
+        limpio["nota"] = resultado["nota"]
+    if "acierto" in resultado:
+        if not (_es_numero(resultado["acierto"]) and resultado["acierto"] in (0, 0.5, 1)):
+            return None
+        limpio["acierto"] = resultado["acierto"]
+    if "duracionS" in resultado:
+        if not (_es_numero(resultado["duracionS"]) and 0 <= resultado["duracionS"] <= 86400):
+            return None
+        limpio["duracionS"] = resultado["duracionS"]
+    if "valor" in resultado:
+        if not _es_numero(resultado["valor"]):
+            return None
+        limpio["valor"] = resultado["valor"]
+    for clave in ("unidad", "texto"):
+        if isinstance(resultado.get(clave), str):
+            limpio[clave] = limpiar(resultado[clave], TEXTO_MAX_CARACTERES)
+    reto = objeto.get("reto")
+    texto_de = lambda v: limpiar(v, TEXTO_MAX_CARACTERES) if isinstance(v, str) else ""
+    return {"evento_id": e["id"], "verbo": e["verbo"], "simulador": objeto["simulador"],
+            "reto": reto if isinstance(reto, int) and not isinstance(reto, bool) else None,
+            "escenario": texto_de(objeto.get("escenario")), "elemento": texto_de(objeto.get("elemento")),
+            "resultado": limpio, "sesion": contexto["sesion"], "intento": intento, "t_sim_s": float(t_sim), "marca": iso_ms(marca)}
+
+
+def sentencia_xapi(fila, casa):
+    """Una fila de la tabla eventos como sentencia xAPI. El actor es el id interno del alumno: sin nombre ni correo."""
+    resultado = json.loads(fila["resultado"] or "{}")
+    ext = casa + "/xapi/extensiones/"
+    objeto_id = f"{casa}/simuladores/{fila['simulador']}"
+    if fila["reto_id"] is not None:
+        objeto_id += f"/retos/{fila['reto_id']}"
+    elif fila["escenario"]:
+        objeto_id += "/escenarios/" + url_quote(fila["escenario"], safe="")
+    if fila["elemento"]:
+        objeto_id += "/elementos/" + url_quote(fila["elemento"], safe="")
+    s = {
+        "id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"{casa}/eventos/{fila['id']}")),
+        "actor": {"objectType": "Agent", "account": {"homePage": casa, "name": str(fila["usuario_id"])}},
+        "verb": {"id": VERBOS_XAPI[fila["verbo"]], "display": {"es-ES": fila["verbo"]}},
+        "object": {"objectType": "Activity", "id": objeto_id},
+        "context": {"registration": str(uuid.uuid5(uuid.NAMESPACE_URL, f"{casa}/sesiones/{fila['usuario_id']}/{fila['sesion']}")),
+                    "extensions": {ext + "sesion": fila["sesion"], ext + "intento": fila["intento"], ext + "tSimS": fila["t_sim_s"]}},
+        "timestamp": fila["marca"],
+        "stored": fila["recibido"],
+    }
+    r = {}
+    if "nota" in resultado:
+        r["score"] = {"raw": resultado["nota"], "min": 0, "max": 10, "scaled": round(resultado["nota"] / 10, 4)}
+    if "acierto" in resultado:
+        r["success"] = resultado["acierto"] >= 1
+    if "duracionS" in resultado:
+        r["duration"] = f"PT{resultado['duracionS']:g}S"
+    if "texto" in resultado:
+        r["response"] = resultado["texto"]
+    extras = {ext + k: resultado[k] for k in ("valor", "unidad", "acierto") if k in resultado}
+    if extras:
+        r["extensions"] = extras
+    if r:
+        s["result"] = r
+    return s
+
+
 def validar_registro(form):
     """Devuelve (datos, errores)."""
     datos = {
@@ -518,6 +695,8 @@ def crear_app(config=None):
     averias_por_id = {a["id"]: a for a in catalogo["averias"]} if catalogo else {}
     app.catalogo_averias = catalogo
     azar = cfg.get("azar") or random.SystemRandom()
+    # Hora de pared de los eventos de aprendizaje (marca «en el futuro», recepción, retención). Las pruebas pasan su reloj en cfg["reloj"].
+    reloj_pared = cfg.get("reloj") or time.time
 
     # ----- utilidades por petición -----
     def bd():
@@ -630,6 +809,13 @@ def crear_app(config=None):
                 "pin_por_defecto": cfg["pin"] == PIN_POR_DEFECTO and pin_guardado() is None, "pin_defecto_valor": PIN_POR_DEFECTO}
 
     @app.before_request
+    def limite_por_ruta():
+        """El registro de la sesión trae más datos que un formulario: su ruta tiene su propio límite (va antes de leer el formulario en comprobar_csrf)."""
+        if request.method == "POST" and request.path == "/api/registro_sesion":
+            request.max_content_length = REGISTRO_SESION_MAX_CARACTERES + 16 * 1024
+            request.max_form_memory_size = REGISTRO_SESION_MAX_CARACTERES + 1024
+
+    @app.before_request
     def comprobar_csrf():
         if request.method == "POST":
             enviado = request.form.get("csrf", "")
@@ -651,11 +837,18 @@ def crear_app(config=None):
             resp.headers["Cache-Control"] = "no-store"
         return resp
 
+    def error_json(codigo, texto):
+        """Errores de las API que lee el simulador (no una persona): JSON en lugar de la página de error (contrato R15)."""
+        if request.path == "/api/eventos":
+            return {"guardados": 0, "error": texto}, codigo
+        if request.path.startswith(("/api/reto", "/api/registro_sesion")):
+            return {"guardado": False, "error": texto}, codigo
+        return None
+
     @app.errorhandler(400)
     def error_400(e):
-        if request.path.startswith("/api/reto"):                      # lo lee el simulador, no una persona
-            return {"guardado": False, "error": getattr(e, "description", "")}, 400
-        return render_template("error.html", titulo="Petición no válida", texto=getattr(e, "description", "")), 400
+        return error_json(400, getattr(e, "description", "") or "Petición no válida.") or (
+            render_template("error.html", titulo="Petición no válida", texto=getattr(e, "description", "")), 400)
 
     @app.errorhandler(404)
     def error_404(_):
@@ -663,7 +856,8 @@ def crear_app(config=None):
 
     @app.errorhandler(413)
     def error_413(_):
-        return render_template("error.html", titulo="Demasiado grande", texto="El formulario es demasiado grande."), 413
+        return error_json(413, "La petición es demasiado grande.") or (
+            render_template("error.html", titulo="Demasiado grande", texto="El formulario es demasiado grande."), 413)
 
     # ----- páginas públicas -----
     @app.get("/salud")
@@ -849,6 +1043,15 @@ def crear_app(config=None):
     def simulador(ruta):
         return servir(cfg["simulador"], ruta, sim="maqueta")
 
+    @app.get("/comun/<path:ruta>")
+    def comun(ruta):
+        """Código, estilos y la fuente común (.js, .css y .woff2), sin salir de la carpeta ni tests). Público: lo cargan también las pantallas de entrada."""
+        partes = Path(ruta).parts
+        if Path(ruta).suffix.lower() not in EXTENSIONES_COMUN or any(p.startswith(".") or p in ("tests", "__pycache__") for p in partes):
+            abort(404)
+        tipo = "font/woff2" if Path(ruta).suffix.lower() == ".woff2" else None     # el mimetypes de Windows no lo conoce
+        return send_from_directory(CARPETA_COMUN, ruta, max_age=0, mimetype=tipo)
+
     @app.get("/planta-real/", defaults={"ruta": "index.html"})
     @app.get("/planta-real/<path:ruta>")
     def planta_real(ruta):
@@ -986,10 +1189,18 @@ def crear_app(config=None):
         else:
             intento = 1 + con.execute("SELECT COUNT(*) FROM diagnosticos WHERE usuario_id=? AND sim=? AND averia_real=? AND reto_id IS NULL",
                                       (a["id"], RETO_SIM, averia_real)).fetchone()[0]
-        con.execute("INSERT INTO diagnosticos (usuario_id, reto_id, sim, momento, averia_real, averia_respuesta, elemento_respuesta, acierto, nota, "
-                    "pistas, medidas, segundos, detalle, intento) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (a["id"], reto["id"] if reto is not None else None, RETO_SIM, ahora, averia_real, respuesta, elemento, acierto, nota,
-                     pistas, medidas, segundos, detalle, intento))
+        cursor = con.execute("INSERT INTO diagnosticos (usuario_id, reto_id, sim, momento, averia_real, averia_respuesta, elemento_respuesta, acierto, nota, "
+                             "pistas, medidas, segundos, detalle, intento) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                             (a["id"], reto["id"] if reto is not None else None, RETO_SIM, ahora, averia_real, respuesta, elemento, acierto, nota,
+                              pistas, medidas, segundos, detalle, intento))
+        # Evento de aprendizaje `entrego` (contrato §8.2): solo lo genera el servidor. Sesión: la del formulario si llega y es válida.
+        sesion = f.get("sesion", "")
+        marca = iso_ms(datetime.fromtimestamp(reloj_pared(), timezone.utc))
+        guardar_eventos(a["id"], [{"evento_id": f"entrego_{cursor.lastrowid}", "verbo": "entrego", "simulador": RETO_SIM,
+                                   "reto": reto["id"] if reto is not None else None, "escenario": "", "elemento": "",
+                                   "resultado": {"nota": nota, "acierto": acierto, "duracionS": segundos},
+                                   "sesion": sesion if ID_SESION.match(sesion) else SESION_DESCONOCIDA, "intento": min(intento, 999),
+                                   "t_sim_s": 0.0, "marca": marca}])
         con.execute("DELETE FROM diagnosticos WHERE usuario_id=? AND id <= "
                     "(SELECT id FROM diagnosticos WHERE usuario_id=? ORDER BY id DESC LIMIT 1 OFFSET ?)", (a["id"], a["id"], DIAGNOSTICOS_MAX_POR_ALUMNO))
         registrar_actividad(a["id"], "diagnostico", f"Entregó diagnóstico: nota {texto_nota(nota)}" + (" (reto del profesor)" if reto is not None else ""))
@@ -1136,6 +1347,150 @@ def crear_app(config=None):
         con.commit()
         return "", 204
 
+    # ----- eventos de aprendizaje (comun/CONTRATO.md §8) -----
+    def guardar_eventos(uid, eventos):
+        """Guarda eventos ya validados de un alumno. Devuelve (guardados, duplicados). Aplica la retención: como mucho
+        EVENTOS_MAX_GUARDADOS_POR_ALUMNO por alumno (se borran los más antiguos) y nada recibido hace más de EVENTOS_DIAS_RETENCION días."""
+        con = bd()
+        ahora = datetime.fromtimestamp(reloj_pared(), timezone.utc)
+        recibido = iso_ms(ahora)
+        guardados = duplicados = 0
+        for orden, ev in enumerate(eventos):
+            reto = ev["reto"]
+            if reto is not None and con.execute("SELECT 1 FROM retos WHERE id=? AND usuario_id=?", (reto, uid)).fetchone() is None:
+                reto = None                                     # un reto que no es suyo: se guarda sin reto
+            cursor = con.execute(
+                "INSERT OR IGNORE INTO eventos (usuario_id, sesion, evento_id, verbo, simulador, reto_id, escenario, elemento, resultado, intento, "
+                "t_sim_s, marca, recibido, orden_lote) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (uid, ev["sesion"], ev["evento_id"], ev["verbo"], ev["simulador"], reto, ev["escenario"], ev["elemento"],
+                 json.dumps(ev["resultado"], ensure_ascii=False), ev["intento"], ev["t_sim_s"], ev["marca"], recibido, orden))
+            if cursor.rowcount:
+                guardados += 1
+            else:
+                duplicados += 1
+        if guardados:
+            con.execute("DELETE FROM eventos WHERE usuario_id=? AND recibido < ?", (uid, iso_ms(ahora - timedelta(days=EVENTOS_DIAS_RETENCION))))
+            sobran = con.execute("SELECT COUNT(*) FROM eventos WHERE usuario_id=?", (uid,)).fetchone()[0] - EVENTOS_MAX_GUARDADOS_POR_ALUMNO
+            if sobran > 0:
+                con.execute("DELETE FROM eventos WHERE id IN (SELECT id FROM eventos WHERE usuario_id=? "
+                            "ORDER BY marca, recibido, orden_lote, id LIMIT ?)", (uid, sobran))
+        return guardados, duplicados
+
+    @app.post("/api/eventos")
+    def api_eventos():
+        # 1 (CSRF) y 2 (más de 32 KB) ya los han resuelto comprobar_csrf y los errorhandler en JSON.
+        a = alumno()
+        if a is None or a["estado"] != "autorizado":
+            return "", 204                                      # sin aula el simulador funciona igual: no se guarda nada
+        texto = request.form.get("eventos")
+        if texto is None:
+            abort(400, "Falta el campo eventos.")
+        if len(texto) > LOTE_MAX_CARACTERES:
+            abort(400, f"El lote pasa de {LOTE_MAX_CARACTERES} caracteres.")
+        try:
+            lista = json.loads(texto)
+        except ValueError:
+            abort(400, "El campo eventos no es JSON.")
+        if not isinstance(lista, list) or not 1 <= len(lista) <= EVENTOS_MAX_POR_LOTE:
+            abort(400, f"El campo eventos debe ser una lista de 1 a {EVENTOS_MAX_POR_LOTE} eventos.")
+        ahora = datetime.fromtimestamp(reloj_pared(), timezone.utc)
+        asignados = ids_asignados(a)
+        validos, vistos, repetidos = [], set(), 0
+        for e in lista:
+            ev = validar_evento(e, asignados, ahora)
+            if ev is None:
+                continue
+            if (ev["sesion"], ev["evento_id"]) in vistos:          # repetido dentro del mismo lote: cuenta como duplicado
+                repetidos += 1
+                continue
+            vistos.add((ev["sesion"], ev["evento_id"]))
+            validos.append(ev)
+        guardados, duplicados = guardar_eventos(a["id"], validos)
+        bd().commit()
+        duplicados += repetidos
+        return {"guardados": guardados, "descartados": len(lista) - guardados - duplicados, "duplicados": duplicados}
+
+    @app.post("/api/registro_sesion")
+    def api_registro_sesion():
+        """Registro de la simulación de una sesión (las órdenes, para repetirla paso a paso). Petición aparte de los eventos, con su propio
+        límite (REGISTRO_SESION_MAX_CARACTERES). Se guarda uno por alumno, sesión y simulador (el último enviado manda)."""
+        a = alumno()
+        if a is None or a["estado"] != "autorizado":
+            return "", 204
+        f = request.form
+        sesion, simulador, texto = f.get("sesion", ""), f.get("simulador", ""), f.get("registro", "")
+        if not ID_SESION.match(sesion):
+            abort(400, "Sesión no válida.")
+        if simulador not in SIMULADORES_CONTRATO or simulador not in ids_asignados(a):
+            abort(400, "Simulador no válido.")
+        if not texto or len(texto) > REGISTRO_SESION_MAX_CARACTERES:
+            abort(400, "Registro vacío o demasiado grande.")
+        try:
+            registro = json.loads(texto)
+        except ValueError:
+            abort(400, "El registro no es JSON.")
+        if not isinstance(registro, dict) or registro.get("simulador") not in (None, simulador):
+            abort(400, "El registro no es de este simulador.")
+        con = bd()
+        con.execute("INSERT INTO registros_sesion (usuario_id, sesion, simulador, recibido, registro) VALUES (?,?,?,?,?) "
+                    "ON CONFLICT(usuario_id, sesion, simulador) DO UPDATE SET recibido=excluded.recibido, registro=excluded.registro",
+                    (a["id"], sesion, simulador, iso_ms(datetime.fromtimestamp(reloj_pared(), timezone.utc)), texto))
+        con.execute("DELETE FROM registros_sesion WHERE usuario_id=? AND id NOT IN "
+                    "(SELECT id FROM registros_sesion WHERE usuario_id=? ORDER BY recibido DESC, id DESC LIMIT ?)",
+                    (a["id"], a["id"], REGISTROS_SESION_MAX_POR_ALUMNO))
+        con.commit()
+        return {"guardado": True}
+
+    @app.get("/aula/eventos.xapi.json")
+    def aula_eventos_xapi():
+        if not profesor():
+            return redirect(url_for("aula"))
+        desde = request.args.get("desde")
+        params, donde = [], ""
+        if desde is not None:
+            d = leer_marca(desde)
+            if d is None:
+                return {"error": "desde debe ser una fecha ISO 8601, p. ej. 2026-11-13T09:30:00Z."}, 400
+            donde, params = "WHERE marca >= ?", [iso_ms(d)]
+        casa = request.host_url.rstrip("/") + "/aula"
+        filas = bd().execute(f"SELECT * FROM eventos {donde} ORDER BY marca, recibido, orden_lote, id", params).fetchall()
+        resp = Response(json.dumps([sentencia_xapi(fila, casa) for fila in filas], ensure_ascii=False), mimetype="application/json")
+        resp.headers["Content-Disposition"] = 'inline; filename="eventos.xapi.json"'
+        return resp
+
+    @app.get("/aula/alumno/<int:uid>/sesion/<sesion>")
+    def aula_alumno_sesion(uid, sesion):
+        """Línea de tiempo de una sesión de un alumno (solo profesor): plantilla aula_sesion.html."""
+        if not profesor():
+            return redirect(url_for("aula"))
+        fila = bd().execute("SELECT * FROM usuarios WHERE id=?", (uid,)).fetchone()
+        if fila is None or not ID_SESION.match(sesion):
+            abort(404)
+        eventos = bd().execute("SELECT * FROM eventos WHERE usuario_id=? AND sesion=? ORDER BY marca, recibido, orden_lote, id", (uid, sesion)).fetchall()
+        hay_registro = bd().execute("SELECT simulador FROM registros_sesion WHERE usuario_id=? AND sesion=?", (uid, sesion)).fetchall()
+        filas = []
+        for ev in eventos:
+            r = json.loads(ev["resultado"] or "{}")
+            partes = [r.get("texto", "")]
+            if "valor" in r:
+                partes.append(f"{texto_nota(r['valor'])} {r.get('unidad', '')}".strip())
+            if "nota" in r:
+                partes.append(f"nota {texto_nota(r['nota'])}")
+            filas.append({"marca": ev["marca"], "verbo": ev["verbo"], "simulador": ev["simulador"], "elemento": ev["elemento"],
+                          "resultado": " · ".join(p for p in partes if p), "t_sim": texto_nota(ev["t_sim_s"])})
+        resp = Response(render_template("aula_sesion.html", f=fila, sesion=sesion, filas=filas, registros=[s["simulador"] for s in hay_registro]), mimetype="text/html")
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+
+    @app.get("/aula/alumno/<int:uid>/sesion/<sesion>/registro_<simulador>.json")
+    def aula_alumno_registro(uid, sesion, simulador):
+        if not profesor():
+            return redirect(url_for("aula"))
+        fila = bd().execute("SELECT registro FROM registros_sesion WHERE usuario_id=? AND sesion=? AND simulador=?", (uid, sesion, simulador)).fetchone()
+        if fila is None:
+            abort(404)
+        return Response(fila["registro"], mimetype="application/json")
+
     def resumen_alumno(uid):
         con = bd()
         por_pagina = con.execute("SELECT pagina, SUM(segundos) AS s FROM tiempo_uso WHERE usuario_id=? GROUP BY pagina ORDER BY s DESC", (uid,)).fetchall()
@@ -1165,8 +1520,11 @@ def crear_app(config=None):
             abort(404)
         eventos = bd().execute("SELECT momento, tipo, detalle FROM actividad WHERE usuario_id=? ORDER BY id DESC LIMIT 300", (uid,)).fetchall()
         retos = bd().execute("SELECT * FROM retos WHERE usuario_id=? ORDER BY id DESC", (uid,)).fetchall()
-        diagnosticos = [{**dict(d), "hoja": detalle_legible(d["detalle"])}
-                        for d in bd().execute("SELECT * FROM diagnosticos WHERE usuario_id=? ORDER BY id DESC LIMIT 300", (uid,))]
+        # La sesión de cada entrega sale del evento `entrego` que se guarda con ella (evento_id = 'entrego_<id>'): sin migración y sin tocar bases antiguas.
+        diagnosticos = [{**dict(d), "hoja": detalle_legible(d["detalle"]), "sesion": d["sesion"] if d["sesion"] != SESION_DESCONOCIDA else None}
+                        for d in bd().execute(
+                            "SELECT d.*, (SELECT e.sesion FROM eventos e WHERE e.usuario_id=d.usuario_id AND e.evento_id='entrego_' || d.id) AS sesion "
+                            "FROM diagnosticos d WHERE d.usuario_id=? ORDER BY d.id DESC LIMIT 300", (uid,))]
         return render_template("aula_alumno.html", f=fila, r=resumen_alumno(uid), eventos=eventos, hasta=session.get("prof_hasta", 0),
                                retos=retos, diagnosticos=diagnosticos,
                                puede_reto=bool(catalogo) and fila["estado"] == "autorizado" and RETO_SIM in ids_asignados(fila))

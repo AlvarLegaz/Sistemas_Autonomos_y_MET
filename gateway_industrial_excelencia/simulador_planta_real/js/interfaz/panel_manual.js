@@ -32,12 +32,12 @@
 
   /** Protecciones que siguen activas en modo manual (el PLC no automatiza, pero estas están cableadas o son esenciales). */
   const PROTECCIONES = [
-    'ES-001: la seta para toda la planta (hay que rearmarla).',
-    'Pérdida de 24 V (F-001 o fuente PS-001): sin tensión no hay ninguna salida.',
-    'TSH-201: el termostato de seguridad corta el calentador (también con TT-201 ≥ 88 °C).',
-    'PSL-501: sin aire comprimido la FDV cae a desvío por el muelle.',
-    'LSL-201 y P-201: los bancos del calentador se cortan sin nivel de agua o sin circulación.',
-    'LSL-101: sin leche en TK-101, P-101 se para por marcha en seco.',
+    'ES-001: la seta para toda la planta (hay que rearmar).',
+    'Sin 24 V (F-001 o PS-001): ninguna salida.',
+    'TSH-201: corta el calentador (también con TT-201 ≥ 88 °C).',
+    'PSL-501: sin aire, la FDV cae a desvío por muelle.',
+    'LSL-201 y P-201: bancos cortados sin nivel de agua o sin circulación.',
+    'LSL-101: sin leche en TK-101, P-101 para (marcha en seco).',
   ];
 
   /* ---------- lectura del estado ---------- */
@@ -88,21 +88,21 @@
     const fusible = !!f201.fundido, fuente = ps.ok === false || (ps.ok === undefined && nivelDI(e, 'PS-001') === 0);
     if (fusible || fuente) {
       return { clase: 'sin24v', etiqueta: fusible ? 'Sin 24 V (F-001)' : 'Sin 24 V (PS-001)',
-        texto: `${fusible ? 'el fusible F-001 está fundido' : 'la fuente PS-001 no da tensión'}: las salidas y las entradas del PLC no tienen alimentación. Mide F-001 y PS-001.` };
+        texto: `${fusible ? 'F-001 fundido' : 'PS-001 sin tensión'}: entradas y salidas del PLC sin alimentación. Mide F-001 y PS-001.` };
     }
     const seta = es.rearmado === false || (es.rearmado === undefined && nivelDI(e, 'ES-001') === 0);
     if (seta) return { clase: 'paro', etiqueta: 'Paro de emergencia (ES-001)', texto: 'seta pulsada: nada arranca hasta rearmar.' };
-    if (e.plc && e.plc.paro) return { clase: 'paro', etiqueta: 'Paro de emergencia enclavado', texto: 'la seta ya está liberada, pero hay que rearmar con «Rearmar» (PB-001).' };
+    if (e.plc && e.plc.paro) return { clase: 'paro', etiqueta: 'Paro de emergencia enclavado', texto: 'seta liberada; falta «Rearmar» (PB-001).' };
     const proteccion = texto => ({ clase: 'proteccion', etiqueta: 'Protegida', texto });
-    if (tag === 'P-101' && nivelDI(e, 'LSL-101') === 0) return proteccion('tanque de balance vacío (LSL-101): P-101 se para por marcha en seco. Llénalo con XV-101.');
-    if ((tag === 'P-101' || tag === 'VFD-101') && eq(e, 'VFD-101').fallo) return proteccion('variador VFD-101 en fallo.');
+    if (tag === 'P-101' && nivelDI(e, 'LSL-101') === 0) return proteccion('tanque de balance vacío (LSL-101): marcha en seco. Llénalo con XV-101.');
+    if ((tag === 'P-101' || tag === 'VFD-101') && eq(e, 'VFD-101').fallo) return proteccion('VFD-101 en fallo.');
     if (tag === 'KM-201' || tag === 'KM-202') {
-      if (nivelDI(e, 'TSH-201') === 0) return proteccion('termostato de seguridad TSH-201 disparado: el calentador no se puede conectar.');
-      if (nivelDI(e, 'LSL-201') === 0) return proteccion('nivel bajo en el depósito de agua caliente (LSL-201): las resistencias no deben trabajar sin agua. Llénalo con XV-201.');
-      if (!eq(e, 'P-201').marcha) return proteccion('sin circulación: P-201 está parada y los bancos se cortarían. Arranca P-201 primero.');
-      if (typeof valorAI(e, 'TT-201') === 'number' && valorAI(e, 'TT-201') >= 88) return proteccion('agua a 88 °C o más (TT-201): protección por sobretemperatura.');
+      if (nivelDI(e, 'TSH-201') === 0) return proteccion('TSH-201 disparado: el calentador no conecta.');
+      if (nivelDI(e, 'LSL-201') === 0) return proteccion('nivel bajo de agua caliente (LSL-201): resistencias sin agua. Llénalo con XV-201.');
+      if (!eq(e, 'P-201').marcha) return proteccion('sin circulación: arranca P-201 primero.');
+      if (typeof valorAI(e, 'TT-201') === 'number' && valorAI(e, 'TT-201') >= 88) return proteccion('agua a 88 °C o más (TT-201): sobretemperatura.');
     }
-    if (tag === 'SV-101' && nivelDI(e, 'PSL-501') === 0) return proteccion('sin aire comprimido (PSL-501): la FDV queda en desvío por el muelle.');
+    if (tag === 'SV-101' && nivelDI(e, 'PSL-501') === 0) return proteccion('sin aire (PSL-501): la FDV queda en desvío.');
     return null;
   }
   const textoCausa = c => (c ? `${c.etiqueta}: ${c.texto}` : null);
@@ -112,14 +112,14 @@
 
   /** Consecuencia de ACTIVAR un mando peligroso (pide confirmación en dos pasos) o null si no lo es. */
   function peligro(e, tag) {
-    if (tag === 'KM-201' || tag === 'KM-202') return 'Conectas 30 kW de resistencias. Si el agua no circula o el nivel es bajo, se dañan: las protecciones cortarán, pero comprueba antes la circulación.';
-    if (tag === 'XV-102') return 'Vas a vaciar el tanque de balance: P-101 se parará por marcha en seco cuando llegue al mínimo.';
-    if (tag === 'XV-202') return 'Vas a vaciar el depósito de agua caliente: con nivel bajo las resistencias se cortan y el agua se pierde.';
-    if (tag === 'SV-101' && !(e && e.plc && e.plc.cumpleCondiciones)) return 'La FDV pasará a AVANCE sin cumplir 72,5 °C, el tiempo de residencia y el diferencial: la leche se contará como NO CONFORME (alarma A220).';
-    if (tag === 'P-101' && ((e && e.tanque && e.tanque.nivelPct) || 0) < 15) return 'El tanque de balance está casi vacío: P-101 trabajará casi en seco.';
-    if (tag === 'XV-401' && ((e && e.proceso && e.proceso.caudalLh) || 0) > 0) return 'Hay leche circulando: la solución de limpieza no debe mezclarse con ella.';
-    if (tag === 'XV-101' && ((e && e.tanque && e.tanque.nivelPct) || 0) >= 95) return 'El tanque de balance está casi lleno: rebosará.';
-    if (tag === 'XV-201' && ((e && e.aguaCaliente && e.aguaCaliente.nivelPct) || 0) >= 95) return 'El depósito de agua caliente está casi lleno: rebosará.';
+    if (tag === 'KM-201' || tag === 'KM-202') return 'Conectas 30 kW de resistencias. Sin circulación o con nivel bajo se dañan: comprueba antes la circulación.';
+    if (tag === 'XV-102') return 'Vas a vaciar el tanque de balance: P-101 parará por marcha en seco.';
+    if (tag === 'XV-202') return 'Vas a vaciar el depósito de agua caliente: con nivel bajo se cortan las resistencias.';
+    if (tag === 'SV-101' && !(e && e.plc && e.plc.cumpleCondiciones)) return 'AVANCE sin cumplir 72,5 °C, residencia y diferencial: leche NO CONFORME (A220).';
+    if (tag === 'P-101' && ((e && e.tanque && e.tanque.nivelPct) || 0) < 15) return 'Tanque de balance casi vacío: P-101 casi en seco.';
+    if (tag === 'XV-401' && ((e && e.proceso && e.proceso.caudalLh) || 0) > 0) return 'Hay leche circulando: no mezcles la solución de limpieza.';
+    if (tag === 'XV-101' && ((e && e.tanque && e.tanque.nivelPct) || 0) >= 95) return 'Tanque de balance casi lleno: rebosará.';
+    if (tag === 'XV-201' && ((e && e.aguaCaliente && e.aguaCaliente.nivelPct) || 0) >= 95) return 'Agua caliente casi llena: rebosará.';
     return null;
   }
 
@@ -131,7 +131,7 @@
     const real = realActivo(e, tag), orden = ordenDe(e, tag);
     if (real === null || real === orden) return null;
     if (causaBloqueo(e, tag)) return null;                      // una protección, el paro o la falta de 24 V lo explican: no es una avería
-    return `Posible avería: la orden (${orden ? textoOn(m) : textoOff(m)}) no se cumple (${textoReal(e, tag)}) y ninguna protección lo explica. Mide las bornas de la salida y de la bobina con el multímetro.`;
+    return `Posible avería: la orden (${orden ? textoOn(m) : textoOff(m)}) no se cumple (${textoReal(e, tag)}). Mide con el multímetro las bornas de la salida y de la bobina.`;
   }
 
   /** Lista de órdenes que llevan toda la planta a una parada segura (bombas y calentador apagados, FDV en desvío, válvulas cerradas, variador a 0). */
@@ -226,7 +226,7 @@
     const dosPasos = crearDosPasos({ alCambiar: () => refrescar() });
     const ctx = Object.assign({ dosPasos }, contexto);
     const pausada = () => !!(contexto.enMarcha && !contexto.enMarcha());
-    contenedor.innerHTML = '<p class="manual-aviso"><b>Modo MANUAL:</b> el PLC no automatiza nada. Tú mandas cada actuador; cada fila muestra la <b>orden</b> que pides y el <b>estado real</b> del equipo, y por qué un mando está bloqueado cuando lo está.</p>' +
+    contenedor.innerHTML = '<p class="manual-aviso"><b>Modo MANUAL:</b> mandas tú. Cada fila da la <b>orden</b>, el <b>estado real</b> y, si lo hay, el motivo del bloqueo.</p>' +
       '<div class="manual-acciones"><button type="button" id="manual-auto">Volver a AUTO (recirculación de agua)</button><button type="button" id="manual-parada">Todo a parada segura</button></div>';
     const filas = [];
     for (const zona of ZONAS) {
@@ -248,7 +248,7 @@
       contenedor.appendChild(det);
     }
     const prot = document.createElement('div'); prot.className = 'manual-protecciones';
-    prot.innerHTML = `<b>El PLC aún protege (cableado o esencial):</b><ul>${PROTECCIONES.map(p => `<li>${escapar(p)}</li>`).join('')}</ul>`;
+    prot.innerHTML = `<b>Protecciones activas:</b><ul>${PROTECCIONES.map(p => `<li>${escapar(p)}</li>`).join('')}</ul>`;
     contenedor.appendChild(prot);
 
     contenedor.querySelector('#manual-auto').addEventListener('click', () => { if (contexto.alVolverAAuto) contexto.alVolverAAuto(); });
@@ -267,9 +267,9 @@
         f.real.textContent = textoReal(e, f.def.tag); f.orden.textContent = textoOrden(e, f.def.tag);
         const disc = pausada() ? null : discrepancia(e, f.def.tag);          // con la simulación parada el equipo no ha tenido tiempo de seguir la orden
         let texto = '', clase = '';
-        if (r.armada && r.riesgo) { texto = `⚠ ${r.riesgo} Pulsa «Confirmar» en 5 s para seguir.`; clase = 'peligro'; }
-        else if (r.bloqueo && (orden === false || orden === 0)) { texto = `🔒 Bloqueado · ${r.bloqueo}`; clase = 'bloqueo'; }
-        else if (r.bloqueo && orden) { texto = `🛡 ${r.bloqueo}`; clase = 'bloqueo'; }
+        if (r.armada && r.riesgo) { texto = `⚠ ${r.riesgo} Pulsa «Confirmar» en 5 s.`; clase = 'peligro'; }
+        else if (r.bloqueo && (orden === false || orden === 0)) { texto = `⊘ Bloqueado · ${r.bloqueo}`; clase = 'bloqueo'; }
+        else if (r.bloqueo && orden) { texto = `⊘ ${r.bloqueo}`; clase = 'bloqueo'; }
         else if (disc) { texto = `⚠ ${disc}`; clase = 'discrepancia'; }
         f.motivo.hidden = !texto; f.motivo.className = `motivo ${clase}`.trim(); if (f.motivo.textContent !== texto) f.motivo.textContent = texto;
         f.fila.classList.toggle('bloqueada', !!r.bloqueo && !orden);
@@ -290,7 +290,7 @@
       caja.insertBefore(mando.nodo, caja.querySelector('.motivo'));
       return { nodo: caja, actualizar(e) {
         const r = mando.actualizar(e), disc = pausada() ? null : discrepancia(e, tag), orden = ordenDe(e, tag), m = caja.querySelector('.motivo');
-        const texto = r.armada && r.riesgo ? `⚠ ${r.riesgo} Pulsa «Confirmar» en 5 s.` : r.bloqueo ? (orden ? `🛡 ${r.bloqueo}` : `🔒 Bloqueado · ${r.bloqueo}`) : disc ? `⚠ ${disc}` : '';
+        const texto = r.armada && r.riesgo ? `⚠ ${r.riesgo} Pulsa «Confirmar» en 5 s.` : r.bloqueo ? (orden ? `⊘ ${r.bloqueo}` : `⊘ Bloqueado · ${r.bloqueo}`) : disc ? `⚠ ${disc}` : '';
         m.hidden = !texto; if (m.textContent !== texto) m.textContent = texto;
       } };
     }

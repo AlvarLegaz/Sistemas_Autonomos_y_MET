@@ -3,7 +3,7 @@
 (function () {
   const NOMBRES_CAPA = { sensor: 'Sensores', lazo: 'Lazos 4-20 mA', alimentacion: 'Alimentación', actuador: 'Actuadores', potencia: 'Potencia',
     neumatica: 'Neumática', proceso: 'Proceso', comunicaciones: 'Comunicaciones' };
-  const ESTRELLAS = { 1: '★☆☆ básica', 2: '★★☆ media', 3: '★★★ difícil' };
+  const ESTRELLAS = { 1: '●○○ básica', 2: '●●○ media', 3: '●●● difícil' };
 
   /**
    * ¿Se muestra el panel del profesor? Solo si el aula lo marca (window.PCT_ES_PROFESOR = true, que el servidor inyecta solo en sesiones de
@@ -74,7 +74,7 @@
   function crearPanelProfesor(contenedor, contexto) {
     const motor = () => contexto.sim().averias;
     contenedor.innerHTML = `<h3>Panel del profesor: averías</h3>
-      <p class="aviso-profesor">Solo tú ves este panel. Elige una avería, ajústala y provócala; luego comparte el código o el enlace con el alumno.</p>
+      <p class="aviso-profesor">Solo lo ves tú. Provoca una avería y pasa el código o el enlace al alumno.</p>
       <div class="averias-activas" aria-live="polite"></div>
       <div class="averias-catalogo"></div>
       <div class="cargador-codigo"></div>`;
@@ -83,7 +83,7 @@
 
     function pintarCatalogo() {
       const m = motor();
-      if (!m || typeof m.listar !== 'function') { catalogoEl.innerHTML = '<p>El motor de averías no está cargado todavía.</p>'; return; }
+      if (!m || typeof m.listar !== 'function') { catalogoEl.innerHTML = '<p>El motor de averías no está cargado.</p>'; return; }
       catalogoEl.innerHTML = agruparPorCapa(m.listar()).map(g => `<details><summary>${escapar(g.nombre)} (${g.averias.length})</summary>` +
         g.averias.map(a => `<div class="averia" data-id="${escapar(a.id)}"><div><b>${escapar(a.nombre)}</b> <small>${dificultadTexto(a.dificultad)} · ${escapar((a.equipos || []).join(', '))}</small></div>` +
           Object.entries(a.parametros || {}).map(([n, p]) => (p.tipo === 'opcion'
@@ -101,7 +101,7 @@
       activasEl.innerHTML = lista.length ? '<h4>Activas ahora</h4>' + lista.map(a => `<div class="averia-activa" data-instancia="${escapar(a.instancia)}"><b>${escapar(a.nombre || nombreDe(a.id))}</b>
         <small>${escapar((a.tags || a.equipos || []).join(', '))} · intentos: ${a.intentos === undefined ? 0 : (Array.isArray(a.intentos) ? a.intentos.length : a.intentos)}</small>
         <button type="button" class="averia-quitar">Quitar</button></div>`).join('') +
-        '<div class="fila-form"><button type="button" class="averia-codigo">Generar código</button> <button type="button" class="averia-enlace">Copiar enlace</button> <output class="codigo-salida"></output></div>' : '<p>No hay ninguna avería activa.</p>';
+        '<div class="fila-form"><button type="button" class="averia-codigo">Generar código</button> <button type="button" class="averia-enlace">Copiar enlace</button> <output class="codigo-salida"></output></div>' : '<p>Sin averías activas.</p>';
     }
     catalogoEl.addEventListener('click', e => {
       const boton = e.target.closest('.averia-inyectar');

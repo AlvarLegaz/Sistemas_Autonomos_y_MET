@@ -4,7 +4,7 @@
 {% block contenido %}
 <section class="formulario">
   <h1>Aula del profesor</h1>
-  <p class="ayuda">Escribe el PIN del aula para autorizar a los alumnos registrados.</p>
+  <p class="ayuda">Escribe el PIN del aula.</p>
   <form method="post" action="{{ url_for('aula_entrar') }}" autocomplete="off">
     <input type="hidden" name="csrf" value="{{ csrf() }}">
     <label>PIN
@@ -12,6 +12,6 @@
     </label>
     <button class="primario" type="submit">Abrir el aula</button>
   </form>
-  <p class="pie"><a href="{{ url_for('entrar') }}">Volver a la entrada de alumnos</a></p>
+  <p class="pie"><a href="{{ url_for('entrar') }}">Entrada de alumnos</a></p>
 </section>
 {% endblock %}

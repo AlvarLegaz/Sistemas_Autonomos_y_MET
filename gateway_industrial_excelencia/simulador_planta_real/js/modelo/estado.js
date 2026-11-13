@@ -43,6 +43,13 @@
       equipos, instrumentos: {}, salidasPLC: { DO: {}, AO: {} }, alarmas: [],
       contadores: { producidoL: 0, desviadoL: 0, energiaKWh: 0, noConformeL: 0 },
       averiasActivas: [], alimentacion: { v24: C.electrico.tension24V, fusibleF201: true },
+      // Automatismos del operador que antes hacía la interfaz (contrato R6): control de la temperatura del agua en MANUAL y llenado de los dos depósitos.
+      // control.modo: 'off' | 'histeresis' | 'pid'; salidaPct 0-100; integral y ultimoError son la memoria del PID; sinLectura = TT-201 sin lectura válida.
+      // llenado.final: '' (en curso o sin empezar) | 'lleno' | 'paro' (cancelado por paro de emergencia) | 'cancelado'.
+      operador: {
+        control: { modo: 'off', consignaC: 70, bandaC: 4, kp: 10, ki: 0.05, kd: 0, salidaPct: 0, encendido: false, integral: 0, ultimoError: null, sinLectura: false },
+        llenado: { activo: false, final: '' },
+      },
     };
   }
 

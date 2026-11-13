@@ -2,42 +2,39 @@
    --aviso, --texto, --tenue, --fondo, --borde, --caliente, --agua) y valores de reserva por si no. Cada elemento vivo lleva data-e="estado": el color nunca va solo, porque también
    cambia la forma (cuchilla abierta o cerrada, hilo roto, aspa) y el texto de estado. Todo con prefijo .dg- (y k- / c- / a- en los ids del dibujo). */
 :root {
-  --dg-fondo: var(--fondo, #E2E7EB); --dg-panel: var(--panel, #F5F7F8); --dg-texto: var(--texto, #16202A); --dg-tenue: var(--tenue, #56636F); --dg-borde: var(--borde, #BAC4CC);
-  --dg-tubo: var(--tubo, #6A7886); --dg-ok: var(--ok, #1A7F4B); --dg-error: var(--error, #C0262D); --dg-aviso: var(--aviso, #9A5B00); --dg-acento: var(--acento, #F68B11);
-  --dg-pos: var(--caliente, #D9480F); --dg-neg: var(--agua, #1F78B4); --dg-foco: var(--foco, #0b5cad);
+  /* el dibujo conserva el fondo y los textos del sinóptico (comun/css/identidad.css: --sinoptico-*); el marco de la ventana toma la identidad */
+  --dg-fondo: var(--sinoptico-fondo); --dg-panel: var(--sinoptico-panel); --dg-texto: var(--sinoptico-texto); --dg-tenue: var(--sinoptico-tenue); --dg-borde: var(--sinoptico-borde);
+  --dg-tubo: var(--tubo); --dg-ok: var(--ok); --dg-error: var(--error); --dg-aviso: var(--aviso); --dg-acento: var(--acento);
+  --dg-pos: var(--caliente); --dg-neg: var(--agua); --dg-foco: #0b5cad;
   --dg-c-rojo: #D62828; --dg-c-negro: #1B1B1B; --dg-c-marron: #8B5A2B; --dg-c-azul: #1F6FD0; --dg-c-amarillo: #E8C100; --dg-c-verde: #2E9B3E;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
-    --dg-fondo: var(--fondo, #161314); --dg-panel: var(--panel, #221E1F); --dg-texto: var(--texto, #F0ECED); --dg-tenue: var(--tenue, #A9A3A5); --dg-borde: var(--borde, #403B3C);
-    --dg-tubo: var(--tubo, #A39E9F); --dg-ok: var(--ok, #4CC28A); --dg-error: var(--error, #F0605F); --dg-aviso: var(--aviso, #E0A33A); --dg-pos: var(--caliente, #FF8A3D); --dg-neg: var(--agua, #4AA3DF);
-    --dg-foco: var(--foco, #8ccbff); --dg-c-rojo: #FF6B6B; --dg-c-negro: #B9C0C8; --dg-c-marron: #C48A55; --dg-c-azul: #5BA3F5;
-  }
+  :root { --dg-foco: #8ccbff; --dg-c-rojo: #FF6B6B; --dg-c-negro: #B9C0C8; --dg-c-marron: #C48A55; --dg-c-azul: #5BA3F5; }
 }
 
 /* ventana aparte (unifilar.html y cableado.html) */
-body.dg-ventana { margin: 0; display: flex; flex-direction: column; height: 100vh; background: var(--dg-fondo); color: var(--dg-texto); font-family: var(--fuente, system-ui, sans-serif); }
-.dg-cabecera { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 8px 16px; background: var(--dg-panel); border-bottom: 3px solid var(--dg-acento); }
-.dg-cabecera h1 { margin: 0; font-size: 18px; font-weight: 800; flex: 1 1 auto; min-width: 0; }
-.dg-cabecera .dg-modo { font-size: 14px; color: var(--dg-tenue); font-variant-numeric: tabular-nums; }
-.dg-cabecera button, .dg-cabecera a.dg-boton { min-height: 40px; padding: 0 16px; display: inline-flex; align-items: center; border: 1px solid var(--dg-borde); border-radius: 6px; background: var(--dg-fondo); color: var(--dg-texto); font: 700 14px var(--fuente, system-ui, sans-serif); cursor: pointer; text-decoration: none; }
-.dg-cabecera button:hover, .dg-cabecera a.dg-boton:hover { border-color: var(--dg-foco); }
+body.dg-ventana { margin: 0; display: flex; flex-direction: column; height: 100vh; background: var(--fondo); color: var(--texto); font-family: var(--pol-fuente); }
+.dg-cabecera { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 8px 16px; background: var(--marco-cabecera); color: var(--marca-gris); border-bottom: 3px solid var(--acento); }
+.dg-cabecera h1 { margin: 0; font-size: 20px; font-weight: 300; flex: 1 1 auto; min-width: 0; }
+.dg-cabecera .dg-modo { font-size: 14px; color: var(--marco-cabecera-mencion); font-variant-numeric: tabular-nums; }
+.dg-cabecera button, .dg-cabecera a.dg-boton { min-height: 40px; padding: 0 16px; display: inline-flex; align-items: center; border: 1px solid var(--acento); border-radius: var(--pol-radio-boton); background: transparent; color: var(--acento-texto); font: 600 14px var(--pol-fuente); cursor: pointer; text-decoration: none; }
+.dg-cabecera button:hover, .dg-cabecera a.dg-boton:hover { background: var(--acento-suave); }
 .dg-cabecera button:focus-visible, .dg-cabecera a.dg-boton:focus-visible { outline: 3px solid var(--dg-foco); outline-offset: 2px; }
-.dg-aviso { margin: 0; padding: 6px 16px; background: color-mix(in srgb, var(--dg-aviso) 22%, var(--dg-panel)); border-bottom: 1px solid var(--dg-aviso); font-weight: 600; font-size: 14px; }
+.dg-aviso { margin: 0; padding: 6px 16px; background: color-mix(in srgb, var(--dg-aviso) 22%, var(--panel)); border-bottom: 1px solid var(--dg-aviso); font-weight: 600; font-size: 14px; }
 .dg-aviso[hidden] { display: none; }
-.dg-pagina { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px 16px 12px; }
+.dg-pagina { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px 16px 12px; background: var(--fondo); }
 .dg-hoja { margin: 0 0 18px; }
-.dg-hoja h2 { margin: 6px 0; font-size: 16px; font-weight: 800; }
-.dg-lienzo { overflow-x: auto; border: 1px solid var(--dg-borde); border-radius: 8px; background: var(--dg-panel); }
+.dg-hoja h2 { margin: 6px 0; font-size: 15px; font-weight: 700; color: var(--titulo); }
+.dg-lienzo { overflow-x: auto; border: 1px solid var(--borde); border-radius: var(--pol-radio-panel); background: var(--dg-panel); }
 .dg-lienzo svg { display: block; width: 100%; min-width: 1000px; height: auto; }
-.dg-pie { margin: 0; padding: 6px 12px 10px; text-align: center; font-size: 12px; color: var(--dg-tenue); background: var(--dg-fondo); }
+.dg-pie { margin: 0; padding: 6px 12px 10px; text-align: center; font-size: 12px; color: var(--tenue); background: var(--fondo); }
 
 /* textos (en unidades del viewBox: 15 px a 1600 de ancho son unos 11 px en una ventana de 1180) */
-.dg-t { font: 500 15px var(--fuente, system-ui, sans-serif); fill: var(--dg-texto); }
-.dg-f { font: 800 15px var(--fuente, system-ui, sans-serif); fill: var(--dg-texto); }
-.dg-v { font: 800 18px var(--fuente, system-ui, sans-serif); fill: var(--dg-texto); }
-.dg-z { font: 800 15px var(--fuente, system-ui, sans-serif); letter-spacing: .04em; fill: var(--dg-tenue); }
-.dg-g { font: 800 19px var(--fuente, system-ui, sans-serif); fill: var(--dg-texto); }
+.dg-t { font: 500 15px var(--fuente); fill: var(--dg-texto); }
+.dg-f { font: 800 15px var(--fuente); fill: var(--dg-texto); }
+.dg-v { font: 800 18px var(--fuente); fill: var(--dg-texto); }
+.dg-z { font: 800 15px var(--fuente); letter-spacing: .04em; fill: var(--dg-tenue); }
+.dg-g { font: 800 19px var(--fuente); fill: var(--dg-texto); }
 text[data-e="fallo"], text[data-e="fundido"], text[data-e="disparado"], text[data-e="agotado"], text[data-e="sin"] { fill: var(--dg-error); }
 text[data-e="degradada"], text[data-e="alarma"], text[data-e="espera"] { fill: var(--dg-aviso); }
 
@@ -101,7 +98,7 @@ svg g[data-tag].dg-equipo:focus-visible { outline: 3px solid var(--dg-foco); out
 
 /* tabla de conductores */
 .dg-tabla { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; background: var(--dg-panel); }
-.dg-tabla caption { text-align: left; font-weight: 800; padding: 6px 0; font-size: 15px; }
+.dg-tabla caption { text-align: left; font-weight: 700; padding: 6px 0; font-size: 15px; color: var(--titulo); }
 .dg-tabla th, .dg-tabla td { border: 1px solid var(--dg-borde); padding: 4px 8px; text-align: left; vertical-align: top; }
 .dg-tabla th { background: color-mix(in srgb, var(--dg-tubo) 14%, var(--dg-panel)); }
 .dg-tabla td.dg-num { text-align: right; white-space: nowrap; }
@@ -110,16 +107,16 @@ svg g[data-tag].dg-equipo:focus-visible { outline: 3px solid var(--dg-foco); out
 .dg-supuesto { margin: 8px 0 0; padding: 8px 12px; border-left: 4px solid var(--dg-aviso); background: color-mix(in srgb, var(--dg-aviso) 14%, var(--dg-panel)); font-size: 13px; }
 
 /* ficha de ayuda (ventana flotante) */
-.dg-ficha { position: fixed; z-index: 20; right: 16px; top: 70px; width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 90px); overflow: auto; background: var(--dg-panel); color: var(--dg-texto);
-  border: 2px solid var(--dg-acento); border-radius: 10px; padding: 10px 14px 14px; box-shadow: 0 8px 28px rgba(0, 0, 0, .35); }
+.dg-ficha { position: fixed; z-index: 20; right: 16px; top: 70px; width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 90px); overflow: auto; background: var(--panel); color: var(--texto);
+  border: 1px solid var(--borde); border-top: 3px solid var(--acento); border-radius: var(--pol-radio-panel); padding: 10px 14px 14px; box-shadow: var(--pol-sombra-flotante); }
 .dg-ficha[hidden] { display: none; }
 .dg-ficha header { display: flex; gap: 8px; align-items: flex-start; }
-.dg-ficha h3 { margin: 0; flex: 1 1 auto; font-size: 16px; }
-.dg-ficha h4 { margin: 10px 0 2px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--dg-tenue); }
+.dg-ficha h3 { margin: 0; flex: 1 1 auto; font-size: 15px; font-weight: 700; color: var(--titulo); }
+.dg-ficha h4 { margin: 10px 0 2px; font-size: 13px; color: var(--tenue); }
 .dg-ficha p, .dg-ficha li { font-size: 14px; line-height: 1.4; margin: 2px 0; }
 .dg-ficha ul { margin: 2px 0; padding-left: 20px; }
 .dg-ficha .dg-riesgo { border-left: 4px solid var(--dg-error); padding-left: 8px; }
-.dg-ficha .dg-cerrar { min-width: 40px; min-height: 40px; border: 1px solid var(--dg-borde); border-radius: 6px; background: var(--dg-fondo); color: var(--dg-texto); font-size: 20px; cursor: pointer; }
+.dg-ficha .dg-cerrar { min-width: 44px; min-height: 44px; border: 1px solid var(--borde-fuerte); border-radius: var(--pol-radio-boton); background: var(--panel); color: var(--titulo); font-size: 20px; cursor: pointer; }
 .dg-ficha .dg-cerrar:focus-visible { outline: 3px solid var(--dg-foco); outline-offset: 2px; }
 
 @media (max-width: 700px) { .dg-cabecera h1 { font-size: 16px; } .dg-pagina { padding: 6px 8px 10px; } }
@@ -127,6 +124,6 @@ svg g[data-tag].dg-equipo:focus-visible { outline: 3px solid var(--dg-foco); out
 
 /* pulsación larga (iPad): sin menú ni selección del sistema y anillo que se llena en 3 s */
 svg, svg g[data-tag] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
-.anillo-toque { fill: none; stroke: var(--foco, #0b5cad); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; pointer-events: none; animation: fv-anillo 3s linear forwards; }
+.anillo-toque { fill: none; stroke: var(--foco); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; pointer-events: none; animation: fv-anillo 3s linear forwards; }
 @keyframes fv-anillo { to { stroke-dashoffset: 0; } }
 @media (prefers-reduced-motion: reduce) { .anillo-toque { animation: none; stroke-dashoffset: 0; stroke-opacity: .6; } }

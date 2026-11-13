@@ -350,8 +350,8 @@ class AulaRetos(BaseRetos):
         self.accion(self.prof, "simuladores", id=str(self.id_de("sin@ejemplo.es")), estado="autorizado", sim_maqueta="1")
         self.otro_alumno("pend@ejemplo.es", autorizar=False)                     # pendiente
         panel = self.prof.get("/aula?estado=todos").get_data(as_text=True)
-        self.assertIn("Reto de diagnóstico fotovoltaico para los 4 alumnos de esta lista", panel)
-        self.assertIn("Al azar, distinta para cada alumno", panel)
+        self.assertIn("Reto fotovoltaico para los 4 de la lista", panel)
+        self.assertIn("Al azar (una por alumno)", panel)
         self.assertIn("Permitir pistas", panel)
         self.assertIn("Lo reciben 2 de 4", panel)
         r = self.reto("asignar_lista", estado="todos", titulo="Clase del lunes", pistas=None)
@@ -485,7 +485,7 @@ class AulaRetos(BaseRetos):
         self.assertTrue(lineas[2].startswith(f"Ruiz;Marcos;Sistemas autónomos;{AVERIA};{TITULO_AVERIA};{OTRA};F-101;0;2;3;10;60;"))
         self.assertTrue(lineas[2].endswith(";práctica libre;1"))
         resumen = self.prof.get("/aula?vista=diagnostico").get_data(as_text=True)
-        self.assertIn("resumen por avería", resumen)
+        self.assertRegex(resumen, r"<h2[^>]*>\s*Resumen por avería\s*</h2>")      # UX_IDENTIDAD §10.2: título corto (el enlace «Resumen por avería (CSV)» no cuenta)
         self.assertLess(resumen.index(TITULO_AVERIA), resumen.index("Magnetotérmico de batería QB-101 disparado"))   # la que más cuesta, primero
         self.assertIn('<td data-etiqueta="Acierto">50 %</td>', resumen)
         self.assertIn('<td data-etiqueta="Nota media"><b>4,75</b></td>', resumen)

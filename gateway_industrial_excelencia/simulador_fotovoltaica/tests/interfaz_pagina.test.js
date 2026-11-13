@@ -78,9 +78,9 @@ test('restaurar Normal: sin averías, protecciones cerradas, red, cargas automá
   assert.equal(e.campos.A.cadenas[0].paneles[2].sombra01, 0);
 });
 
-test('texto de estado: modo, marcha, día o noche, producción, batería y la alarma más grave', () => {
+test('texto de estado: modo, marcha, producción, batería y la alarma más grave (sin repetir «de día / de noche», que ya da el reloj)', () => {
   const s = sim(), e = marcha(s, 200);
-  const t = P.textoEstado(e, true, 'normal'); assert.match(t, /Normal · en marcha · de día · FV [\d,]+ (k?W) · batería \d+ % · sin alarmas/);
+  const t = P.textoEstado(e, true, 'normal'); assert.match(t, /Normal · en marcha · FV [\d,]+ (k?W) · batería \d+ % · sin alarmas/); assert.doesNotMatch(t, /de día|de noche/);
   assert.match(P.textoEstado(e, false, 'revision'), /Revisión .*en pausa/);
   s.ordenes.averias.activar('QB_DISPARADO'); assert.match(P.textoEstado(marcha(s, 10), true, 'normal'), /alarmas?: .*QB-101/);
   assert.equal(P.textoEstado(null, true), '—');

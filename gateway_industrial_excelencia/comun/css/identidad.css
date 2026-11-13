@@ -1,0 +1,169 @@
+/* Identidad visual del CIFP Politécnico de Cartagena (valores y usos: comun/UX_IDENTIDAD.md; criterios: comun/CONTRATO.md §12).
+   Hoja común: variables y poco más. Cada página la carga ANTES que sus hojas propias.
+
+   Temas:
+   - Sin atributo en <html> (aula): siempre claro.
+   - <html data-tema="sistema"> (fotovoltaica y planta real): claro por defecto y oscuro si el sistema lo pide. El atributo además sube la
+     prioridad de los alias para que ganen a los de /simulador/css/interfaz.css, que se carga después.
+
+   Variables:
+   - --pol-*: marca. Solo aquí se escribe su valor.
+   - --estado-*: estado del sinóptico (ISA-101). No son de marca y no cambian. --ok, --aviso, --error y --apagado son alias suyos.
+   - --sinoptico-*: fondo y textos del área del sinóptico, que no toma la identidad (se fijan en .lienzo y .dg-lienzo, abajo).
+   - --marco-*: el marco de la página (cabecera, barras, paneles, diálogos) en claro u oscuro.
+   - Las antiguas (--fondo, --panel, --texto, --tenue, --borde, --acento, --acento-texto, --sobre-acento, --marca-gris, --foco, --fuente) son alias.
+
+   SE SIRVE COPIADA, IGUAL BYTE A BYTE, en simulador_pct23/css/identidad.css (/simulador/css/identidad.css) y en aula_pct23/static/identidad.css
+   (/static/identidad.css), porque el servidor aún no publica /comun/. Si cambias esta hoja, copia el archivo entero a esas dos rutas. */
+
+/* Raleway (SIL Open Font License 1.1, licencia en fuentes/OFL-Raleway.txt): variable, latín, pesos 100-900. Si no carga, cae a la pila de --pol-fuente. */
+@font-face {
+  font-family: Raleway;
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("fuentes/raleway-latin-wght-normal.woff2") format("woff2");
+}
+
+:root {
+  /* ---- marca ---- */
+  --pol-naranja: #F68B11;
+  --pol-naranja-hover: #E07A05;
+  --pol-naranja-texto: #A85200;
+  --pol-naranja-suave: #FEF3E7;
+  --pol-sobre-naranja: #212121;
+  --pol-gris-oscuro: #2F2F2F;
+  --pol-gris: #444444;
+  --pol-gris-claro: #F3F3F3;
+  --pol-blanco: #FFFFFF;
+  --pol-titulo: #212121;
+  --pol-texto: #444444;
+  --pol-texto-suave: #666666;
+  --pol-borde: #E0E0E0;
+  --pol-borde-fuerte: #BDBDBD;
+  --pol-foco: #0B5CAD;
+  --pol-sobre-oscuro: rgba(255, 255, 255, .8);
+  --pol-fuente: Raleway, "Segoe UI", Roboto, Arial, sans-serif;
+  --pol-mono: ui-monospace, Consolas, "Roboto Mono", monospace;
+  --pol-fuente-mono: var(--pol-mono);
+  --pol-radio-boton: 2px;
+  --pol-radio-panel: 4px;
+  --pol-sombra: none;
+  --pol-sombra-flotante: 0 1px 3px rgba(0, 0, 0, .12);
+
+  /* ---- estado del sinóptico (claro) ---- */
+  --estado-servicio: #1A7F4B;
+  --estado-aviso: #9A5B00;
+  --estado-alarma: #C0262D;
+  --estado-parado: #9AA6B1;
+  --estado-sobre: #FFFFFF;
+  --pol-estado-servicio: var(--estado-servicio);
+  --pol-estado-aviso: var(--estado-aviso);
+  --pol-estado-alarma: var(--estado-alarma);
+  --pol-estado-parado: var(--estado-parado);
+
+  /* ---- área del sinóptico (claro: los valores de siempre) ---- */
+  --sinoptico-fondo: #E2E7EB;
+  --sinoptico-panel: #F5F7F8;
+  --sinoptico-texto: #16202A;
+  --sinoptico-tenue: #56636F;
+  --sinoptico-borde: #BAC4CC;
+
+  /* ---- marco (claro) ---- */
+  --marco-fondo: var(--pol-gris-claro);
+  --marco-panel: var(--pol-blanco);
+  --marco-titulo: var(--pol-titulo);
+  --marco-texto: var(--pol-texto);
+  --marco-tenue: var(--pol-texto-suave);
+  --marco-borde: var(--pol-borde);
+  --marco-borde-fuerte: var(--pol-borde-fuerte);
+  --marco-acento-texto: var(--pol-naranja-texto);
+  --marco-acento-suave: var(--pol-naranja-suave);
+  --marco-cabecera: var(--pol-blanco);
+  --marco-cabecera-nombre: var(--pol-gris);
+  --marco-cabecera-mencion: var(--pol-texto-suave);
+
+  /* ---- alias (aula; en los simuladores los repite el bloque de abajo) ---- */
+  --fondo: var(--marco-fondo);
+  --panel: var(--marco-panel);
+  --texto: var(--marco-texto);
+  --tenue: var(--marco-tenue);
+  --borde: var(--marco-borde);
+  --titulo: var(--marco-titulo);
+  --borde-fuerte: var(--marco-borde-fuerte);
+  --acento: var(--pol-naranja);
+  --acento-hover: var(--pol-naranja-hover);
+  --acento-texto: var(--marco-acento-texto);
+  --acento-suave: var(--marco-acento-suave);
+  --sobre-acento: var(--pol-sobre-naranja);
+  --marca-gris: var(--marco-cabecera-nombre);
+  --foco: var(--pol-foco);
+  --fuente: var(--pol-fuente);
+  --ok: var(--estado-servicio);
+  --aviso: var(--estado-aviso);
+  --error: var(--estado-alarma);
+  --apagado: var(--estado-parado);
+  color-scheme: light;
+}
+
+/* Simuladores: los mismos alias con más prioridad que el :root de /simulador/css/interfaz.css (que también los define). --foco no va aquí:
+   lo define cada simulador en su hoja, con su valor para el tema oscuro. */
+:root[data-tema] {
+  --fondo: var(--marco-fondo);
+  --panel: var(--marco-panel);
+  --texto: var(--marco-texto);
+  --tenue: var(--marco-tenue);
+  --borde: var(--marco-borde);
+  --acento: var(--pol-naranja);
+  --acento-texto: var(--marco-acento-texto);
+  --sobre-acento: var(--pol-sobre-naranja);
+  --marca-gris: var(--marco-cabecera-nombre);
+  --fuente: var(--pol-fuente);
+  --ok: var(--estado-servicio);
+  --aviso: var(--estado-aviso);
+  --error: var(--estado-alarma);
+  --apagado: var(--estado-parado);
+  color-scheme: light dark;
+}
+
+/* Tema oscuro, solo en los simuladores: el oscuro de siempre con el naranja de marca; la cabecera pasa a banda gris oscuro. */
+@media (prefers-color-scheme: dark) {
+  :root[data-tema="sistema"] {
+    --estado-servicio: #4CC28A;
+    --estado-aviso: #E0A33A;
+    --estado-alarma: #F0605F;
+    --estado-parado: #6B6567;
+    --sinoptico-fondo: #161314;
+    --sinoptico-panel: #221E1F;
+    --sinoptico-texto: #F0ECED;
+    --sinoptico-tenue: #A9A3A5;
+    --sinoptico-borde: #403B3C;
+    --marco-fondo: #161314;
+    --marco-panel: #221E1F;
+    --marco-titulo: #F0ECED;
+    --marco-texto: #F0ECED;
+    --marco-tenue: #A9A3A5;
+    --marco-borde: #403B3C;
+    --marco-borde-fuerte: #5E5759;
+    --marco-acento-texto: #FFA640;
+    --marco-acento-suave: #3A2A17;
+    --marco-cabecera: var(--pol-gris-oscuro);
+    --marco-cabecera-nombre: #F0ECED;
+    --marco-cabecera-mencion: #C9C5C6;
+  }
+}
+
+/* El área del sinóptico conserva su fondo gris neutro y sus textos (ISA-101): no hereda el gris claro ni el blanco del marco. */
+.lienzo, .dg-lienzo {
+  --fondo: var(--sinoptico-fondo);
+  --panel: var(--sinoptico-panel);
+  --texto: var(--sinoptico-texto);
+  --tenue: var(--sinoptico-tenue);
+  --borde: var(--sinoptico-borde);
+}
+
+/* Controles de los simuladores: borde fuerte (se ve el límite del control) y texto de título. Los colores propios de cada botón siguen mandando. */
+[data-tema] :is(button, select, input, textarea) { --borde: var(--borde-fuerte); --texto: var(--titulo); }
+
+/* Medidas numéricas que cambian en directo */
+.medida, [data-medida] { font-family: var(--pol-mono); font-variant-numeric: tabular-nums; }

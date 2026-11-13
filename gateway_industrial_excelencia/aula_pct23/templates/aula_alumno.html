@@ -17,7 +17,7 @@
   </div>
 
   {% if averias or retos or diagnosticos %}
-  <h2 id="retos">Retos de diagnóstico <small>(simulador fotovoltaico)</small></h2>
+  <h2 id="retos">Retos de diagnóstico <small>(fotovoltaica)</small></h2>
   {% if puede_reto %}
   <form method="post" action="{{ url_for('aula_reto') }}" class="reto-form">
     <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="accion" value="asignar"><input type="hidden" name="id" value="{{ f['id'] }}">
@@ -27,14 +27,14 @@
         {% for a in averias %}<option value="{{ a['id'] }}">{{ a['titulo'] }}</option>{% endfor %}
       </select>
     </label>
-    <label>Título (opcional, lo ve el alumno)
+    <label>Título para el alumno (opcional)
       <input type="text" name="titulo" maxlength="80" placeholder="Práctica de diagnóstico" autocomplete="off">
     </label>
     <label class="casilla"><input type="checkbox" name="pistas" value="1" checked> Permitir pistas</label>
     <button type="submit">Asignar reto</button>
   </form>
   {% elif averias %}
-  <p class="ayuda">Para asignarle un reto tiene que estar autorizado y tener asignado el simulador fotovoltaico.</p>
+  <p class="ayuda">Para asignarle un reto: cuenta autorizada y simulador fotovoltaico asignado.</p>
   {% endif %}
   {% if retos %}
   <table class="tabla"><thead><tr><th>Asignado</th><th>Título</th><th>Avería</th><th>Pistas</th><th>Estado</th><th>Mejor nota</th><th>Intentos</th><th></th></tr></thead><tbody>
@@ -59,14 +59,14 @@
     </tr>
     {% endfor %}
   </tbody></table>
-  {% else %}<p class="vacio">No se le ha asignado ningún reto.</p>{% endif %}
+  {% else %}<p class="vacio">Sin retos asignados.</p>{% endif %}
 
   <h2>Diagnósticos entregados <small>(retos y práctica libre{% if diagnosticos|length >= 300 %}; últimos 300{% endif %})</small></h2>
   {% if diagnosticos %}
   <table class="tabla tabla-diag"><thead><tr><th>Fecha</th><th>Avería real</th><th>Respuesta</th><th>Acierto</th><th>Nota</th><th>Pistas</th><th>Medidas</th><th>Tiempo</th><th>Hoja</th></tr></thead><tbody>
     {% for d in diagnosticos %}
     <tr>
-      <td data-etiqueta="Fecha"><time class="local" datetime="{{ d['momento'] }}">{{ d['momento'][:16].replace('T', ' ') }}</time><br><small>{{ 'Reto' if d['reto_id'] else 'Práctica libre' }} · intento {{ d['intento'] }}</small></td>
+      <td data-etiqueta="Fecha"><time class="local" datetime="{{ d['momento'] }}">{{ d['momento'][:16].replace('T', ' ') }}</time><br><small>{{ 'Reto' if d['reto_id'] else 'Práctica libre' }} · intento {{ d['intento'] }}{% if d['sesion'] %} · <a href="{{ url_for('aula_alumno_sesion', uid=f['id'], sesion=d['sesion']) }}">Ver sesión</a>{% endif %}</small></td>
       <td data-etiqueta="Avería real">{{ titulo_averia(d['averia_real']) }}</td>
       <td data-etiqueta="Respuesta">{{ titulo_averia(d['averia_respuesta']) }}{% if d['elemento_respuesta'] %}<br><small>Elemento: {{ nombre_equipo(d['elemento_respuesta']) }}</small>{% endif %}</td>
       <td data-etiqueta="Acierto"><span class="etiqueta acierto-{{ (d['acierto'] * 2)|int }}">{{ d['acierto']|acierto }}</span></td>
@@ -89,7 +89,7 @@
     </tr>
     {% endfor %}
   </tbody></table>
-  {% else %}<p class="vacio">Todavía no ha entregado ningún diagnóstico.</p>{% endif %}
+  {% else %}<p class="vacio">Ningún diagnóstico entregado.</p>{% endif %}
   {% endif %}
 
   <h2>Tiempo por pantalla</h2>
@@ -97,9 +97,9 @@
   <table class="tabla"><thead><tr><th>Pantalla</th><th>Tiempo</th></tr></thead><tbody>
     {% for p in r['por_pagina'] %}<tr><td data-etiqueta="Pantalla">{{ {'index': 'Inicio', 'manual': 'Modo manual', 'automatico': 'Modo automático', 'demostracion': 'Demostración', 'planta_real': 'Planta real HTST', 'fotovoltaica': 'Instalación fotovoltaica'}.get(p['pagina'], p['pagina']) }}</td><td data-etiqueta="Tiempo">{{ p['s']|duracion }}</td></tr>{% endfor %}
   </tbody></table>
-  {% else %}<p class="vacio">Todavía no hay tiempo registrado.</p>{% endif %}
+  {% else %}<p class="vacio">Sin tiempo registrado.</p>{% endif %}
 
-  <h2>Tiempo por día (últimos 30 días con actividad)</h2>
+  <h2>Tiempo por día <small>(últimos 30 con actividad)</small></h2>
   {% if r['por_dia'] %}
   <table class="tabla"><thead><tr><th>Día (UTC)</th><th>Tiempo</th></tr></thead><tbody>
     {% for d in r['por_dia'] %}<tr><td data-etiqueta="Día">{{ d['dia'] }}</td><td data-etiqueta="Tiempo">{{ d['s']|duracion }}</td></tr>{% endfor %}
@@ -111,8 +111,8 @@
   <table class="tabla"><thead><tr><th>Cuándo</th><th>Tipo</th><th>Qué hizo</th></tr></thead><tbody>
     {% for e in eventos %}<tr><td data-etiqueta="Cuándo"><time class="local" datetime="{{ e['momento'] }}">{{ e['momento'][:19].replace('T', ' ') }}</time></td><td data-etiqueta="Tipo">{{ e['tipo'] }}</td><td data-etiqueta="Qué hizo">{{ e['detalle'] }}</td></tr>{% endfor %}
   </tbody></table>
-  <p class="pie"><a href="{{ url_for('aula_alumno_csv', uid=f['id']) }}">Descargar el registro completo (CSV)</a></p>
-  {% else %}<p class="vacio">Todavía no hay actividad.</p>{% endif %}
+  <p class="pie"><a href="{{ url_for('aula_alumno_csv', uid=f['id']) }}">Registro completo (CSV)</a></p>
+  {% else %}<p class="vacio">Sin actividad.</p>{% endif %}
 </section>
 <script>
   document.querySelectorAll('time.local').forEach(function (t) { t.textContent = new Date(t.dateTime).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'medium' }); });

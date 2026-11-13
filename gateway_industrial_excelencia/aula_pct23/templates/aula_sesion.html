@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block titulo %}Sesión de {{ f['nombre'] }} · Aula PCT23{% endblock %}
+{% block seccion %}Aula del profesor{% endblock %}
+{% block nav %}
+  <a href="{{ url_for('aula') }}">Volver al aula</a>
+{% endblock %}
+{% block contenido %}
+{% set verbos = {'inicio': 'Inicio', 'acciono': 'Maniobra', 'midio': 'Medida', 'pidio_pista': 'Pista', 'entrego': 'Entrega', 'completo': 'Completado', 'abandono': 'Abandono'} %}
+<section class="actividad sesion">
+  <h1>{{ f['apellidos'] }}, {{ f['nombre'] }}</h1>
+  <p class="ayuda">Sesión <code>{{ sesion }}</code></p>
+  <p class="acciones">
+    <a class="boton-enlace" href="{{ url_for('aula_alumno', uid=f['id']) }}">Ver la ficha del alumno</a>
+    {% for s in registros %}
+    <a class="boton-enlace" href="{{ url_for('aula_alumno_registro', uid=f['id'], sesion=sesion, simulador=s) }}" download>Descargar el registro ({{ s }})</a>
+    {% endfor %}
+  </p>
+
+  <h2>Línea de tiempo <small>({{ filas|length }} {{ 'evento' if filas|length == 1 else 'eventos' }}, hora local)</small></h2>
+  {% if filas %}
+  <table class="tabla tabla-sesion"><thead><tr><th>Hora</th><th>Qué hizo</th><th>Elemento</th><th>Resultado</th></tr></thead><tbody>
+    {% for e in filas %}
+    <tr class="ev-{{ e['verbo'] }}">
+      <td data-etiqueta="Hora"><time class="local" datetime="{{ e['marca'] }}">{{ e['marca'][11:19] }}</time></td>
+      <td data-etiqueta="Qué hizo"><b>{{ verbos.get(e['verbo'], e['verbo']) }}</b></td>
+      <td data-etiqueta="Elemento">{{ e['elemento'] or '—' }}</td>
+      <td data-etiqueta="Resultado">{{ e['resultado'] or '—' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody></table>
+  {% else %}<p class="vacio">No hay eventos en esta sesión.</p>{% endif %}
+</section>
+<script>
+  document.querySelectorAll('time.local').forEach(function (t) { t.textContent = new Date(t.dateTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); });
+</script>
+{% endblock %}

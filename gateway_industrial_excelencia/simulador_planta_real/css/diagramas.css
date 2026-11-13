@@ -1,28 +1,27 @@
 /* Diagramas eléctricos (Fuerza y Mando) de la planta real HTST. Colores de /simulador/css/interfaz.css (--panel, --tubo, --ok, --error, --aviso, --texto, --tenue, --fondo,
    --borde) y --foco de planta_real.css (con valor de reserva por si no se carga). Cada elemento vivo lleva data-e="estado": el color nunca va solo, porque también cambia
    la forma (cuchilla abierta o cerrada, grosor del cable, relleno) y el texto de estado. Todo con prefijo .dg-. */
-:root { --dg-vivo: var(--ok); --dg-foco: var(--foco, #0b5cad); }
-@media (prefers-color-scheme: dark) { :root { --dg-foco: var(--foco, #8ccbff); } }
+:root { --dg-vivo: var(--ok); --dg-foco: var(--foco); }
 
 /* ventana aparte (fuerza.html y mando.html) */
-body.dg-ventana { margin: 0; display: flex; flex-direction: column; height: 100vh; background: var(--fondo); color: var(--texto); font-family: var(--fuente, system-ui, sans-serif); overflow: hidden; }
-.dg-cabecera { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 8px 16px; background: var(--panel); border-bottom: 3px solid var(--acento, var(--tubo)); }
-.dg-cabecera h1 { margin: 0; font-size: 18px; font-weight: 800; flex: 1 1 auto; min-width: 0; }
-.dg-cabecera .dg-modo { font-size: 14px; color: var(--tenue); font-variant-numeric: tabular-nums; }
-.dg-cabecera button, .dg-cabecera a.dg-boton { min-height: 40px; padding: 0 16px; display: inline-flex; align-items: center; border: 1px solid var(--borde); border-radius: 6px; background: var(--fondo); color: var(--texto); font: 700 14px var(--fuente, system-ui, sans-serif); cursor: pointer; text-decoration: none; }
-.dg-cabecera button:hover, .dg-cabecera a.dg-boton:hover { border-color: var(--dg-foco); }
+body.dg-ventana { margin: 0; display: flex; flex-direction: column; height: 100vh; background: var(--fondo); color: var(--texto); font-family: var(--pol-fuente); overflow: hidden; }
+.dg-cabecera { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 8px 16px; background: var(--marco-cabecera); color: var(--marca-gris); border-bottom: 3px solid var(--acento); }
+.dg-cabecera h1 { margin: 0; font-size: 20px; font-weight: 300; flex: 1 1 auto; min-width: 0; }
+.dg-cabecera .dg-modo { font-size: 14px; color: var(--marco-cabecera-mencion); font-variant-numeric: tabular-nums; }
+.dg-cabecera button, .dg-cabecera a.dg-boton { min-height: 40px; padding: 0 16px; display: inline-flex; align-items: center; border: 1px solid var(--acento); border-radius: var(--pol-radio-boton); background: transparent; color: var(--acento-texto); font: 600 14px var(--pol-fuente); cursor: pointer; text-decoration: none; }
+.dg-cabecera button:hover, .dg-cabecera a.dg-boton:hover { background: var(--acento-suave); }
 .dg-cabecera button:focus-visible, .dg-cabecera a.dg-boton:focus-visible { outline: 3px solid var(--dg-foco); outline-offset: 2px; }
 .dg-aviso { margin: 0; padding: 6px 16px; background: color-mix(in srgb, var(--aviso) 22%, var(--panel)); border-bottom: 1px solid var(--aviso); font-weight: 600; font-size: 14px; }
 .dg-aviso[hidden] { display: none; }
-.dg-lienzo { flex: 1 1 auto; min-height: 0; position: relative; }
+.dg-lienzo { flex: 1 1 auto; min-height: 0; position: relative; background: var(--fondo); }
 .dg-lienzo svg { position: absolute; inset: 6px 10px 10px; width: calc(100% - 20px); height: calc(100% - 16px); }
 
 /* textos (en unidades del viewBox: 15 px a 1600 de ancho son unos 11 px en una ventana de 1180) */
-.dg-t { font: 500 15px var(--fuente, system-ui, sans-serif); fill: var(--texto); }
-.dg-f { font: 800 15px var(--fuente, system-ui, sans-serif); fill: var(--texto); }
-.dg-v { font: 800 16px var(--fuente, system-ui, sans-serif); fill: var(--texto); font-variant-numeric: tabular-nums; }
-.dg-z { font: 800 15px var(--fuente, system-ui, sans-serif); letter-spacing: .05em; fill: var(--tenue); }
-.dg-g { font: 800 19px var(--fuente, system-ui, sans-serif); fill: var(--texto); }
+.dg-t { font: 500 15px var(--fuente); fill: var(--texto); }
+.dg-f { font: 800 15px var(--fuente); fill: var(--texto); }
+.dg-v { font: 800 16px var(--fuente); fill: var(--texto); font-variant-numeric: tabular-nums; }
+.dg-z { font: 800 15px var(--fuente); letter-spacing: .05em; fill: var(--tenue); }
+.dg-g { font: 800 19px var(--fuente); fill: var(--texto); }
 text[data-e="fallo"], text[data-e="fundido"], text[data-e="disparado"], text[data-e="sin"] { fill: var(--error); }
 text[data-e="degradada"], text[data-e="alarma"] { fill: var(--aviso); }
 
@@ -38,7 +37,7 @@ text[data-e="degradada"], text[data-e="alarma"] { fill: var(--aviso); }
 
 /* aparatos */
 .dg-armario { fill: none; stroke: var(--tubo); stroke-width: 2; stroke-dasharray: 10 6; }
-.dg-armario.dg-campo { stroke: var(--caliente, var(--tubo)); }
+.dg-armario.dg-campo { stroke: var(--caliente); }
 .dg-caja { fill: var(--panel); stroke: var(--tubo); stroke-width: 2; }
 .dg-plc { fill: color-mix(in srgb, var(--tubo) 8%, var(--panel)); }
 .dg-banda { fill: color-mix(in srgb, var(--tubo) 10%, transparent); stroke: none; }
@@ -59,7 +58,7 @@ text[data-e="degradada"], text[data-e="alarma"] { fill: var(--aviso); }
 .dg-dis:is([data-e="fallo"], [data-e="fundido"], [data-e="disparado"], [data-e="sin"]) .dg-caja { fill: color-mix(in srgb, var(--error) 28%, var(--panel)); stroke: var(--error); stroke-width: 4; }
 .dg-dis:is([data-e="degradada"], [data-e="alarma"]) .dg-caja { fill: color-mix(in srgb, var(--aviso) 30%, var(--panel)); stroke: var(--aviso); stroke-width: 4; }
 .dg-dis:is([data-e="fallo"], [data-e="fundido"], [data-e="disparado"], [data-e="sin"]) .dg-cuchilla, .dg-dis[data-e="fundido"] .dg-hilo { stroke: var(--error); }
-.dg-dis[data-e="on"] .dg-res, .dg-dis[data-e="marcha"] .dg-res { stroke: var(--caliente, var(--ok)); stroke-width: 5; filter: drop-shadow(0 0 4px var(--caliente, var(--ok))); }
+.dg-dis[data-e="on"] .dg-res, .dg-dis[data-e="marcha"] .dg-res { stroke: var(--caliente); stroke-width: 5; filter: drop-shadow(0 0 4px var(--caliente)); }
 .dg-dis[data-e="vivo"] .dg-flecha { fill: var(--dg-vivo); }
 .dg-valor[data-e="uno"] { fill: color-mix(in srgb, var(--ok) 30%, var(--panel)); stroke: var(--ok); stroke-width: 3; }
 .dg-valor[data-e="cero"] { fill: var(--panel); stroke: var(--tubo); stroke-width: 1.6; }

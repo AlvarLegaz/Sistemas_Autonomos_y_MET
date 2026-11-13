@@ -8,12 +8,13 @@
 </form>
 {% if con_cuenta %}<script src="/static/uso.js" defer></script>{% endif %}
 <style>
+  /* Colores de la página que la recibe (--panel, --texto, --borde, --acento, --acento-texto y --fuente existen en los tres simuladores). Barra y botones siguen siendo píldora; sin sombra fuerte. */
   #aula-barra { position: fixed; z-index: 45; left: 12px; bottom: 12px; display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 24px);
-                padding: 6px 8px 6px 12px; border-radius: 999px; background: var(--panel, #fff); color: var(--texto, #16202A);
-                border: 1px solid var(--borde, #BAC4CC); box-shadow: 0 2px 10px rgba(0,0,0,.18); font: 13px/1.2 system-ui, sans-serif; margin: 0; }
+                padding: 6px 8px 6px 12px; border-radius: 999px; background: var(--panel); color: var(--texto);
+                border: 1px solid var(--borde); box-shadow: var(--pol-sombra-flotante); font: 13px/1.2 var(--fuente); margin: 0; }
   #aula-barra span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #aula-barra a { color: var(--acento-texto, #A85200); }
-  #aula-barra button { border: 1px solid var(--borde, #BAC4CC); background: transparent; color: inherit; border-radius: 999px; padding: 5px 12px; font: inherit; cursor: pointer; }
-  #aula-barra button:hover { border-color: var(--acento, #F68B11); }
+  #aula-barra a { color: var(--acento-texto); }
+  #aula-barra button { border: 1px solid var(--borde); background: transparent; color: inherit; border-radius: 999px; padding: 5px 12px; font: inherit; cursor: pointer; }
+  #aula-barra button:hover { border-color: var(--acento); }
   @media (max-width: 960px) { #aula-barra { bottom: 82px; } }
 </style>

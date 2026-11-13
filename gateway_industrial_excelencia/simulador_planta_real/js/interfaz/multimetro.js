@@ -47,8 +47,8 @@
   function avisosDeUso(idModo, punto) {
     const m = modo(idModo), avisos = [];
     if (!punto) { avisos.push('Elige un punto de prueba.'); return avisos; }
-    if (m.sinTension) avisos.push('Ohmios y continuidad se miden SIN tensión: desconecta, bloquea y comprueba la ausencia de tensión antes.');
-    if (m.enSerie) avisos.push('Los mA se miden EN SERIE: abre el lazo y pon el multímetro en el hueco (nunca en paralelo con la fuente).');
+    if (m.sinTension) avisos.push('Ohmios y continuidad, SIN tensión: desconecta, bloquea y comprueba ausencia de tensión.');
+    if (m.enSerie) avisos.push('mA EN SERIE: abre el lazo y pon el multímetro en el hueco (nunca en paralelo con la fuente).');
     if (punto.modo && punto.modo !== idModo) avisos.push(`Este punto se mide normalmente en «${modo(punto.modo).nombre}».`);
     return avisos;
   }

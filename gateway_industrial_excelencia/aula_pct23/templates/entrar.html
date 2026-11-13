@@ -3,7 +3,7 @@
 {% block contenido %}
 <section class="formulario">
   <h1>Entrar</h1>
-  <p class="ayuda">Usa el correo con el que te registraste.</p>
+  <p class="ayuda">Usa el correo del registro.</p>
   <form method="post" action="{{ url_for('entrar') }}" autocomplete="on">
     <input type="hidden" name="csrf" value="{{ csrf() }}">
     <label>Correo
@@ -14,6 +14,6 @@
     </label>
     <button class="primario" type="submit">Entrar</button>
   </form>
-  <p class="pie">¿Primera vez? <a href="{{ url_for('registro') }}">Registrarme</a>. ¿Eres profesor? <a href="{{ url_for('aula') }}">Entrar al aula</a>.</p>
+  <p class="pie">¿Primera vez? <a href="{{ url_for('registro') }}">Registrarme</a>. ¿Profesor? <a href="{{ url_for('aula') }}">Entrar al aula</a>.</p>
 </section>
 {% endblock %}

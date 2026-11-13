@@ -10,14 +10,14 @@
   const num = v => typeof v === 'number' && Number.isFinite(v);
 
   const INSTRUMENTOS = [
-    { id: 'multimetro', nombre: 'Multímetro', corto: 'Multímetro', icono: 'V Ω', ayuda: 'Tensión continua y alterna entre dos puntos, y continuidad. Coloca la punta roja y la negra.' },
-    { id: 'pinza', nombre: 'Pinza amperimétrica', corto: 'Pinza', icono: 'A', ayuda: 'Corriente de un conductor sin abrir el circuito, con su sentido. Toca un cable.' },
+    { id: 'multimetro', nombre: 'Multímetro', corto: 'Multímetro', icono: 'V Ω', ayuda: 'Tensión continua y alterna entre dos puntos, y continuidad.' },
+    { id: 'pinza', nombre: 'Pinza amperimétrica', corto: 'Pinza', icono: 'A', ayuda: 'Corriente de un conductor, con su sentido, sin abrir el circuito.' },
     { id: 'megohmetro', nombre: 'Megóhmetro', corto: 'Megóhmetro', icono: 'MΩ', ayuda: 'Aislamiento de una cadena a tierra. Exige el seccionador abierto.' },
     { id: 'trazadorIV', nombre: 'Trazador de curvas I-V', corto: 'Trazador I-V', icono: 'I-V', ayuda: 'Curva medida de una cadena frente a la de referencia: Voc, Isc, Pmpp y factor de forma.' },
-    { id: 'termografia', nombre: 'Cámara termográfica', corto: 'Cámara', icono: '°C', ayuda: 'Vista térmica: los puntos calientes se ven. Toca un equipo para leer su temperatura.' },
+    { id: 'termografia', nombre: 'Cámara termográfica', corto: 'Cámara', icono: '°C', ayuda: 'Vista térmica. Toca un equipo para leer su temperatura.' },
   ];
   const MODOS_MULTIMETRO = [
-    { id: 'VDC', nombre: 'V⎓', titulo: 'Tensión continua' }, { id: 'VAC', nombre: 'V∿', titulo: 'Tensión alterna' }, { id: 'OHM', nombre: 'Ω ♪', titulo: 'Continuidad (sin tensión)' },
+    { id: 'VDC', nombre: 'V⎓', titulo: 'Tensión continua' }, { id: 'VAC', nombre: 'V∿', titulo: 'Tensión alterna' }, { id: 'OHM', nombre: 'Ω cont.', titulo: 'Continuidad (sin tensión)' },
   ];
   const MODOS_PINZA = [{ id: 'DC', nombre: 'A⎓', titulo: 'Corriente continua' }, { id: 'AC', nombre: 'A∿', titulo: 'Corriente alterna' }];
   const CADENAS = ['STR-101', 'STR-102', 'STR-201', 'STR-202'];
@@ -42,7 +42,7 @@
    * → { ok, pantalla, unidad, valor, avisos: [{ nivel: 'info'|'aviso'|'peligro', texto }], peligro, texto /* para el cuaderno *\/ }.
    */
   function lecturaMultimetro(sim, modo, roja, negra) {
-    if (!roja || !negra) return { ok: false, pantalla: '— — —', unidad: '', valor: null, avisos: [aviso('info', !roja ? 'Toca un punto del sinóptico para colocar la punta ROJA.' : 'Ahora coloca la punta NEGRA.')], texto: '' };
+    if (!roja || !negra) return { ok: false, pantalla: '— — —', unidad: '', valor: null, avisos: [aviso('info', !roja ? 'Toca un punto para la punta ROJA.' : 'Ahora, la punta NEGRA.')], texto: '' };
     if (!tiene(sim, 'medir')) return noDisponible('Multímetro');
     const m = seguro(() => sim.medir(roja, negra));
     if (!m || m.ok === false) return { ok: false, pantalla: '— — —', unidad: '', valor: null, avisos: [aviso('aviso', (m && m.texto) || 'Punto de medida desconocido.')], texto: 'punto desconocido' };
@@ -50,8 +50,8 @@
     const vdc = num(m.vdc) ? m.vdc : (m.tipo === 'DC' && num(m.valor) ? m.valor : 0), vac = num(m.vac) ? m.vac : (esAlterna && num(m.valor) ? Math.abs(m.valor) : 0);
     if (modo === 'OHM') {
       const peligro = (v, texto) => ({ ok: true, valida: false, pantalla: 'PELIGRO', unidad: '', valor: null, peligro: true, voltios: v,
-        avisos: [aviso('peligro', texto || `Hay ${tension(v)} V entre las puntas: NUNCA se mide continuidad con tensión (rompes el multímetro y la lectura no vale). Deja el circuito sin tensión: abre el seccionador o la protección.`)],
-        texto: `¡con tensión!${num(v) && v > 0 ? ` (${tension(v)} V)` : ''}: medida no válida` });
+        avisos: [aviso('peligro', texto || `Hay ${tension(v)} V entre las puntas: NUNCA midas continuidad con tensión (rompes el multímetro y la lectura no vale). Abre antes el seccionador o la protección.`)],
+        texto: `CON TENSIÓN${num(v) && v > 0 ? ` (${tension(v)} V)` : ''}: medida no válida` });
       let hay, ohm;
       if (tiene(sim, 'resistencia')) {      // el modelo aplica las reglas del óhmetro (tensión entre las puntas, elemento en carga…)
         const r = seguro(() => sim.resistencia(roja, negra));
@@ -65,11 +65,11 @@
         hay = !!seguro(() => sim.continuidad(roja, negra), false); ohm = hay ? 0.2 : Infinity;
       }
       if (sinRef && !hay) avisos.push(aviso('info', 'Esos dos puntos están en circuitos distintos: no hay camino entre ellos.'));
-      if (hay) return { ok: true, pantalla: dec(ohm, ohm < 10 ? 2 : 0), unidad: 'Ω ♪', valor: ohm, avisos: avisos.concat(aviso('info', 'Hay continuidad (pitido): el camino entre las puntas está cerrado.')), texto: `${dec(ohm, ohm < 10 ? 2 : 0)} Ω · continuidad` };
+      if (hay) return { ok: true, pantalla: dec(ohm, ohm < 10 ? 2 : 0), unidad: 'Ω cont.', valor: ohm, avisos: avisos.concat(aviso('info', 'Continuidad (pitido): camino cerrado entre las puntas.')), texto: `${dec(ohm, ohm < 10 ? 2 : 0)} Ω · continuidad` };
       if (num(ohm) && ohm < 2e7) { const t = ohm >= 1e6 ? `${dec(ohm / 1e6, 2)} MΩ` : ohm >= 1000 ? `${dec(ohm / 1000, 1)} kΩ` : `${dec(ohm, 0)} Ω`; return { ok: true, pantalla: t.split(' ')[0], unidad: t.split(' ')[1], valor: ohm, avisos: avisos.concat(aviso('aviso', 'Resistencia alta: no es un camino franco (no pita).')), texto: `${t} · sin continuidad` }; }
       return { ok: true, pantalla: 'OL', unidad: 'Ω', valor: Infinity, avisos: avisos.concat(aviso('aviso', 'Circuito abierto (OL): no hay camino entre las puntas.')), texto: 'OL · circuito abierto' };
     }
-    if (sinRef) avisos.push(aviso('aviso', 'Sin referencia común: esos dos puntos están en circuitos aislados entre sí. La lectura no significa nada: mide entre dos puntos del mismo circuito.'));
+    if (sinRef) avisos.push(aviso('aviso', 'Sin referencia común: son circuitos aislados entre sí y la lectura no vale. Mide dentro del mismo circuito.'));
     if (modo === 'VAC') {
       if (m.tipo === 'DC' && Math.abs(vdc) > 0.5) avisos.push(aviso('aviso', 'Entre estos puntos la tensión es CONTINUA: en V∿ el multímetro marca 0. Pasa a V⎓.'));
       const v = esAlterna ? vac : 0;
@@ -83,9 +83,9 @@
     if (esAlterna && vac > 0.5) avisos.push(aviso('aviso', 'Entre estos puntos la tensión es ALTERNA: en V⎓ el multímetro marca 0. Pasa a V∿.'));
     const v = m.tipo === 'DC' ? vdc : 0;
     if (Math.abs(v) > RANGO_MAX_V) return { ok: true, pantalla: 'OL', unidad: 'V⎓', valor: v, avisos: [aviso('peligro', 'Fuera de rango (más de 1000 V).')], texto: 'OL · fuera de rango' };
-    if (v < -0.05) avisos.push(aviso('aviso', 'Signo negativo = polaridad invertida: la punta roja está en el punto de MENOS potencial. Cambia las puntas (o es que el cableado está al revés).'));
-    if (Math.abs(v) >= TENSION_PELIGROSA_DC_V) avisos.push(aviso('peligro', `Tensión peligrosa (${dec(Math.abs(v), 0)} V⎓): en continua el arco no se apaga solo. Puntas CAT III 1000 V, guantes y una sola mano.`));
-    if (m.tipo === 'DC' && Math.abs(v) < 0.05) avisos.push(aviso('info', 'Sin tensión continua entre las puntas (0 V): o están al mismo potencial o el circuito está abierto aguas arriba.'));
+    if (v < -0.05) avisos.push(aviso('aviso', 'Signo negativo = polaridad invertida: la roja está en el punto de MENOS potencial (o el cableado está al revés).'));
+    if (Math.abs(v) >= TENSION_PELIGROSA_DC_V) avisos.push(aviso('peligro', `Tensión peligrosa (${dec(Math.abs(v), 0)} V⎓): en continua el arco no se apaga solo. CAT III 1000 V, guantes y una sola mano.`));
+    if (m.tipo === 'DC' && Math.abs(v) < 0.05) avisos.push(aviso('info', '0 V⎓: mismo potencial o circuito abierto aguas arriba.'));
     return { ok: true, pantalla: tension(v), unidad: 'V⎓', valor: v, avisos, texto: `${tension(v)} V⎓` };
   }
 
@@ -101,7 +101,7 @@
    * positivo = la corriente va en el sentido de referencia del conductor (el que dice su descripción).
    */
   function lecturaPinza(sim, id, modo = 'DC') {
-    if (!id) return { ok: false, pantalla: '— — —', unidad: '', valor: null, avisos: [aviso('info', 'Toca un CABLE del sinóptico para abrazarlo con la pinza (un solo conductor: si abrazas ida y vuelta marca 0).')], texto: '' };
+    if (!id) return { ok: false, pantalla: '— — —', unidad: '', valor: null, avisos: [aviso('info', 'Toca un CABLE. Abraza un solo conductor: ida y vuelta juntos marcan 0.')], texto: '' };
     if (!tiene(sim, 'corriente')) return noDisponible('Pinza amperimétrica');
     const r = seguro(() => sim.corriente(id));
     if (r == null || (typeof r === 'object' && r.ok === false)) return { ok: false, pantalla: '— — —', unidad: '', valor: null, avisos: [aviso('aviso', (r && r.texto) || 'Conductor desconocido.')], texto: 'conductor desconocido' };
@@ -116,10 +116,10 @@
     if (Math.abs(a) > RANGO_PINZA_A) return { ok: true, pantalla: 'OL', unidad, valor: a, avisos: [aviso('peligro', 'Fuera de rango de la pinza.')], texto: 'OL' };
     const sentido = typeof r === 'object' && r.sentido ? String(r.sentido) : '';
     const esTierra = /^PE\.|L\+N$/.test(String(id));
-    if (esTierra && Math.abs(a) >= 0.0003) avisos.push(aviso('peligro', 'Por un conductor de tierra (o como diferencia entre fase y neutro) no debe pasar corriente: hay una FUGA a tierra aguas abajo.'));
-    else if (Math.abs(a) < 0.0003) avisos.push(aviso('info', esTierra ? 'Sin corriente de fuga: correcto.' : 'No circula corriente por este cable: o no hay sol o consumo, o el circuito está abierto en algún punto.'));
+    if (esTierra && Math.abs(a) >= 0.0003) avisos.push(aviso('peligro', 'Por tierra (o entre fase y neutro) no debe pasar corriente: hay una FUGA a tierra aguas abajo.'));
+    else if (Math.abs(a) < 0.0003) avisos.push(aviso('info', esTierra ? 'Sin corriente de fuga: correcto.' : 'No circula corriente: sin sol, sin consumo o circuito abierto.'));
     else if (sentido) avisos.push(aviso('info', `Sentido: ${sentido}.`));
-    else if (!esAC) avisos.push(aviso('info', a > 0 ? 'Signo +: la corriente va en el sentido normal del cable (de la fuente a la carga).' : 'Signo −: la corriente va al revés del sentido normal del cable.'));
+    else if (!esAC) avisos.push(aviso('info', a > 0 ? 'Signo +: sentido normal (de la fuente a la carga).' : 'Signo −: sentido inverso al normal.'));
     const v = esAC ? Math.abs(a) : a, mili = Math.abs(v) < 1, signo = !esAC && v >= 0.0003 ? '+' : '';      // por debajo de 1 A la pinza pasa a miliamperios (fugas a tierra)
     const pantalla = `${signo}${mili ? dec(v * 1000, Math.abs(v) < 0.1 ? 1 : 0) : dec(v, Math.abs(v) < 10 ? 2 : 1)}`, u = mili ? `m${unidad}` : unidad;
     return { ok: true, pantalla, unidad: u, valor: v, avisos, texto: `${pantalla} ${u}${sentido ? ' · ' + sentido : ''}` };
@@ -131,7 +131,7 @@
    * (y los 500–1000 V del ensayo lo pueden dañar).
    */
   function lecturaMegohmetro(sim, cadena, polo = '+') {
-    if (!cadena) return { ok: false, pantalla: '— — —', unidad: '', valor: null, avisos: [aviso('info', 'Elige la cadena y el polo que quieres ensayar contra tierra.')], texto: '' };
+    if (!cadena) return { ok: false, pantalla: '— — —', unidad: '', valor: null, avisos: [aviso('info', 'Elige la cadena y el polo.')], texto: '' };
     if (!tiene(sim, 'aislamiento')) return noDisponible('Megóhmetro');
     const conPolo = Array.isArray(sim.puntosAislamiento), qs = SECCIONADOR_DE[cadena], est = estadoProt(sim, qs);
     const bloqueo = texto => ({ ok: false, bloqueado: true, valida: false, pantalla: 'ABRE ' + (qs || ''), unidad: '', valor: null, avisos: [aviso('peligro', texto)], texto: `no medido: ${qs || 'seccionador'} cerrado` });
@@ -179,7 +179,7 @@
    * La referencia es la curva de la misma cadena sana con la misma luz y temperatura (sim.curvaIVReferencia); sin ella solo se da la medida.
    */
   function lecturaTrazador(sim, id, puntos = 80) {
-    if (!id) return { ok: false, avisos: [aviso('info', 'Elige la cadena (o tócala en el sinóptico) y pulsa «Trazar curva».')], texto: '' };
+    if (!id) return { ok: false, avisos: [aviso('info', 'Elige la cadena y pulsa «Trazar curva».')], texto: '' };
     if (!tiene(sim, 'curvaIV')) return Object.assign(noDisponible('Trazador de curvas'), { curva: [], referencia: null });
     const cruda = seguro(() => sim.curvaIV(id, puntos), []);
     const curva = Array.isArray(cruda) ? cruda : (cruda && cruda.curva) || [];
@@ -193,15 +193,15 @@
     const campo = sim.estado && sim.estado.campos && sim.estado.campos[campoDeCadena(id)], g = delModelo && num(delModelo.irradianciaWm2) ? delModelo.irradianciaWm2 : campo ? campo.gPlanoWm2 : null;
     const avisos = [];
     const valida = !(delModelo && delModelo.valida === false) && !(num(g) && g < IRRADIANCIA_MIN_IV);
-    if (delModelo && delModelo.estable === false) avisos.push(aviso('aviso', 'La irradiancia no es estable (pasan nubes): la curva puede salir deformada. Espera a que se estabilice y repite.'));
-    if (num(g) && g < IRRADIANCIA_MIN_IV) avisos.push(aviso('aviso', `Irradiancia de ${dec(g, 0)} W/m²: la norma IEC 62446-1 pide al menos ${IRRADIANCIA_MIN_IV} W/m² (mejor más de 700) para que la curva sea concluyente. Repite con más sol.`));
-    if ((delModelo && delModelo.abierta) || (resumen.isc < 0.05 && resumen.voc > 5)) avisos.push(aviso('peligro', 'La cadena no da corriente: está ABIERTA en algún punto (conector MC4 suelto o cable cortado). No hay curva que trazar.'));
+    if (delModelo && delModelo.estable === false) avisos.push(aviso('aviso', 'Irradiancia inestable (nubes): la curva puede salir deformada. Espera y repite.'));
+    if (num(g) && g < IRRADIANCIA_MIN_IV) avisos.push(aviso('aviso', `Irradiancia de ${dec(g, 0)} W/m²: IEC 62446-1 pide al menos ${IRRADIANCIA_MIN_IV} W/m² (mejor más de 700). Repite con más sol.`));
+    if ((delModelo && delModelo.abierta) || (resumen.isc < 0.05 && resumen.voc > 5)) avisos.push(aviso('peligro', 'Sin corriente: la cadena está ABIERTA (MC4 suelto o cable cortado).'));
     else if (resumen.voc < 1) avisos.push(aviso('aviso', 'Sin tensión: es de noche, o la cadena no llega al trazador.'));
     if (resumen.escalones > 0) avisos.push(aviso('aviso', `${resumen.escalones} ${resumen.escalones === 1 ? 'escalón' : 'escalones'} en la curva: hay diodos de paso conduciendo (sombra parcial, célula dañada o suciedad localizada).`));
     if (resumenRef && resumenRef.voc > 5 && resumen.voc < 0.93 * resumenRef.voc && resumen.isc > 0.05) avisos.push(aviso('aviso', `Voc un ${dec(100 * (1 - resumen.voc / resumenRef.voc), 0)} % por debajo de la referencia: falta tensión (una subcadena puenteada por su diodo de paso, o un panel de menos).`));
     if (resumenRef && resumenRef.isc > 0.5 && resumen.isc < 0.9 * resumenRef.isc && resumen.isc > 0.05) avisos.push(aviso('aviso', `Isc un ${dec(100 * (1 - resumen.isc / resumenRef.isc), 0)} % por debajo de la referencia: llega menos luz a las células (suciedad o sombra uniforme).`));
     if (resumenRef && resumenRef.ff > 0.1 && resumen.ff < 0.93 * resumenRef.ff && resumen.isc > 0.05) avisos.push(aviso('aviso', 'Factor de forma bajo con Voc e Isc casi normales: resistencia en serie (conector o borna con mal contacto) o pérdidas repartidas.'));
-    if (num(desviacionPct) && Math.abs(desviacionPct) <= 5 && !avisos.some(a => a.nivel !== 'info')) avisos.push(aviso('info', 'La curva medida coincide con la de referencia (± 5 %): la cadena está sana.'));
+    if (num(desviacionPct) && Math.abs(desviacionPct) <= 5 && !avisos.some(a => a.nivel !== 'info')) avisos.push(aviso('info', 'Coincide con la referencia (± 5 %): cadena sana.'));
     const texto = `Voc ${dec(resumen.voc, 1)} V · Isc ${dec(resumen.isc, 2)} A · Pmpp ${dec(resumen.pmpp, 0)} W · FF ${dec(resumen.ff, 2)}${num(desviacionPct) ? ` · ${desviacionPct > 0 ? '+' : ''}${dec(desviacionPct, 0)} % frente a referencia` : ''}${resumen.escalones ? ` · ${resumen.escalones} escalón(es)` : ''}${num(g) ? ` · ${dec(g, 0)} W/m²` : ''}`;
     return { ok: true, valida, curva, referencia, resumen, resumenRef, desviacionPct, irradiancia: g, temperaturaCelulaC: delModelo ? delModelo.temperaturaCelulaC : null, avisos, texto: valida ? texto : `${texto} · NO CONCLUYENTE (poca luz o inestable)`, valor: resumen.pmpp, unidad: 'W' };
   }
@@ -266,11 +266,11 @@
     const zonas = mapaTermico(sim);
     if (!zonas.length) return noDisponible('Cámara termográfica');
     const z = zonas.find(x => x.id === id) || zonas.find(x => x.tag === id);
-    if (!z) return { ok: false, pantalla: '— — —', unidad: '', valor: null, avisos: [aviso('info', 'Toca un equipo, un panel o un conector para leer su temperatura.')], texto: '' };
+    if (!z) return { ok: false, pantalla: '— — —', unidad: '', valor: null, avisos: [aviso('info', 'Toca una zona para leer su temperatura.')], texto: '' };
     const caliente = puntosCalientes(zonas).includes(z.id), avisos = [];
     const delta = num(z.deltaC) ? ` (${z.deltaC > 0 ? '+' : ''}${dec(z.deltaC, 0)} °C respecto a sus iguales)` : '';
-    if (caliente) avisos.push(aviso('peligro', `PUNTO CALIENTE${delta}. Un conector o una borna así tiene mala conexión; una célula así está sombreada o dañada; un aparato así va sobrecargado o mal ventilado.`));
-    else avisos.push(aviso('info', `Temperatura normal${delta}. Compara siempre con un elemento igual y con la misma carga: sin corriente no hay calor.`));
+    if (caliente) avisos.push(aviso('peligro', `PUNTO CALIENTE${delta}. Conector o borna: mala conexión. Célula: sombra o daño. Aparato: sobrecarga o mala ventilación.`));
+    else avisos.push(aviso('info', `Temperatura normal${delta}. Compara con un elemento igual y con la misma carga: sin corriente no hay calor.`));
     if (z.nota) avisos.push(aviso(caliente ? 'aviso' : 'info', z.nota));
     return { ok: true, pantalla: dec(z.tempC, 1), unidad: '°C', valor: z.tempC, zona: z, caliente, avisos, texto: `${dec(z.tempC, 1)} °C${num(z.deltaC) ? ` (Δ ${z.deltaC > 0 ? '+' : ''}${dec(z.deltaC, 0)} °C)` : ''}${caliente ? ' · PUNTO CALIENTE' : ''}` };
   }

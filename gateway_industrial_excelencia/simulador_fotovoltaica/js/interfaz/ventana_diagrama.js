@@ -39,7 +39,7 @@
       actual = tag;
       cuadro.querySelector('h3').textContent = f.titulo; cuadro.querySelector('.dg-etiqueta').textContent = f.etiqueta;
       const av = (f.averias || []).map(a => `${a.titulo} <small>(${a.id})</small>`);
-      cuadro.querySelector('.dg-cuerpo').innerHTML = `<h4>Qué es</h4><p>${f.queEs}</p><h4>Para qué sirve</h4><p>${f.paraQue}</p>` + lista('Cómo falla y qué síntoma da', f.fallos) + lista('Qué medir con el multímetro', f.medir) +
+      cuadro.querySelector('.dg-cuerpo').innerHTML = `<h4>Qué es</h4><p>${f.queEs}</p><h4>Para qué sirve</h4><p>${f.paraQue}</p>` + lista('Fallos y síntomas', f.fallos) + lista('Qué medir', f.medir) +
         lista('Riesgos', f.riesgos, 'dg-riesgo') + lista('Averías relacionadas', av) + '<h4>Estado ahora</h4><p class="dg-vivo"></p>';
       cuadro.hidden = false; vivo(); clearInterval(temporizador); temporizador = setInterval(vivo, 500);
       cuadro.querySelector('.dg-cerrar').focus();
@@ -90,8 +90,8 @@
     const origen = () => { try { const o = window.opener; return o && !o.closed && o.PCT && o.PCT.fvApp ? o : null; } catch (error) { return null; } };
     let ultimo = null, sim = null;
     if (!origen()) {
-      if (PCT.fv && PCT.fv.crearSimulacion) { sim = PCT.fv.crearSimulacion({}); sim.paso(1); ultimo = sim.estado; $('dg-aviso').textContent = 'Abierta sin el simulador detrás: se muestra una instalación propia en reposo.'; }
-      else { ultimo = PCT.fvDiagramaUnifilar.estadoEjemplo(); $('dg-aviso').textContent = 'Abierta sin el simulador detrás: se muestra un estado de ejemplo (no es la simulación en marcha).'; }
+      if (PCT.fv && PCT.fv.crearSimulacion) { sim = PCT.fv.crearSimulacion({}); sim.paso(1); ultimo = sim.estado; $('dg-aviso').textContent = 'Sin simulador detrás: instalación propia en reposo.'; }
+      else { ultimo = PCT.fvDiagramaUnifilar.estadoEjemplo(); $('dg-aviso').textContent = 'Sin simulador detrás: estado de ejemplo, no la simulación.'; }
       $('dg-aviso').hidden = false;
     }
     const estado = () => {
@@ -112,7 +112,7 @@
     let tabla = null;
     if (vista === 'cableado') {
       tabla = crearTabla(D); pagina.append(el('div', { class: 'dg-tabla-caja' }, tabla.tabla),
-        el('p', { class: 'dg-supuesto', texto: 'Las secciones, las longitudes y las corrientes admisibles son SUPUESTOS razonables a partir de las fotos (nadie midió los cables): el profesor puede corregirlos en js/scada2d/diagrama_cableado.js. La caída de tensión orientativa es ΔV = 2·ρ·L·I / S con cobre a 70 °C (ρ = 0,0225 Ω·mm²/m).' }));
+        el('p', { class: 'dg-supuesto', texto: 'Secciones, longitudes y corrientes admisibles son SUPUESTOS a partir de las fotos (nadie midió los cables); se corrigen en js/scada2d/diagrama_cableado.js. Caída de tensión orientativa: ΔV = 2·ρ·L·I / S, cobre a 70 °C (ρ = 0,0225 Ω·mm²/m).' }));
     }
 
     // fichas (clic derecho) y acción (clic izquierdo)

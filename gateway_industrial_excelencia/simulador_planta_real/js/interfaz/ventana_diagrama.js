@@ -26,7 +26,7 @@
       if (PCT.htst && PCT.htst.crearSimulacion) { sim = PCT.htst.crearSimulacion({}); sim.paso(0.5); }
       else { await HTST_CARGADOR.cargarScript('js/interfaz/simulacion_demo.js'); sim = PCT.htstDemo.crearSimulacion({}); }
       ultimo = sim.estado();
-      $('dg-aviso').hidden = false; $('dg-aviso').textContent = 'Abierta sin el simulador detrás: se muestra una planta parada de demostración.';
+      $('dg-aviso').hidden = false; $('dg-aviso').textContent = 'Sin simulador detrás: planta parada de demostración.';
     }
     const estado = () => {
       const o = origen();

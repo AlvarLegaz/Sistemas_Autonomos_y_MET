@@ -2,6 +2,8 @@
 // (inversores, protecciones y red); y la curva I-V / P-V de la cadena elegida (sim.curvaIV) con su punto de máxima potencia y su punto de trabajo.
 // El historial, las escalas y la curva son puros (se prueban sin navegador); el dibujo en canvas va al final. El tiempo del eje es el del RELOJ SOLAR simulado.
 (function () {
+  /** Fuente de los rótulos del canvas: la de la identidad (--pol-fuente de comun/css/identidad.css); el canvas no entiende var(). */
+  const fuenteCanvas = () => { try { return getComputedStyle(document.documentElement).getPropertyValue('--pol-fuente').trim() || 'sans-serif'; } catch (error) { return 'sans-serif'; } };
   const enNode = typeof require !== 'undefined';
   const F = enNode ? require('./formato_fv.js') : PCT.fvFormato;
   const { formatoPotencia, formatoHora, textoFecha, dec } = F;
@@ -147,7 +149,7 @@
     /** Líneas verticales suaves y la hora en el borde de abajo, salvo junto a los rótulos de los extremos. */
     function ejeTiempo(c, filas, x0, ancho, yArriba, yAbajo, yTexto, borde, tenue) {
       const tMin = filas[0].t, span = Math.max(filas[filas.length - 1].t - tMin, 1e-9);
-      c.save(); c.font = '11px system-ui,sans-serif'; c.textAlign = 'center'; c.lineWidth = 1;
+      c.save(); c.font = `11px ${fuenteCanvas()}`; c.textAlign = 'center'; c.lineWidth = 1;
       for (const m of marcasTiempo(filas, Math.max(2, Math.floor(ancho / 110)))) {
         const x = x0 + (m.t - tMin) / span * ancho;
         c.strokeStyle = borde; c.globalAlpha = 0.5; c.setLineDash([2, 4]); c.beginPath(); c.moveTo(x, yArriba); c.lineTo(x, yAbajo); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
@@ -157,14 +159,14 @@
     }
     function dibujarLineas(lienzo, filas, grupo) {
       const { c, w, h, borde, tenue } = preparar(lienzo);
-      if (filas.length < 2) { c.fillStyle = tenue; c.font = '13px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('Pulsa Iniciar: la gráfica se va dibujando con el tiempo simulado', w / 2, h / 2); return; }
+      if (filas.length < 2) { c.fillStyle = tenue; c.font = `13px ${fuenteCanvas()}`; c.textAlign = 'center'; c.fillText('Pulsa Iniciar para dibujar la gráfica', w / 2, h / 2); return; }
       const izq = 60, der = grupo.series.some(s => s[3] === 'der') ? 52 : 12, ancho = w - izq - der, alto = h - 16 - 24, y0 = 10;
       const sel = lado => grupo.series.filter(s => (s[3] || 'izq') === lado);
       const sinNegativos = r => (grupo.noNegativo ? { minimo: Math.max(0, r.minimo), maximo: r.maximo } : r);
       const rangoIz = grupo.id === 'bateria' ? { minimo: 0, maximo: 100 } : sinNegativos(rangoDe(filas.flatMap(f => sel('izq').map(([tag]) => f.v[tag])).concat(grupo.id === 'bateria' ? [0, 100] : grupo.id === 'potencia' || grupo.id === 'clima' ? [0] : []), grupo.minimo || 1));
       const rangoDr = sel('der').length ? rangoDe(filas.flatMap(f => sel('der').map(([tag]) => f.v[tag])), grupo.minimoDer || 1) : null;
       const tMin = filas[0].t, tMax = filas[filas.length - 1].t;
-      c.font = '11px system-ui,sans-serif'; c.lineWidth = 1;
+      c.font = `11px ${fuenteCanvas()}`; c.lineWidth = 1;
       for (let i = 0; i <= 4; i++) {
         const y = y0 + alto * i / 4; c.strokeStyle = borde; c.beginPath(); c.moveTo(izq, y); c.lineTo(izq + ancho, y); c.stroke();
         c.fillStyle = tenue; c.textAlign = 'right'; c.fillText(grupo.formato(rangoIz.maximo - (rangoIz.maximo - rangoIz.minimo) * i / 4), izq - 4, y + 4);
@@ -185,7 +187,7 @@
       if (filas.length < 2) return;
       const padIzq = 178, ancho = w - padIzq - 10, alto = h - 18 - 4, fila = alto / grupo.series.length;
       const tMin = filas[0].t, tMax = filas[filas.length - 1].t, span = Math.max(tMax - tMin, 1e-9), xDe = t => padIzq + (t - tMin) / span * ancho;
-      c.font = '11px system-ui,sans-serif'; c.textBaseline = 'middle';
+      c.font = `11px ${fuenteCanvas()}`; c.textBaseline = 'middle';
       const col = [F.COLOR_ESTADO.parado, F.COLOR_ESTADO.ok, F.COLOR_ESTADO.aviso, F.COLOR_ESTADO.alarma];
       grupo.series.forEach(([tag, etiqueta], i) => {
         const y0 = 3 + i * fila, centro = y0 + fila / 2;
@@ -203,12 +205,12 @@
     function dibujarIV(lienzo) {
       const { c, w, h, borde, tenue, s } = preparar(lienzo), dat = contexto.curvaIV ? contexto.curvaIV(cadena) : null;
       const salida = contenedor.querySelector('.graf-iv-datos');
-      if (!dat || !dat.curva || dat.curva.length < 2) { c.fillStyle = tenue; c.font = '13px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText('Sin curva (cadena sin datos)', w / 2, h / 2); salida.textContent = ''; return; }
-      if (resumenCurva(dat.curva).pMax < 5) { c.fillStyle = tenue; c.font = '13px system-ui,sans-serif'; c.textAlign = 'center'; c.fillText(dat.cadena && dat.cadena.abierta ? 'Cadena abierta: sin corriente, la curva I-V se queda en cero' : 'Sin luz suficiente: la cadena no produce y la curva se queda en cero', w / 2, h / 2); salida.textContent = ''; return; }
+      if (!dat || !dat.curva || dat.curva.length < 2) { c.fillStyle = tenue; c.font = `13px ${fuenteCanvas()}`; c.textAlign = 'center'; c.fillText('Sin curva (cadena sin datos)', w / 2, h / 2); salida.textContent = ''; return; }
+      if (resumenCurva(dat.curva).pMax < 5) { c.fillStyle = tenue; c.font = `13px ${fuenteCanvas()}`; c.textAlign = 'center'; c.fillText(dat.cadena && dat.cadena.abierta ? 'Cadena abierta: sin corriente' : 'Poca luz: la cadena no produce', w / 2, h / 2); salida.textContent = ''; return; }
       const R = resumenCurva(dat.curva), izq = 52, der = 56, ancho = w - izq - der, alto = h - 20 - 26, y0 = 12;
       const vMax = Math.max(R.vMax, 1) * 1.04, iMax = Math.max(R.iMax, 0.5) * 1.15, pMax = Math.max(R.pMax, 10) * 1.15;
       const X = v => izq + v / vMax * ancho, YI = i => y0 + alto - i / iMax * alto, YP = p => y0 + alto - p / pMax * alto;
-      c.font = '11px system-ui,sans-serif';
+      c.font = `11px ${fuenteCanvas()}`;
       for (let k = 0; k <= 4; k++) {
         const y = y0 + alto * k / 4; c.strokeStyle = borde; c.lineWidth = 1; c.beginPath(); c.moveTo(izq, y); c.lineTo(izq + ancho, y); c.stroke();
         c.fillStyle = C.B; c.textAlign = 'right'; c.fillText(`${dec(iMax * (1 - k / 4), 1)} A`, izq - 4, y + 4); c.fillStyle = C.A; c.textAlign = 'left'; c.fillText(formatoPotencia(pMax * (1 - k / 4)), izq + ancho + 4, y + 4);
@@ -225,7 +227,7 @@
         c.fillStyle = '#2f9e6a'; for (const yy of [YI(tr.i), YP(pTr)]) { c.beginPath(); c.arc(X(tr.v), yy, 5.5, 0, 2 * Math.PI); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.stroke(); }
       }
       const pico = maximosLocales(dat.curva), fr = D && dat.cadena ? D.trabajoFrenteIdeal(dat.cadena, dat.curva) : null;
-      salida.textContent = `${fr ? fr.texto + ' ' : ''}Máximo ideal ${formatoPotencia(mpp.p)} a ${dec(mpp.v, 0)} V y ${dec(mpp.i, 1)} A${tr ? ` · punto de trabajo ${dec(tr.v, 0)} V y ${dec(tr.i, 1)} A` : ''}${pico > 1 ? ` · ${pico} picos de potencia: sombra parcial (el MPPT puede quedarse en el pico equivocado)` : ''}`;
+      salida.textContent = `${fr ? fr.texto + ' ' : ''}Máximo ideal ${formatoPotencia(mpp.p)} a ${dec(mpp.v, 0)} V y ${dec(mpp.i, 1)} A${tr ? ` · punto de trabajo ${dec(tr.v, 0)} V y ${dec(tr.i, 1)} A` : ''}${pico > 1 ? ` · ${pico} picos: sombra parcial (el MPPT puede quedarse en el pico equivocado)` : ''}`;
       void s;
     }
     function redibujar() {

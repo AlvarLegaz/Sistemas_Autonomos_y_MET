@@ -31,7 +31,7 @@
     carga: ['Cargas: el consumo que alimenta la instalación.', 'Con perfil automático (aula de mañana y tarde, noche baja) o manual desde el panel de Revisión.', 'Potencia consumida y si están alimentadas.'],
   };
   const TIPOS_BOTON_3D = true;
-  const TEXTO_OCULTO = 'En modo Diagnóstico el estado no se enseña: averígualo midiendo con los instrumentos del maletín.';
+  const TEXTO_OCULTO = 'En Diagnóstico el estado no se muestra: averígualo midiendo.';
 
   /** Ficha de un equipo: { titulo, etiqueta, queEs, enSimulador, mantenimiento }. Con PCT.fvTextosAyuda (si existe) mandan sus textos. */
   function fichaDe(tag, externos) {
@@ -46,7 +46,7 @@
   /** Cuerpo de la ficha completa de PCT.fvTextos (qué es, para qué sirve, cómo falla, qué medir, riesgos, averías). Los textos son del propio simulador (pueden llevar negritas). */
   function cuerpoRico(f) {
     const lista = (titulo, items, clase) => (items && items.length ? `<h4>${titulo}</h4><ul${clase ? ` class="${clase}"` : ''}>${items.map(i => `<li>${i}</li>`).join('')}</ul>` : '');
-    return `<h4>Qué es</h4><p>${f.queEs}</p><h4>Para qué sirve</h4><p>${f.paraQue}</p>${lista('Cómo falla y qué síntoma da', f.fallos)}${lista('Qué medir con el multímetro', f.medir)}${lista('Riesgos', f.riesgos, 'ficha-riesgo')}${lista('Averías relacionadas', (f.averias || []).map(a => `${esc(a.titulo)} <small>(${esc(a.id)})</small>`))}`;
+    return `<h4>Qué es</h4><p>${f.queEs}</p><h4>Para qué sirve</h4><p>${f.paraQue}</p>${lista('Fallos y síntomas', f.fallos)}${lista('Qué medir', f.medir)}${lista('Riesgos', f.riesgos, 'ficha-riesgo')}${lista('Averías relacionadas', (f.averias || []).map(a => `${esc(a.titulo)} <small>(${esc(a.id)})</small>`))}`;
   }
 
   /** Texto de «Estado ahora» (lo vivo del equipo). */

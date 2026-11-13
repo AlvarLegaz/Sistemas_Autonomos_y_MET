@@ -655,7 +655,7 @@ class AsignarSimuladores(Base):
         self.assertEqual(self.consulta("SELECT simuladores FROM usuarios")[0]["simuladores"], "")
         r = alumno.get("/simuladores")
         self.assertEqual(r.status_code, 200)
-        self.assertIn("no te ha asignado ningún simulador", r.get_data(as_text=True))
+        self.assertIn("Aún no tienes simuladores", r.get_data(as_text=True))
         for ruta in ("/simulador/", "/planta-real/", "/fotovoltaica/"):
             self.assertEqual(alumno.get(ruta).status_code, 403, ruta)
 
@@ -684,7 +684,7 @@ class AsignarSimuladores(Base):
         html = prof.get("/aula?estado=autorizado").get_data(as_text=True)
         for nombre in ("sim_maqueta", "sim_planta_real", "sim_fotovoltaica"):
             self.assertIn(f'name="{nombre}"', html)
-        self.assertIn("Asignar a toda la lista", html)
+        self.assertIn("Asignar a la lista", html)
         self.asignar(prof, maqueta=True)
         self.assertIn("1 de 3", prof.get("/aula?estado=autorizado").get_data(as_text=True))
 

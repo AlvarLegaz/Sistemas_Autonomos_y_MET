@@ -70,7 +70,7 @@
     if (tk && tk.desbordando) {
       activas.add('R010');
       if (!memoria.has('R010')) memoria.set('R010', (estado && estado.tiempoS) || 0);
-      lista.push({ codigo: 'R010', tag: 'TK-101', texto: 'Rebosando: el tanque de balance está lleno con XV-101 abierta. Cierra XV-101.', nivel: 'aviso', desdeS: memoria.get('R010') });
+      lista.push({ codigo: 'R010', tag: 'TK-101', texto: 'Rebosando: TK-101 lleno con XV-101 abierta. Cierra XV-101.', nivel: 'aviso', desdeS: memoria.get('R010') });
     }
     for (const clave of [...memoria.keys()]) if (!activas.has(clave)) memoria.delete(clave);
     return lista;
@@ -140,7 +140,7 @@
       <div class="cuerpo"><main class="escena"><div class="barra-esquema"><div id="leyenda"></div>
             <div class="zoom-esquema" role="group" aria-label="Tamaño del esquema"><button type="button" data-z="-" aria-label="Reducir el esquema">A−</button><button type="button" data-z="legible" aria-pressed="false">Legible</button><button type="button" data-z="ajustar" aria-pressed="false">Ver todo</button><button type="button" data-z="+" aria-label="Ampliar el esquema">A+</button></div></div>
           <div class="lienzo" id="esquema"></div>
-          <p class="pie-sim" id="pie-sim">Pulsa (o tabula y pulsa Intro) cualquier equipo del esquema para ver su ficha. Valores numéricos típicos e ilustrativos.</p></main>
+          <p class="pie-sim" id="pie-sim">Pulsa un equipo para ver su ficha. Valores típicos e ilustrativos.</p></main>
         <aside class="lateral" aria-label="Alarmas, mandos manuales, gráficas, instrumentos y hojas">
           <div class="pestanas" role="tablist" aria-label="Paneles"><button type="button" role="tab" id="t-alarmas" aria-controls="p-alarmas" data-p="p-alarmas" aria-selected="true" tabindex="0">Alarmas</button>
             <button type="button" role="tab" id="t-manual" aria-controls="p-manual" data-p="p-manual" aria-selected="false" aria-disabled="true" tabindex="-1" title="Solo en modo MANUAL">Manual</button>
@@ -158,8 +158,8 @@
 
     // avisos de lo que falta
     const avisos = [];
-    if (enDemostracion) avisos.push('Modelo de demostración de la interfaz: el modelo real de la planta (física, PLC y averías) todavía no está cargado. Sirve para probar la pantalla, no para evaluar.');
-    if (!escena3dOk) avisos.push('La escena 3D de la planta real todavía no está cargada: «Planta 3D» no mostrará la planta.');
+    if (enDemostracion) avisos.push('Modelo de demostración: falta el modelo real (física, PLC y averías). Sirve para probar la pantalla, no para evaluar.');
+    if (!escena3dOk) avisos.push('Falta la escena 3D: «Planta 3D» no mostrará la planta.');
     if (faltan.length) console.info('[planta real] módulos no cargados:', faltan.join(', '));
     $('avisos').innerHTML = avisos.map(a => `<p class="aviso-planta" role="status">${escapar(a)}</p>`).join('');
 
@@ -248,7 +248,7 @@
     $('sim-pause').addEventListener('click', () => { corriendo = false; actualizarBotones(); registro.anotar('accion', 'Pausar la simulación'); refrescar(); });
     $('sim-reset').addEventListener('click', async () => {
       const conAveria = sim.averias && sim.averias.activas && sim.averias.activas().length > 0;
-      const si = await confirmar({ titulo: '¿Reiniciar la planta?', mensaje: `Se perderán el estado de la planta, el historial de las gráficas y el registro${conAveria ? ' y las averías cargadas' : ''}. No se puede deshacer.`, ok: 'Reiniciar' });
+      const si = await confirmar({ titulo: '¿Reiniciar la planta?', mensaje: `Se borran el estado, las gráficas y el registro${conAveria ? ' y las averías cargadas' : ''}. No se puede deshacer.`, ok: 'Reiniciar' });
       if (!si) return;
       sim.reiniciar(); historial.limpiar(); corriendo = false; actualizarBotones(); $('sim-modo').value = 'PARADA'; registro.anotar('accion', 'Reiniciar la planta'); refrescar();
     });
@@ -327,7 +327,7 @@
       if (document.activeElement !== sel && sel.value !== valorSel) sel.value = valorSel;
       const info = descripcionModo(e.modo, nivel); if ($('modo-info').textContent !== info) $('modo-info').textContent = info;
       const manual = e.modo === 'MANUAL' && nivel >= 2, banda = $('banda-manual');
-      const textoBanda = manual ? `⚠ MODO MANUAL: el PLC no automatiza. Tú mandas cada actuador; solo siguen las protecciones cableadas.${corriendo ? '' : ' La simulación está parada: tus órdenes ya están dadas; pulsa Iniciar para que pase el tiempo (niveles, temperaturas).'}` : '';
+      const textoBanda = manual ? `⚠ MODO MANUAL: mandas tú cada actuador; solo quedan las protecciones cableadas.${corriendo ? '' : ' Simulación parada: pulsa Iniciar para que corra el tiempo.'}` : '';
       banda.hidden = !manual; if (banda.textContent !== textoBanda) banda.textContent = textoBanda;
       const tabManual = $('t-manual');
       tabManual.setAttribute('aria-disabled', String(!manual)); tabManual.title = manual ? '' : 'Solo en modo MANUAL';
@@ -390,10 +390,10 @@
       document.body.dataset.nivel = String(v);
       const info = N().NIVELES[v];
       document.querySelectorAll('#selector-nivel button').forEach(b => { b.setAttribute('aria-pressed', String(Number(b.dataset.nivel) === v)); b.disabled = fijado; b.title = fijado ? 'El profesor ha fijado el nivel' : N().NIVELES[b.dataset.nivel].descripcion; });
-      $('nivel-info').textContent = `Nivel ${v} · ${info.nombre}: ${info.descripcion}${fijado ? ' (Nivel fijado por el profesor.)' : ''}`;
+      $('nivel-info').textContent = `Nivel ${v} · ${info.nombre}: ${info.descripcion}${fijado ? ' (fijado por el profesor)' : ''}`;
       aplicarTextosNivel1(v === 1);
-      $('pie-sim').textContent = v === 1 ? 'Pulsa un equipo para saber qué es y qué hace. Pasa el ratón por encima (o tabula hasta él) para ver su código. Valores típicos e ilustrativos.'
-        : 'Pulsa (o tabula y pulsa Intro) cualquier equipo del esquema para ver su ficha. Valores numéricos típicos e ilustrativos.';
+      $('pie-sim').textContent = v === 1 ? 'Pulsa un equipo para ver qué es. Pasa el ratón para ver su código. Valores típicos e ilustrativos.'
+        : 'Pulsa un equipo para ver su ficha. Valores típicos e ilustrativos.';
       // pestañas permitidas en este nivel
       document.querySelectorAll('.pestanas [role="tab"]').forEach(b => { b.hidden = !N().pestanaPermitida(v, b.dataset.p); });
       const abierta = document.querySelector('.pestanas [aria-selected="true"]');
@@ -403,9 +403,9 @@
       sel.innerHTML = N().opcionesDeModo(v, ORDEN_MODOS(), nombreModo).map(o => `<option value="${o.valor}">${escapar(o.nombre)}</option>`).join('');
       const modo = sim.estado().modo, cercano = N().modoMasCercano(v, modo);
       let aviso = '';
-      if (cercano !== modo) { ponerModo(cercano); aviso = `En el nivel ${v} no está el modo ${nombreModo(modo)}: la planta pasa a ${nombreModo(cercano)}.`; }
+      if (cercano !== modo) { ponerModo(cercano); aviso = `El nivel ${v} no tiene ${nombreModo(modo)}: pasa a ${nombreModo(cercano)}.`; }
       sel.value = N().valorDeSelector(v, sim.estado().modo);
-      if (v < 3 && sim.averias && sim.averias.activas && sim.averias.activas().length) aviso += `${aviso ? ' ' : ''}Hay una avería cargada que sigue activa: se ve y se repara en el nivel 3.`;
+      if (v < 3 && sim.averias && sim.averias.activas && sim.averias.activas().length) aviso += `${aviso ? ' ' : ''}Hay una avería activa: se repara en el nivel 3.`;
       if (cambio) avisarNivel(aviso);
       ficha.cerrar(); chipTag.hidden = true;
       if (guardar && !fijado) { try { localStorage.setItem(N().CLAVE_ALMACEN, String(v)); } catch (error) { /* sin almacenamiento: no se recuerda */ } }

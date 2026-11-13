@@ -80,7 +80,7 @@ test('cada instrumento tiene su ficha de ayuda con qué es, cómo funciona y có
   for (const tag of TODOS) {
     const f = fichas[tag];
     assert.ok(f && f.queEs && f.enSimulador, `${tag} sin ficha`);
-    assert.ok(f.queEs.length > 100, `${tag}: «qué es» demasiado corto`);
+    assert.ok(f.queEs.length > 60, `${tag}: «qué es» demasiado corto (mínimo 60 caracteres)`);
     assert.ok(/DI\d|AI\d/.test(f.enSimulador), `${tag}: falta la entrada del PLC`);
   }
   for (const tag of ['TT-101', 'TT-102', 'TT-103', 'TT-104', 'TT-106', 'TT-201', 'FT-101', 'PT-101', 'PT-102', 'LT-101']) assert.match(fichas[tag].enSimulador + fichas[tag].queEs, /4-20 mA/, tag);

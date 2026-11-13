@@ -7,6 +7,8 @@
 //     elegir también en listas desplegables (teclado y lector de pantalla). Nada depende de pasar el ratón por encima.
 //   · Cada medida se apunta sola en el CUADERNO (pestaña Instrumentos), donde se anota, se marca como evidencia y se borra.
 (function () {
+  /** Fuente de los rótulos del canvas: la de la identidad (--pol-fuente de comun/css/identidad.css); el canvas no entiende var(). */
+  const fuenteCanvas = () => { try { return getComputedStyle(document.documentElement).getPropertyValue('--pol-fuente').trim() || 'sans-serif'; } catch (error) { return 'sans-serif'; } };
   const enNode = typeof require !== 'undefined';
   const I = enNode ? require('./instrumentos_fv.js') : PCT.fvInstrumentos;
   const E = enNode ? require('../scada2d/esquema_fv.js') : PCT.fvEsquema;
@@ -100,7 +102,7 @@
     /* ----- ventanita del instrumento en la mano ----- */
     const mano = document.createElement('section');
     mano.id = 'instrumento-mano'; mano.hidden = true; mano.setAttribute('aria-label', 'Instrumento en la mano');
-    mano.innerHTML = '<header><b class="im-nombre"></b><button type="button" class="im-toque" aria-pressed="false" title="Deja pasar los toques al sinóptico para abrir o cerrar un interruptor sin soltar el instrumento">Maniobrar</button>' +
+    mano.innerHTML = '<header><b class="im-nombre"></b><button type="button" class="im-toque" aria-pressed="false" title="Accionar equipos sin soltar el instrumento">Maniobrar</button>' +
       '<button type="button" class="im-guardar" aria-label="Guardar el instrumento en el maletín" title="Guardar el instrumento">×</button></header><div class="im-cuerpo"></div><div class="im-elegir" hidden></div><ul class="im-avisos" aria-live="polite"></ul>';
     document.body.appendChild(mano);
     const $ = s => mano.querySelector(s), cuerpo = $('.im-cuerpo'), elegir = $('.im-elegir'), avisosUl = $('.im-avisos');
@@ -136,7 +138,7 @@
     function montarMultimetro() {
       cuerpo.innerHTML = `<div class="im-fila">${lcd}${botonesModo(I.MODOS_MULTIMETRO, multi.modo)}</div>
         <div class="im-puntas"><button type="button" class="punta roja" data-punta="roja" aria-pressed="true"><span aria-hidden="true">●</span> Roja <b>—</b></button><button type="button" class="punta negra" data-punta="negra" aria-pressed="false"><span aria-hidden="true">●</span> Negra <b>—</b></button><button type="button" class="im-cambiar" title="Intercambiar las puntas" aria-label="Intercambiar las puntas">⇄</button></div>
-        <details class="im-lista"><summary>Elegir los puntos en una lista</summary><label>Punta roja<select data-sel="roja">${opcionesPuntos()}</select></label><label>Punta negra<select data-sel="negra">${opcionesPuntos()}</select></label></details>`;
+        <details class="im-lista"><summary>Elegir de una lista</summary><label>Punta roja<select data-sel="roja">${opcionesPuntos()}</select></label><label>Punta negra<select data-sel="negra">${opcionesPuntos()}</select></label></details>`;
       pintarObjetivos(E.PUNTOS_XY, (sim().puntos || []).map(p => p.id), 'punto');
       refrescarMultimetro(false);
     }
@@ -145,7 +147,7 @@
       refrescarMultimetro(true);
     }
     function refrescarMultimetro(apunta) {
-      for (const c of ['roja', 'negra']) { const b = cuerpo.querySelector(`[data-punta="${c}"]`); if (!b) return; poner(b.querySelector('b'), multi[c] || '—'); b.setAttribute('aria-pressed', String(multi.activa === c)); b.title = multi[c] ? describirPunto(multi[c]) : `Toca aquí y luego un punto del sinóptico para colocar la punta ${c}`; const s = cuerpo.querySelector(`[data-sel="${c}"]`); if (s && s.value !== (multi[c] || '')) s.value = multi[c] || ''; }
+      for (const c of ['roja', 'negra']) { const b = cuerpo.querySelector(`[data-punta="${c}"]`); if (!b) return; poner(b.querySelector('b'), multi[c] || '—'); b.setAttribute('aria-pressed', String(multi.activa === c)); b.title = multi[c] ? describirPunto(multi[c]) : `Toca aquí y luego un punto para la punta ${c}`; const s = cuerpo.querySelector(`[data-sel="${c}"]`); if (s && s.value !== (multi[c] || '')) s.value = multi[c] || ''; }
       cuerpo.querySelectorAll('.im-modos button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.modo === multi.modo)));
       pintarPuntas();
       const l = I.lecturaMultimetro(sim(), multi.modo, multi.roja, multi.negra); pintarLectura(l);
@@ -158,7 +160,7 @@
     function montarPinza() {
       const L = conductores();
       cuerpo.innerHTML = `<div class="im-fila">${lcd}${botonesModo(I.MODOS_PINZA, pinza.modo)}</div><p class="im-sel">Cable: <b>—</b> <small></small></p>
-        ${L.length ? `<details class="im-lista"><summary>Elegir el cable en una lista</summary><label>Conductor<select data-sel="conductor"><option value="">— elegir —</option>${L.map(c => `<option value="${esc(c.id)}">${esc(c.id)} · ${esc(c.descripcion)}</option>`).join('')}</select></label></details>` : ''}`;
+        ${L.length ? `<details class="im-lista"><summary>Elegir de una lista</summary><label>Conductor<select data-sel="conductor"><option value="">— elegir —</option>${L.map(c => `<option value="${esc(c.id)}">${esc(c.id)} · ${esc(c.descripcion)}</option>`).join('')}</select></label></details>` : ''}`;
       pintarObjetivos(E.PINZA_XY, L.map(c => c.id), 'cable');
       refrescarPinza(false);
     }
@@ -177,8 +179,8 @@
       const pts = Array.isArray(sim().puntosAislamiento) && sim().puntosAislamiento.length ? sim().puntosAislamiento : I.CADENAS.flatMap(c => ['+', '-'].map(s => ({ id: `${c}.${s}`, descripcion: `${s === '+' ? 'Positivo' : 'Negativo'} de ${c} a tierra` })));
       if (!pts.some(p => p.id === meg.id)) meg.id = pts[0].id;
       cuerpo.innerHTML = `<div class="im-fila">${lcd}<button type="button" class="im-accion" data-accion="ensayar">Ensayar</button></div>
-        <label class="im-campo">Polo que se ensaya contra tierra<select data-sel="aislamiento">${pts.map(p => `<option value="${esc(p.id)}"${p.id === meg.id ? ' selected' : ''}>${esc(p.id)} · ${esc(p.descripcion || '')}</option>`).join('')}</select></label>
-        <p class="im-nota">Toca una cadena del sinóptico para elegirla. El ensayo inyecta alta tensión: exige el seccionador del campo ABIERTO.</p>`;
+        <label class="im-campo">Polo contra tierra<select data-sel="aislamiento">${pts.map(p => `<option value="${esc(p.id)}"${p.id === meg.id ? ' selected' : ''}>${esc(p.id)} · ${esc(p.descripcion || '')}</option>`).join('')}</select></label>
+        <p class="im-nota">Toca una cadena para elegirla. Inyecta alta tensión: seccionador del campo ABIERTO.</p>`;
       gObjetivos.replaceChildren(); objetivos = []; pintarPuntas();
       pintarLectura(meg.lectura || { pantalla: '— — —', unidad: 'MΩ', avisos: [{ nivel: 'info', texto: 'Elige el polo y pulsa «Ensayar».' }] });
     }
@@ -192,8 +194,8 @@
     function montarTrazador() {
       cuerpo.innerHTML = `<div class="im-fila"><label class="im-campo">Cadena<select data-sel="cadena">${I.CADENAS.map(c => `<option${c === traz.cadena ? ' selected' : ''}>${c}</option>`).join('')}</select></label><button type="button" class="im-accion" data-accion="trazar">Trazar curva</button></div>
         <canvas class="im-curva" width="340" height="170" role="img" aria-label="Curva I-V medida y de referencia"></canvas>
-        <p class="im-leyenda"><i class="l-medida"></i>medida <i class="l-ref"></i>referencia (cadena sana con esta luz) <i class="l-mpp"></i>máxima potencia</p><div class="im-tabla"></div>
-        <p class="im-nota">Toca una cadena o un panel del sinóptico para elegirla.</p>`;
+        <p class="im-leyenda"><i class="l-medida"></i>medida <i class="l-ref"></i>referencia (cadena sana) <i class="l-mpp"></i>máxima potencia</p><div class="im-tabla"></div>
+        <p class="im-nota">Toca una cadena o un panel para elegirla.</p>`;
       gObjetivos.replaceChildren(); objetivos = []; pintarPuntas();
       pintarTrazador();
     }
@@ -208,7 +210,7 @@
       c.clearRect(0, 0, w, h); c.fillStyle = col('--panel', '#222'); c.fillRect(0, 0, w, h);
       const curva = l && l.ok ? l.curva : [], ref = l && l.ok && l.referencia ? l.referencia : [];
       const vMax = Math.max(10, ...curva.concat(ref).map(q => q.v)) * 1.04, iMax = Math.max(1, ...curva.concat(ref).map(q => q.i)) * 1.12;
-      c.strokeStyle = col('--borde', '#555'); c.fillStyle = col('--tenue', '#999'); c.lineWidth = 1; c.font = '10px system-ui,sans-serif';
+      c.strokeStyle = col('--borde', '#555'); c.fillStyle = col('--tenue', '#999'); c.lineWidth = 1; c.font = `10px ${fuenteCanvas()}`;
       c.beginPath(); c.moveTo(x0, 8); c.lineTo(x0, y0); c.lineTo(x0 + aw, y0); c.stroke();
       c.textAlign = 'right'; for (let k = 0; k <= 2; k++) c.fillText(F.dec(iMax * k / 2, 1), x0 - 3, y0 - ah * k / 2 + 3);
       c.textAlign = 'center'; for (let k = 0; k <= 2; k++) c.fillText(F.dec(vMax * k / 2, 0), x0 + aw * k / 2 - (k === 2 ? 8 : 0), h - 6);
@@ -217,7 +219,7 @@
       const linea = (pts, color, dash, ancho) => { if (pts.length < 2) return; c.save(); c.strokeStyle = color; c.lineWidth = ancho; c.setLineDash(dash); c.beginPath(); pts.forEach((q, k) => (k ? c.lineTo(X(q.v), Y(Math.max(0, q.i))) : c.moveTo(X(q.v), Y(Math.max(0, q.i))))); c.stroke(); c.restore(); };
       linea(ref, col('--tenue', '#999'), [5, 4], 1.5); linea(curva, col('--fv', '#C98F00'), [], 2.5);
       if (l && l.ok && l.resumen.pmpp > 1) { c.fillStyle = col('--error', '#c00'); c.beginPath(); c.arc(X(l.resumen.vmpp), Y(l.resumen.impp), 4, 0, 6.3); c.fill(); }
-      if (!l) { tabla.innerHTML = ''; pintarLectura({ pantalla: '', unidad: '', avisos: [{ nivel: 'info', texto: `Pulsa «Trazar curva» para medir ${traz.cadena}. Hace falta sol: al menos 400 W/m² en el plano de los paneles.` }] }); return; }
+      if (!l) { tabla.innerHTML = ''; pintarLectura({ pantalla: '', unidad: '', avisos: [{ nivel: 'info', texto: `Pulsa «Trazar curva» para medir ${traz.cadena}. Necesitas al menos 400 W/m².` }] }); return; }
       if (!l.ok) { tabla.innerHTML = ''; pintarLectura(l); return; }
       const r = l.resumen, q = l.resumenRef, f = (v, d) => F.dec(v, d), fila = (n, a, b, u) => `<tr><th scope="row">${n}</th><td>${a} ${u}</td><td>${b === null ? '—' : `${b} ${u}`}</td></tr>`;
       tabla.innerHTML = `<table><thead><tr><th></th><th scope="col">Medida</th><th scope="col">Referencia</th></tr></thead><tbody>${fila('Voc', f(r.voc, 1), q ? f(q.voc, 1) : null, 'V')}${fila('Isc', f(r.isc, 2), q ? f(q.isc, 2) : null, 'A')}${fila('Pmpp', f(r.pmpp, 0), q ? f(q.pmpp, 0) : null, 'W')}${fila('Factor de forma', f(r.ff, 2), q && q.ff ? f(q.ff, 2) : null, '')}</tbody></table>
@@ -227,8 +229,8 @@
 
     /* ----- cámara termográfica ----- */
     function montarCamara() {
-      cuerpo.innerHTML = `<div class="im-fila">${lcd}<div class="im-escala"><span class="esc-min"></span><i style="background:linear-gradient(90deg,${I.PALETA.map(p => `rgb(${p.join(',')})`).join(',')})"></i><span class="esc-max"></span></div></div><p class="im-sel">Zona: <b>—</b></p>
-        <p class="im-nota">Toca un panel, un conector, un aparato o la batería para leer su temperatura. Los puntos calientes llevan un borde blanco.</p>`;
+      cuerpo.innerHTML = `<div class="im-fila">${lcd}<div class="im-escala"><span class="esc-min"></span><i class="esc-barra">${I.PALETA.map(p => `<b style="background:rgb(${p.join(',')})"></b>`).join('')}</i><span class="esc-max"></span></div></div><p class="im-sel">Zona: <b>—</b></p>
+        <p class="im-nota">Toca una zona para leer su temperatura. Borde blanco = punto caliente.</p>`;
       gObjetivos.replaceChildren(); objetivos = []; pintarPuntas(); pintarTermica.ids = null;
       refrescarCamara(false);
     }
@@ -263,11 +265,11 @@
       if (ctx.alCoger) ctx.alCoger(null);
     }
     $('.im-guardar').addEventListener('click', guardar);
-    $('.im-toque').addEventListener('click', () => { maniobrar = !maniobrar; $('.im-toque').setAttribute('aria-pressed', String(maniobrar)); svg.classList.toggle('maniobrando', maniobrar); ctx.avisar(maniobrar ? 'Maniobrar: ahora un toque en el sinóptico acciona el equipo (el instrumento sigue midiendo). Pulsa otra vez «Maniobrar» para volver a medir.' : 'Medir: un toque en el sinóptico coloca el instrumento.'); });
+    $('.im-toque').addEventListener('click', () => { maniobrar = !maniobrar; $('.im-toque').setAttribute('aria-pressed', String(maniobrar)); svg.classList.toggle('maniobrando', maniobrar); ctx.avisar(maniobrar ? 'Maniobrar: el toque acciona el equipo. Vuelve a pulsar «Maniobrar» para medir.' : 'Medir: el toque coloca el instrumento.'); });
     cuerpo.addEventListener('click', ev => {
       const b = ev.target.closest('button'); if (!b) return;
       if (b.dataset.modo) { if (enMano === 'multimetro') { multi.modo = b.dataset.modo; refrescarMultimetro(true); } else if (enMano === 'pinza') { pinza.modo = b.dataset.modo; refrescarPinza(true); } }
-      else if (b.dataset.punta) { multi.activa = b.dataset.punta; refrescarMultimetro(false); ctx.avisar(`Toca un punto del sinóptico para colocar la punta ${b.dataset.punta}.`); }
+      else if (b.dataset.punta) { multi.activa = b.dataset.punta; refrescarMultimetro(false); ctx.avisar(`Toca un punto para la punta ${b.dataset.punta}.`); }
       else if (b.classList.contains('im-cambiar')) { [multi.roja, multi.negra] = [multi.negra, multi.roja]; refrescarMultimetro(true); }
       else if (b.dataset.accion === 'ensayar') ensayar();
       else if (b.dataset.accion === 'trazar') trazar();
@@ -296,12 +298,12 @@
         const delEquipo = tag ? (esMulti ? E.puntosDeEquipo(tag, sim().puntos) : conductores().filter(c => c.equipo === tag || E.equipoDePunto(c.id) === tag).map(c => c.id)) : [];
         if (delEquipo.length === 1) return poner_(delEquipo[0]);
         if (delEquipo.length) return preguntar(delEquipo, describir, poner_, esMulti ? `Bornes de ${tag}: ¿dónde pongo la punta ${multi.activa}?` : `Cables de ${tag}: ¿cuál abrazo?`);
-        ctx.avisar(esMulti ? 'Toca uno de los puntos de medida (círculos) o un equipo para ver sus bornes.' : 'Toca una de las marcas de los cables (círculos).');
+        ctx.avisar(esMulti ? 'Toca un punto de medida (círculo) o un equipo para ver sus bornes.' : 'Toca la marca de un cable (círculo).');
         return;
       }
       if (enMano === 'megohmetro' || enMano === 'trazadorIV') {
         const cadena = tag ? cadenaDeTag(tag) : null;
-        if (!cadena) { ctx.avisar('Toca una cadena o un panel para elegir la cadena.'); return; }
+        if (!cadena) { ctx.avisar('Toca una cadena o un panel.'); return; }
         if (enMano === 'trazadorIV') { traz.cadena = cadena; const s = cuerpo.querySelector('[data-sel="cadena"]'); if (s) s.value = cadena; trazar(); }
         else { const s = cuerpo.querySelector('[data-sel="aislamiento"]'), polo = meg.id.split('.')[1] || '+'; meg.id = `${cadena}.${polo}`; if (s) s.value = meg.id; meg.lectura = null; pintarLectura({ pantalla: '— — —', unidad: 'MΩ', avisos: [{ nivel: 'info', texto: `${meg.id} elegido. Pulsa «Ensayar».` }] }); }
         return;
@@ -322,12 +324,12 @@
     const htmlMaletin = () => `<div class="maletin" role="group" aria-label="Instrumentos del maletín">${I.INSTRUMENTOS.map(x => `<button type="button" data-instrumento="${x.id}" aria-pressed="${enMano === x.id}" title="${esc(x.ayuda)}"><span class="ico" aria-hidden="true">${esc(x.icono)}</span><span>${esc(x.corto)}</span></button>`).join('')}</div>`;
     const pestana = ctx.pestana;
     pestana.innerHTML = `<section class="grupo-mando" aria-label="Maletín de instrumentos"><h2>MALETÍN DE INSTRUMENTOS</h2><div class="hueco-maletin"></div>
-        <p class="aviso-profesor im-ayuda">Coge un instrumento y toca el sinóptico para medir. Cada medida se apunta sola en el cuaderno.</p><div class="botones-fila"><button type="button" class="guardar-instrumento" disabled>Guardar el instrumento</button></div></section>
+        <p class="aviso-profesor im-ayuda">Coge un instrumento y toca el sinóptico para medir. Las medidas van al cuaderno.</p><div class="botones-fila"><button type="button" class="guardar-instrumento" disabled>Guardar el instrumento</button></div></section>
       <section class="grupo-mando cuaderno" aria-label="Cuaderno de medidas"><h2 class="cuaderno-titulo">CUADERNO DE MEDIDAS</h2><ul class="lista-cuaderno"></ul><div class="botones-fila"><button type="button" class="vaciar-cuaderno">Vaciar el cuaderno</button></div></section>`;
     let ventana = null;
     function pintarMaletines() {
       pestana.querySelector('.hueco-maletin').innerHTML = htmlMaletin(); pestana.querySelector('.guardar-instrumento').disabled = !enMano;
-      const inst = enMano && I.INSTRUMENTOS.find(x => x.id === enMano); poner(pestana.querySelector('.im-ayuda'), inst ? `En la mano: ${inst.nombre}. ${inst.ayuda}` : 'Coge un instrumento y toca el sinóptico para medir. Cada medida se apunta sola en el cuaderno.');
+      const inst = enMano && I.INSTRUMENTOS.find(x => x.id === enMano); poner(pestana.querySelector('.im-ayuda'), inst ? `En la mano: ${inst.nombre}. ${inst.ayuda}` : 'Coge un instrumento y toca el sinóptico para medir. Las medidas van al cuaderno.');
       if (ventana && !ventana.hidden) ventana.querySelector('.hueco-maletin').innerHTML = htmlMaletin();
     }
     const alElegirInstrumento = ev => { const b = ev.target.closest('[data-instrumento]'); if (!b) return false; if (enMano === b.dataset.instrumento) guardar(); else coger(b.dataset.instrumento); return true; };
@@ -350,7 +352,7 @@
       if (ul.contains(document.activeElement) && document.activeElement.dataset.nota && L.some(e => String(e.id) === document.activeElement.dataset.nota)) return;      // no se repinta mientras se escribe una nota
       ul.innerHTML = L.length ? L.map(e => `<li class="${e.peligro ? 'peligro' : e.valida === false ? 'invalida' : ''}"><p><b>${esc(K.textoEntrada(e))}</b></p>
           <div class="cu-fila"><label class="cu-ev"><input type="checkbox" data-evidencia="${e.id}"${e.evidencia ? ' checked' : ''}> Evidencia</label><input type="text" data-nota="${e.id}" value="${esc(e.nota)}" maxlength="${K.MAX_NOTA}" placeholder="Nota…" aria-label="Nota de la medida ${e.id}"><button type="button" data-borrar="${e.id}" aria-label="Borrar la medida ${e.id}" title="Borrar">×</button></div></li>`).join('')
-        : '<li class="vacio">Todavía no has medido nada. Coge un instrumento del maletín.</li>';
+        : '<li class="vacio">Aún no has medido nada.</li>';
     }
     cuaderno.alCambiar(pintarCuaderno);
 
@@ -358,7 +360,7 @@
     function abrirMaletin(origen) {
       if (!ventana) {
         ventana = document.createElement('div'); ventana.id = 'maletin-fv'; ventana.setAttribute('role', 'dialog'); ventana.setAttribute('aria-modal', 'true'); ventana.setAttribute('aria-labelledby', 'maletin-titulo'); document.body.appendChild(ventana);
-        ventana.innerHTML = '<header><h3 id="maletin-titulo">Maletín de instrumentos</h3><button type="button" class="cerrar" aria-label="Cerrar (Esc)">×</button></header><div class="hueco-maletin"></div><p class="nota">Coge uno y toca el sinóptico para medir. Las medidas se apuntan solas en el cuaderno (pestaña Instrumentos).</p>';
+        ventana.innerHTML = '<header><h3 id="maletin-titulo">Maletín de instrumentos</h3><button type="button" class="cerrar" aria-label="Cerrar (Esc)">×</button></header><div class="hueco-maletin"></div><p class="nota">Coge uno y toca el sinóptico para medir.</p>';
         const cerrar = () => { ventana.hidden = true; if (ventana.origen && ventana.origen.focus) ventana.origen.focus(); };
         ventana.addEventListener('click', ev => { if (ev.target.closest('.cerrar')) cerrar(); else if (alElegirInstrumento(ev)) cerrar(); });
         document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !ventana.hidden) cerrar(); });

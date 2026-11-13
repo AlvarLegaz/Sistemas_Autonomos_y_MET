@@ -7,11 +7,11 @@
 (function () {
   const NIVELES = {
     1: { id: 1, nombre: 'Conocer la planta', corto: 'Conocer',
-      descripcion: 'Solo el recorrido de la leche, con nombres sencillos. Pulsa Iniciar y elige Automático para ver cómo se pasteuriza la leche.' },
+      descripcion: 'El recorrido de la leche, con nombres sencillos.' },
     2: { id: 2, nombre: 'Operar', corto: 'Operar',
-      descripcion: 'Todos los equipos con sus códigos, los cinco modos (también Manual), las alarmas y las lecturas de los instrumentos.' },
+      descripcion: 'Equipos con código, cinco modos, alarmas y lecturas.' },
     3: { id: 3, nombre: 'Mantenimiento', corto: 'Mantenimiento',
-      descripcion: 'Todo: averías, multímetro, osciloscopio y hojas de calibración y de pruebas de enclavamientos.' },
+      descripcion: 'Averías, multímetro, osciloscopio, calibración y enclavamientos.' },
   };
   const IDS = [1, 2, 3];
   const NIVEL_POR_DEFECTO = 1;                  // quien entra por primera vez empieza por el más sencillo
@@ -82,30 +82,30 @@
 
   /* ---------- nivel 1: textos sencillos ---------- */
   const FICHAS_NIVEL_1 = {
-    'TK-101': { queEs: 'Es el depósito donde espera la leche antes de entrar en la máquina.',
-      queHace: 'Guarda la leche y la deja salir hacia la bomba. Si la leche no está bien pasteurizada, vuelve aquí.' },
-    'P-101': { queEs: 'Es la bomba que empuja la leche por toda la instalación.',
-      queHace: 'Cuando se enciende, mueve la leche por el intercambiador y el tubo. Si va más rápido, pasa más leche cada hora.' },
-    'HX-101': { queEs: 'Son muchas placas de acero finas: por un lado pasa la leche y por el otro, agua. Así se pasa el calor sin mezclarlas.',
-      queHace: 'Tiene 3 zonas. La primera precalienta la leche con el calor de la que ya está caliente. La segunda la calienta con agua caliente. La tercera la enfría con agua fría.' },
-    'HT-101': { queEs: 'Es un tubo largo y aislado por el que la leche caliente tiene que tardar un rato.',
-      queHace: 'Para quedar pasteurizada, la leche debe estar unos 15 segundos a 72 °C o más. El tubo hace que tarde ese tiempo.' },
-    'FDV-101': { queEs: 'Es la válvula que decide si la leche sigue adelante o vuelve atrás.',
-      queHace: 'Si la leche llega a 72 °C, la deja pasar a la salida. Si no llega, la devuelve al tanque para que nunca salga leche mal pasteurizada. Es una seguridad.' },
-    'HW-201': { queEs: 'Calienta el agua que luego calienta la leche.',
-      queHace: 'Tiene dos resistencias eléctricas dentro del agua. El agua caliente circula por el intercambiador y le pasa su calor a la leche, sin mezclarse con ella.' },
-    'P-201': { queEs: 'Es la bomba que hace circular el agua caliente.',
-      queHace: 'Mueve el agua desde el calentador hasta el intercambiador y la devuelve. Sin esta bomba, la leche no se calienta.' },
+    'TK-101': { queEs: 'Depósito donde espera la leche antes de entrar.',
+      queHace: 'Da leche a la bomba. La leche mal pasteurizada vuelve aquí.' },
+    'P-101': { queEs: 'Bomba que empuja la leche por la instalación.',
+      queHace: 'Mueve la leche por el intercambiador y el tubo. Más rápido = más litros por hora.' },
+    'HX-101': { queEs: 'Placas de acero finas: por un lado pasa leche y por el otro agua. El calor pasa sin mezclarlas.',
+      queHace: '3 zonas: precalienta con la leche ya caliente, calienta con agua caliente y enfría con agua fría.' },
+    'HT-101': { queEs: 'Tubo largo y aislado donde la leche caliente tarda un rato.',
+      queHace: 'Para pasteurizar, la leche debe estar unos 15 s a 72 °C o más. El tubo da ese tiempo.' },
+    'FDV-101': { queEs: 'Válvula que decide si la leche sigue o vuelve.',
+      queHace: 'Si la leche llega a 72 °C, sale. Si no, vuelve al tanque: nunca sale leche mal pasteurizada.' },
+    'HW-201': { queEs: 'Calienta el agua que calienta la leche.',
+      queHace: 'Dos resistencias dentro del agua. El agua pasa por el intercambiador y da su calor a la leche sin mezclarse.' },
+    'P-201': { queEs: 'Bomba del agua caliente.',
+      queHace: 'Lleva el agua del calentador al intercambiador y la devuelve. Sin ella, la leche no se calienta.' },
   };
   /** Ficha sencilla del nivel 1: { nombre, queEs, queHace } o null si el equipo no está en ese nivel. */
   const fichaSencilla = tag => (FICHAS_NIVEL_1[tag] ? Object.assign({ nombre: NOMBRES_SENCILLOS[tag] }, FICHAS_NIVEL_1[tag]) : null);
 
   const GUIA_NIVEL_1 = [
-    ['1. La leche entra', '<p>Empieza en el <b>tanque de leche</b>. La <b>bomba de leche</b> la empuja por toda la instalación.</p>'],
-    ['2. Se calienta sin mezclarse', '<p>En el <b>intercambiador de placas</b> la leche pasa junto a agua caliente, separada por una placa de acero. Así se calienta sin mezclarse con el agua.</p>'],
-    ['3. Espera en el tubo', '<p>En el <b>tubo de residencia</b> la leche espera unos 15 segundos a 72 °C o más. Con ese tiempo y esa temperatura queda pasteurizada.</p>'],
-    ['4. La válvula decide', '<p>La <b>válvula de desvío</b> mira la temperatura. Si la leche llegó a 72 °C, la deja salir. Si no, la devuelve al tanque.</p>'],
-    ['5. Se enfría y sale', '<p>Antes de salir se enfría con agua fría. <b>Para probarlo:</b> pulsa <b>Iniciar</b> y elige <b>Automático</b>. Pulsa cualquier equipo para saber qué es y qué hace.</p>'],
+    ['1. La leche entra', '<p>Sale del <b>tanque de leche</b> empujada por la <b>bomba de leche</b>.</p>'],
+    ['2. Se calienta', '<p>En el <b>intercambiador de placas</b> pasa junto a agua caliente, separada por una placa de acero.</p>'],
+    ['3. Espera en el tubo', '<p>En el <b>tubo de residencia</b> está unos 15 s a 72 °C o más: queda pasteurizada.</p>'],
+    ['4. La válvula decide', '<p>Si la leche llegó a 72 °C, la <b>válvula de desvío</b> la deja salir. Si no, la devuelve al tanque.</p>'],
+    ['5. Se enfría y sale', '<p>Se enfría con agua fría. Pulsa <b>Iniciar</b> y elige <b>Automático</b>. Toca un equipo para ver qué es.</p>'],
   ];
 
   /* ---------- nivel 1: estado en lenguaje claro ---------- */
@@ -121,15 +121,15 @@
   /** Franja de estado del nivel 1: { clase: 'ok' | 'atencion' | 'reposo', texto, simbolo }. Frases cortas y sin siglas. */
   function estadoSimple(e) {
     const modo = modoDe(e), t = numero(instrumento(e, 'TT-103').valorPLC), paro = e && e.plc && e.plc.paro;
-    if (paro) return { clase: 'atencion', simbolo: '⚠', texto: 'Atención: la planta se ha parado por seguridad (paro de emergencia). Pulsa Rearmar para volver a empezar.' };
-    if (modo === 'PARADA') return { clase: 'reposo', simbolo: '●', texto: 'La planta está parada. Pulsa Iniciar y elige Automático para empezar.' };
-    if (lazoMal(e, 'TT-103')) return { clase: 'atencion', simbolo: '⚠', texto: 'Atención: el termómetro no da lectura. Por seguridad la leche se desvía.' };
-    if (hayAlarmaGrave(e)) return { clase: 'atencion', simbolo: '⚠', texto: 'Atención: la planta ha detectado un problema. Los detalles se ven en el nivel 2.' };
+    if (paro) return { clase: 'atencion', simbolo: '⚠', texto: 'Atención: paro de emergencia. Pulsa Rearmar.' };
+    if (modo === 'PARADA') return { clase: 'reposo', simbolo: '●', texto: 'La planta está parada. Pulsa Iniciar y elige Automático.' };
+    if (lazoMal(e, 'TT-103')) return { clase: 'atencion', simbolo: '⚠', texto: 'Atención: el termómetro no da lectura. La leche se desvía.' };
+    if (hayAlarmaGrave(e)) return { clase: 'atencion', simbolo: '⚠', texto: 'Atención: hay un problema. Detalles en el nivel 2.' };
     if (modo === 'PRODUCCION') {
-      if (fdvPosicion(e) === 'AVANCE') return { clase: 'ok', simbolo: '✔', texto: `Todo bien: la leche llega a ${t !== null ? fmt(t) : '72'} °C y pasa a la salida.` };
-      return { clase: 'atencion', simbolo: '⚠', texto: `Atención: la leche no llega a ${T_PASTEURIZACION_C} °C, se está desviando.` };
+      if (fdvPosicion(e) === 'AVANCE') return { clase: 'ok', simbolo: '✔', texto: `Bien: ${t !== null ? fmt(t) : '72'} °C, la leche sale.` };
+      return { clase: 'atencion', simbolo: '⚠', texto: `Atención: menos de ${T_PASTEURIZACION_C} °C, se desvía.` };
     }
-    return { clase: 'reposo', simbolo: '●', texto: `Preparando: el agua se está calentando. Cuando la leche llegue a ${T_PASTEURIZACION_C} °C, empezará a producir.` };
+    return { clase: 'reposo', simbolo: '●', texto: `Preparando: se calienta el agua. A ${T_PASTEURIZACION_C} °C empieza a producir.` };
   }
 
   /** Las tres tarjetas de valores del nivel 1: [{ id, titulo, valor, clase, simbolo, estado }]. En palabras y con «normal / atención». */
@@ -143,7 +143,7 @@
     else if (parada) temp = tarjeta('n1-temp', 'Temperatura al salir del tubo:', `${fmt(t)} °C`, 'reposo', 'En reposo');
     else if (t >= T_PASTEURIZACION_C) temp = tarjeta('n1-temp', 'Temperatura al salir del tubo:', `${fmt(t)} °C`, 'ok', 'Normal: suficiente');
     else if (modo === 'RECIRCULACION_AGUA') temp = tarjeta('n1-temp', 'Temperatura al salir del tubo:', `${fmt(t)} °C`, 'reposo', `Calentando: aún no llega a ${T_PASTEURIZACION_C} °C`);    // preparando: es lo normal
-    else temp = tarjeta('n1-temp', 'Temperatura al salir del tubo:', `${fmt(t)} °C`, 'atencion', `Atención: aún no llega a ${T_PASTEURIZACION_C} °C`);
+    else temp = tarjeta('n1-temp', 'Temperatura al salir del tubo:', `${fmt(t)} °C`, 'atencion', `Atención: menos de ${T_PASTEURIZACION_C} °C`);
     let caudal;
     if (q === null) caudal = tarjeta('n1-caudal', 'Caudal de leche:', '—', 'reposo', 'En reposo');
     else if (parada) caudal = tarjeta('n1-caudal', 'Caudal de leche:', `${Math.round(q)} litros por hora`, 'reposo', 'En reposo');
@@ -185,7 +185,7 @@
     return { titulo, valor };
   }
   /** Descripción de los dos modos del nivel 1 (texto bajo el selector). */
-  const INFO_MODOS_NIVEL_1 = 'Parada: todo apagado. Automático: la planta arranca sola, calienta el agua y, cuando la leche llega a 72 °C, produce leche pasteurizada.';
+  const INFO_MODOS_NIVEL_1 = 'Parada: todo apagado. Automático: arranca sola, calienta el agua y produce cuando la leche llega a 72 °C.';
 
   const api = { NIVELES, IDS, NIVEL_POR_DEFECTO, CLAVE_ALMACEN, EQUIPOS_NIVEL_1, NOMBRES_SENCILLOS, OPCIONES_NIVEL_1, MODOS_NIVEL_1, FICHAS_NIVEL_1, GUIA_NIVEL_1, INFO_MODOS_NIVEL_1,
     nivelValido, nivelInicial, bloqueado, nivelMinimoDeTag, visibleEnNivel, tagsVisibles, nombreSencillo, opcionesDeModo, modoPermitido, modoMasCercano, valorDeSelector,
