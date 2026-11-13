@@ -1,0 +1,149 @@
+/* Instrumentos de medida (maletín, instrumento en la mano, puntos de medida, vista térmica, cuaderno) y modo Diagnóstico (hoja, corrección) del simulador fotovoltaico.
+   Los colores base vienen de /simulador/css/interfaz.css y de planta_fv.css. Todo lo que se toca mide al menos 44 px. */
+
+/* ---------- cabecera: botón del maletín y tercer modo ---------- */
+.planta-fv .ventanas button.destacado { background: var(--acento); color: var(--sobre-acento, #16202A); }
+.planta-fv .ventanas button.destacado:hover { background: color-mix(in srgb, var(--acento) 85%, var(--texto)); }
+body[data-instrumento] .planta-fv .ventanas button.destacado, body[data-instrumento] #v-instrumentos { box-shadow: 0 0 0 3px color-mix(in srgb, var(--acento) 45%, transparent); }
+body[data-modo="diagnostico"].planta-fv .cab { border-bottom-color: var(--error); }
+.planta-fv .lateral-simple .pestanas { display: flex; flex-wrap: wrap; }
+.planta-fv .lateral-simple .pestanas button[hidden] { display: none; }
+.planta-fv .lateral-simple .pestanas button { padding-left: 9px; padding-right: 9px; }
+
+/* ---------- modo Diagnóstico: lo que se oculta mientras la avería está oculta ---------- */
+body[data-oculto="1"] .burbuja, body[data-oculto="1"] #diagnostico, body[data-oculto="1"] .graficas-simple, body[data-oculto="1"] #leyenda-esquema { display: none; }
+body[data-oculto="1"] .resumen-fv { display: none; }      /* la energía por campo también delataría qué campo falla */
+/* los flujos animados dicen por dónde pasa corriente: en Diagnóstico los cables se ven todos iguales (la corriente se mide con la pinza) */
+body[data-oculto="1"] svg .corriente, body[data-oculto="1"] svg .flechas { display: none; }
+body[data-oculto="1"] svg .cable { stroke: var(--hilo) !important; stroke-width: 3px !important; }
+body[data-oculto="1"] svg .bypass { display: none; }
+body[data-modo="diagnostico"] .solo-revision { display: block; }
+body[data-modo="diagnostico"][data-oculto="1"] .solo-revision > section:not(.en-diagnostico), body[data-modo="diagnostico"][data-oculto="1"] .no-diagnostico,
+body[data-modo="diagnostico"][data-oculto="1"] .lista-prot li.sustituible { display: none; }
+
+/* ---------- maletín ---------- */
+.maletin { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
+.maletin button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 68px; padding: 6px 4px; border: 1px solid var(--borde); border-radius: 8px; background: var(--fondo); color: var(--texto); font: 700 13px var(--fuente); cursor: pointer; }
+.maletin button .ico { display: grid; place-items: center; min-width: 44px; height: 26px; padding: 0 6px; border-radius: 5px; background: #12261c; color: #9ff0b8; font: 700 13px ui-monospace, Consolas, monospace; }
+.maletin button:hover { border-color: var(--acento); }
+.maletin button[aria-pressed="true"] { border-color: var(--acento); box-shadow: inset 0 0 0 2px var(--acento); background: color-mix(in srgb, var(--acento) 14%, var(--panel)); }
+#maletin-fv { position: fixed; z-index: 10045; top: 12vh; left: 50%; transform: translateX(-50%); width: min(520px, 94vw); max-height: 80vh; overflow: auto; padding: 14px 18px 18px; background: var(--panel); color: var(--texto); border: 1px solid var(--borde); border-radius: 10px; box-shadow: 0 18px 50px rgba(0, 0, 0, .55); }
+#maletin-fv[hidden] { display: none; }
+#maletin-fv header { display: flex; justify-content: space-between; align-items: start; gap: 12px; border-bottom: 3px solid var(--acento); margin-bottom: 12px; }
+#maletin-fv h3 { margin: 0 0 6px; font-size: 17px; }
+#maletin-fv header button { width: 44px; height: 44px; border: 1px solid var(--borde); border-radius: 6px; background: var(--fondo); color: var(--texto); font-size: 22px; cursor: pointer; }
+#maletin-fv .nota { margin: 12px 0 0; font-size: 13px; color: var(--tenue); }
+
+/* ---------- instrumento en la mano (ventanita fija; abajo a la derecha para no tapar la barra del aula, que va abajo a la izquierda) ---------- */
+#instrumento-mano { position: fixed; z-index: 58; right: 12px; bottom: 12px; width: min(380px, calc(100vw - 24px)); max-height: min(72vh, 620px); overflow-y: auto; padding: 0 12px 10px; background: var(--panel); color: var(--texto);
+  border: 2px solid var(--acento); border-radius: 12px; box-shadow: 0 10px 34px rgba(0, 0, 0, .5); font-size: 13.5px; }
+#instrumento-mano[hidden] { display: none; }
+#instrumento-mano header { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; margin: 0 -12px 8px; padding: 6px 8px 6px 12px; background: var(--panel); border-bottom: 1px solid var(--borde); }
+#instrumento-mano header b { flex: 1; font-size: 14px; }
+#instrumento-mano button, #instrumento-mano select { min-height: 44px; border: 1px solid var(--borde); border-radius: 8px; background: var(--fondo); color: var(--texto); font: 700 13px var(--fuente); cursor: pointer; }
+#instrumento-mano select { width: 100%; padding: 0 6px; font-weight: 600; }
+#instrumento-mano .im-guardar { width: 44px; font-size: 22px; line-height: 1; }
+#instrumento-mano .im-toque { padding: 0 12px; }
+#instrumento-mano button[aria-pressed="true"] { background: var(--acento); border-color: var(--acento); color: var(--sobre-acento, #16202A); }
+.im-fila { display: flex; gap: 8px; align-items: stretch; margin-bottom: 8px; }
+.lcd { flex: 1 1 150px; min-width: 0; display: flex; align-items: baseline; justify-content: flex-end; gap: 6px; min-height: 58px; padding: 6px 10px; border-radius: 8px; background: #b9c8ad; color: #10180c; border: 3px solid #2b332a; font-family: ui-monospace, Consolas, "Courier New", monospace; }
+.lcd-valor { font-size: 30px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lcd-unidad { font-size: 15px; font-weight: 700; white-space: nowrap; }
+.lcd.peligro { background: #f3c6c2; color: #7a0c10; border-color: #b3261e; } .lcd.peligro .lcd-valor { font-size: 21px; }
+.im-modos { display: grid; grid-auto-flow: column; gap: 4px; } .im-modos button { min-width: 48px; padding: 0 8px; font-size: 15px; }
+.im-accion { padding: 0 14px; background: var(--acento) !important; border-color: var(--acento) !important; color: var(--sobre-acento, #16202A) !important; white-space: nowrap; }
+.im-puntas { display: grid; grid-template-columns: 1fr 1fr 44px; gap: 6px; margin-bottom: 6px; }
+.im-puntas .punta { display: flex; align-items: center; gap: 5px; padding: 0 8px; text-align: left; overflow: hidden; white-space: nowrap; font-weight: 600; }
+.im-puntas .punta b { overflow: hidden; text-overflow: ellipsis; }
+.im-puntas .punta.roja span { color: #e02b2b; } .im-puntas .punta.negra span { color: #111; text-shadow: 0 0 2px #fff; }
+#instrumento-mano .im-puntas .punta[aria-pressed="true"] { background: var(--fondo); color: var(--texto); box-shadow: inset 0 0 0 2px var(--acento); border-color: var(--acento); }
+.im-lista summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 700; color: var(--tenue); }
+.im-lista label, .im-campo { display: grid; gap: 3px; margin-bottom: 6px; font-size: 12.5px; font-weight: 700; color: var(--tenue); flex: 1; min-width: 0; }
+.im-sel { margin: 0 0 6px; } .im-sel small { color: var(--tenue); }
+.im-nota { margin: 0 0 6px; font-size: 12.5px; color: var(--tenue); }
+.im-elegir { margin: 0 0 8px; padding: 8px; border-radius: 8px; background: color-mix(in srgb, var(--acento) 14%, var(--panel)); border: 1px solid var(--acento); display: grid; gap: 6px; }
+.im-elegir[hidden] { display: none; }
+.im-elegir p { margin: 0; font-weight: 800; }
+.im-elegir button { display: grid; gap: 1px; padding: 5px 10px; text-align: left; } .im-elegir button small { font-weight: 500; color: var(--tenue); }
+.im-elegir button.cancelar { text-align: center; font-weight: 600; }
+.im-avisos { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.im-avisos li { padding: 6px 8px; border-radius: 6px; background: var(--fondo); border-left: 5px solid var(--borde); font-size: 12.5px; line-height: 1.35; }
+.im-avisos li.av-aviso { border-left-color: var(--aviso); } .im-avisos li.av-peligro { border-left-color: var(--error); font-weight: 700; }
+.im-curva { display: block; width: 100%; height: auto; border: 1px solid var(--borde); border-radius: 6px; margin-bottom: 4px; }
+.im-leyenda { margin: 0 0 6px; font-size: 11.5px; color: var(--tenue); }
+.im-leyenda i { display: inline-block; width: 16px; height: 0; margin: 0 4px 0 8px; vertical-align: middle; border-top: 3px solid var(--fv); } .im-leyenda i:first-child { margin-left: 0; }
+.im-leyenda i.l-ref { border-top: 2px dashed var(--tenue); } .im-leyenda i.l-mpp { width: 8px; height: 8px; border: 0; border-radius: 50%; background: var(--error); }
+.im-tabla table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.im-tabla th, .im-tabla td { padding: 3px 6px; border-bottom: 1px solid var(--borde); text-align: right; } .im-tabla th[scope="row"] { text-align: left; color: var(--tenue); font-weight: 600; }
+.im-resumen { margin: 6px 0; font-size: 12.5px; }
+.im-escala { flex: 1 1 130px; display: grid; grid-template-columns: auto 1fr auto; gap: 6px; align-items: center; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.im-escala i { height: 18px; border-radius: 4px; border: 1px solid var(--borde); }
+/* con un instrumento en la mano, el aviso de abajo y el pie dejan sitio a la ventanita */
+body[data-instrumento] .aviso-clic { bottom: auto; top: 10px; }
+body[data-instrumento] .pie-copyright { padding-bottom: 240px; }
+@media (max-width: 699px) {
+  #instrumento-mano { right: 6px; left: 6px; bottom: 6px; width: auto; max-height: 46vh; }
+  body:has(#aula-barra) #instrumento-mano { bottom: 56px; }
+  .lcd { min-height: 50px; } .lcd-valor { font-size: 26px; }
+}
+@media (max-height: 520px) { #instrumento-mano { max-height: 88vh; } }
+
+/* ---------- capa del sinóptico: puntos de medida, marcas de cable, puntas y vista térmica ---------- */
+#capa-instrumentos { pointer-events: none; }
+svg.midiendo g[data-tag] { cursor: crosshair; } svg.midiendo.maniobrando g[data-tag] { cursor: pointer; }
+.objetivo circle { fill: #fff; stroke: #0b5cad; stroke-width: 2.2; }
+.objetivo text { font: 800 8.5px var(--fuente); fill: #0b3c75; text-anchor: middle; }
+.objetivo.cable circle { fill: #fff7df; stroke: #a85200; } .objetivo.cable text { fill: #6b3500; }
+.objetivo.roja circle { fill: #e02b2b; stroke: #7a0c10; } .objetivo.roja text { fill: #fff; }
+.objetivo.negra circle { fill: #15181c; stroke: #fff; } .objetivo.negra text { fill: #fff; }
+.objetivo.elegido circle { fill: #f68b11; stroke: #6b3500; } .objetivo.elegido text { fill: #16202A; }
+.punta-marca { fill: none; stroke-width: 3; } .punta-marca.roja { stroke: #e02b2b; } .punta-marca.negra { stroke: #15181c; stroke-dasharray: 4 3; } .punta-marca.elegido { stroke: #f68b11; }
+svg.maniobrando .capa-objetivos { opacity: .45; }
+.zona-termica { stroke: rgba(0, 0, 0, .55); stroke-width: 1; pointer-events: all; cursor: crosshair; }
+.zona-termica.conector { stroke: #000; stroke-width: 1.5; }
+.zona-termica.caliente { stroke: #fff; stroke-width: 3; }
+.zona-termica.elegida { stroke: #35e0ff; stroke-width: 3.5; }
+svg.termica > *:not(#capa-instrumentos) { opacity: .38; }
+svg.termica .rotulo-termico { font: 700 10.5px var(--fuente); fill: var(--texto); text-anchor: start; }
+svg.maniobrando .zona-termica { pointer-events: none; }
+
+/* ---------- cuaderno de medidas ---------- */
+.lista-cuaderno, .h-evidencias { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.lista-cuaderno li { padding: 6px 8px; border-radius: 6px; background: var(--fondo); border-left: 5px solid var(--ok); font-size: 13px; }
+.lista-cuaderno li.peligro { border-left-color: var(--error); } .lista-cuaderno li.invalida { border-left-color: var(--aviso); }
+.lista-cuaderno li.vacio, .h-evidencias li.vacio { border-left-color: var(--borde); color: var(--tenue); }
+.lista-cuaderno p { margin: 0 0 4px; overflow-wrap: anywhere; }
+.cu-fila { display: grid; grid-template-columns: auto minmax(0, 1fr) 44px; gap: 6px; align-items: center; }
+.cu-ev { display: flex; align-items: center; gap: 5px; min-height: 44px; font-size: 12px; font-weight: 600; color: var(--tenue); }
+.cu-ev input, .h-evidencias input { width: 22px; height: 22px; flex: none; accent-color: var(--acento); }
+.cu-fila input[type="text"] { min-height: 44px; min-width: 0; padding: 0 8px; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); color: var(--texto); font: inherit; }
+.planta-fv .cu-fila button { min-height: 44px; padding: 0; font-size: 20px; }
+
+/* ---------- hoja de diagnóstico y corrección ---------- */
+.planta-fv .grupo-mando button.principal { background: var(--acento); border-color: var(--acento); color: var(--sobre-acento, #16202A); }
+.reto-profe { margin: 0; padding: 8px 10px; border-radius: 6px; background: color-mix(in srgb, var(--acento) 14%, var(--panel)); border-left: 5px solid var(--acento); font-size: 14px; }
+.reto-cab { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; margin: 0; font-size: 13.5px; }
+.reto-condiciones { margin: 0; padding: 6px 8px; border-radius: 6px; background: var(--fondo); font-size: 12.5px; line-height: 1.35; color: var(--tenue); } .reto-condiciones b { color: var(--texto); }
+.reto-cab span { color: var(--tenue); font-variant-numeric: tabular-nums; }
+.h-campo { display: grid; gap: 4px; font-size: 13.5px; font-weight: 700; }
+.h-campo small { font-weight: 500; color: var(--tenue); }
+.h-campo textarea, .h-campo select { width: 100%; min-height: 44px; padding: 8px; border: 1px solid var(--borde); border-radius: 6px; background: var(--fondo); color: var(--texto); font: 500 14px var(--fuente); resize: vertical; }
+.h-evidencias li { border-radius: 6px; background: var(--fondo); font-size: 12.5px; font-weight: 500; }
+.h-evidencias li.vacio { padding: 8px; }
+.h-evidencias label { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: center; min-height: 44px; padding: 4px 8px; cursor: pointer; overflow-wrap: anywhere; }
+.h-pistas h3, .explicacion h3 { margin: 4px 0; font-size: 13px; } .h-pistas h3 small { font-weight: 500; color: var(--tenue); }
+.h-pistas ol { margin: 0 0 6px; padding-left: 1.4em; display: grid; gap: 4px; font-size: 13.5px; }
+.h-peligros { margin: 0; padding: 6px 8px; border-radius: 6px; background: color-mix(in srgb, var(--error) 14%, var(--panel)); border-left: 5px solid var(--error); font-size: 13px; font-weight: 700; }
+.nota-grande { display: flex; align-items: baseline; gap: 8px; margin: 0; } .nota-grande b { font-size: 46px; line-height: 1; font-variant-numeric: tabular-nums; } .nota-grande span { color: var(--tenue); font-weight: 600; }
+.titular { margin: 0; font-size: 15px; font-weight: 800; }
+.resultado.a-1 .titular, .resultado.a-1 .nota-grande b { color: var(--ok); } .resultado.a-0 .titular { color: var(--error); } .resultado.a-05 .titular { color: var(--aviso); }
+.desglose { width: 100%; border-collapse: collapse; font-size: 13px; }
+.desglose th { text-align: left; padding: 5px 6px 5px 0; border-bottom: 1px solid var(--borde); font-weight: 700; } .desglose th small { display: block; font-weight: 500; color: var(--tenue); }
+.desglose td { text-align: right; padding: 5px 0; border-bottom: 1px solid var(--borde); font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; vertical-align: top; } .desglose td small { font-weight: 500; color: var(--tenue); }
+.desglose tr.resta td { color: var(--error); }
+.envio { margin: 0; padding: 6px 8px; border-radius: 6px; background: var(--fondo); border-left: 5px solid var(--aviso); font-size: 13px; } .envio.ok { border-left-color: var(--ok); }
+.explicacion { padding: 8px 10px; border-radius: 6px; background: var(--fondo); font-size: 13.5px; line-height: 1.4; } .explicacion p { margin: 0 0 6px; }
+.claves { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 4px; } .claves li.hecha { color: var(--ok); } .claves li.falta { color: var(--texto); } .claves small { color: var(--tenue); }
+.mis-resultados summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 700; font-size: 14px; }
+.mis-resultados ul { margin: 0; padding-left: 1.2em; display: grid; gap: 3px; font-size: 13px; }
+#guia-fv ol { margin: 0 0 6px; padding-left: 1.4em; display: grid; gap: 3px; }

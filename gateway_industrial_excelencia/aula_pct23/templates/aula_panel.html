@@ -19,12 +19,40 @@
 
 <nav class="pestanas" aria-label="Estado de las cuentas">
   {% for e, nombre in (('pendiente', 'Pendientes'), ('autorizado', 'Autorizados'), ('rechazado', 'Rechazados')) %}
-    <a href="{{ url_for('aula', estado=e, modulo=modulo or None, q=q or None) }}" {% if estado == e and not vista_pin %}aria-current="page"{% endif %}>{{ nombre }} <span class="n">{{ cuentas[e] }}</span></a>
+    <a href="{{ url_for('aula', estado=e, modulo=modulo or None, q=q or None) }}" {% if estado == e and not vista_pin and not vista_diag %}aria-current="page"{% endif %}>{{ nombre }} <span class="n">{{ cuentas[e] }}</span></a>
   {% endfor %}
-  <a href="{{ url_for('aula', estado='todos', modulo=modulo or None, q=q or None) }}" {% if estado == 'todos' and not vista_pin %}aria-current="page"{% endif %}>Todos <span class="n">{{ cuentas.values() | sum }}</span></a>
+  <a href="{{ url_for('aula', estado='todos', modulo=modulo or None, q=q or None) }}" {% if estado == 'todos' and not vista_pin and not vista_diag %}aria-current="page"{% endif %}>Todos <span class="n">{{ cuentas.values() | sum }}</span></a>
+  {% if hay_diagnostico %}<a href="{{ url_for('aula', vista='diagnostico') }}" {% if vista_diag %}aria-current="page"{% endif %}>Diagnóstico</a>{% endif %}
   <a class="pestana-pin" href="{{ url_for('aula', vista='pin') }}" {% if vista_pin %}aria-current="page"{% endif %}>Cambiar PIN</a>
 </nav>
-{% if not vista_pin %}
+{% if vista_diag %}
+<section class="diagnostico">
+  <h2>Diagnóstico de averías · resumen por avería</h2>
+  <p class="ayuda">Todas las hojas de diagnóstico entregadas en el simulador fotovoltaico (retos y práctica libre). Arriba, las averías que más cuestan (peor nota media).</p>
+  {% if resumen_averias %}
+  <table class="tabla">
+    <thead><tr><th>Avería</th><th>Entregas</th><th>Alumnos</th><th>Acierto</th><th>Nota media</th><th>Pistas</th><th>Medidas</th><th>Tiempo medio</th></tr></thead>
+    <tbody>
+    {% for r in resumen_averias %}
+      <tr>
+        <td data-etiqueta="Avería"><strong>{{ titulo_averia(r['averia_real']) }}</strong></td>
+        <td data-etiqueta="Entregas">{{ r['n'] }}</td>
+        <td data-etiqueta="Alumnos">{{ r['alumnos'] }}</td>
+        <td data-etiqueta="Acierto">{{ r['pct']|round|int }} %</td>
+        <td data-etiqueta="Nota media"><b>{{ r['nota']|nota }}</b></td>
+        <td data-etiqueta="Pistas">{{ r['pistas']|round(1)|nota }}</td>
+        <td data-etiqueta="Medidas">{{ r['medidas']|round(1)|nota }}</td>
+        <td data-etiqueta="Tiempo medio">{{ r['segundos']|duracion }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="vacio">Todavía no se ha entregado ningún diagnóstico. Asigna un reto desde la lista de alumnos autorizados o desde la ficha de un alumno.</p>
+  {% endif %}
+  <p class="pie"><a href="{{ url_for('aula_diagnosticos_csv') }}">Descargar las notas de diagnóstico (CSV)</a> · <a href="{{ url_for('aula_diagnosticos_averias_csv') }}">Descargar este resumen por avería (CSV)</a></p>
+</section>
+{% elif not vista_pin %}
 
 <form class="filtros" method="get" action="{{ url_for('aula') }}">
   <input type="hidden" name="estado" value="{{ estado }}">
@@ -58,8 +86,28 @@
   {% for s in simuladores %}<label class="casilla"><input type="checkbox" name="sim_{{ s['id'] }}" value="1" checked> {{ s['etiqueta'] }}</label>{% endfor %}
   <button type="submit">Asignar a toda la lista</button>
 </form>
+{% if averias %}
+<form method="post" action="{{ url_for('aula_reto') }}" class="masivo reto-form" id="reto-lista"
+      onsubmit="return confirm('¿Asignar este reto de diagnóstico a los alumnos de esta lista que estén autorizados y tengan el simulador fotovoltaico ({{ con_reto }} de {{ filas|length }})?')">
+  <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="accion" value="asignar_lista">
+  <input type="hidden" name="estado" value="{{ estado }}"><input type="hidden" name="modulo" value="{{ modulo }}"><input type="hidden" name="q" value="{{ q }}">
+  <strong class="reto-titulo">Reto de diagnóstico fotovoltaico para los {{ filas|length }} alumnos de esta lista:</strong>
+  <label>Avería oculta
+    <select name="averia" required>
+      <option value="azar">Al azar, distinta para cada alumno</option>
+      {% for a in averias %}<option value="{{ a['id'] }}">{{ a['titulo'] }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Título (opcional, lo ve el alumno)
+    <input type="text" name="titulo" maxlength="80" placeholder="Práctica de diagnóstico" autocomplete="off">
+  </label>
+  <label class="casilla"><input type="checkbox" name="pistas" value="1" checked> Permitir pistas</label>
+  <button type="submit" {% if not con_reto %}disabled title="Ningún alumno de esta lista está autorizado y tiene el simulador fotovoltaico"{% endif %}>Asignar reto</button>
+  <span class="reto-nota">Lo reciben {{ con_reto }} de {{ filas|length }}: solo alumnos autorizados con el simulador fotovoltaico asignado. El alumno no ve qué avería es.</span>
+</form>
+{% endif %}
 <table class="tabla">
-  <thead><tr><th>Alumno</th><th>Módulo</th><th>Correo</th><th>Estado</th><th>Simuladores</th><th>Tiempo de uso</th><th>Último acceso</th><th>Acciones</th></tr></thead>
+  <thead><tr><th>Alumno</th><th>Módulo</th><th>Correo</th><th>Estado</th><th>Simuladores</th>{% if hay_diagnostico %}<th>Retos</th>{% endif %}<th>Tiempo de uso</th><th>Último acceso</th><th>Acciones</th></tr></thead>
   <tbody>
   {% for f in filas %}
     <tr>
@@ -78,6 +126,16 @@
           </form>
         </details>
       </td>
+      {% if hay_diagnostico %}
+      <td data-etiqueta="Retos">
+        {% if f['retos_pend'] or f['retos_res'] %}
+        <a class="retos-fila" href="{{ url_for('aula_alumno', uid=f['id']) }}#retos">
+          {% if f['retos_pend'] %}<span class="etiqueta etiqueta-pendiente">{{ f['retos_pend'] }} pendiente{{ 's' if f['retos_pend'] != 1 }}</span>{% endif %}
+          {% if f['retos_res'] %}<span class="etiqueta etiqueta-autorizado">{{ f['retos_res'] }} resuelto{{ 's' if f['retos_res'] != 1 }} · nota {{ f['retos_nota']|nota }}</span>{% endif %}
+        </a>
+        {% else %}—{% endif %}
+      </td>
+      {% endif %}
       <td data-etiqueta="Tiempo de uso">{{ f['seg_total']|duracion }}</td>
       <td data-etiqueta="Último acceso">{% if f['ultimo'] %}<time class="local" datetime="{{ f['ultimo'] }}">{{ f['ultimo'][:16].replace('T', ' ') }}</time>{% else %}—{% endif %}</td>
       <td data-etiqueta="Acciones" class="acciones">
@@ -108,7 +166,7 @@
   {% if estado == 'pendiente' %}No hay alumnos pendientes. Cuando alguien se registre aparecerá aquí.{% else %}No hay cuentas con este filtro.{% endif %}
 </p>
 {% endif %}
-<p class="pie"><a href="{{ url_for('aula_resumen_csv') }}">Descargar resumen de actividad (CSV)</a></p>
+<p class="pie"><a href="{{ url_for('aula_resumen_csv') }}">Descargar resumen de actividad (CSV)</a>{% if hay_diagnostico %} · <a href="{{ url_for('aula_diagnosticos_csv') }}">Notas de diagnóstico (CSV)</a> · <a href="{{ url_for('aula', vista='diagnostico') }}">Resumen por avería</a>{% endif %}</p>
 {% else %}
 <section id="cambiar-pin" class="cambiar-pin">
   <h2>Cambiar el PIN del aula</h2>

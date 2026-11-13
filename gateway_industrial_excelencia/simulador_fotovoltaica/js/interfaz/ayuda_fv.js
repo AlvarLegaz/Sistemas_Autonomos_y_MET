@@ -31,6 +31,7 @@
     carga: ['Cargas: el consumo que alimenta la instalación.', 'Con perfil automático (aula de mañana y tarde, noche baja) o manual desde el panel de Revisión.', 'Potencia consumida y si están alimentadas.'],
   };
   const TIPOS_BOTON_3D = true;
+  const TEXTO_OCULTO = 'En modo Diagnóstico el estado no se enseña: averígualo midiendo con los instrumentos del maletín.';
 
   /** Ficha de un equipo: { titulo, etiqueta, queEs, enSimulador, mantenimiento }. Con PCT.fvTextosAyuda (si existe) mandan sus textos. */
   function fichaDe(tag, externos) {
@@ -79,10 +80,11 @@
     const vivo = () => {
       if (!actual || ventana.hidden) return;
       const estado = contexto.sim().estado;
-      const texto = (ext && contexto.textos.estadoVivo ? contexto.textos.estadoVivo(actual, estado) : null) || textoVivo(actual, estado);
+      const oculto = !!(contexto.oculto && contexto.oculto());      // modo Diagnóstico: el estado en vivo delataría la avería
+      const texto = oculto ? TEXTO_OCULTO : (ext && contexto.textos.estadoVivo ? contexto.textos.estadoVivo(actual, estado) : null) || textoVivo(actual, estado);
       ventana.querySelector('.ficha-vivo').textContent = texto || '—';
       const dg = ventana.querySelector('.ficha-diag'), D = !enNode && PCT.fvDiagnostico;
-      if (D && (actual === 'INV-101' || actual === 'INV-201')) { const x = D.diagnosticoInversor(estado, actual); dg.hidden = false; dg.className = `ficha-diag e-${x.nivel}`; dg.innerHTML = `<b>Causa:</b> ${esc(x.causa)}${x.efecto ? `<br><b>Efecto:</b> ${esc(x.efecto)}` : ''}`; } else dg.hidden = true;
+      if (D && !oculto && (actual === 'INV-101' || actual === 'INV-201')) { const x = D.diagnosticoInversor(estado, actual); dg.hidden = false; dg.className = `ficha-diag e-${x.nivel}`; dg.innerHTML = `<b>Causa:</b> ${esc(x.causa)}${x.efecto ? `<br><b>Efecto:</b> ${esc(x.efecto)}` : ''}`; } else dg.hidden = true;
       const b = ventana.querySelector('.ficha-accion'), a = contexto.accion ? contexto.accion(actual) : null;
       accionActual = a; b.hidden = !a; if (a) b.textContent = a.texto;
     };
@@ -136,7 +138,7 @@
     return { abrir, cerrar };
   }
 
-  const api = { cuerpoRico, POR_TIPO, TIPOS_BOTON_3D, fichaDe, textoVivo, tagDelElemento, urlVisor3d, iniciarAyuda };
+  const api = { TEXTO_OCULTO, cuerpoRico, POR_TIPO, TIPOS_BOTON_3D, fichaDe, textoVivo, tagDelElemento, urlVisor3d, iniciarAyuda };
   void F;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') (window.PCT = window.PCT || {}).fvAyuda = api;

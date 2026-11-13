@@ -41,9 +41,9 @@
    *   'aviso' | 'info' → { texto } mensaje para el operador, sin orden
    */
   function decidirClic(tag, estado, modo = 'normal') {
-    const e = estado || {}, revision = modo === 'revision', M = nombresModos();
+    const e = estado || {}, diag = modo === 'diagnostico', revision = modo === 'revision' || diag, M = nombresModos();      // en Diagnóstico se maniobra como en Revisión, pero no se repara ni se ve la curva sin el trazador
     const pedirRevision = () => ({ tipo: 'aviso', texto: `Para accionar ${tag} pasa a ${M.manual}. Con el botón derecho ves su ficha.` });
-    if (CADENAS.includes(tag)) return { tipo: 'cadena', tag };
+    if (CADENAS.includes(tag)) return diag ? { tipo: 'aviso', texto: `En Diagnóstico la curva de ${tag} se mide con el trazador I-V del maletín (botón «Instrumentos»).` } : { tipo: 'cadena', tag };
     if (PROTECCIONES.includes(tag)) {
       if (!revision) return pedirRevision();
       const est = (e.protecciones && e.protecciones[tag] && e.protecciones[tag].estado) || 'CERRADO';
@@ -53,6 +53,7 @@
       return { tipo: 'info', texto: `${tag}: ${est.toLowerCase()}.` };
     }
     if (SUSTITUIBLES.includes(tag)) {
+      if (diag) return { tipo: 'aviso', texto: `${tag}: sustituirlo es reparar. Primero entrega tu hoja de diagnóstico; para saber si está bien, mídelo.` };      // el mismo texto esté sano o no: no delata la avería
       const est = (e.protecciones && e.protecciones[tag] && e.protecciones[tag].estado) || 'CERRADO';
       if (est !== 'FUNDIDO' && est !== 'AGOTADO') return { tipo: 'info', texto: `${tag} está sano: no se acciona. Si falla (fusible fundido, testigo del descargador en rojo) se sustituye con un clic en Revisión.` };
       return revision ? { tipo: 'orden', tag, accion: 'rearmar' } : pedirRevision();
@@ -63,6 +64,7 @@
       return apagado ? { tipo: 'orden', tag, accion: 'encender' } : { tipo: 'orden', tag, accion: 'apagar', aviso: `al apagar ${tag}, ${CONSECUENCIAS[tag]}` };
     }
     if (tag === 'RED-301') {
+      if (diag) return { tipo: 'aviso', texto: 'La acometida no se maniobra en Diagnóstico: mide su tensión con el multímetro.' };
       if (!revision) return pedirRevision();
       const cae = !(e.red && e.red.disponible === false);
       return cae ? { tipo: 'orden', tag, accion: 'red-cortar', aviso: `al cortar la red, ${CONSECUENCIAS['RED-301']}` } : { tipo: 'orden', tag, accion: 'red-reponer' };
@@ -119,6 +121,7 @@
     if (!e) return '—';
     const f = enNode ? F : PCT.fvFormato, M = nombresModos();
     const prod = ((e.campos && e.campos.A && e.campos.A.p) || 0) + ((e.campos && e.campos.B && e.campos.B.p) || 0);
+    if (modo === 'diagnostico') return `Diagnóstico (avería oculta) · ${corriendo ? 'en marcha' : 'en pausa'} · ${e.reloj && e.reloj.esDia ? 'de día' : 'de noche'} · sin lecturas ni alarmas explicadas: mide con los instrumentos`;
     const al = (e.alarmas || []).filter(a => a.severidad !== 'info');
     const base = `${modo === 'revision' ? `${M.manual} (todo en tus manos)` : M.normal} · ${corriendo ? 'en marcha' : 'en pausa'} · ${e.reloj && e.reloj.esDia ? 'de día' : 'de noche'} · FV ${f.formatoPotencia(prod)} · batería ${f.formatoPorcentaje(e.bateria && e.bateria.soc01)}`;
     if (!al.length) return `${base} · sin alarmas`;
@@ -138,6 +141,10 @@
     ['Cómo leer el sinóptico', '<p>Los <b>cables</b> se animan con el sentido de la potencia (flecha y puntos) y son más gruesos cuanto más potencia llevan: amarillo = solar, verde = batería, azul = red, violeta = consumo y producción del ZCS. Las <b>burbujas</b> dan tensión, corriente y potencia de cada tramo. El <b>color</b> de cada equipo (y su forma: palanca abierta, fusible roto, testigo) dice su estado: verde en servicio, ámbar aviso, rojo alarma, gris parado.</p>'],
     ['Cómo se numeran los equipos', `<p>Las letras dicen qué es (PV panel, STR cadena, QS seccionador, QB, QF y ID protecciones, INV inversor, BAT batería, LOAD carga) y la <b>centena</b> del número, a qué circuito pertenece: ${Object.entries(layout.CIRCUITOS).map(([n, c]) => `<b>${n}xx</b> ${escapar(c.toLowerCase())}`).join('; ')}.</p>`],
     ['En el iPad', '<p>Un <b>toque corto</b> acciona el equipo; <b>mantén pulsado 3 s</b> un equipo para ver su descripción (un anillo se va llenando; si mueves el dedo se cancela). No hace falta pasar el ratón por nada. Con los botones − / + del sinóptico lo acercas y lo desplazas con el dedo.</p>'],
+    ['Instrumentos de medida', '<p>El botón <b>Instrumentos</b> (y la pestaña del mismo nombre) abre el maletín. Coge uno y queda «en la mano», en una ventanita con su pantalla; mientras lo tienes, <b>un toque en el sinóptico mide</b> en vez de accionar (el botón <b>Maniobrar</b> de la ventanita deja pasar los toques para abrir un interruptor sin soltarlo).</p><ul><li><b>Multímetro</b> (V⎓, V∿, Ω-continuidad): toca un punto para la punta roja y otro para la negra. Si el toque cae entre varios puntos, o tocas un equipo, te pregunta en cuál. Signo negativo = puntas al revés.</li><li><b>Pinza amperimétrica</b> (A⎓, A∿): toca la marca de un cable; da la corriente con su signo y sentido.</li><li><b>Megóhmetro</b>: aislamiento de cada polo de una cadena a tierra; exige el seccionador abierto.</li><li><b>Trazador I-V</b>: curva medida frente a la de referencia, con Voc, Isc, Pmpp, factor de forma, desviación y escalones.</li><li><b>Cámara termográfica</b>: vista térmica con su escala; toca una zona para leer su temperatura.</li></ul><p>Cada medida se apunta sola en el <b>cuaderno</b> (pestaña Instrumentos), donde puedes anotarla, marcarla como evidencia y borrarla.</p>'],
+    ['Modo Diagnóstico', '<p>La instalación tiene una <b>avería oculta</b>: la que te asigna tu profesor o, si no hay ninguna, una al azar para practicar. Desaparecen las ayudas que la delatarían (lecturas, alarmas explicadas, burbujas, gráficas, colores de estado): quedan las pantallas y los LED de los equipos, las palancas y los testigos, como en la realidad. Puedes cambiar la fecha, la hora y la nubosidad (hace falta sol para muchas medidas), abrir y cerrar interruptores, apagar inversores y sombrear paneles. Rellena la <b>hoja</b> (síntoma, medidas que lo demuestran, elemento, avería y reparación) y pulsa <b>Entregar</b>: se corrige al momento con nota de 0 a 10. Cuentan el acierto, las medidas clave que hayas hecho, la hoja completa y el tiempo; restan las pistas, las maniobras peligrosas y los intentos anteriores. Después puedes reintentar o ver la avería y repararla.</p>'],
+    ['Cómo diagnosticar (orden de la norma IEC 62446-1)', '<ol><li><b>Inspección visual</b>: palancas, testigos de los descargadores, pantallas y LED de los inversores, sombras y suciedad. Sin tocar nada.</li><li><b>Continuidad de las tierras</b> y de los conductores de protección (óhmetro, sin tensión; pinza en el conductor de tierra: no debe pasar corriente).</li><li><b>Polaridad</b> de cada cadena con el multímetro en V⎓: signo positivo con la punta roja en el «+».</li><li><b>Tensión en vacío (Voc)</b> de cada cadena con el seccionador abierto: cadenas iguales deben dar lo mismo (± 5 %). Un tercio de panel de menos = un diodo de paso; 0 V = cadena abierta.</li><li><b>Corriente</b> (Isc o de trabajo) con la pinza: cadenas iguales con el mismo sol, la misma corriente. 0 A con tensión = circuito abierto aguas abajo (fusible, seccionador).</li><li><b>Aislamiento</b> de cada polo a tierra con el megóhmetro, con el seccionador abierto: por encima del mínimo (1 MΩ; 0,5 MΩ en campos de menos de 120 V).</li><li><b>Curva I-V</b> con más de 400 W/m²: compara con la de referencia. Escalones = diodos de paso; poca corriente = suciedad o sombra; curva «tumbada» = resistencia en serie.</li><li><b>Termografía</b> con la instalación en carga: conectores, bornas y células más calientes que sus iguales.</li></ol><p>Ve siempre de lo general a lo concreto: primero qué campo o qué inversor falla, luego qué cadena y por último qué elemento. Compara con el elemento igual que sí funciona.</p>'],
+    ['Riesgos de cada medida', '<ul><li><b>Continua</b>: los paneles dan tensión siempre que hay luz, aunque el seccionador esté abierto. En continua el arco no se apaga solo: <b>nunca abras un seccionador ni un conector MC4 con carga</b> (apaga antes el inversor).</li><li><b>Multímetro</b>: categoría CAT III 1000 V, puntas con protección, una sola mano. <b>Nunca midas continuidad ni resistencia con tensión</b>. No uses la entrada de amperios en paralelo.</li><li><b>Pinza</b>: abraza un solo conductor; haz el cero en continua. No abre el circuito: es la forma segura de medir corriente.</li><li><b>Megóhmetro</b>: inyecta de 250 a 1000 V. Seccionador abierto, inversor y descargadores desconectados, nadie tocando los paneles; al acabar, descarga la cadena.</li><li><b>Trazador I-V</b>: se conecta a la cadena aislada del inversor y la pone en cortocircuito un instante: conectores bien enchufados y polaridad comprobada antes.</li><li><b>Termografía</b>: sin contacto, pero con la instalación en carga y las tapas abiertas: distancia de seguridad y cuidado con los reflejos del sol.</li><li><b>Batería</b>: corriente de cortocircuito de miles de amperios. Herramienta aislada y nada metálico encima.</li></ul>'],
     ['Ventanas aparte', '<p><b>Unifilar</b> y <b>Cableado</b> son los planos eléctricos con el estado en vivo; <b>Instalación 3D</b> es la cubierta y la caseta. Se siguen moviendo con la instalación.</p>'],
   ]; };
 
@@ -155,8 +162,8 @@
 
     raiz.innerHTML = `<header class="cab">
         <h1><img class="logo" src="/simulador/img/logo-politecnico.png" alt="CIFP Politécnico Cartagena" width="166" height="60"><span class="sim">${escapar(I.centro.toUpperCase())} · ${escapar(I.corto)}<small>${escapar(I.nombre)}</small></span></h1>
-        <nav class="modos" aria-label="Modo de funcionamiento"><button type="button" id="modo-normal" title="La instalación funciona sola: tú eliges día, hora y nubosidad">${escapar(M.normal)}</button><button type="button" id="modo-revision" title="Tú controlas todo: sombras, interruptores, red, cargas y averías">${escapar(M.manual)}</button></nav>
-        <div class="ventanas" role="group" aria-label="Ventanas aparte"><button type="button" id="v-unifilar">Unifilar</button><button type="button" id="v-cableado">Cableado</button><button type="button" id="v-3d">Instalación 3D</button><button type="button" id="v-ayuda">? Ayuda</button></div>
+        <nav class="modos" aria-label="Modo de funcionamiento"><button type="button" id="modo-normal" title="La instalación funciona sola: tú eliges día, hora y nubosidad">${escapar(M.normal)}</button><button type="button" id="modo-revision" title="Tú controlas todo: sombras, interruptores, red, cargas y averías">${escapar(M.manual)}</button><button type="button" id="modo-diagnostico" title="Avería oculta: la encuentras midiendo con los instrumentos y entregas una hoja con nota">Diagnóstico</button></nav>
+        <div class="ventanas" role="group" aria-label="Instrumentos y ventanas aparte"><button type="button" id="v-instrumentos" class="destacado" title="Maletín: multímetro, pinza, megóhmetro, trazador I-V y cámara termográfica">Instrumentos</button><button type="button" id="v-unifilar">Unifilar</button><button type="button" id="v-cableado">Cableado</button><button type="button" id="v-3d">Instalación 3D</button><button type="button" id="v-ayuda">? Ayuda</button></div>
       </header>
       <div class="barra" role="region" aria-label="Operación de la simulación">
         <div class="acciones"><button id="sim-play" type="button">Iniciar</button><button id="sim-pause" type="button" disabled>Pausar</button><button id="sim-reset" type="button">Restablecer</button></div>
@@ -169,9 +176,11 @@
           <div class="lienzo" id="esquema" tabindex="-1"></div>
           <section class="resumen-fv" aria-label="Qué está pasando y energía del día"><div class="tarjeta-fv" id="diagnostico" aria-live="off"></div><div class="tarjeta-fv" id="energia-dia"></div></section></main>
         <aside class="lateral-simple" aria-label="Mando y lecturas">
-          <div class="pestanas" role="tablist" aria-label="Paneles"><button type="button" role="tab" id="t-mando" data-p="p-mando" aria-selected="true" aria-controls="p-mando">Mando</button><button type="button" role="tab" id="t-lecturas" data-p="p-lecturas" aria-selected="false" aria-controls="p-lecturas">Lecturas</button></div>
+          <div class="pestanas" role="tablist" aria-label="Paneles"><button type="button" role="tab" id="t-mando" data-p="p-mando" aria-selected="true" aria-controls="p-mando">Mando</button><button type="button" role="tab" id="t-lecturas" data-p="p-lecturas" aria-selected="false" aria-controls="p-lecturas">Lecturas</button><button type="button" role="tab" id="t-instrumentos" data-p="p-instrumentos" aria-selected="false" aria-controls="p-instrumentos">Instrumentos</button><button type="button" role="tab" id="t-diagnostico" data-p="p-diagnostico" aria-selected="false" aria-controls="p-diagnostico" hidden>Diagnóstico</button></div>
           <div class="panel-pestana" id="p-mando" role="tabpanel" aria-labelledby="t-mando"></div>
           <div class="panel-pestana" id="p-lecturas" role="tabpanel" aria-labelledby="t-lecturas" hidden></div>
+          <div class="panel-pestana" id="p-instrumentos" role="tabpanel" aria-labelledby="t-instrumentos" hidden></div>
+          <div class="panel-pestana" id="p-diagnostico" role="tabpanel" aria-labelledby="t-diagnostico" hidden></div>
         </aside>
         <section class="graficas-simple" aria-label="Gráficas"><h2>GRÁFICAS</h2><div id="graficas"></div></section>
       </div>
@@ -196,7 +205,10 @@
     // Sinóptico, gráficas y paneles
     const { Canvas } = PCT.canvas, canvas = new Canvas(PCT.fvEsquema.ESQUEMA_FV);
     $('esquema').replaceChildren(canvas.svg);
-    const objetos = PCT.fvEsquema.crearObjetos(canvas);
+    let diag = null;      // hoja de diagnóstico (se crea más abajo)
+    const oculto = () => modo === 'diagnostico' && !!diag && diag.oculto();      // ¿se ocultan ahora las ayudas que delatarían la avería?
+    const modoClic = () => (modo === 'diagnostico' && !oculto() ? 'revision' : modo);      // tras ver la avería, se repara como en Revisión
+    const objetos = PCT.fvEsquema.crearObjetos(canvas, { oculto });
     // Zoom del sinóptico: 0 = entero (cabe en el ancho); 1–3 = ancho mínimo del dibujo con desplazamiento (táctil: arrastrar con el dedo; también pellizcar)
     const NIVELES_ZOOM = [0, 1100, 1450, 1740];
     let nivelZoom = -1;
@@ -236,8 +248,10 @@ let anchoPrevio = $('esquema').clientWidth;
     const lecturas = PCT.fvPanelLecturas.crearPanelLecturas($('p-lecturas'));
     reiniciarBaseEnergia();
     function accionar(tag) {
-      const d = decidirClic(tag, estado(), modo);
-      if (d.tipo === 'cadena') { graficas.seleccionarCadena(d.tag); avisar(`Curva I-V de ${d.tag} (más abajo, en las gráficas).`); }
+      const d = decidirClic(tag, estado(), modoClic());
+      const peligro = modo === 'diagnostico' ? PCT.fvReto.peligroManiobra(d, estado()) : '';
+      if (peligro) { ejecutarOrden(sim, d); avisar(`⚠ ${peligro}`); diag.anotarPeligro(peligro); }
+      else if (d.tipo === 'cadena') { graficas.seleccionarCadena(d.tag); avisar(`Curva I-V de ${d.tag} (más abajo, en las gráficas).`); }
       else if (d.tipo === 'orden') avisar(ejecutarOrden(sim, d));
       else if (d.tipo === 'sombra') { sim.ordenes.ambiente.sombra(d.tag, d.valor); avisar(d.texto); }
       else avisar(d.texto);
@@ -247,15 +261,36 @@ let anchoPrevio = $('esquema').clientWidth;
     const ficha = PCT.fvAyuda.iniciarAyuda(canvas.svg, {
       sim: () => sim, textos: PCT.fvTextosAyuda,
       alVer3d: tag => window.open(PCT.fvAyuda.urlVisor3d(tag), 'fv_3d_pieza', VENTANA),
-      clicIzquierdo: tag => accionar(tag),
-      accion: tag => { const d = decidirClic(tag, estado(), modo); return d.tipo === 'orden' ? { texto: textoAccion(d), ejecutar: () => accionar(tag) } : null; },
+      clicIzquierdo: tag => accionar(tag), oculto,
+      accion: tag => { const d = decidirClic(tag, estado(), modoClic()); return d.tipo === 'orden' ? { texto: textoAccion(d), ejecutar: () => accionar(tag) } : null; },
     });
 
     // Pestañas
-    document.querySelector('.lateral-simple .pestanas').addEventListener('click', ev => {
-      const b = ev.target.closest('[data-p]'); if (!b) return;
+    function elegirPestana(b) {
       document.querySelectorAll('.lateral-simple [role="tab"]').forEach(t => t.setAttribute('aria-selected', String(t === b)));
       document.querySelectorAll('.lateral-simple .panel-pestana').forEach(p => { p.hidden = p.id !== b.dataset.p; });
+    }
+    document.querySelector('.lateral-simple .pestanas').addEventListener('click', ev => { const b = ev.target.closest('[data-p]'); if (b) elegirPestana(b); });
+
+    // Instrumentos de medida, cuaderno y hoja de diagnóstico
+    const cuaderno = PCT.fvCuaderno.crearCuaderno();
+    const instrumentos = PCT.fvPanelInstrumentos.crear({ sim: () => sim, svg: canvas.svg, pestana: $('p-instrumentos'), cuaderno, avisar, alPeligro: texto => { if (diag) diag.anotarPeligro(texto); } });
+    $('v-instrumentos').addEventListener('click', () => instrumentos.abrirMaletin($('v-instrumentos')));
+    const catalogo = (PCT.fv && PCT.fv.catalogoAverias) || null;
+    /** Pone la avería del reto en la instalación sana, en las condiciones en que se manifiesta (escenario de su firma), sin enseñarla. */
+    function ponerAveriaOculta(id, firma) {
+      restaurarNormal(sim);
+      try { if (catalogo && catalogo.prepararEscenario && firma && firma.escenario) catalogo.prepararEscenario(sim, firma); } catch (error) { /* sin escenario: la avería se pone en las condiciones actuales */ }
+      sim.ordenes.averias.activar(id);
+      const espera = Math.max(10, Math.min(3600, Number(firma && firma.escenario && firma.escenario.esperaS) || 60));
+      for (const dt of f.subdividir(espera, PASO_MAX_S)) sim.paso(dt);
+      historial.limpiar(); reiniciarBaseEnergia(); panelMando.restablecer();
+    }
+    let almacen = null; try { almacen = window.localStorage; } catch (error) { almacen = null; }
+    diag = PCT.fvPanelDiagnostico.crear($('p-diagnostico'), { cuaderno, catalogo, avisar, almacen,
+      empezar: (reto, firma) => { ponerAveriaOculta(reto.averia, firma); corriendo = true; actualizarBotones(); refrescar(); },
+      revelar: () => { refrescar(); graficas.redibujar(); },
+      terminar: () => { restaurarNormal(sim); panelMando.restablecer(); aplicarAhora(); refrescar(); },
     });
 
     // Barra
@@ -263,7 +298,10 @@ let anchoPrevio = $('esquema').clientWidth;
     $('sim-play').addEventListener('click', () => { corriendo = true; actualizarBotones(); refrescar(); });
     $('sim-pause').addEventListener('click', () => { corriendo = false; actualizarBotones(); refrescar(); });
     $('sim-reset').addEventListener('click', () => {      // sin cuadro de confirmación: vuelve al comienzo del día
-      sim.reiniciar(); panelMando.restablecer(); historial.limpiar(); sim.paso(0.2); reiniciarBaseEnergia(); corriendo = false; actualizarBotones(); avisar('Instalación restablecida.'); refrescar();
+      const averia = modo === 'diagnostico' && oculto() ? diag.averia() : null;      // en un reto, restablecer vuelve al comienzo PERO la avería oculta sigue
+      sim.reiniciar(); panelMando.restablecer(); historial.limpiar(); sim.paso(0.2); reiniciarBaseEnergia(); corriendo = false;
+      if (averia) { ponerAveriaOculta(averia, diag.firma()); corriendo = true; }
+      actualizarBotones(); avisar(averia ? 'Instalación restablecida al comienzo del reto (la avería sigue ahí).' : 'Instalación restablecida.'); refrescar();
     });
     document.querySelector('.velocidad').addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
@@ -273,10 +311,18 @@ let anchoPrevio = $('esquema').clientWidth;
     function ponerModo(nuevo) {
       if (nuevo === modo) return;
       if (modo === 'revision' && nuevo === 'normal') { restaurarNormal(sim); panelMando.restablecer(); avisar('Modo Normal: la instalación vuelve a funcionar sola (cargas automáticas, protecciones cerradas, sin averías ni sombras).'); }
-      modo = nuevo; aplicarAhora(); refrescar();
+      if (modo === 'diagnostico' || nuevo === 'diagnostico') {      // al entrar y al salir de Diagnóstico la instalación queda sana: el reto en curso se abandona y no se puede «mirar» la avería desde Revisión
+        const habia = modo === 'diagnostico' && diag.fase() !== 'inicio';
+        restaurarNormal(sim); panelMando.restablecer(); if (modo === 'diagnostico') diag.salir();
+        avisar(nuevo === 'diagnostico' ? 'Modo Diagnóstico: empieza un reto en la pestaña Diagnóstico. Las lecturas y las alarmas se ocultan: se mide con los instrumentos.' : habia ? 'Has salido de Diagnóstico: el reto queda abandonado y la instalación vuelve a estar sana.' : 'La instalación vuelve a funcionar con normalidad.');
+      }
+      modo = nuevo; aplicarAhora();
+      if (nuevo === 'diagnostico') { diag.entrar(); $('t-diagnostico').hidden = false; elegirPestana($('t-diagnostico')); }
+      refrescar(); graficas.redibujar();
     }
     $('modo-normal').addEventListener('click', () => ponerModo('normal'));
     $('modo-revision').addEventListener('click', () => ponerModo('revision'));
+    $('modo-diagnostico').addEventListener('click', () => ponerModo('diagnostico'));
 
     // Ventanas aparte
     $('v-3d').addEventListener('click', () => window.open('visor3d.html', 'fv_3d', VENTANA));
@@ -322,9 +368,13 @@ let anchoPrevio = $('esquema').clientWidth;
       for (const c of CADENAS) { const g = canvas.buscar(`g-${c}`); if (g) g.classList.toggle('elegida', c === sel); }
       const t = textoReloj(e); if ($('sim-time').textContent !== t) $('sim-time').textContent = t;
       const texto = textoEstado(e, corriendo, modo); if ($('sim-status').textContent !== texto) $('sim-status').textContent = texto;
-      if (modo === 'normal') { $('modo-normal').setAttribute('aria-current', 'page'); $('modo-revision').removeAttribute('aria-current'); } else { $('modo-revision').setAttribute('aria-current', 'page'); $('modo-normal').removeAttribute('aria-current'); }
-      document.body.dataset.modo = modo;
-      panelMando.actualizar(e); lecturas.actualizar(e); pintarResumen(e);
+      for (const m of ['normal', 'revision', 'diagnostico']) { const b = $(`modo-${m}`); if (m === modo) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); }
+      const oc = oculto();
+      document.body.dataset.modo = modo; document.body.dataset.oculto = oc ? '1' : '0';
+      // pestañas: en Diagnóstico aparece la hoja y, mientras la avería está oculta, desaparecen las lecturas (con sus alarmas)
+      $('t-diagnostico').hidden = modo !== 'diagnostico'; $('t-lecturas').hidden = oc;
+      const elegida = document.querySelector('.lateral-simple [role="tab"][aria-selected="true"]'); if (!elegida || elegida.hidden) elegirPestana($('t-mando'));
+      panelMando.actualizar(e); if (!oc) lecturas.actualizar(e); pintarResumen(e); instrumentos.actualizar(); diag.actualizar();
       document.body.dataset.estado = e.alarmas && e.alarmas.some(a => a.severidad === 'alarma') ? 'alarma' : corriendo ? 'marcha' : 'reposo';
     }
     setInterval(() => {
@@ -338,7 +388,7 @@ let anchoPrevio = $('esquema').clientWidth;
     refrescar(); historial.registrar(estado().t, PCT.fvGrafica.valoresHistorial(estado()), estado().reloj, 0); graficas.redibujar();
 
     // Para las ventanas aparte (3D, Unifilar, Cableado) y para las pruebas
-    PCT.fvApp = { estadoActual: () => sim.estado, sim, enDemostracion, ponerModo, modo: () => modo, accionarEquipo: accionar, velocidades: VELOCIDADES };
+    PCT.fvApp = { estadoActual: () => sim.estado, sim, enDemostracion, ponerModo, modo: () => modo, accionarEquipo: accionar, velocidades: VELOCIDADES, instrumentos, cuaderno };
   }
 
   const api = { VELOCIDADES, PROTECCIONES, SUSTITUIBLES, INVERSORES, CADENAS, CONSECUENCIAS, PASO_MAX_S, decidirClic, textoAccion, ejecutarOrden, restaurarNormal, textoEstado, textoReloj,

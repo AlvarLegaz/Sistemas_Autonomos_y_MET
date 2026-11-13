@@ -13,6 +13,7 @@
       <span class="sim-etiqueta">{{ s['etiqueta'] }}</span>
       <h2>{{ s['titulo'] }}</h2>
       <p>{{ s['descripcion'] }}</p>
+      {% if retos_pendientes and s['id'] == reto_sim %}<p class="sim-reto">Tienes {{ retos_pendientes }} reto{{ 's' if retos_pendientes != 1 }} de diagnóstico pendiente{{ 's' if retos_pendientes != 1 }}: hay una avería oculta que encontrar.</p>{% endif %}
       <span class="boton-enlace">Abrir simulador</span>
     </div>
   </a>

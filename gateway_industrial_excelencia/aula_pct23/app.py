@@ -8,13 +8,16 @@
 Arranque local:   AULA_PIN=482913 python app.py        (http://localhost:8000)
 Con Docker:       ver README.md
 """
+import base64
 import contextlib
 import hmac
 import csv
 import html
 import io
 import json
+import math
 import os
+import random
 import re
 import secrets
 import sqlite3
@@ -59,6 +62,18 @@ SEGUNDOS_MAX_POR_ENVIO = 120
 EVENTOS_MAX_POR_ENVIO = 30
 EVENTOS_MAX_POR_ALUMNO = 3000
 HASH_FALSO = generate_password_hash("clave-inexistente-para-igualar-tiempos")
+# Retos de diagnóstico (averías ocultas): hoy solo los tiene el simulador fotovoltaico; el catálogo de averías se lee de su js/layout.js.
+RETO_SIM = "fotovoltaica"
+RETO_TITULO_POR_DEFECTO = "Práctica de diagnóstico"
+RETO_AZAR = "azar"
+ACCIONES_RETO = ("asignar", "asignar_lista", "anular")
+ID_AVERIA = re.compile(r"^[A-Za-z0-9_]{1,60}$")
+TAG_EQUIPO = re.compile(r"^[A-Za-z0-9_-]{1,30}$")
+DETALLE_MAX = 4000
+DIAGNOSTICOS_MAX_POR_ALUMNO = 1000
+ETIQUETAS_DETALLE = {"sintoma": "Síntoma", "medidas": "Medidas marcadas", "reparacion": "Reparación propuesta", "observaciones": "Observaciones",
+                     "pistas": "Pistas usadas", "causa": "Causa", "intento": "Intento (según el simulador)", "peligros": "Maniobras peligrosas",
+                     "titulo": "Título del reto"}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -167,7 +182,249 @@ CREATE TABLE IF NOT EXISTS ajustes (
     clave TEXT PRIMARY KEY,
     valor TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS retos (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id  INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    sim         TEXT NOT NULL,
+    averia      TEXT NOT NULL,
+    titulo      TEXT NOT NULL DEFAULT '',
+    pistas      INTEGER NOT NULL DEFAULT 1,
+    creado      TEXT NOT NULL,
+    resuelto    TEXT,
+    nota        REAL,
+    intentos    INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS retos_usuario ON retos(usuario_id, sim, resuelto);
+CREATE TABLE IF NOT EXISTS diagnosticos (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id          INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    reto_id             INTEGER REFERENCES retos(id) ON DELETE SET NULL,
+    sim                 TEXT NOT NULL,
+    momento             TEXT NOT NULL,
+    averia_real         TEXT NOT NULL,
+    averia_respuesta    TEXT NOT NULL DEFAULT '',
+    elemento_respuesta  TEXT NOT NULL DEFAULT '',
+    acierto             REAL NOT NULL DEFAULT 0,
+    nota                REAL NOT NULL DEFAULT 0,
+    pistas              INTEGER NOT NULL DEFAULT 0,
+    medidas             INTEGER NOT NULL DEFAULT 0,
+    segundos            INTEGER NOT NULL DEFAULT 0,
+    detalle             TEXT NOT NULL DEFAULT '',
+    intento             INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS diagnosticos_usuario ON diagnosticos(usuario_id, id);
 """
+
+
+# ---------------------------------------------------------------------------------------------
+# Catálogo de averías del simulador fotovoltaico (se lee de su js/layout.js: no se duplica la lista aquí)
+# ---------------------------------------------------------------------------------------------
+_CADENA_JS = r"""'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*\""""
+_IDENT_JS = r"[A-Za-z_$][\w$]*"
+_EXPR_JS = rf"(?:{_CADENA_JS}|{_IDENT_JS})(?:\s*\+\s*(?:{_CADENA_JS}|{_IDENT_JS}))*"
+_CAMPO_JS = re.compile(rf"""['"]?({_IDENT_JS})['"]?\s*:\s*({_EXPR_JS})""")
+_TROZO_JS = re.compile(rf"{_CADENA_JS}|{_IDENT_JS}")
+_MAPA_JS = re.compile(rf"\[([\d\s,]+)\]\s*\.map\(\s*\(?\s*({_IDENT_JS})\s*\)?\s*=>\s*\(?\s*$")       # lo que precede al objeto de un `[1, 2].map(n => ({ … }))`
+_ESCAPE_JS = re.compile(r"\\(u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|.)", re.S)
+
+
+def _bloque_js(texto, nombre):
+    """Contenido del array `const NOMBRE = [ … ]` (sin los corchetes de fuera y sin comentarios), o None. Salta cadenas y corchetes anidados."""
+    texto = _sin_comentarios_js(texto)
+    m = (re.search(rf"\b(?:const|let|var)\s+{re.escape(nombre)}\s*=\s*\[", texto)
+         or re.search(rf"(?<![\w$.]){re.escape(nombre)}\s*=\s*\[", texto))
+    if not m:
+        return None
+    i, nivel, n = m.end(), 1, len(texto)
+    while i < n:
+        c = texto[i]
+        if c in "'\"`":
+            i = _fin_cadena_js(texto, i)
+            continue
+        if c == "[":
+            nivel += 1
+        elif c == "]":
+            nivel -= 1
+            if nivel == 0:
+                return texto[m.end():i]
+        i += 1
+    return None
+
+
+def _fin_cadena_js(texto, i):
+    """Posición siguiente al cierre de la cadena que empieza en `i` (comilla simple, doble o invertida)."""
+    c, j, n = texto[i], i + 1, len(texto)
+    while j < n and texto[j] != c:
+        j += 2 if texto[j] == "\\" else 1
+    return min(j + 1, n)
+
+
+def _sin_comentarios_js(texto):
+    """El mismo JavaScript sin comentarios // ni /* */ (respetando lo que hay dentro de las cadenas)."""
+    salida, i, n = [], 0, len(texto)
+    while i < n:
+        c = texto[i]
+        if c in "'\"`":
+            j = _fin_cadena_js(texto, i)
+            salida.append(texto[i:j])
+            i = j
+        elif texto.startswith("//", i):
+            j = texto.find("\n", i)
+            i = n if j == -1 else j
+        elif texto.startswith("/*", i):
+            j = texto.find("*/", i + 2)
+            salida.append(" ")
+            i = n if j == -1 else j + 2
+        else:
+            salida.append(c)
+            i += 1
+    return "".join(salida)
+
+
+def _cadena_js(literal):
+    def cambio(m):
+        e = m.group(1)
+        if e[0] in "ux" and len(e) > 1:
+            return chr(int(e[1:], 16))
+        return {"n": "\n", "t": "\t", "r": "", "0": ""}.get(e, e)
+    return _ESCAPE_JS.sub(cambio, literal[1:-1])
+
+
+def _valor_js(expresion, variables):
+    """Valor de una expresión de cadenas sumadas ('PV-10' + n). None si usa algo que no se conoce."""
+    partes = []
+    for trozo in _TROZO_JS.findall(expresion):
+        if trozo[0] in "'\"":
+            partes.append(_cadena_js(trozo))
+        elif trozo in variables:
+            partes.append(variables[trozo])
+        else:
+            return None
+    return "".join(partes)
+
+
+def _objetos_js(bloque):
+    """Objetos literales de un array de JavaScript como diccionarios de texto. Entiende también `...[1, 2].map(n => ({ tag: 'PV-10' + n }))`."""
+    def campos(cuerpo, variables):
+        obj = {}
+        for clave, expresion in _CAMPO_JS.findall(cuerpo):
+            valor = _valor_js(expresion, variables)
+            if valor is not None and clave not in obj:
+                obj[clave] = valor
+        return obj
+
+    objetos, i, n, nivel, inicio, cuerpo = [], 0, len(bloque), 0, 0, []
+    while i < n:
+        c = bloque[i]
+        if c in "'\"`":
+            j = _fin_cadena_js(bloque, i)
+            if nivel == 1:
+                cuerpo.append(bloque[i:j])
+            i = j
+            continue
+        if c == "{":
+            nivel += 1
+            if nivel == 1:
+                inicio, cuerpo = i, []
+        elif c == "}" and nivel:
+            nivel -= 1
+            if nivel == 0:
+                mapa = _MAPA_JS.search(bloque[:inicio])
+                if mapa:                        # un objeto por cada número de la lista que recorre el .map()
+                    objetos.extend(campos("".join(cuerpo), {mapa.group(2): num}) for num in re.findall(r"\d+", mapa.group(1)))
+                else:
+                    objetos.append(campos("".join(cuerpo), {}))
+        elif nivel == 1:                        # lo que hay en objetos anidados no son campos de este
+            cuerpo.append(c)
+        i += 1
+    return objetos
+
+
+def leer_catalogo_averias(carpeta):
+    """Catálogo de averías del simulador fotovoltaico leído de `carpeta/js/layout.js` (arrays AVERIAS y EQUIPOS).
+    Devuelve {"averias": [{"id", "titulo", "tag"}…], "equipos": {tag: nombre}} o None si no se puede leer (el aula sigue, sin retos)."""
+    try:
+        texto = (Path(carpeta) / "js" / "layout.js").read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+    bloque = _bloque_js(texto, "AVERIAS")
+    if bloque is None:
+        return None
+    averias, vistos = [], set()
+    for o in _objetos_js(bloque):
+        aid, titulo = o.get("id", ""), limpiar(o.get("titulo", ""), 200)
+        if ID_AVERIA.match(aid) and titulo and aid not in vistos and aid != RETO_AZAR:
+            vistos.add(aid)
+            tag = o.get("tag", "")
+            averias.append({"id": aid, "titulo": titulo, "tag": tag if TAG_EQUIPO.match(tag) else ""})
+    if not averias:
+        return None
+    equipos = {}
+    for o in _objetos_js(_bloque_js(texto, "EQUIPOS") or ""):
+        tag = o.get("tag", "")
+        if TAG_EQUIPO.match(tag):
+            equipos.setdefault(tag, limpiar(o.get("nombre", ""), 200) or tag)
+    for a in averias:                               # el elemento de cada avería siempre es un elemento válido, aunque EQUIPOS no se pueda leer
+        if a["tag"]:
+            equipos.setdefault(a["tag"], a["tag"])
+    return {"averias": averias, "equipos": equipos}
+
+
+def texto_nota(valor):
+    """7.5 -> '7,5' · 10.0 -> '10' · None -> '—' (coma decimal, como se escribe una nota)."""
+    if valor is None:
+        return "—"
+    return f"{float(valor):.2f}".rstrip("0").rstrip(".").replace(".", ",")
+
+
+def numero_acotado(valor, minimo, maximo):
+    """Número del formulario (admite coma decimal) dentro de [minimo, maximo]; lo que no sea un número vale `minimo`."""
+    try:
+        x = float(str(valor or "").strip().replace(",", "."))
+    except ValueError:
+        return minimo
+    if not math.isfinite(x):
+        return minimo
+    return max(minimo, min(x, maximo))
+
+
+def detalle_legible(texto):
+    """La hoja del alumno (JSON) como lista de (etiqueta, [líneas de texto]) para mostrarla en una plantilla con autoescape: nunca se inyecta HTML."""
+    try:
+        dato = json.loads(texto) if texto else None
+    except ValueError:
+        return []
+
+    def corto(v, hondo=0):
+        if isinstance(v, bool):
+            return "sí" if v else "no"
+        if v is None:
+            return "—"
+        if isinstance(v, (int, float)):
+            return texto_nota(v) if isinstance(v, float) else str(v)
+        if isinstance(v, str):
+            return limpiar(v, 1500)
+        if hondo >= 2:
+            return "…"
+        if isinstance(v, dict):
+            return " · ".join(f"{limpiar(str(k), 40)}: {corto(x, hondo + 1)}" for k, x in list(v.items())[:12])
+        if isinstance(v, list):
+            return ", ".join(corto(x, hondo + 1) for x in v[:20])
+        return ""
+
+    if isinstance(dato, list):
+        dato = {"medidas": dato}
+    if not isinstance(dato, dict):
+        return [("Detalle", [corto(dato)])] if dato not in (None, "") else []
+    salida = []
+    for clave, valor in list(dato.items())[:30]:
+        clave = limpiar(str(clave), 40)
+        etiqueta = ETIQUETAS_DETALLE.get(clave.lower(), clave.replace("_", " ").capitalize())
+        lineas = [corto(x) for x in valor[:60]] if isinstance(valor, list) else [corto(valor)]
+        lineas = [x for x in lineas if x]
+        if lineas:
+            salida.append((etiqueta, lineas))
+    return salida
 
 
 def ahora_iso():
@@ -256,6 +513,11 @@ def crear_app(config=None):
         con.commit()
     limitador = Limitador(cfg["max_intentos"], cfg["bloqueo_s"], cfg.get("reloj", time.monotonic))
     app.limitador = limitador
+    # Catálogo de averías para los retos de diagnóstico: se lee una vez, al arrancar, del propio simulador. Sin él no hay retos (y el aula sigue igual).
+    catalogo = leer_catalogo_averias(cfg["fotovoltaica"]) if (cfg["fotovoltaica"] / "index.html").is_file() else None
+    averias_por_id = {a["id"]: a for a in catalogo["averias"]} if catalogo else {}
+    app.catalogo_averias = catalogo
+    azar = cfg.get("azar") or random.SystemRandom()
 
     # ----- utilidades por petición -----
     def bd():
@@ -341,9 +603,30 @@ def crear_app(config=None):
             session["csrf"] = secrets.token_urlsafe(24)
         return session["csrf"]
 
+    app.add_template_filter(texto_nota, "nota")
+
+    @app.template_filter("acierto")
+    def texto_acierto(valor):
+        return "Sí" if (valor or 0) >= 1 else ("A medias" if (valor or 0) >= 0.5 else "No")
+
+    @app.template_global()
+    def titulo_averia(aid):
+        """Nombre legible de una avería (solo para páginas del profesor). Si ya no está en el catálogo, su id."""
+        if not aid:
+            return "—"
+        return averias_por_id[aid]["titulo"] if aid in averias_por_id else aid
+
+    @app.template_global()
+    def nombre_equipo(tag):
+        if not tag:
+            return "—"
+        nombre = catalogo["equipos"].get(tag) if catalogo else None
+        return f"{tag} · {nombre}" if nombre and nombre != tag else tag
+
     @app.context_processor
     def contexto():
         return {"csrf": token_csrf, "modulos": cfg["modulos"], "alumno_sesion": alumno(), "profesor": profesor(), "simuladores": disponibles(),
+                "averias": catalogo["averias"] if catalogo else [],
                 "pin_por_defecto": cfg["pin"] == PIN_POR_DEFECTO and pin_guardado() is None, "pin_defecto_valor": PIN_POR_DEFECTO}
 
     @app.before_request
@@ -370,6 +653,8 @@ def crear_app(config=None):
 
     @app.errorhandler(400)
     def error_400(e):
+        if request.path.startswith("/api/reto"):                      # lo lee el simulador, no una persona
+            return {"guardado": False, "error": getattr(e, "description", "")}, 400
         return render_template("error.html", titulo="Petición no válida", texto=getattr(e, "description", "")), 400
 
     @app.errorhandler(404)
@@ -508,7 +793,12 @@ def crear_app(config=None):
         lista = simuladores_del_usuario()
         if len(lista) == 1 and request.args.get("lista") != "1":
             return redirect(lista[0]["ruta"])           # con uno solo asignado no hay nada que elegir
-        return render_template("simuladores.html", lista=lista)
+        # Al alumno solo se le dice CUÁNTOS retos tiene pendientes: nunca qué avería es (la tiene que encontrar él).
+        pendientes = 0
+        if a is not None and a["estado"] == "autorizado" and catalogo and RETO_SIM in [s["id"] for s in lista]:
+            pendientes = sum(1 for r in bd().execute("SELECT averia FROM retos WHERE usuario_id=? AND sim=? AND resuelto IS NULL", (a["id"], RETO_SIM))
+                             if r["averia"] in averias_por_id)
+        return render_template("simuladores.html", lista=lista, retos_pendientes=pendientes, reto_sim=RETO_SIM)
 
     # ----- simulador y planta real (protegidos: alumno autorizado o profesor con el PIN) -----
     def servir(raiz, ruta, pagina_de_inicio=None, sim=None):
@@ -585,7 +875,18 @@ def crear_app(config=None):
         busca = limpiar(request.args.get("q"), 80)
         datos = datos_panel(estado, modulo, busca)
         datos["vista_pin"] = request.args.get("vista") == "pin"
+        datos["vista_diag"] = request.args.get("vista") == "diagnostico" and datos["hay_diagnostico"]
+        if datos["vista_diag"]:
+            datos["resumen_averias"] = resumen_por_averia()
         return render_template("aula_panel.html", **datos)
+
+    def resumen_por_averia():
+        """Por avería: entregas, alumnos distintos, % de acierto pleno, nota media… Las que más cuestan (peor nota media), primero."""
+        return bd().execute(
+            "SELECT averia_real, COUNT(*) AS n, COUNT(DISTINCT usuario_id) AS alumnos, "
+            "100.0 * AVG(CASE WHEN acierto >= 1 THEN 1.0 ELSE 0.0 END) AS pct, AVG(nota) AS nota, AVG(pistas) AS pistas, "
+            "AVG(medidas) AS medidas, AVG(segundos) AS segundos "
+            "FROM diagnosticos WHERE sim=? GROUP BY averia_real ORDER BY AVG(nota), COUNT(*) DESC", (RETO_SIM,)).fetchall()
 
     def datos_panel(estado, modulo, busca, clave_nueva=None):
         condiciones, params = [], []
@@ -601,15 +902,206 @@ def crear_app(config=None):
         where = f"WHERE {' AND '.join(condiciones)}" if condiciones else ""
         filas = bd().execute(
             f"SELECT u.*, COALESCE((SELECT SUM(segundos) FROM tiempo_uso t WHERE t.usuario_id=u.id), 0) AS seg_total, "
-            f"(SELECT MAX(momento) FROM actividad a WHERE a.usuario_id=u.id) AS ultimo "
+            f"(SELECT MAX(momento) FROM actividad a WHERE a.usuario_id=u.id) AS ultimo, "
+            f"(SELECT COUNT(*) FROM retos r WHERE r.usuario_id=u.id AND r.resuelto IS NULL) AS retos_pend, "
+            f"(SELECT COUNT(*) FROM retos r WHERE r.usuario_id=u.id AND r.resuelto IS NOT NULL) AS retos_res, "
+            f"(SELECT nota FROM retos r WHERE r.usuario_id=u.id AND r.resuelto IS NOT NULL ORDER BY r.resuelto DESC, r.id DESC LIMIT 1) AS retos_nota "
             f"FROM usuarios u {where} ORDER BY apellidos COLLATE NOCASE, nombre COLLATE NOCASE LIMIT 500",
             params).fetchall()
+        # La parte de diagnóstico se enseña si hay catálogo (se pueden asignar retos) o si quedan entregas guardadas de cuando lo había.
+        hay_diagnostico = bool(catalogo) or bd().execute("SELECT 1 FROM diagnosticos LIMIT 1").fetchone() is not None
+        con_reto = sum(1 for f in filas if f["estado"] == "autorizado" and RETO_SIM in ids_asignados(f))
         cuentas = {e: 0 for e in ESTADOS}
         for e, n in bd().execute("SELECT estado, COUNT(*) FROM usuarios GROUP BY estado"):
             cuentas[e] = n
         modulos_bd = [r[0] for r in bd().execute("SELECT DISTINCT modulo FROM usuarios ORDER BY modulo COLLATE NOCASE")]
         return {"filas": filas, "estado": estado, "modulo": modulo, "q": busca, "cuentas": cuentas,
-                "modulos_bd": modulos_bd, "clave_nueva": clave_nueva, "hasta": session.get("prof_hasta", 0)}
+                "modulos_bd": modulos_bd, "clave_nueva": clave_nueva, "hasta": session.get("prof_hasta", 0),
+                "hay_diagnostico": hay_diagnostico, "con_reto": con_reto}
+
+    # ----- retos de diagnóstico: lo que usa el simulador -----
+    def alumno_con_retos():
+        """El alumno de la sesión si está autorizado y tiene asignado el simulador de los retos; si no, None."""
+        a = alumno()
+        if a is None or a["estado"] != "autorizado" or RETO_SIM not in ids_asignados(a):
+            return None
+        return a
+
+    @app.get("/api/reto")
+    def api_reto():
+        if alumno() is None and not profesor():
+            return {"reto": None}, 401
+        a = alumno_con_retos()
+        if a is None or not catalogo or request.args.get("sim") != RETO_SIM:
+            return {"reto": None}
+        for r in bd().execute("SELECT * FROM retos WHERE usuario_id=? AND sim=? AND resuelto IS NULL ORDER BY id", (a["id"], RETO_SIM)):
+            if r["averia"] in averias_por_id:               # una avería que ya no existe en el simulador no se puede plantear
+                # La clave va en base64 solo para que no se lea a simple vista en la consola del navegador. NO es seguridad: la simulación corre en
+                # el navegador del alumno y quien sepa mirar la encuentra; lo que cuenta es la hoja de diagnóstico que entrega.
+                return {"reto": {"id": r["id"], "clave": base64.b64encode(r["averia"].encode()).decode("ascii"),
+                                 "titulo": r["titulo"] or RETO_TITULO_POR_DEFECTO, "pistas": bool(r["pistas"])}}
+        return {"reto": None}
+
+    @app.post("/api/reto/resultado")
+    def api_reto_resultado():
+        a = alumno_con_retos()
+        if a is None or not catalogo:
+            return "", 204
+        f = request.form
+        if f.get("sim") != RETO_SIM:
+            abort(400, "Simulador no válido.")
+        averia_real = f.get("averia_real", "")
+        if averia_real not in averias_por_id:
+            abort(400, "Avería no válida.")
+        respuesta = f.get("averia_respuesta", "")
+        respuesta = respuesta if respuesta in averias_por_id else ""
+        elemento = f.get("elemento_respuesta", "")
+        elemento = elemento if elemento in catalogo["equipos"] else ""
+        acierto = round(numero_acotado(f.get("acierto"), 0, 1) * 2) / 2            # solo 0, 0,5 o 1
+        nota = round(numero_acotado(f.get("nota"), 0, 10), 2)
+        pistas = int(numero_acotado(f.get("pistas"), 0, 3))
+        medidas = int(numero_acotado(f.get("medidas"), 0, 9999))
+        segundos = int(numero_acotado(f.get("segundos"), 0, 86400))
+        detalle = f.get("detalle", "")
+        try:
+            if len(detalle) > DETALLE_MAX or not isinstance(json.loads(detalle), (dict, list)):
+                detalle = ""
+        except ValueError:
+            detalle = ""
+        con = bd()
+        # El reto solo cuenta si es de ESTE alumno y la avería entregada es la del reto; cualquier otra cosa se guarda como práctica libre.
+        reto = None
+        try:
+            reto = con.execute("SELECT * FROM retos WHERE id=? AND usuario_id=? AND sim=?", (int(f.get("reto", "")), a["id"], RETO_SIM)).fetchone()
+        except ValueError:
+            pass
+        if reto is not None and reto["averia"] != averia_real:
+            reto = None
+        ahora = ahora_iso()
+        if reto is not None:
+            intento = reto["intentos"] + 1
+            # Se cierra en la primera entrega; las siguientes (el alumno puede reintentar) solo suben la mejor nota y el nº de intentos.
+            con.execute("UPDATE retos SET resuelto=COALESCE(resuelto, ?), nota=?, intentos=? WHERE id=?",
+                        (ahora, nota if reto["nota"] is None else max(reto["nota"], nota), intento, reto["id"]))
+        else:
+            intento = 1 + con.execute("SELECT COUNT(*) FROM diagnosticos WHERE usuario_id=? AND sim=? AND averia_real=? AND reto_id IS NULL",
+                                      (a["id"], RETO_SIM, averia_real)).fetchone()[0]
+        con.execute("INSERT INTO diagnosticos (usuario_id, reto_id, sim, momento, averia_real, averia_respuesta, elemento_respuesta, acierto, nota, "
+                    "pistas, medidas, segundos, detalle, intento) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (a["id"], reto["id"] if reto is not None else None, RETO_SIM, ahora, averia_real, respuesta, elemento, acierto, nota,
+                     pistas, medidas, segundos, detalle, intento))
+        con.execute("DELETE FROM diagnosticos WHERE usuario_id=? AND id <= "
+                    "(SELECT id FROM diagnosticos WHERE usuario_id=? ORDER BY id DESC LIMIT 1 OFFSET ?)", (a["id"], a["id"], DIAGNOSTICOS_MAX_POR_ALUMNO))
+        registrar_actividad(a["id"], "diagnostico", f"Entregó diagnóstico: nota {texto_nota(nota)}" + (" (reto del profesor)" if reto is not None else ""))
+        con.commit()
+        return {"guardado": True}
+
+    # ----- retos de diagnóstico: lo que hace el profesor -----
+    @app.post("/aula/reto")
+    def aula_reto():
+        if not profesor():
+            return redirect(url_for("aula"))
+        accion = request.form.get("accion", "")
+        if accion not in ACCIONES_RETO:
+            abort(400, "Acción no válida.")
+        con = bd()
+        estado = request.form.get("estado", "pendiente")
+        if estado not in ESTADOS + ("todos",):
+            estado = "pendiente"
+        modulo = limpiar(request.form.get("modulo"), LARGO_MAX["modulo"])
+        busca = limpiar(request.form.get("q"), 80)
+        if accion == "asignar_lista":
+            volver = url_for("aula", estado=estado, modulo=modulo or None, q=busca or None)
+        else:
+            try:
+                uid = int(request.form.get("id", ""))
+            except ValueError:
+                abort(400, "Alumno no válido.")
+            fila = con.execute("SELECT * FROM usuarios WHERE id=?", (uid,)).fetchone()
+            if fila is None:
+                flash("Ese alumno ya no existe.", "error")
+                return redirect(url_for("aula"))
+            volver = url_for("aula_alumno", uid=uid) + "#retos"
+        if accion == "anular":
+            try:
+                rid = int(request.form.get("reto", ""))
+            except ValueError:
+                abort(400, "Reto no válido.")
+            n = con.execute("DELETE FROM retos WHERE id=? AND usuario_id=? AND resuelto IS NULL", (rid, uid)).rowcount
+            con.commit()
+            flash("Reto anulado." if n else "Ese reto ya no está pendiente: no se puede anular.", "ok" if n else "error")
+            return redirect(volver)
+        if not catalogo:
+            flash("Este servidor no tiene el catálogo de averías del simulador fotovoltaico: no se pueden asignar retos.", "error")
+            return redirect(volver)
+        averia = request.form.get("averia", "")
+        if averia != RETO_AZAR and averia not in averias_por_id:
+            abort(400, "Avería no válida.")
+        titulo = limpiar(request.form.get("titulo"), 80)
+        pistas = 1 if request.form.get("pistas") else 0
+        candidatos = datos_panel(estado, modulo, busca)["filas"] if accion == "asignar_lista" else [fila]
+        aptos = [c for c in candidatos if c["estado"] == "autorizado" and RETO_SIM in ids_asignados(c)]
+        baraja = []
+
+        def al_azar(evitar):
+            """Reparte las averías como una baraja: no se repite ninguna hasta haberlas dado todas, y a nadie le toca una que ya tiene pendiente."""
+            for _ in range(2):
+                if not baraja:
+                    baraja.extend(averias_por_id)
+                    azar.shuffle(baraja)
+                for i, candidata in enumerate(baraja):
+                    if candidata not in evitar:
+                        return baraja.pop(i)
+                baraja.clear()
+            return azar.choice(list(averias_por_id))
+
+        asignados = repetidos = 0
+        ahora = ahora_iso()
+        for c in aptos:
+            suyas = {r["averia"] for r in con.execute("SELECT averia FROM retos WHERE usuario_id=? AND sim=? AND resuelto IS NULL", (c["id"], RETO_SIM))}
+            if averia == RETO_AZAR:
+                elegida = al_azar(suyas)
+            elif averia in suyas:
+                repetidos += 1                      # ya tiene pendiente esa misma avería: no se le duplica
+                continue
+            else:
+                elegida = averia
+            con.execute("INSERT INTO retos (usuario_id, sim, averia, titulo, pistas, creado) VALUES (?,?,?,?,?,?)",
+                        (c["id"], RETO_SIM, elegida, titulo, pistas, ahora))
+            asignados += 1
+        con.commit()
+        fuera = len(candidatos) - len(aptos)
+        partes = [f"Reto de diagnóstico asignado a {asignados} alumno(s)."]
+        if fuera:
+            partes.append(f"{fuera} no lo recibe(n): solo se asigna a alumnos autorizados que tengan el simulador fotovoltaico.")
+        if repetidos:
+            partes.append(f"{repetidos} ya tenía(n) pendiente esa misma avería.")
+        flash(" ".join(partes), "ok" if asignados else "error")
+        return redirect(volver)
+
+    @app.get("/aula/diagnosticos.csv")
+    def aula_diagnosticos_csv():
+        if not profesor():
+            return redirect(url_for("aula"))
+        filas = bd().execute(
+            "SELECT u.apellidos, u.nombre, u.modulo, d.* FROM diagnosticos d JOIN usuarios u ON u.id=d.usuario_id "
+            "ORDER BY u.apellidos COLLATE NOCASE, u.nombre COLLATE NOCASE, d.id").fetchall()
+        return descarga_csv(
+            "notas_diagnostico.csv",
+            ["apellidos", "nombre", "modulo", "averia", "averia_titulo", "respuesta", "elemento_respuesta", "acierto", "nota", "pistas", "medidas",
+             "tiempo_s", "fecha_utc", "tipo", "intento"],
+            [(d["apellidos"], d["nombre"], d["modulo"], d["averia_real"], titulo_averia(d["averia_real"]), d["averia_respuesta"], d["elemento_respuesta"],
+              texto_nota(d["acierto"]), texto_nota(d["nota"]), d["pistas"], d["medidas"], d["segundos"], d["momento"],
+              "reto" if d["reto_id"] is not None else "práctica libre", d["intento"]) for d in filas])
+
+    @app.get("/aula/diagnosticos_averias.csv")
+    def aula_diagnosticos_averias_csv():
+        if not profesor():
+            return redirect(url_for("aula"))
+        return descarga_csv(
+            "resumen_averias.csv", ["averia", "averia_titulo", "entregas", "alumnos", "acierto_pct", "nota_media", "pistas_media", "medidas_media", "tiempo_medio_s"],
+            [(r["averia_real"], titulo_averia(r["averia_real"]), r["n"], r["alumnos"], texto_nota(round(r["pct"], 1)), texto_nota(r["nota"]),
+              texto_nota(r["pistas"]), texto_nota(round(r["medidas"], 1)), int(r["segundos"])) for r in resumen_por_averia()])
 
     # ----- registro de actividad -----
     @app.post("/api/uso")
@@ -672,7 +1164,12 @@ def crear_app(config=None):
         if fila is None:
             abort(404)
         eventos = bd().execute("SELECT momento, tipo, detalle FROM actividad WHERE usuario_id=? ORDER BY id DESC LIMIT 300", (uid,)).fetchall()
-        return render_template("aula_alumno.html", f=fila, r=resumen_alumno(uid), eventos=eventos, hasta=session.get("prof_hasta", 0))
+        retos = bd().execute("SELECT * FROM retos WHERE usuario_id=? ORDER BY id DESC", (uid,)).fetchall()
+        diagnosticos = [{**dict(d), "hoja": detalle_legible(d["detalle"])}
+                        for d in bd().execute("SELECT * FROM diagnosticos WHERE usuario_id=? ORDER BY id DESC LIMIT 300", (uid,))]
+        return render_template("aula_alumno.html", f=fila, r=resumen_alumno(uid), eventos=eventos, hasta=session.get("prof_hasta", 0),
+                               retos=retos, diagnosticos=diagnosticos,
+                               puede_reto=bool(catalogo) and fila["estado"] == "autorizado" and RETO_SIM in ids_asignados(fila))
 
     @app.get("/aula/alumno/<int:uid>.csv")
     def aula_alumno_csv(uid):

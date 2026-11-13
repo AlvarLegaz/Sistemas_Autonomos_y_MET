@@ -2,6 +2,8 @@
 //   Siempre (modos Normal y Revisión): las CONDICIONES del día: fecha, hora solar y nubosidad.
 //   Solo en Revisión (el alumno controla todo; sin cuadros de confirmación, la consecuencia se avisa pero no se pregunta): sombras por panel, suciedad de los campos, temperatura
 //   ambiente, interruptores y protecciones, red, cargas, modo del EASun, encendido de los inversores, SoC inicial de la batería y el panel de AVERÍAS del profesor (layout.AVERIAS).
+//   En Diagnóstico (avería oculta) solo quedan las MANIOBRAS (clase «en-diagnostico»): abrir y cerrar interruptores y encender o apagar los inversores; los fusibles y los
+//   descargadores (clase «sustituible») no salen hasta que el alumno entrega y ve la avería, porque su estado la delataría (lo decide el CSS con body[data-oculto]).
 // La construcción del DOM es del navegador; lo que decide el texto de cada botón es puro.
 (function () {
   const enNode = typeof require !== 'undefined';
@@ -36,13 +38,13 @@
         ${fila('c-nub', 'Nubosidad', 0, 100, 1, 10, ' %')}
       </section>
       <div class="solo-revision">
-        <section class="grupo-mando" aria-label="Interruptores y protecciones"><h2>INTERRUPTORES Y PROTECCIONES</h2>
-          <ul class="lista-prot" id="lista-prot">${PROTECCIONES.concat(FUSIBLES, DESCARGADORES).map(t => `<li data-tag="${t}"><span class="nombre"><b>${t}</b><small>${escapar(nombreEquipo(t))}</small></span><output id="ps-${t}">—</output><button type="button" data-prot="${t}">—</button></li>`).join('')}</ul></section>
-        <section class="grupo-mando" aria-label="Inversores y batería"><h2>INVERSORES Y BATERÍA</h2>
+        <section class="grupo-mando en-diagnostico" aria-label="Interruptores y protecciones"><h2>INTERRUPTORES Y PROTECCIONES</h2>
+          <ul class="lista-prot" id="lista-prot">${PROTECCIONES.concat(FUSIBLES, DESCARGADORES).map(t => `<li data-tag="${t}"${PROTECCIONES.includes(t) ? '' : ' class="sustituible"'}><span class="nombre"><b>${t}</b><small>${escapar(nombreEquipo(t))}</small></span><output id="ps-${t}">—</output><button type="button" data-prot="${t}">—</button></li>`).join('')}</ul></section>
+        <section class="grupo-mando en-diagnostico" aria-label="Inversores y batería"><h2>INVERSORES Y BATERÍA</h2>
           <label class="fila-select"><span>Modo del EASun</span><select id="r-modo">${MODOS_EASUN.map(([v, n]) => `<option value="${v}">${n}</option>`).join('')}</select></label>
           <div class="botones-fila dos"><button type="button" data-inv="INV-101" id="r-inv101">Apagar EASun</button><button type="button" data-inv="INV-201" id="r-inv201">Apagar ZCS</button></div>
-          ${fila('r-soc', 'SoC inicial de la batería', 0, 100, 1, 80, ' %')}
-          <div class="botones-fila"><button type="button" id="r-soc-aplicar">Poner la batería a ese SoC</button></div></section>
+          <div class="grupo-mando no-diagnostico">${fila('r-soc', 'SoC inicial de la batería', 0, 100, 1, 80, ' %')}
+          <div class="botones-fila"><button type="button" id="r-soc-aplicar">Poner la batería a ese SoC</button></div></div></section>
         <section class="grupo-mando" aria-label="Red y cargas"><h2>RED Y CARGAS</h2>
           <div class="botones-fila"><button type="button" data-red="1" id="r-red">Cortar la red</button></div>
           ${fila('r-vred', 'Tensión de red', 180, 270, 1, 230, ' V')}

@@ -10,7 +10,7 @@
   const compartido = nombre => (enNode ? null : PCT[nombre]);
   const { formatoPotencia, formatoTension, formatoCorriente, formatoPorcentaje, formatoTemperatura, dec } = F;
 
-  const TIPOS = {}; for (const q of layout.EQUIPOS) TIPOS[q.tag] = q.tipo;
+  const TIPOS = {}, NOMBRES = {}; for (const q of layout.EQUIPOS) { TIPOS[q.tag] = q.tipo; NOMBRES[q.tag] = q.nombre; }
   const PROTECCIONES = ['QS-101', 'QB-101', 'QS-201', 'QF-301', 'ID-301', 'QF-302', 'QF-303'];
   const FUSIBLES = ['F-101', 'F-102', 'FB-101'];
   const DESCARGADORES = ['SPD-101', 'SPD-201', 'SPD-301'];
@@ -367,8 +367,142 @@
     return ids;
   }
 
+  /* ---------- puntos de medida y conductores para los instrumentos (multímetro, pinza, megóhmetro, cámara) ---------- */
+  // Dónde se dibuja en el sinóptico cada NODO del modelo (sim.puntos): [x, y, signo]. El signo es lo que se lee dentro del punto (+, −, 1, 2, L, N, ⏚).
+  // Los aparatos de dos bornes en serie llevan «.1» (lado de la fuente) y «.2» (lado de la carga). Un nodo del modelo que no esté aquí no se pierde:
+  // se elige tocando su equipo (la lista de bornes sale en el instrumento).
+  const PUNTOS_XY = {
+    'STR-101.+': [347, 92, '+'], 'STR-101.-': [347, 113, '−'], 'STR-102.+': [347, 212, '+'], 'STR-102.-': [347, 233, '−'],
+    'F-101.1': [427, 102, '1'], 'F-101.2': [473, 102, '2'], 'F-102.1': [427, 222, '1'], 'F-102.2': [473, 222, '2'],
+    'CB-101.bus+': [510, 150, '+'], 'CB-101.bus-': [510, 175, '−'], 'QS-101.1': [560, 143, '1'], 'QS-101.2': [560, 181, '2'],
+    'INV-101.pv+': [770, 150, '+'], 'INV-101.pv-': [770, 175, '−'],
+    'INV-101.bat+': [835, 300, '+'], 'INV-101.bat-': [885, 300, '−'], 'QB-101.2': [860, 311, '2'], 'QB-101.1': [860, 349, '1'], 'FB-101.2': [884, 367, '2'], 'FB-101.1': [884, 387, '1'],
+    'BAT-101.+': [790, 400, '+'], 'BAT-101.-': [930, 400, '−'],
+    'STR-201.+': [347, 550, '+'], 'STR-201.-': [347, 571, '−'], 'STR-202.+': [347, 675, '+'], 'STR-202.-': [347, 696, '−'],
+    'QS-201.1': [458, 560, '1'], 'QS-201.2': [508, 560, '2'], 'QS-201.3': [458, 685, '3'], 'QS-201.4': [508, 685, '4'],
+    'INV-201.mppt1+': [768, 548, '+'], 'INV-201.mppt1-': [768, 572, '−'], 'INV-201.mppt2+': [768, 673, '+'], 'INV-201.mppt2-': [768, 697, '−'],
+    'RED-301.L': [1543, 445, 'L'], 'QF-301.1': [1345, 401, '1'], 'QF-301.2': [1345, 439, '2'], 'ID-301.1': [1300, 401, '1'], 'ID-301.2': [1300, 439, '2'],
+    'QF-302.1': [1215, 196, '1'], 'QF-302.2': [1215, 234, '2'], 'QF-303.1': [1215, 581, '1'], 'QF-303.2': [1215, 619, '2'],
+    'INV-101.ac.L': [950, 215, 'L'], 'INV-201.ac.L': [950, 600, 'L'], 'LOAD-301.L': [1543, 700, 'L'], 'LOAD-302.L': [1543, 100, 'L'], 'TC-301.L': [1344, 770, 'L'],
+    'N': [1296, 742, 'N'], 'TIERRA': [1296, 782, '⏚'], 'INV-101.salida.L': [950, 100, 'L'],
+    'SPD-101.11': [550, 272, '11'], 'SPD-101.12': [570, 272, '12'], 'SPD-201.11': [550, 759, '11'], 'SPD-201.12': [570, 759, '12'], 'SPD-301.11': [1220, 784, '11'], 'SPD-301.12': [1240, 784, '12'],
+    'COM-101.5V': [716, 254, '5'], 'COM-101.GND': [731, 254, 'G'], 'COM-101.A': [746, 254, 'A'], 'COM-101.B': [761, 254, 'B'],
+  };
+  // Geometría de los paneles en el dibujo (la misma que usa construirEsquema): { tag: { x, y, w, h } }
+  const GEOMETRIA_PANELES = {};
+  layout.CAMPOS.A.cadenas.forEach((c, fila) => c.paneles.forEach((tag, k) => { GEOMETRIA_PANELES[tag] = { x: 20 + k * 110, y: 70 + fila * 120, w: 100, h: 64 }; }));
+  layout.CAMPOS.B.cadenas.forEach((c, fila) => c.paneles.forEach((tag, k) => { GEOMETRIA_PANELES[tag] = { x: 20 + k * 84, y: 530 + fila * 125, w: 76, h: 60 }; }));
+  for (const [tag, q] of Object.entries(GEOMETRIA_PANELES)) { PUNTOS_XY[`${tag}.-`] = [q.x + 10, q.y + q.h - 14, '−']; PUNTOS_XY[`${tag}.+`] = [q.x + q.w - 10, q.y + q.h - 14, '+']; }      // bornes de cada panel (caja de conexiones)
+  for (let k = 0; k <= 8; k++) PUNTOS_XY[`BAT-101.c${k}`] = [772 + k * 22, 516, String(k)];      // tomas de equilibrado del BMS: la celda k se mide entre c(k) y c(k−1)
+  // Dónde se abraza cada CONDUCTOR con la pinza (sim.conductores): [x, y, signo]. En el dibujo unifilar el positivo va por encima del cable y el negativo por debajo.
+  const PINZA_XY = {
+    'STR-101.+': [400, 94, '+'], 'STR-101.-': [400, 111, '−'], 'STR-102.+': [400, 214, '+'], 'STR-102.-': [400, 231, '−'], 'CB-101.salida+': [612, 154, '+'], 'CB-101.salida-': [612, 171, '−'],
+    'BAT-101.cable+': [849, 358, '+'], 'BAT-101.cable-': [871, 358, '−'],
+    'STR-201.+': [398, 552, '+'], 'STR-201.-': [398, 569, '−'], 'STR-202.+': [398, 677, '+'], 'STR-202.-': [398, 694, '−'],
+    'INV-201.mppt1+': [640, 552, '+'], 'INV-201.mppt1-': [640, 569, '−'], 'INV-201.mppt2+': [640, 677, '+'], 'INV-201.mppt2-': [640, 694, '−'],
+    'RED-301.L': [1374, 411, 'L'], 'RED-301.N': [1374, 429, 'N'], 'ID-301.L+N': [1322, 420, 'Δ'], 'QF-302.L': [1247, 215, 'L'], 'INV-101.salida.L': [1010, 100, 'L'], 'LOAD-302.L': [1500, 100, 'L'],
+    'QF-303.L': [1247, 600, 'L'], 'LOAD-301.L': [1408, 700, 'L'], 'TC-301.L': [1350, 728, 'L'], 'PE.CB-101': [430, 282, '⏚'], 'PE.QS-201': [440, 760, '⏚'], 'PE.QA-301': [1188, 772, '⏚'],
+  };
+  /** Rectángulo de la forma de un equipo en el dibujo ({ x, y, w, h }) o null: lo usa la cámara termográfica para pintar encima. */
+  function rectDeEquipo(tag, esquema = ESQUEMA_FV) {
+    let r = null;
+    (function recorrer(nodo) {
+      if (r || !Array.isArray(nodo)) return;
+      const a = nodo[1] && typeof nodo[1] === 'object' && !Array.isArray(nodo[1]) ? nodo[1] : null;
+      if (a && a['data-tag'] === tag) { const f = nodo.slice(2).find(h => Array.isArray(h) && h[0] === 'rect' && h[1] && /forma|caseta|bandeja/.test(h[1].class || '')); if (f) r = { x: f[1].x, y: f[1].y, w: f[1].width, h: f[1].height }; return; }
+      nodo.forEach(recorrer);
+    })(esquema);
+    return r;
+  }
+  /**
+   * Dónde se pinta en el sinóptico un elemento de la termografía (`id` = su tag en sim.termografia(); `tipo`; `equipo`): { forma: 'rect', x, y, w, h } | { forma: 'circulo', x, y, r } | null.
+   * Paneles y aparatos, su propio rectángulo; subcadenas, un tercio del panel; conectores MC4, un círculo entre panel y panel (0 = extremo negativo, N = extremo positivo);
+   * el aire de la caseta y la rejilla, dos franjas en lo alto de la caseta.
+   */
+  function zonaTermica(id, tipo, equipo) {
+    const s = String(id);
+    if (tipo === 'subcadena' || /\.s[123]$/.test(s)) { const q = GEOMETRIA_PANELES[s.split('.')[0]], k = Number(s.slice(-1)) - 1; return q ? { forma: 'rect', x: q.x + q.w * k / 3 + 1, y: q.y + 1, w: q.w / 3 - 2, h: q.h - 2 } : null; }
+    if (tipo === 'conector' || /\.mc4\./.test(s)) {
+      const cadena = s.split('.')[0], k = Number(s.split('.mc4.')[1]), c = ['A', 'B'].flatMap(x => layout.CAMPOS[x].cadenas).find(x => x.id === cadena); if (!c || !(k >= 0)) return null;
+      const n = c.paneles.length, a = GEOMETRIA_PANELES[c.paneles[Math.min(n - 1, Math.max(0, k - 1))]], b = GEOMETRIA_PANELES[c.paneles[Math.min(n - 1, k)]];
+      const x = k <= 0 ? b.x + 3 : k >= n ? a.x + a.w + 5 : (a.x + a.w + b.x) / 2;
+      return { forma: 'circulo', x, y: b.y + b.h / 2, r: 7 };
+    }
+    if (tipo === 'rejilla' || /rejilla/.test(s)) return { forma: 'rect', x: 1010, y: 18, w: 120, h: 12 };
+    if (tipo === 'caseta' || s === 'CAS-001') return { forma: 'rect', x: 640, y: 18, w: 120, h: 12 };
+    if (GEOMETRIA_PANELES[s]) { const q = GEOMETRIA_PANELES[s]; return { forma: 'rect', x: q.x, y: q.y, w: q.w, h: q.h }; }
+    const r = rectDeEquipo(equipo || s);
+    return r ? Object.assign({ forma: 'rect' }, r) : null;
+  }
+  /** Equipo (tag de layout) al que pertenece un nodo: «F-101.1» → F-101; N y TIERRA están en el cuadro de alterna. */
+  function equipoDePunto(id) {
+    if (id === 'N' || id === 'TIERRA' || id === 'PE') return 'QA-301';
+    const tag = /^PE\./.test(String(id)) ? String(id).slice(3) : String(id).split('.')[0];
+    return tag in TIPOS ? tag : null;
+  }
+  /** Puntos (ids) de un equipo, de una lista de nodos del modelo ([{ id }]). Un panel no tiene bornes propios: da los de su cadena. */
+  function puntosDeEquipo(tag, puntos) {
+    const lista = (puntos || []).map(p => (typeof p === 'string' ? { id: p } : p)), ids = lista.map(p => p.id);
+    const propios = lista.filter(p => (p.equipo || equipoDePunto(p.id)) === tag || equipoDePunto(p.id) === tag).map(p => p.id);
+    if (propios.length || TIPOS[tag] !== 'panel') return propios;
+    const cadena = ['A', 'B'].flatMap(c => layout.CAMPOS[c].cadenas).find(s => s.paneles.includes(tag));
+    return cadena ? ids.filter(id => equipoDePunto(id) === cadena.id) : [];
+  }
+  /**
+   * Qué hay cerca de un toque: `objetivos` es [{ id, x, y }] en unidades del dibujo y (x, y) el toque en las mismas unidades; `radio` es el alcance.
+   * Devuelve los ids a menos de `radio`, del más cercano al más lejano (el dedo es gordo: si salen varios, el instrumento pregunta cuál).
+   */
+  function cercanos(objetivos, x, y, radio) {
+    return objetivos.map(o => ({ id: o.id, d: Math.hypot(o.x - x, o.y - y) })).filter(o => o.d <= radio).sort((a, b) => a.d - b.d).map(o => o.id);
+  }
+  /** Puntos de muestreo de un trazado «M x y H x V y L x y…» (solo rectas), cada `paso` unidades: para saber qué conductor queda cerca de un toque sin navegador. */
+  function muestrearTrazado(d, paso = 12) {
+    const nums = String(d).match(/[MHVL]|-?\d+(?:\.\d+)?/g) || [], pts = [];
+    let x = 0, y = 0, k = 0;
+    const hasta = (nx, ny) => { const largo = Math.hypot(nx - x, ny - y), n = Math.max(1, Math.round(largo / paso)); for (let j = 1; j <= n; j++) pts.push({ x: x + (nx - x) * j / n, y: y + (ny - y) * j / n }); x = nx; y = ny; };
+    while (k < nums.length) {
+      const c = nums[k++];
+      if (c === 'M') { x = Number(nums[k++]); y = Number(nums[k++]); pts.push({ x, y }); }
+      else if (c === 'H') hasta(Number(nums[k++]), y);
+      else if (c === 'V') hasta(x, Number(nums[k++]));
+      else if (c === 'L') { const nx = Number(nums[k++]), ny = Number(nums[k++]); hasta(nx, ny); }
+    }
+    return pts;
+  }
+  /** Trazados de los cables del esquema: { idTramo: d } (los `path[data-flujo]`). */
+  function trazadosDelEsquema(esquema = ESQUEMA_FV) {
+    const T = {};
+    (function recorrer(nodo) {
+      if (!Array.isArray(nodo)) return;
+      const a = nodo[1] && typeof nodo[1] === 'object' && !Array.isArray(nodo[1]) ? nodo[1] : null;
+      if (a && a['data-flujo'] && a.d) T[a['data-flujo']] = a.d;
+      nodo.forEach(recorrer);
+    })(esquema);
+    return T;
+  }
+
+  /* ---------- qué enseña el sinóptico en modo Diagnóstico (avería oculta) ---------- */
+  // En Diagnóstico el alumno solo ve lo que vería en la instalación real: la posición de las palancas, el testigo de los descargadores, las pantallas y los LED de los
+  // inversores y de la batería, la sombra sobre los paneles y si una carga tiene tensión. Lo demás (burbujas, potencias, colores de alarma, fusible roto) se averigua midiendo.
+  const VISIBLES_EN_DIAGNOSTICO = ['descargador', 'comunicaciones'];      // equipos con testigo o LED propio: conservan su color
+  /** Estado visual que se pinta en modo Diagnóstico: neutro ('parado') salvo los equipos con testigo o LED propio. */
+  function estadoVisualOculto(e, tag) { return VISIBLES_EN_DIAGNOSTICO.includes(TIPOS[tag]) ? estadoVisual(e, tag) : 'parado'; }
+  /** Textos de los equipos en modo Diagnóstico: las pantallas siguen, pero las alarmas no nombran la causa y la red y las cadenas no dicen su estado. */
+  function textosEquiposOcultos(e) {
+    const T = textosEquipos(e), i1 = inversor(e, 'INV-101'), i2 = inversor(e, 'INV-201');
+    T['t-INV-101-alarma'] = i1.alarma ? '⚠ ALARMA' : ''; T['t-INV-101-alarma2'] = i1.alarma ? '(mide para saber la causa)' : '';
+    T['t-INV-201-alarma'] = i2.alarma ? '⚠ ALARMA' : ''; T['t-INV-201-alarma2'] = i2.alarma ? '(mide para saber la causa)' : '';
+    if (i2.estado !== 'ESPERA_RED') T['t-INV-201-l3'] = i2.estado === 'ESPERA_AISLAMIENTO' ? 'comprobando…' : '';
+    T['t-BAT-101-bms'] = ''; T['t-BAT-101-celdas'] = ''; T['t-BAT-101-i'] = 'mide corriente y celdas'; T['t-RED-301-estado'] = 'acometida'; T['t-MED-201'] = '';
+    T['t-LOAD-302-modo'] = carga(e, 'LOAD-302').alimentada === false ? 'SIN TENSIÓN' : 'con tensión';
+    T['t-LOAD-301-modo'] = carga(e, 'LOAD-301').alimentada === false ? 'SIN TENSIÓN' : 'con tensión';
+    T['t-fa'] = 'mide con los instrumentos'; T['t-fb'] = 'mide con los instrumentos';
+    return T;
+  }
+
   /* ---------- objetos vivos (solo en el navegador) ---------- */
-  function crearObjetos(canvas) {
+  function crearObjetos(canvas, opciones = {}) {
+    const oculto = () => !!(opciones.oculto && opciones.oculto());
     const objetos = [];
     const poner = (id, t) => { const el = canvas.buscar(id); if (el && el.textContent !== t) el.textContent = t; };
     const conmutar = (id, clase, on) => { const el = canvas.buscar(id); if (el) el.classList.toggle(clase, !!on); };
@@ -403,10 +537,10 @@
     } });
 
     // Burbujas de medida
-    objetos.push({ actualizar(e) { const L = lecturasBurbujas(e); for (const [id, lineas] of Object.entries(L)) lineas.forEach((t, k) => poner(`bt-${id}-${k}`, t)); } });
+    objetos.push({ actualizar(e) { const L = lecturasBurbujas(e), o = oculto(); for (const [id, lineas] of Object.entries(L)) lineas.forEach((t, k) => poner(`bt-${id}-${k}`, o ? (/^STR-/.test(id) ? `${id} · mídela` : '') : t)); } });
     // Textos de los equipos y LEDs
     objetos.push({ actualizar(e) {
-      for (const [id, t] of Object.entries(textosEquipos(e))) poner(id, t);
+      for (const [id, t] of Object.entries(oculto() ? textosEquiposOcultos(e) : textosEquipos(e))) poner(id, t);
       for (const [id, on] of Object.entries(ledsInversores(e))) conmutar(id, 'on', on);
       conmutar('led-INV-101-fallo', 'alarma', ledsInversores(e)['led-INV-101-fallo']); conmutar('led-INV-201-alarma', 'alarma', ledsInversores(e)['led-INV-201-alarma']);
       const soc = canvas.buscar('soc-BAT-101'); if (soc) { const f = Math.max(0, Math.min(1, numero(bateria(e).soc01))); soc.setAttribute('width', String((168 * f).toFixed(1))); }
@@ -416,21 +550,22 @@
     objetos.push({ actualizar(e) {
       for (const tag of paneles) {
         const d = panelDe(e, tag); if (!d) continue;
-        poner(`pw-${tag}`, formatoPotencia(d.panel.p));
+        const o = oculto();
+        poner(`pw-${tag}`, o ? '' : formatoPotencia(d.panel.p));
         const sh = canvas.buscar(`sh-${tag}`); if (sh) { const o = String((0.62 * Math.min(1, numero(d.panel.sombra01))).toFixed(2)); if (sh.style.opacity !== o) sh.style.opacity = o; }
-        for (let k = 0; k < 3; k++) conmutar(`by-${tag}-${k}`, 'on', (d.panel.bypass || [])[k]);
+        for (let k = 0; k < 3; k++) conmutar(`by-${tag}-${k}`, 'on', !o && (d.panel.bypass || [])[k]);
       }
     } });
     // Estado de cada equipo: color (clase e-*), forma (palanca abierta, fusible roto, testigo) y etiqueta accesible
     const grupos = canvas.buscarTodos('g[data-tag]').map(el => ({ el, tag: el.dataset.tag, visual: '', aria: '' }));
     objetos.push({ actualizar(e) {
       for (const o of grupos) {
-        const v = estadoVisual(e, o.tag);
+        const oc = oculto(), v = oc ? estadoVisualOculto(e, o.tag) : estadoVisual(e, o.tag);
         if (v !== o.visual) { o.visual = v; for (const c of F.ESTADOS_VISUALES) o.el.classList.toggle(`e-${c}`, c === v); }
-        const a = etiquetaAria(e, o.tag); if (a !== o.aria) { o.aria = a; o.el.setAttribute('aria-label', a); }
+        const a = oc ? `${o.tag}${NOMBRES[o.tag] ? ' ' + NOMBRES[o.tag] : ''}` : etiquetaAria(e, o.tag); if (a !== o.aria) { o.aria = a; o.el.setAttribute('aria-label', a); }
         const est = proteccion(e, o.tag).estado;
         if (PROTECCIONES.includes(o.tag)) o.el.classList.toggle('abierta', est !== undefined && est !== 'CERRADO');
-        if (FUSIBLES.includes(o.tag)) o.el.classList.toggle('fundido', est === 'FUNDIDO');
+        if (FUSIBLES.includes(o.tag)) o.el.classList.toggle('fundido', !oc && est === 'FUNDIDO');
         if (DESCARGADORES.includes(o.tag)) o.el.classList.toggle('agotado', est === 'AGOTADO');
       }
     } });
@@ -438,7 +573,8 @@
   }
 
   const api = { ESQUEMA_FV, VIEWBOX, TRAMOS, TIPOS, PROTECCIONES, FUSIBLES, DESCARGADORES, construirEsquema, tagsDelEsquema, idsDelEsquema, estadoVisual, estadoEquipo, etiquetaAria,
-    repartoFlujos, grosorFlujo, cicloFlujo, lecturasBurbujas, textosEquipos, partirTexto, ledsInversores, alarmaDeTag, cadenaDe, panelDe, crearObjetos };
+    repartoFlujos, grosorFlujo, cicloFlujo, lecturasBurbujas, textosEquipos, partirTexto, ledsInversores, alarmaDeTag, cadenaDe, panelDe, crearObjetos,
+    PUNTOS_XY, PINZA_XY, GEOMETRIA_PANELES, rectDeEquipo, zonaTermica, equipoDePunto, puntosDeEquipo, cercanos, muestrearTrazado, trazadosDelEsquema, VISIBLES_EN_DIAGNOSTICO, estadoVisualOculto, textosEquiposOcultos };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window !== 'undefined') (window.PCT = window.PCT || {}).fvEsquema = api;
 })();

@@ -21,6 +21,10 @@
 //        vReposoV = tensión sin la sobretensión de carga (27,2 V a plena carga); limiteCargaA = tope de carga del BMS según la temperatura (0 bajo 0 °C).
 //   alarmas: código nuevo 'BATERIA_FRIA' (info) cuando el BMS limita la carga por frío. 'EASUN_SOBRECARGA' pasa a significar corte de salida si el estado es FALLO.
 //   sim.aislamiento(tagCadena) → { ok, mohm, texto }: el megóhmetro de las cuatro cadenas (con FALLO_AISLAMIENTO_B, STR-201 da décimas de MΩ).
+//   INSTRUMENTOS DE MEDIDA (API completa en ../../API_INSTRUMENTOS.md; multímetro, pinza y termografía están en medidas.js):
+//     sim.resistencia(a, b) · sim.conductores y sim.corriente(id) · sim.puntosAislamiento y sim.aislamiento('STR-201.+') (exige el seccionador abierto) ·
+//     sim.curvaIVReferencia(id, n) y sim.resumenIV(id) · sim.termografia().   Campos nuevos del estado: bateria.celdasV [8] y cadenas[].abiertaFisica.
+//     sim.curvaIV es la curva en bornes de la cadena (lo que mide un trazador conectado antes del fusible): un fusible fundido ya no la aplana; un MC4 suelto o un cable cortado, sí.
 //   ambiente.ghWm2 sigue siendo la global horizontal; campos.X.gPlanoWm2 la del plano (lo que mediría un piranómetro). La luz que de verdad llega a las células
 //   descuenta el modificador del ángulo de incidencia (planoInclinado → gUtil) y no se publica. Nubosidad media de cada mes: PCT.fv.sol.NUBOSIDAD_MEDIA_MES.
 (function () {
@@ -80,7 +84,7 @@
       const bat = Bateria.crearBateria({ socInicial01: 0.6 });
       S = { op, rng, t: 0, dia: op.diaAnio, hora: op.horaSolar, nubOrden: limitar(op.nubosidad, 0, 1), tAmbOrden: null, suciedad: { A: 0, B: 0 }, sombras: {}, ruidoNub: 0, ruidoRapido: 0,
         cadenas, referencia, mppRef: {}, bat, prot: Prot.crearProtecciones(), cargas: RC.crearCargas(rng), red: RC.crearRed(), easun: Easun.crearEasun(), zcs: Zcs.crearZcs(rng),
-        tCaseta: 25, energia: { prodA: 0, prodB: 0, consumo: 0 }, res: null, tMpp: -1e9, mpp: {}, tConectorC: 25 };
+        tCaseta: 25, energia: { prodA: 0, prodB: 0, consumo: 0 }, res: null, tMpp: -1e9, mpp: {}, tConectorC: 25, histG: [] };
       S.tCaseta = Sol.temperaturaAmbiente(S.dia, S.hora, S.nubOrden) + 2;
       S.easun.tC = S.tCaseta + 5; S.zcs.tC = S.tCaseta + 5; S.bat.tC = S.tCaseta;
       mppSucio = true; medidasCache = null;
@@ -183,7 +187,19 @@
       const iCon = op['STR-202'].i;
       // El conector sano va unos 6 °C sobre el ambiente; el malo disipa I²·R y se calienta 0,45 K por vatio (1 Ω con 13 A son 170 W: más de 100 °C, de quemarse).
       S.tConectorC = tAmb + 6 + (motor.hay('CONECTOR_RESISTIVO_B2') ? iCon * iCon * motor.parametro('CONECTOR_RESISTIVO_B2', 'resistenciaOhm', 1) * 0.45 : 0);
-      S.res = { pos, cielo, planos, tAmb, nEf, suc, top, redDisp, vRed, fRed, rA, rB, op, cons301, serv302, pRed, dem301, dem302, abiertaFisica };
+      if (dt > 0) {                                                   // historial corto de irradiancia: el trazador I-V pide luz estable
+        S.histG.push({ t: S.t, A: planos.A.g, B: planos.B.g });
+        while (S.histG.length && S.histG[0].t < S.t - 40) S.histG.shift();
+      }
+      S.res = { pos, cielo, planos, tAmb, nEf, suc, top, redDisp, vRed, fRed, rA, rB, op, cons301, serv302, pRed, dem301, dem302, abiertaFisica, diodos };
+    }
+
+    /** La cadena de referencia (sana, limpia, sin sombra) puesta a la luz y temperatura de ahora. */
+    function referenciaAlDia(id) {
+      const R = S.res, ref = S.referencia[id], pl = R.planos[campoDe(id)];
+      ref.iniciada = false;
+      ref.actualizar({ g: pl.gUtil, gDif: pl.difusaUtil, tAmbC: R.tAmb, suciedad: 0, sombras: {}, diodos: {}, abierta: false, resistenciaExtraOhm: 0, dt: 0 });
+      return ref;
     }
 
     function refrescarMpp() {
@@ -192,10 +208,7 @@
       for (const id of Object.keys(S.cadenas)) {
         S.mpp[id] = S.cadenas[id].mpp();
         // Referencia sana: la misma cadena sin sombra, suciedad, diodos ni conector malo, con la temperatura de célula ya estabilizada
-        const k = campoDe(id), ref = S.referencia[id], pl = R.planos[k];
-        ref.iniciada = false;
-        ref.actualizar({ g: pl.gUtil, gDif: pl.difusaUtil, tAmbC: R.tAmb, suciedad: 0, sombras: {}, diodos: {}, abierta: false, resistenciaExtraOhm: 0, dt: 0 });
-        S.mppRef[id] = ref.mpp();
+        S.mppRef[id] = referenciaAlDia(id).mpp();
       }
       S.tMpp = S.t; mppSucio = false;
     }
@@ -249,6 +262,13 @@
       return L;
     }
 
+    /** Tensión de las 8 celdas: la 3 es la más baja y la 6 la más alta (las que vigila el BMS); el resto se reparten lo que queda del pack. */
+    function celdasV() {
+      const b = S.bat, n = layout.BATERIA.celdas, resto = (b.v - b.vCeldaMin - b.vCeldaMax) / (n - 2);
+      const v = Array.from({ length: n }, () => resto); v[2] = b.vCeldaMin; v[5] = b.vCeldaMax;
+      return v;
+    }
+
     function publicar() {
       const R = S.res; refrescarMpp();
       const campos = {};
@@ -257,7 +277,7 @@
         const cadenas = camp.cadenas.map(c => {
           const cad = S.cadenas[c.id], o = R.op[c.id], mp = S.mpp[c.id] || { v: 0, i: 0, p: 0 };
           const abierta = cad.abierta, p = o.v * o.i;
-          return { id: c.id, abierta, v: abierta ? cad.voc() : o.v, i: abierta ? 0 : o.i, p: abierta ? 0 : p, voc: cad.voc(), vmpp: mp.v, impp: mp.i, pmpp: mp.p,
+          return { id: c.id, abierta, abiertaFisica: !!R.abiertaFisica[c.id], v: abierta ? cad.voc() : o.v, i: abierta ? 0 : o.i, p: abierta ? 0 : p, voc: cad.voc(), vmpp: mp.v, impp: mp.i, pmpp: mp.p,
             mppEnCurso: mp.p > 1 && !abierta && p >= 0.97 * mp.p, enMaximoLocal: mp.p > 20 && !abierta && o.i > 0 && p < 0.9 * mp.p,
             paneles: cad.detalle(abierta ? 0 : o.i).map(q => ({ tag: q.tag, p: q.p, v: q.v, tempCelulaC: q.tempCelulaC, sombra01: q.sombra01, bypass: q.bypass })) };
         });
@@ -282,7 +302,7 @@
         campos,
         inversores: { 'INV-101': inv101, 'INV-201': inv201 },
         bateria: { tag: 'BAT-101', soc01: bat.soc01, v: bat.v, vCeldaMin: bat.vCeldaMin, vCeldaMax: bat.vCeldaMax, i: bat.i, p: bat.v * bat.i, temperaturaC: bat.tC, bms: bat.bms, energiaWh: bat.energiaWh(),
-          socMinUtilPct: layout.BATERIA.socMinUtilPct, energiaUtilWh: bat.energiaUtilWh(), vReposoV: bat.ocvReposo(), limiteCargaA: bat.limiteCargaA() },
+          socMinUtilPct: layout.BATERIA.socMinUtilPct, energiaUtilWh: bat.energiaUtilWh(), vReposoV: bat.ocvReposo(), limiteCargaA: bat.limiteCargaA(), celdasV: celdasV() },
         red: { disponible: R.redDisp, v: R.vRed, f: R.fRed, p: R.pRed, energiaImportadaWh: S.red.energiaImportadaWh, energiaExportadaWh: S.red.energiaExportadaWh },
         cargas: { 'LOAD-301': { w: R.cons301, manual: S.cargas.esManual('LOAD-301'), demandaW: R.dem301, alimentada: R.top.cargas301Energizadas },
           'LOAD-302': { w: R.serv302, manual: S.cargas.esManual('LOAD-302'), demandaW: R.dem302, alimentada: a.alimentada } },
@@ -317,7 +337,7 @@
       reloj: { poner({ diaAnio, horaSolar } = {}) {
         if (Number.isFinite(diaAnio)) S.dia = Sol.diaValido(diaAnio);
         if (Number.isFinite(horaSolar)) S.hora = ((horaSolar % 24) + 24) % 24;
-        S.easun.seg.tBarrido = Infinity; for (const q of S.zcs.segs) q.tBarrido = Infinity; S.zcs.tPotCheck = 1e9;
+        S.easun.seg.tBarrido = Infinity; for (const q of S.zcs.segs) q.tBarrido = Infinity; S.zcs.tPotCheck = 1e9; S.histG.length = 0;
         refrescar();
       } },
       ambiente: {
@@ -356,25 +376,93 @@
     };
     function retirarAveriaDe(tag) { for (const [id, e] of Object.entries(ESTADO_AVERIA)) if (e[0] === tag && motor.hay(id)) motor.desactivar(id); }
 
-    sim.curvaIV = (id, puntos = 60) => (S.cadenas[id] ? S.cadenas[id].curva(Math.max(4, Math.floor(puntos))) : []);
+    /** Ejecuta fn con la cadena tal como la ve un instrumento conectado en sus bornes (antes del fusible): solo está abierta si lo está físicamente. */
+    function enBornes(id, fn) {
+      const cad = S.cadenas[id], antes = cad.abierta;
+      cad.abierta = !!S.res.abiertaFisica[id];
+      try { return fn(cad); } finally { cad.abierta = antes; }
+    }
+    const nPuntos = n => Math.max(4, Math.floor(Number(n) || 60));
+    sim.curvaIV = (id, puntos = 60) => (S.cadenas[id] ? enBornes(id, cad => cad.curva(nPuntos(puntos))) : []);
+    /** Curva esperada por el datasheet a la irradiancia y temperatura de célula de ahora, sin sombras, suciedad ni averías. */
+    sim.curvaIVReferencia = (id, puntos = 60) => (S.cadenas[id] ? referenciaAlDia(id).curva(nPuntos(puntos)) : []);
+    /** ¿Ha variado la irradiancia del plano menos de un 3 % en el último medio minuto? */
+    function luzEstable(k) {
+      const h = S.histG.filter(x => x.t >= S.t - 30).map(x => x[k]).concat([S.res.planos[k].g]);
+      const max = Math.max(...h), min = Math.min(...h);
+      return max <= 0 || (max - min) / max <= 0.03;
+    }
+    /**
+     * Resumen del trazador de curvas I-V (IEC 62446-1): lo medido en bornes de la cadena frente a lo esperado por el datasheet con la luz y temperatura de ahora.
+     * escalones = nº de escalones de la curva (diodos de paso que entran a conducir porque una subcadena da menos corriente que las demás).
+     */
+    sim.resumenIV = id => {
+      const cad = S.cadenas[id];
+      if (!cad) return { ok: false, texto: 'Cadena desconocida' };
+      const k = campoDe(id), g = S.res.planos[k].g, abierta = !!S.res.abiertaFisica[id], ref = referenciaAlDia(id);
+      const esp = ref.mpp(), vocEsperada = ref.voc(), iscEsperada = ref.iDeV(0);
+      const m = enBornes(id, c => (abierta ? { voc: 0, isc: 0, mp: { v: 0, i: 0, p: 0 } } : { voc: c.voc(), isc: c.iDeV(0), mp: c.mpp() }));
+      // Escalones: niveles distintos de corriente de las subcadenas con el diodo de paso sano (saltos de más del 6 % del máximo)
+      let escalones = 0;
+      if (!abierta && cad.iscMax > 0) {
+        const niveles = [];
+        for (const p of cad.paneles) for (let j = 0; j < 3; j++) if (p.diodos[j] === 'ok') niveles.push(p.subs[j].isc);
+        niveles.sort((x, y) => y - x);
+        for (let j = 1; j < niveles.length; j++) if (niveles[j - 1] - niveles[j] > 0.06 * cad.iscMax) escalones++;
+      }
+      const pct = (x, r) => (r > 1e-6 ? 100 * (x / r - 1) : 0);
+      const ff = (p, v, i) => (v > 1 && i > 0.01 ? p / (v * i) : 0);
+      const estable = luzEstable(k), valida = g >= 400 && estable && !abierta;
+      const r = { ok: true, voc: m.voc, isc: m.isc, vmpp: m.mp.v, impp: m.mp.i, pmpp: m.mp.p, factorForma: ff(m.mp.p, m.voc, m.isc),
+        vocEsperada, iscEsperada, pmppEsperada: esp.p, factorFormaEsperado: ff(esp.p, vocEsperada, iscEsperada),
+        desviacionPct: pct(m.mp.p, esp.p), desviacionVocPct: pct(m.voc, vocEsperada), desviacionIscPct: pct(m.isc, iscEsperada), escalones,
+        irradianciaWm2: g, temperaturaCelulaC: cad.paneles.reduce((s, p) => s + p.tc, 0) / cad.paneles.length, estable, valida, abierta, texto: '' };
+      if (abierta) r.texto = 'Sin curva: la cadena no tiene continuidad (0 V y 0 A en sus bornes)';
+      else if (g < 400) r.texto = `Medida no válida: irradiancia de ${g.toFixed(0)} W/m² (la norma pide al menos 400 W/m²)`;
+      else if (!estable) r.texto = 'Medida no válida: la irradiancia está cambiando (espera a que se estabilice)';
+      else r.texto = `Pmáx ${r.pmpp.toFixed(0)} W frente a ${esp.p.toFixed(0)} W esperados (${r.desviacionPct >= 0 ? '+' : ''}${r.desviacionPct.toFixed(1)} %)${escalones ? ` · ${escalones} escalón${escalones > 1 ? 'es' : ''} por diodos de paso` : ''}`;
+      return r;
+    };
 
     function ctxMedidas() {
       const R = S.res;
-      return { estado, prot: S.prot, top: R.top, abiertaFisica: R.abiertaFisica, redOk: R.redDisp, vRed: R.vRed, temperaturaConectorC: S.tConectorC, temperaturaCasetaC: S.tCaseta };
+      return { estado, prot: S.prot, top: R.top, abiertaFisica: R.abiertaFisica, redOk: R.redDisp, vRed: R.vRed, temperaturaConectorC: S.tConectorC, temperaturaCasetaC: S.tCaseta,
+        celdasV: estado.bateria.celdasV, rConectorOhm: motor.hay('CONECTOR_RESISTIVO_B2') ? motor.parametro('CONECTOR_RESISTIVO_B2', 'resistenciaOhm', 1) : 0,
+        fugaB: motor.hay('FALLO_AISLAMIENTO_B'), diodos: R.diodos, gPlano: { A: R.planos.A.g, B: R.planos.B.g }, tAmb: R.tAmb, ventilacionTapada: motor.hay('VENTILACION_TAPADA') };
     }
-    sim.medir = (a, b) => Medidas.crearMedidas(ctxMedidas()).medir(a, b);
-    sim.continuidad = (a, b) => Medidas.crearMedidas(ctxMedidas()).continuidad(a, b);
-    sim.potencial = n => Medidas.crearMedidas(ctxMedidas()).potencial(n);
+    const instrumentos = () => Medidas.crearMedidas(ctxMedidas());
+    sim.medir = (a, b) => instrumentos().medir(a, b);
+    sim.continuidad = (a, b) => instrumentos().continuidad(a, b);
+    sim.potencial = n => instrumentos().potencial(n);
+    sim.resistencia = (a, b) => instrumentos().resistencia(a, b);
+    sim.corriente = id => instrumentos().corriente(id);
+    sim.termografia = () => instrumentos().termografia();
+    sim.conductores = Medidas.CONDUCTORES;
     /**
-     * Megóhmetro: aislamiento a tierra de una cadena ('STR-101'…'STR-202'), medido con el campo desconectado. Sano: decenas de MΩ;
-     * con FALLO_AISLAMIENTO_B, STR-201 baja a unas décimas de MΩ (el ZCS no conecta por debajo de 0,5 MΩ). → { ok, mohm, texto }.
+     * Megóhmetro (IEC 62446-1): aislamiento a tierra de un polo de una cadena ('STR-201.+', 'STR-201.-'…) con su seccionador ABIERTO (QS-101 o QS-201).
+     * → { ok, mohm, tensionPruebaV, minimoMohm, correcto, texto }. Sano: decenas de MΩ (algo menos con humedad —cielo cubierto, noche— y con los paneles calientes);
+     * con FALLO_AISLAMIENTO_B los dos polos de STR-201 bajan a centésimas de MΩ (el ZCS no conecta por debajo de 0,5 MΩ).
+     * Forma antigua, sin polo ('STR-201'): los dos polos unidos, valor nominal y sin exigir el seccionador (se conserva por compatibilidad).
      */
     sim.aislamiento = tag => {
-      const sano = C.AISLAMIENTO_CADENA_MOHM[tag];
+      const m = /^(STR-\d+)(?:\.([+-]))?$/.exec(String(tag)), cadena = m && m[1], polo = m && m[2], sano = cadena && C.AISLAMIENTO_CADENA_MOHM[cadena];
       if (!sano) return { ok: false, mohm: 0, texto: 'Punto de medida desconocido' };
-      const mohm = tag === 'STR-201' && motor.hay('FALLO_AISLAMIENTO_B') ? C.ZCS.aislamientoFalloMohm : sano;
-      return { ok: true, mohm, texto: `${mohm.toFixed(2)} MΩ a tierra (${mohm < C.ZCS.aislamientoMinMohm ? 'FALLO: por debajo de ' + C.ZCS.aislamientoMinMohm + ' MΩ' : 'correcto'})` };
+      const k = campoDe(cadena), qs = k === 'A' ? 'QS-101' : 'QS-201';
+      const tensionPruebaV = k === 'A' ? 250 : 500, minimoMohm = k === 'A' ? 0.5 : 1;       // tabla de IEC 62446-1 según la Voc del campo (< 120 V / 120–500 V)
+      const falla = cadena === 'STR-201' && motor.hay('FALLO_AISLAMIENTO_B');
+      let mohm;
+      if (!polo) mohm = falla ? C.ZCS.aislamientoFalloMohm : sano;
+      else {
+        if (S.prot.conduce(qs)) return { ok: false, mohm: 0, tensionPruebaV, minimoMohm, correcto: false, texto: `Abre el seccionador antes de medir el aislamiento (${qs})` };
+        const R = S.res, humedad = limitar(0.6 * R.nEf + (R.pos.esDia ? 0 : 0.4), 0, 1), tc = S.cadenas[cadena].paneles[0].tc;
+        const factor = (1 - 0.45 * humedad) * Math.exp(-0.015 * (tc - 25));
+        mohm = falla ? C.ZCS.aislamientoFalloMohm * (polo === '-' ? 1.15 : 1) * (1 - 0.3 * humedad) : sano * (polo === '-' ? 2.2 : 2) * factor;
+      }
+      const limite = polo ? minimoMohm : C.ZCS.aislamientoMinMohm, correcto = mohm >= limite;
+      return { ok: true, mohm, tensionPruebaV, minimoMohm, correcto, texto: `${mohm.toFixed(2)} MΩ a tierra (${correcto ? 'correcto' : 'FALLO: por debajo de ' + limite + ' MΩ'})` };
     };
+    sim.puntosAislamiento = Object.keys(C.AISLAMIENTO_CADENA_MOHM).flatMap(id => ['+', '-'].map(polo => ({ id: `${id}.${polo}`, cadena: id, seccionador: campoDe(id) === 'A' ? 'QS-101' : 'QS-201',
+      descripcion: `${polo === '+' ? 'Positivo' : 'Negativo'} de la cadena ${id} a tierra` })));
     sim.puntos = Medidas.PUNTOS;
     Object.defineProperty(sim, 'medidas', { get() { if (!medidasCache) medidasCache = Medidas.crearMedidas(ctxMedidas()).medidas(); return medidasCache; }, enumerable: true });
 

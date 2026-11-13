@@ -16,6 +16,82 @@
     <div><b>{% if r['ultimo'] %}<time class="local" datetime="{{ r['ultimo'] }}">{{ r['ultimo'][:16].replace('T', ' ') }}</time>{% else %}—{% endif %}</b><span>último acceso</span></div>
   </div>
 
+  {% if averias or retos or diagnosticos %}
+  <h2 id="retos">Retos de diagnóstico <small>(simulador fotovoltaico)</small></h2>
+  {% if puede_reto %}
+  <form method="post" action="{{ url_for('aula_reto') }}" class="reto-form">
+    <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="accion" value="asignar"><input type="hidden" name="id" value="{{ f['id'] }}">
+    <label>Avería oculta
+      <select name="averia" required>
+        <option value="azar">Al azar</option>
+        {% for a in averias %}<option value="{{ a['id'] }}">{{ a['titulo'] }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Título (opcional, lo ve el alumno)
+      <input type="text" name="titulo" maxlength="80" placeholder="Práctica de diagnóstico" autocomplete="off">
+    </label>
+    <label class="casilla"><input type="checkbox" name="pistas" value="1" checked> Permitir pistas</label>
+    <button type="submit">Asignar reto</button>
+  </form>
+  {% elif averias %}
+  <p class="ayuda">Para asignarle un reto tiene que estar autorizado y tener asignado el simulador fotovoltaico.</p>
+  {% endif %}
+  {% if retos %}
+  <table class="tabla"><thead><tr><th>Asignado</th><th>Título</th><th>Avería</th><th>Pistas</th><th>Estado</th><th>Mejor nota</th><th>Intentos</th><th></th></tr></thead><tbody>
+    {% for t in retos %}
+    <tr>
+      <td data-etiqueta="Asignado"><time class="local" datetime="{{ t['creado'] }}">{{ t['creado'][:16].replace('T', ' ') }}</time></td>
+      <td data-etiqueta="Título">{{ t['titulo'] or 'Práctica de diagnóstico' }}</td>
+      <td data-etiqueta="Avería">{{ titulo_averia(t['averia']) }}</td>
+      <td data-etiqueta="Pistas">{{ 'Sí' if t['pistas'] else 'No' }}</td>
+      <td data-etiqueta="Estado">{% if t['resuelto'] %}<span class="etiqueta etiqueta-autorizado">Resuelto</span> <time class="local" datetime="{{ t['resuelto'] }}">{{ t['resuelto'][:16].replace('T', ' ') }}</time>{% else %}<span class="etiqueta etiqueta-pendiente">Pendiente</span>{% endif %}</td>
+      <td data-etiqueta="Mejor nota"><b>{{ t['nota']|nota }}</b></td>
+      <td data-etiqueta="Intentos">{{ t['intentos'] }}</td>
+      <td class="acciones">
+        {% if not t['resuelto'] %}
+        <form method="post" action="{{ url_for('aula_reto') }}" onsubmit="return confirm('¿Anular este reto pendiente?')">
+          <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="accion" value="anular">
+          <input type="hidden" name="id" value="{{ f['id'] }}"><input type="hidden" name="reto" value="{{ t['id'] }}">
+          <button type="submit" class="peligro">Anular</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody></table>
+  {% else %}<p class="vacio">No se le ha asignado ningún reto.</p>{% endif %}
+
+  <h2>Diagnósticos entregados <small>(retos y práctica libre{% if diagnosticos|length >= 300 %}; últimos 300{% endif %})</small></h2>
+  {% if diagnosticos %}
+  <table class="tabla tabla-diag"><thead><tr><th>Fecha</th><th>Avería real</th><th>Respuesta</th><th>Acierto</th><th>Nota</th><th>Pistas</th><th>Medidas</th><th>Tiempo</th><th>Hoja</th></tr></thead><tbody>
+    {% for d in diagnosticos %}
+    <tr>
+      <td data-etiqueta="Fecha"><time class="local" datetime="{{ d['momento'] }}">{{ d['momento'][:16].replace('T', ' ') }}</time><br><small>{{ 'Reto' if d['reto_id'] else 'Práctica libre' }} · intento {{ d['intento'] }}</small></td>
+      <td data-etiqueta="Avería real">{{ titulo_averia(d['averia_real']) }}</td>
+      <td data-etiqueta="Respuesta">{{ titulo_averia(d['averia_respuesta']) }}{% if d['elemento_respuesta'] %}<br><small>Elemento: {{ nombre_equipo(d['elemento_respuesta']) }}</small>{% endif %}</td>
+      <td data-etiqueta="Acierto"><span class="etiqueta acierto-{{ (d['acierto'] * 2)|int }}">{{ d['acierto']|acierto }}</span></td>
+      <td data-etiqueta="Nota"><b>{{ d['nota']|nota }}</b></td>
+      <td data-etiqueta="Pistas">{{ d['pistas'] }}</td>
+      <td data-etiqueta="Medidas">{{ d['medidas'] }}</td>
+      <td data-etiqueta="Tiempo">{{ d['segundos']|duracion }}</td>
+      <td data-etiqueta="Hoja">
+        {% if d['hoja'] %}
+        <details class="hoja"><summary>Ver hoja</summary>
+          <dl>
+            {% for etiqueta, lineas in d['hoja'] %}
+            <dt>{{ etiqueta }}</dt>
+            <dd>{% if lineas|length > 1 %}<ul>{% for l in lineas %}<li>{{ l }}</li>{% endfor %}</ul>{% else %}{{ lineas[0] }}{% endif %}</dd>
+            {% endfor %}
+          </dl>
+        </details>
+        {% else %}—{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody></table>
+  {% else %}<p class="vacio">Todavía no ha entregado ningún diagnóstico.</p>{% endif %}
+  {% endif %}
+
   <h2>Tiempo por pantalla</h2>
   {% if r['por_pagina'] %}
   <table class="tabla"><thead><tr><th>Pantalla</th><th>Tiempo</th></tr></thead><tbody>
