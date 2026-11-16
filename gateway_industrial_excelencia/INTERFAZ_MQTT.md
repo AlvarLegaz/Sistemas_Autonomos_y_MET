@@ -66,7 +66,9 @@ JSON plano. Ejemplo real:
 }
 ```
 
-Grupos de claves:
+Además de estas claves en bruto, el mismo mensaje incluye **los nombres de la planta** (`T1`, `T2`, `T3`, `T4`, `F1`, `L1`, `TERM`, `HLC`, `HL`, `LL`, `LVLC`, `SOL1`…`SOL5`, `N1`, `N2`, `RES`, `N1_sentido`, `N2_sentido`, `N1_velocidad`, `N2_velocidad`, `RES_potencia`) ya en unidades de ingeniería: ver la sección 4. Por eso el mensaje real tiene unas 70 claves.
+
+Grupos de claves en bruto:
 
 | Claves | Tipo | Significado |
 |---|---|---|
