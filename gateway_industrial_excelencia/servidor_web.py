@@ -16,6 +16,7 @@ import paho.mqtt.client as mqtt
 from flask import Flask, Response, abort, jsonify, request, send_file, send_from_directory
 
 from control_t1 import SALIDA_RES, ControlT1
+from senales import a_crudo
 from gateway_main_app import (BROKER_POR_DEFECTO, TOPIC_ENTRADAS, TOPIC_SALIDAS,
                               broker, credenciales)
 
@@ -55,6 +56,7 @@ def _verdadero(valor):
 def registrar_orden(orden):
     """Recuerda si la resistencia debe estar encendida, para ir renovando la orden. Llamar con el lock cogido."""
     global res_deseado, ultima_orden_res
+    orden = a_crudo(orden) if isinstance(orden, dict) else orden       # tambien vale {"RES": true}
     if isinstance(orden, dict) and SALIDA_RES in orden:
         res_deseado, ultima_orden_res = _verdadero(orden[SALIDA_RES]), time.time()
 

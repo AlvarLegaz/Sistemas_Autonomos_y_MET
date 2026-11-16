@@ -1,0 +1,6 @@
+# Arranque del escritorio (copia del de /etc/xdg/labwc/autostart, que este fichero sustituye) y del kiosco del sinoptico.
+/usr/bin/lwrespawn /usr/bin/pcmanfm-pi &
+/usr/bin/lwrespawn /usr/bin/wf-panel-pi &
+/usr/bin/kanshi &
+/usr/bin/lxsession-xdg-autostart
+/home/admin/kiosco_pct23.sh &
