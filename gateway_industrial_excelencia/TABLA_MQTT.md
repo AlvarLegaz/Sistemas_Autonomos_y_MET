@@ -1,6 +1,15 @@
 # Variables MQTT del gateway PCT23
 
-Topics: `pct_23/entradas` (se lee, cada 100 ms) y `pct_23/salidas` (se ordena). Broker `192.168.99.11:1883`.
+## Topics
+
+| Topic | Sentido | QoS | Retain | Frecuencia | Contenido |
+|---|---|---|---|---|---|
+| `pct_23/entradas` | gateway → cliente (se lee) | 0 | no | cada 100 ms | JSON con el estado completo: sensores (`T1`, `F1`, `TERM`...), estado de los actuadores (`SOL1`, `N1`, `N1_pct`...), canales en bruto, diagnóstico y `timestamp` |
+| `pct_23/salidas` | cliente → gateway (se ordena) | 1 | no | cuando haga falta | JSON con solo las claves a cambiar, por ejemplo `{"SOL1": true, "N1_pct": 80}`; también `{"paro_emergencia": true}` |
+
+Broker `192.168.99.11:1883`, sin usuario ni TLS. Client IDs ya usados: `pct_23_gateway` y `pct_23_web` (usa otro distinto).
+
+## Variables
 
 | Variable | Tipo | Función | Qué es | Unidad / valores | Canal en bruto |
 |---|---|---|---|---|---|
