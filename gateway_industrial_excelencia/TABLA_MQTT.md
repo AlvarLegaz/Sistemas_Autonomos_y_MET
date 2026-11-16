@@ -4,8 +4,8 @@
 
 | Topic | Sentido | QoS | Retain | Frecuencia | Contenido |
 |---|---|---|---|---|---|
-| `pct_23/entradas` | gateway → cliente (se lee) | 0 | no | cada 100 ms | JSON con el estado completo: sensores (`T1`, `F1`, `TERM`...), estado de los actuadores (`SOL1`, `N1`, `N1_pct`...), canales en bruto, diagnóstico y `timestamp` |
-| `pct_23/salidas` | cliente → gateway (se ordena) | 1 | no | cuando haga falta | JSON con solo las claves a cambiar, por ejemplo `{"SOL1": true, "N1_pct": 80}`; también `{"paro_emergencia": true}` |
+| `pct_23/entradas` | gateway → cliente (se lee) | 0 | no | cada 100 ms | JSON con el estado completo: sensores (`T1`, `F1`, `TERM`...), estado de los actuadores (`SOL1`, `N1`, `N1_velocidad`...), canales en bruto, diagnóstico y `timestamp` |
+| `pct_23/salidas` | cliente → gateway (se ordena) | 1 | no | cuando haga falta | JSON con solo las claves a cambiar, por ejemplo `{"SOL1": true, "N1_velocidad": 80}`; también `{"paro_emergencia": true}` |
 
 Broker `192.168.99.11:1883`, sin usuario ni TLS. Client IDs ya usados: `pct_23_gateway` y `pct_23_web` (usa otro distinto).
 
@@ -33,8 +33,8 @@ Broker `192.168.99.11:1883`, sin usuario ni TLS. Client IDs ya usados: `pct_23_g
 | `N2` | digital | actuador | Bomba heat unit: marcha/paro | `true` = marcha | `TransistorOut7_value` |
 | `RES` | digital | actuador | Resistencia: marcha/paro (hay que renovarla cada ≤ 5 s) | `true` = calentar | `TransistorOut3_value` |
 | `N1_sentido`, `N2_sentido` | digital | actuador | Sentido de giro de las bombas | solo `false` (adelante); `true` se rechaza | `TransistorOut6_value`, `TransistorOut5_value` |
-| `N1_pct` | analógica | actuador | Velocidad de N1 (PWM) | 0–100 % (mínimo 50 % si está en marcha) | `PWMOut1_value` |
-| `N2_pct` | analógica | actuador | Velocidad de N2 (PWM) | 0–100 % (mínimo 50 % si está en marcha) | `PWMOut2_value` |
-| `RES_pct` | analógica | actuador | Potencia de la resistencia (ráfagas) | 0–100 % | `AnalogOut1_value` |
+| `N1_velocidad` | analógica | actuador | Velocidad de N1 (PWM) | 0–100 % (mínimo 50 % si está en marcha) | `PWMOut1_value` |
+| `N2_velocidad` | analógica | actuador | Velocidad de N2 (PWM) | 0–100 % (mínimo 50 % si está en marcha) | `PWMOut2_value` |
+| `RES_potencia` | analógica | actuador | Potencia de la resistencia (ráfagas) | 0–100 % | `AnalogOut1_value` |
 
 Los sensores solo se leen; los actuadores se leen en `pct_23/entradas` y se ordenan en `pct_23/salidas`. Paro de emergencia aparte: `{"paro_emergencia": true}` o `false`.

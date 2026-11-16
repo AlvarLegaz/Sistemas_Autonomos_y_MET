@@ -26,7 +26,7 @@ class Lectura(unittest.TestCase):
         self.assertIs(r["LL"], False)
         self.assertIs(r["SOL1"], True)
         self.assertIs(r["N1"], True)
-        self.assertEqual((r["N1_pct"], r["RES_pct"]), (80.0, 60.0))
+        self.assertEqual((r["N1_velocidad"], r["RES_potencia"]), (80.0, 60.0))
 
     def test_solo_salen_las_senales_con_lectura(self):
         self.assertEqual(amigables({}), {})
@@ -48,7 +48,7 @@ class Lectura(unittest.TestCase):
 
 class Ordenes(unittest.TestCase):
     def test_traduce_las_claves_amigables(self):
-        self.assertEqual(a_crudo({"SOL1": True, "N1": True, "N1_pct": 80, "RES": True, "RES_pct": 60}),
+        self.assertEqual(a_crudo({"SOL1": True, "N1": True, "N1_velocidad": 80, "RES": True, "RES_potencia": 60}),
                          {"DigitalOut3_value": True, "TransistorOut8_value": True, "PWMOut1_value": 80,
                           "TransistorOut3_value": True, "AnalogOut1_value": 60})
 
@@ -75,7 +75,7 @@ class EnElGateway(unittest.TestCase):
             p = self.gw.build_inputs_payload()
         finally:
             self.gw.runtime.stop()
-        for clave in ("AnalogIn1_value", "T1", "T2", "F1", "TERM", "SOL1", "N1", "N1_pct", "RES_pct", "paro_emergencia", "timestamp"):
+        for clave in ("AnalogIn1_value", "T1", "T2", "F1", "TERM", "SOL1", "N1", "N1_velocidad", "RES_potencia", "paro_emergencia", "timestamp"):
             self.assertIn(clave, p)
         self.assertEqual(p["T1"], round(p["AnalogIn1_value"] * 100, 2))
         self.assertEqual(p["SOL1"], p["DigitalOut3_value"])

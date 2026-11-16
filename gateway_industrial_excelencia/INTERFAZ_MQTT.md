@@ -129,13 +129,13 @@ Desde esta versión el gateway publica en `pct_23/entradas`, **además** de los 
 | `N2` | digital | actuador | Bomba heat unit: marcha/paro | `true` = marcha | `TransistorOut7_value` |
 | `RES` | digital | actuador | Resistencia: marcha/paro (hay que renovarla cada ≤ 5 s) | `true` = calentar | `TransistorOut3_value` |
 | `N1_sentido`, `N2_sentido` | digital | actuador | Sentido de giro de las bombas | solo `false` (adelante); `true` se rechaza | `TransistorOut6_value`, `TransistorOut5_value` |
-| `N1_pct` | analógica | actuador | Velocidad de N1 (PWM) | 0–100 % (mínimo 50 % si está en marcha) | `PWMOut1_value` |
-| `N2_pct` | analógica | actuador | Velocidad de N2 (PWM) | 0–100 % (mínimo 50 % si está en marcha) | `PWMOut2_value` |
-| `RES_pct` | analógica | actuador | Potencia de la resistencia (ráfagas) | 0–100 % | `AnalogOut1_value` |
+| `N1_velocidad` | analógica | actuador | Velocidad de N1 (PWM) | 0–100 % (mínimo 50 % si está en marcha) | `PWMOut1_value` |
+| `N2_velocidad` | analógica | actuador | Velocidad de N2 (PWM) | 0–100 % (mínimo 50 % si está en marcha) | `PWMOut2_value` |
+| `RES_potencia` | analógica | actuador | Potencia de la resistencia (ráfagas) | 0–100 % | `AnalogOut1_value` |
 
 Todas se leen en `pct_23/entradas`. Las de tipo **actuador** además se ordenan en `pct_23/salidas`; las de tipo **sensor** son solo de lectura. El paro de emergencia es aparte: `{"paro_emergencia": true|false}`.
 
-Ejemplo de orden con nombres amigables: `{"SOL1": true, "N1": true, "N1_pct": 80}`.
+Ejemplo de orden con nombres amigables: `{"SOL1": true, "N1": true, "N1_velocidad": 80}`.
 
 ---
 

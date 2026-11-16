@@ -40,9 +40,9 @@ SALIDAS = {                       # nombre -> canal en bruto (orden de encendido
     "N2_sentido": "TransistorOut5_value",
 }
 CONSIGNAS = {                     # nombre -> canal en bruto (0-100 %)
-    "N1_pct": "PWMOut1_value",
-    "N2_pct": "PWMOut2_value",
-    "RES_pct": "AnalogOut1_value",
+    "N1_velocidad": "PWMOut1_value",
+    "N2_velocidad": "PWMOut2_value",
+    "RES_potencia": "AnalogOut1_value",
 }
 ORDENABLES = {**SALIDAS, **CONSIGNAS}
 
@@ -64,7 +64,7 @@ def amigables(crudo):
 
 
 def a_crudo(orden):
-    """Traduce las claves amigables de una orden (SOL1, N1, N1_pct...) a los canales en bruto. Las claves en bruto, el paro de
+    """Traduce las claves amigables de una orden (SOL1, N1, N1_velocidad...) a los canales en bruto. Las claves en bruto, el paro de
     emergencia y las desconocidas pasan igual; si llegan las dos formas del mismo canal, manda la de bruto."""
     traducida = {}
     for clave, valor in orden.items():

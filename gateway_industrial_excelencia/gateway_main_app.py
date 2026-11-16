@@ -89,7 +89,7 @@ class Gateway:
         claves presentes; el resto de salidas conserva su valor. Ejemplo:
             {"DigitalOut1_value": true, "PWMOut1_value": 50, "AnalogOut1_value": 1.5}
         o con los nombres de la planta (ver senales.py):
-            {"SOL1": true, "N1": true, "N1_pct": 80, "RES": true, "RES_pct": 60}
+            {"SOL1": true, "N1": true, "N1_velocidad": 80, "RES": true, "RES_potencia": 60}
         """
         try:
             data = json.loads(msg.payload.decode("utf-8"))
@@ -100,7 +100,7 @@ class Gateway:
                 if not isinstance(paro, bool):
                     raise ValueError("paro_emergencia debe ser true o false")
                 self.runtime.paro_emergencia(paro)
-            data = a_crudo(data)                           # SOL1, N1, N1_pct... -> canales en bruto
+            data = a_crudo(data)                           # SOL1, N1, N1_velocidad... -> canales en bruto
             ignoradas = self.runtime.update_outputs(data) if data else []
         except (ValueError, TypeError) as e:
             print(f"Mensaje MQTT descartado en {msg.topic}: {e}")
