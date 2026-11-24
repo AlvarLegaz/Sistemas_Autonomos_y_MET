@@ -441,7 +441,7 @@ class Runtime:
             self.digital_output_driver.write_outputs(*salidas)
             digitales = self.digital_input_driver.read_inputs()
             analogicas = self.analog_input_driver.read_inputs()
-        except OSError as e:
+        except Exception as e:      # no solo OSError: un fallo cualquiera de un driver no debe matar el hilo del scan (la resistencia seguiría conduciendo a ciegas)
             # Un fallo del bus no para el runtime: se reintenta en el siguiente
             # scan y la imagen conserva los ultimos valores buenos.
             self._error_io("scan lento", e)
@@ -465,7 +465,13 @@ class Runtime:
         if self._hay_fallo(motivos):
             self.outputs[SALIDA_RESISTENCIA] = False
             print(f"FALLO ({', '.join(motivos)}): resistencia apagada (no se rearma sola)")
-        elif self.caducidad_calefactor_s is not None and time.monotonic() > self._calefactor_hasta:
+        else:
+            self._caducar_calefactor(time.monotonic())
+
+    def _caducar_calefactor(self, ahora):
+        """La orden de calentar caduca si nadie la renueva. Se comprueba también desde el hilo de potencia: si el scan lento muriera, la caducidad
+        seguiría cortando la resistencia. Llamar con el lock cogido."""
+        if self.outputs[SALIDA_RESISTENCIA] and self.caducidad_calefactor_s is not None and ahora > self._calefactor_hasta:
             self.outputs[SALIDA_RESISTENCIA] = False
             print("Orden de calentar caducada (nadie la ha renovado): resistencia apagada")
 
@@ -490,6 +496,7 @@ class Runtime:
         proximo ciclo de red, y como mucho ESPERA_MAXIMA_S despues para atender pronto un paro o un apagado."""
         ahora = time.monotonic() if ahora is None else ahora
         with self.lock:
+            self._caducar_calefactor(ahora)
             cmd = [self.outputs[f"TransistorOut{i}_value"] for i in range(1, NUM_CHANNELS + 1)]
             potencia = self.outputs["AnalogOut1_value"]
             heat = self.outputs["PWMOut2_value"]

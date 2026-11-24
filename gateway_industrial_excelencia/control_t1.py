@@ -15,7 +15,8 @@ Nada de esto sustituye al termostato de la maqueta, que salta a 70 °C.
 """
 import time
 
-# Canales del gateway (los mismos que la tabla MAPA de pct23.html).
+# Canales del formato ANTIGUO (los mismos que la tabla MAPA de pct23.html). Con el contrato v2.4, scada_pct23.py traduce lo que publica la planta a estas
+# claves y las órdenes de vuelta (TransistorOut3_value -> cmd/heater_pct…), de modo que este control no cambia.
 CANAL_T1, CANAL_T2 = "AnalogIn1_value", "AnalogIn2_value"
 CANAL_TERMOSTATO = "DigitalIn1_value"          # D1: abre (False) si hay sobretemperatura
 SALIDA_RES = "TransistorOut3_value"            # resistencia de calefacción (encendido)
@@ -30,7 +31,8 @@ SEGUNDOS_REENVIO = 5.0                         # las órdenes se repiten para qu
 PASO_MAXIMO_S = 5.0                            # un hueco largo entre lecturas no acumula integral
 # Motivos por los que el gateway no deja calentar (los publica en `motivos_bloqueo`) y que desactivan el control.
 FALLOS = {"termostato_abierto": "Termostato disparado", "sonda_t2_fuera_de_rango": "Sonda T2 fuera de rango",
-          "paro_emergencia": "Paro de emergencia"}
+          "paro_emergencia": "Paro de emergencia",
+          "estado_seguro": "Estado seguro de la planta"}   # contrato v2.4: la tarjeta pasó a estado seguro (p. ej. sin latido); scada_pct23.py lo traduce a este motivo
 
 LIMITES = {                                    # (mínimo, máximo) de cada ajuste
     "consigna_t1": (20.0, 80.0),

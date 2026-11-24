@@ -1,4 +1,4 @@
-"""Pruebas del control de T1 dentro del servidor web, con un cliente MQTT falso. Ejecutar:  python test_servidor_control.py"""
+"""Pruebas del control de T1 dentro del servidor web (protocolo ANTIGUO, pct_23/*), con un cliente MQTT falso. Ejecutar:  python test_servidor_control.py"""
 import json
 import unittest
 
@@ -29,6 +29,7 @@ class ServidorControl(unittest.TestCase):
     def setUp(self):
         self.mqtt = ClienteFalso()
         web.client = self.mqtt
+        web.protocolo, web.scada = "antiguo", None      # estas pruebas son del protocolo antiguo (pct_23/*); las del contrato v2.4 están en test_scada_pct23.py
         web.control = c.ControlT1()
         web.res_deseado, web.ultima_orden_res, web.emergencia_pedida = False, 0.0, False
         web.estado.update(datos=None, recibido=0.0, broker=True, rechazo=None)
@@ -84,6 +85,7 @@ class SeguridadDelServidor(unittest.TestCase):
     def setUp(self):
         self.mqtt = ClienteFalso()
         web.client = self.mqtt
+        web.protocolo, web.scada = "antiguo", None      # estas pruebas son del protocolo antiguo (pct_23/*); las del contrato v2.4 están en test_scada_pct23.py
         web.control = c.ControlT1()
         web.res_deseado, web.ultima_orden_res, web.emergencia_pedida = False, 0.0, False
         web.estado.update(datos=None, recibido=0.0, broker=True, rechazo=None)

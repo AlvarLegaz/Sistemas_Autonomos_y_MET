@@ -1,8 +1,10 @@
 """Control remoto del gateway industrial por MQTT.
 
-    python control_remoto.py 192.168.99.53:1883 [usuario@clave]
+    python control_remoto.py [ip:puerto] [usuario@clave] [--instancia real-01] [--protocolo nuevo|antiguo]
 
-Con solo "usuario" la contraseña se toma de MQTT_PASSWORD o se pide por teclado.
+Con solo "usuario" la contraseña se toma de MQTT_PASSWORD o se pide por teclado. Por defecto el broker es 127.0.0.1:1883 (misma Raspberry Pi);
+variables de entorno equivalentes: PCT23_BROKER, PCT23_INSTANCIA y PCT23_MQTT_USUARIO.
+Protocolo nuevo (por defecto): contrato MQTT PCT23 v2.4 (scada_pct23.py), con latido del SCADA cada 2 s; antiguo: pct_23/entradas y pct_23/salidas.
 
 Muestra entradas digitales y analogicas, el diagnostico del gateway y permite
 conmutar las 8 salidas digitales y fijar el PWM 1.
@@ -13,18 +15,26 @@ import json
 import os
 import queue
 import sys
+import threading
 import time
 import tkinter as tk
 from tkinter import ttk
 
 import paho.mqtt.client as mqtt
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # scada_pct23.py está en la carpeta superior
+from scada_pct23 import ClienteScada  # noqa: E402
+from scada_pct23 import GATEWAY_TIMEOUT_S as GATEWAY_TIMEOUT_NUEVO_S  # noqa: E402
+
 
 TOPIC_SALIDAS = "pct_23/salidas"
 TOPIC_ENTRADAS = "pct_23/entradas"
 NUM_CANALES = 8
 VREF = 3.3                 # fondo de escala de las barras analogicas (V)
-GATEWAY_TIMEOUT_S = 1.0    # sin datos durante este tiempo -> gateway sin respuesta
+GATEWAY_TIMEOUT_S = 1.0    # protocolo antiguo: sin datos durante este tiempo -> gateway sin respuesta (entradas llegaba cada 0,1 s)
+BROKER_POR_DEFECTO = os.environ.get("PCT23_BROKER", "127.0.0.1:1883")      # misma Raspberry Pi; para un broker remoto basta cambiar la dirección
+INSTANCIA_POR_DEFECTO = os.environ.get("PCT23_INSTANCIA", "real-01")
+USUARIO_POR_DEFECTO = os.environ.get("PCT23_MQTT_USUARIO")
 
 VERDE, ROJO, GRIS, AMBAR = "#2e9e44", "#c62828", "#9e9e9e", "#f9a825"
 
@@ -53,9 +63,13 @@ def credenciales(texto):
 
 
 class ControlRemoto:
-    def __init__(self, root, host, puerto, usuario=None, clave=None):
+    def __init__(self, root, host, puerto, usuario=None, clave=None, protocolo="nuevo", instancia=INSTANCIA_POR_DEFECTO):
         self.root = root
         self.host, self.puerto = host, puerto
+        self.protocolo = protocolo
+        self.timeout_s = GATEWAY_TIMEOUT_NUEVO_S if protocolo == "nuevo" else GATEWAY_TIMEOUT_S
+        self.candado = threading.Lock()   # el estado del cliente del contrato lo tocan el hilo de paho y el de Tk
+        self.scada = ClienteScada(instancia, self._publicar_contrato, client_id="pct23-scada-remoto") if protocolo == "nuevo" else None
         self.mensajes = queue.Queue()     # los callbacks de paho llegan en otro hilo
         self.ultimo_dato = 0.0
         self.salidas = [False] * NUM_CANALES
@@ -71,7 +85,7 @@ class ControlRemoto:
             self.client.username_pw_set(usuario, clave)
         self.client.on_connect = self._on_connect
         self.client.on_disconnect = self._on_disconnect
-        self.client.on_message = lambda c, u, msg: self.mensajes.put(("datos", msg.payload))
+        self.client.on_message = self._on_message
         self.client.connect_async(host, puerto, keepalive=30)
         self.client.loop_start()
 
@@ -136,12 +150,25 @@ class ControlRemoto:
         self.lbl_aviso.grid(row=4, column=0, columnspan=2, sticky="w", **pad)
 
     # ------------------------------------------------------------ comandos
+    def _publicar_contrato(self, topic, payload, qos, retain):
+        self.client.publish(topic, json.dumps(payload), qos=qos, retain=retain)
+
     def enviar(self, datos):
         if not self.client.is_connected():
             self.lbl_aviso.config(text="Sin conexión con el broker: orden no enviada")
             return
-        self.client.publish(TOPIC_SALIDAS, json.dumps(datos))
-        self.lbl_aviso.config(text="")
+        if self.scada is None:
+            self.client.publish(TOPIC_SALIDAS, json.dumps(datos))
+            self.lbl_aviso.config(text="")
+            return
+        with self.candado:
+            resumen = self.scada.ordenes_antiguas(datos)
+        if resumen["sin_hora"]:
+            self.lbl_aviso.config(text="Aún no se conoce la hora de la planta (espera al primer mensaje de sensores): orden no enviada")
+        elif not resumen["enviada"]:
+            self.lbl_aviso.config(text="Ninguna salida válida en la orden")
+        else:
+            self.lbl_aviso.config(text="")
 
     def conmutar(self, canal):
         self.enviar({f"DigitalOut{canal + 1}_value": not self.salidas[canal]})
@@ -160,10 +187,28 @@ class ControlRemoto:
             self.mensajes.put(("broker", f"Rechazado: {reason_code}"))
             return
         self.rechazo = None
-        client.subscribe(TOPIC_ENTRADAS)
+        if self.scada is None:
+            client.subscribe(TOPIC_ENTRADAS)
+        else:
+            with self.candado:
+                self.scada.conectar()
+            client.subscribe(self.scada.suscripciones())
         self.mensajes.put(("broker", None))
 
+    def _on_message(self, client, userdata, msg):
+        if self.scada is None:
+            self.mensajes.put(("datos", msg.payload))
+            return
+        with self.candado:
+            evento = self.scada.on_message(msg.topic, msg.payload)
+            datos = self.scada.estado_antiguo() if evento else None
+        if datos is not None:
+            self.mensajes.put(("datos", json.dumps(datos)))      # mismo formato antiguo que entiende _mostrar
+
     def _on_disconnect(self, client, userdata, flags, reason_code, properties):
+        if self.scada is not None:
+            with self.candado:
+                self.scada.desconectar()
         # Tras un rechazo (p. ej. clave mala) se mantiene el motivo a la vista.
         if not self.rechazo:
             self.mensajes.put(("broker", "Desconectado, reintentando..."))
@@ -183,7 +228,10 @@ class ControlRemoto:
             else:
                 self._mostrar(dato)
 
-        if time.monotonic() - self.ultimo_dato > GATEWAY_TIMEOUT_S:
+        if self.scada is not None:
+            with self.candado:
+                self.scada.tick()                      # latido del SCADA cada 2 s y gestión de los ack
+        if time.monotonic() - self.ultimo_dato > self.timeout_s:
             self.lbl_gateway.config(text="Gateway: sin datos", bg=GRIS)
         self.refresco = self.root.after(100, self._refrescar)
 
@@ -228,13 +276,17 @@ class ControlRemoto:
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("broker", type=broker, help="broker MQTT como ip:puerto (puerto 1883 si se omite)")
-    ap.add_argument("credenciales", nargs="?", help="usuario@clave, o solo usuario (sin autenticacion si se omite)")
+    ap.add_argument("broker", nargs="?", type=broker, default=broker(BROKER_POR_DEFECTO),
+                    help=f"broker MQTT como ip:puerto (por defecto {BROKER_POR_DEFECTO}; variable PCT23_BROKER)")
+    ap.add_argument("credenciales", nargs="?", default=USUARIO_POR_DEFECTO,
+                    help="usuario@clave, o solo usuario (sin autenticacion si se omite; por defecto PCT23_MQTT_USUARIO)")
+    ap.add_argument("--instancia", default=INSTANCIA_POR_DEFECTO, help=f"id de la planta (por defecto {INSTANCIA_POR_DEFECTO}; variable PCT23_INSTANCIA)")
+    ap.add_argument("--protocolo", choices=("nuevo", "antiguo"), default="nuevo", help="nuevo = contrato v2.4 (por defecto); antiguo = pct_23/*")
     args = ap.parse_args()
     usuario, clave = credenciales(args.credenciales)
 
     root = tk.Tk()
-    ControlRemoto(root, *args.broker, usuario=usuario, clave=clave)
+    ControlRemoto(root, *args.broker, usuario=usuario, clave=clave, protocolo=args.protocolo, instancia=args.instancia)
     root.mainloop()
 
 
