@@ -28,7 +28,7 @@
   ];
   const INTERFAZ = [    // AGENTE-INTERFAZ
     'js/interfaz/formato_fv.js', 'js/scada2d/esquema_fv.js', 'js/interfaz/diagnostico_fv.js', 'js/interfaz/toque_largo_fv.js', 'js/interfaz/ayuda_fv.js', 'js/interfaz/grafica_fv.js', 'js/interfaz/panel_revision.js', 'js/interfaz/panel_lecturas.js',
-    'js/interfaz/cuaderno_fv.js', 'js/interfaz/instrumentos_fv.js', 'js/interfaz/reto_fv.js', 'js/interfaz/telemetria_fv.js', 'js/interfaz/panel_instrumentos.js', 'js/interfaz/panel_diagnostico.js',      // instrumentos de medida y modo Diagnóstico
+    'js/interfaz/cuaderno_fv.js', 'js/interfaz/instrumentos_fv.js', 'js/interfaz/reto_fv.js', 'js/interfaz/telemetria_fv.js', 'js/interfaz/panel_instrumentos.js', 'js/interfaz/panel_diagnostico.js', 'js/interfaz/practicas_fv.js', 'js/interfaz/panel_practicas.js',      // instrumentos de medida, modo Diagnóstico y prácticas guiadas
   ];
 
   function cargarScript(ruta) {
