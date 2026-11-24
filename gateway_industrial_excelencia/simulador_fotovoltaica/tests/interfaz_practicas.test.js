@@ -105,3 +105,78 @@ test('el resumen recoge título, nota y conclusión; el escenario es el del reto
   assert.equal(r.id, 'P3'); assert.match(r.conclusion, /PV-104/);
   assert.deepEqual(P.firmaDe(m.pr).escenario, P.ESCENARIO);
 });
+
+/* ---------- examen: corrección sin ayudas ---------- */
+const examenDe = (m, respuestas = {}, peligros = 0) => P.evaluarExamen(m.pr, { sim: () => m.sim, cuaderno: m.cuaderno, I, respuestas, peligros });
+const indicesRespuesta = pr => pr.pasos.map((s, k) => (s.tipo === 'respuesta' ? k : -1)).filter(k => k >= 0);
+
+test('examen P3: con todas las medidas y respuestas la nota es 10, en cualquier orden y sin guion', () => {
+  const m = montar('P3');
+  camara(m, 'PV-104.s1'); voltios(m, 'PV-105.+', 'PV-105.-'); voltios(m, 'PV-104.+', 'PV-104.-'); trazar(m, 'STR-102'); pinza(m, 'STR-102.+'); pinza(m, 'STR-101.+');
+  const r = {}; for (const k of indicesRespuesta(m.pr)) r[k] = m.pr.pasos[k].correcta;
+  const e = examenDe(m, r);
+  assert.equal(e.nota, 10); assert.deepEqual(e.medidas, { hechas: 6, total: 6 }); assert.deepEqual(e.respuestas, { acertadas: 2, total: 2 });
+  assert.equal(e.detalle.practica, 'P3'); assert.ok(JSON.stringify(e.detalle).length < 4000);
+});
+
+test('examen: sin hacer nada la nota es 0; solo las respuestas valen la mitad; las maniobras peligrosas restan', () => {
+  const m = montar('P3');
+  assert.equal(examenDe(m).nota, 0);
+  const r = {}; for (const k of indicesRespuesta(m.pr)) r[k] = m.pr.pasos[k].correcta;
+  assert.equal(examenDe(m, r).nota, 5);
+  assert.equal(examenDe(m, r, 2).nota, 2);
+  const mal = {}; for (const k of indicesRespuesta(m.pr)) mal[k] = (m.pr.pasos[k].correcta + 1) % m.pr.pasos[k].opciones.length;
+  assert.equal(examenDe(m, mal).respuestas.acertadas, 0);
+});
+
+test('examen P2: la maniobra de seguridad cuenta con el estado real de la instalación, no con un clic', () => {
+  const m = montar('P2');
+  let e = examenDe(m); assert.equal(e.medidas.hechas, 0);
+  apagar(m, 'INV-101'); abrir(m, 'QS-101');
+  e = examenDe(m); assert.equal(e.medidas.hechas, 1, 'solo la maniobra');
+  voltios(m, 'F-101.1', 'F-101.2', 'OHM'); e = examenDe(m); assert.equal(e.medidas.hechas, 2);
+});
+
+test('examen: una medida con el valor equivocado no cuenta', () => {
+  const m = montar('P3');
+  pinza(m, 'STR-101.+', 'AC'); voltios(m, 'PV-104.-', 'PV-104.+', 'VDC');
+  const e = examenDe(m); assert.equal(e.medidas.hechas, 1, 'la pinza en AC marca 0 y no vale; las puntas al revés sí');
+});
+
+test('las medidas valen a otra hora: tras dos horas de sol cambiado, P3 y P4 se completan igual (comparan con el gemelo en vivo)', () => {
+  const m3 = montar('P3'); for (let k = 0; k < 1440; k++) m3.sim.paso(5);      // dos horas simuladas
+  pinza(m3, 'STR-101.+'); pinza(m3, 'STR-102.+'); trazar(m3, 'STR-102'); m3.g.evaluar(); assert.equal(m3.g.indice, 3, m3.g.ultimoMensaje);
+  m3.g.responder(0); voltios(m3, 'PV-104.+', 'PV-104.-'); voltios(m3, 'PV-105.+', 'PV-105.-'); camara(m3, 'PV-104.s1'); m3.g.evaluar();
+  assert.ok(m3.g.responder(0).ok); assert.ok(m3.g.hecho);
+  const m4 = montar('P4'); for (let k = 0; k < 1440; k++) m4.sim.paso(5);
+  voltios(m4, 'INV-201.mppt1+', 'INV-201.mppt1-'); voltios(m4, 'INV-201.mppt2+', 'INV-201.mppt2-'); m4.g.evaluar(); assert.equal(m4.g.indice, 2, m4.g.ultimoMensaje);
+});
+
+/* ---------- informe descargable ---------- */
+test('el detalle del examen lleva las respuestas dadas, los pasos pedidos y el cuaderno, y cabe en el límite del aula (12 000)', () => {
+  const m = montar('P3'); pinza(m, 'STR-101.+'); voltios(m, 'PV-104.+', 'PV-104.-');
+  const r = {}; for (const k of indicesRespuesta(m.pr)) r[k] = 0;
+  const d = P.evaluarExamen(m.pr, { sim: () => m.sim, cuaderno: m.cuaderno, I, respuestas: r, intento: 2 }).detalle;
+  assert.equal(d.intento, 2); assert.equal(d.respuestas.length, 2); assert.equal(d.respuestas[0].ok, true); assert.ok(d.respuestas[0].elegida && d.respuestas[0].correcta);
+  assert.equal(d.pasos.length, m.pr.pasos.length); assert.ok(d.pasos.every(x => x.titulo)); assert.equal(d.cuaderno.length, 2);
+  assert.ok(JSON.stringify(d).length < 12000, String(JSON.stringify(d).length));
+});
+
+test('informe: con intentos pendientes NO enseña las respuestas correctas ni los pasos; cerrado, sí; y escapa el HTML', () => {
+  const m = montar('P3'); camara(m, 'PV-104.s1');
+  const r = {}; for (const k of indicesRespuesta(m.pr)) r[k] = 1;
+  const detalle = P.evaluarExamen(m.pr, { sim: () => m.sim, cuaderno: m.cuaderno, I, respuestas: r, intento: 1 }).detalle;
+  detalle.respuestas[0].elegida = '<script>alert(1)</script>';
+  const abierto = P.informeHtml({ tipo: 'Examen', alumno: 'Ana <b>Pérez</b>', fecha: '24 nov', intento: 1, intentosMax: 2, cerrado: false, detalle });
+  assert.match(abierto, /Nota: \d+,\d \/ 10/); assert.match(abierto, /Ana &lt;b&gt;Pérez&lt;\/b&gt;/); assert.doesNotMatch(abierto, /<script>alert/);
+  assert.doesNotMatch(abierto, /Respuesta correcta/); assert.doesNotMatch(abierto, /Pasos pedidos/); assert.match(abierto, /Las respuestas correctas se mostrarán/);
+  assert.match(abierto, /Cámara térmica/);
+  const cerrado = P.informeHtml({ tipo: 'Examen', fecha: '24 nov', intento: 2, intentosMax: 2, cerrado: true, detalle: Object.assign({}, detalle, { conclusion: m.pr.conclusion }) });
+  assert.match(cerrado, /Respuesta correcta/); assert.match(cerrado, /Pasos pedidos/); assert.match(cerrado, /Parte de mantenimiento/);
+  assert.equal(P.nombreInforme('Examen', 'P3', '2026-11-24'), 'informe_examen_P3_2026-11-24.html');
+});
+
+test('informe de una práctica guiada: nota, pistas y pasos', () => {
+  const html = P.informeHtml({ tipo: 'Práctica', fecha: 'hoy', cerrado: true, detalle: { practica: 'P2', titulo: 'El campo A produce la mitad', nota: 9.2, pistas: 2, fallos: 0, peligros: 0, conclusion: 'Fusible F-101.', pasos: [{ paso: 1, titulo: 'Mide STR-102', ok: true }], cuaderno: [] } });
+  assert.match(html, /Informe de práctica/); assert.match(html, /9,2 \/ 10/); assert.match(html, /Pistas usadas: <b>2<\/b>/); assert.match(html, /Mide STR-102/);
+});

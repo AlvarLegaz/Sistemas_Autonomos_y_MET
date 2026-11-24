@@ -306,7 +306,8 @@ class AulaRetos(BaseRetos):
     def test_asignar_a_un_alumno_desde_su_ficha(self):
         ficha = self.prof.get(f"/aula/alumno/{self.uid}").get_data(as_text=True)
         self.assertIn('name="averia"', ficha)
-        self.assertEqual(ficha.count('<option value="'), 19)                    # las 18 del catálogo y «al azar»
+        selector = ficha.split('name="averia"')[1].split('</select>')[0]
+        self.assertEqual(selector.count('<option value="'), 19)                 # las 18 del catálogo y «al azar»
         self.assertIn(f'<option value="{AVERIA}">{TITULO_AVERIA}</option>', ficha)
         r = self.reto(titulo="  Examen   1 ")
         self.assertEqual(r.status_code, 302)

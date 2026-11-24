@@ -15,6 +15,7 @@ import csv
 import html
 import io
 import json
+import unicodedata
 import math
 import os
 import random
@@ -72,6 +73,13 @@ RETO_SIM = "fotovoltaica"
 RETO_TITULO_POR_DEFECTO = "Práctica de diagnóstico"
 RETO_AZAR = "azar"
 ACCIONES_RETO = ("asignar", "asignar_lista", "anular")
+# Exámenes de práctica (fotovoltaica): el profesor desbloquea una de las prácticas guiadas del simulador y elige cuántos intentos tiene el alumno.
+# Las prácticas viven en el simulador (js/interfaz/practicas_fv.js); aquí solo sus ids y títulos.
+EXAMEN_PRACTICAS = {"P1": "Revisión de producción del campo A", "P2": "El campo A produce la mitad", "P3": "Una cadena rinde menos (diodo de paso)",
+                    "P4": "Punto caliente en un conector"}
+EXAMEN_INTENTOS_MAX = 5
+EXAMEN_DETALLE_MAX = 12000       # la hoja del examen (respuestas, pasos y cuaderno de medidas) es más grande que la de un diagnóstico
+ACCIONES_EXAMEN = ("asignar", "asignar_lista", "anular")
 ID_AVERIA = re.compile(r"^[A-Za-z0-9_]{1,60}$")
 TAG_EQUIPO = re.compile(r"^[A-Za-z0-9_-]{1,30}$")
 DETALLE_MAX = 4000
@@ -226,6 +234,20 @@ CREATE TABLE IF NOT EXISTS retos (
     intentos    INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS retos_usuario ON retos(usuario_id, sim, resuelto);
+CREATE TABLE IF NOT EXISTS examenes (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id   INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    sim          TEXT NOT NULL,
+    practica     TEXT NOT NULL,
+    titulo       TEXT NOT NULL DEFAULT '',
+    intentos_max INTEGER NOT NULL DEFAULT 1,
+    intentos     INTEGER NOT NULL DEFAULT 0,
+    creado       TEXT NOT NULL,
+    entregado    TEXT,
+    nota         REAL,
+    detalle      TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS examenes_usuario ON examenes(usuario_id, sim);
 CREATE TABLE IF NOT EXISTS diagnosticos (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     usuario_id          INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
@@ -804,7 +826,7 @@ def crear_app(config=None):
 
     @app.context_processor
     def contexto():
-        return {"csrf": token_csrf, "modulos": cfg["modulos"], "alumno_sesion": alumno(), "profesor": profesor(), "simuladores": disponibles(),
+        return {"csrf": token_csrf, "practicas_examen": EXAMEN_PRACTICAS, "intentos_examen_max": EXAMEN_INTENTOS_MAX, "modulos": cfg["modulos"], "alumno_sesion": alumno(), "profesor": profesor(), "simuladores": disponibles(),
                 "averias": catalogo["averias"] if catalogo else [],
                 "pin_por_defecto": cfg["pin"] == PIN_POR_DEFECTO and pin_guardado() is None, "pin_defecto_valor": PIN_POR_DEFECTO}
 
@@ -841,7 +863,7 @@ def crear_app(config=None):
         """Errores de las API que lee el simulador (no una persona): JSON en lugar de la página de error (contrato R15)."""
         if request.path == "/api/eventos":
             return {"guardados": 0, "error": texto}, codigo
-        if request.path.startswith(("/api/reto", "/api/registro_sesion")):
+        if request.path.startswith(("/api/reto", "/api/examen", "/api/registro_sesion")):
             return {"guardado": False, "error": texto}, codigo
         return None
 
@@ -1290,6 +1312,150 @@ def crear_app(config=None):
         flash(" ".join(partes), "ok" if asignados else "error")
         return redirect(volver)
 
+    # ----- exámenes de práctica: lo que usa el simulador -----
+    @app.get("/api/examen")
+    def api_examen():
+        if alumno() is None and not profesor():
+            return {"examen": None}, 401
+        a = alumno_con_retos()
+        if a is None or request.args.get("sim") != RETO_SIM:
+            return {"examen": None}
+        e = bd().execute("SELECT * FROM examenes WHERE usuario_id=? AND sim=? AND intentos < intentos_max ORDER BY id LIMIT 1", (a["id"], RETO_SIM)).fetchone()
+        if e is None or e["practica"] not in EXAMEN_PRACTICAS:
+            return {"examen": None}
+        return {"examen": {"id": e["id"], "practica": e["practica"], "titulo": e["titulo"] or EXAMEN_PRACTICAS[e["practica"]],
+                           "intentos_max": e["intentos_max"], "intentos": e["intentos"]}}
+
+    @app.post("/api/examen/resultado")
+    def api_examen_resultado():
+        a = alumno_con_retos()
+        if a is None:
+            return "", 204
+        f = request.form
+        if f.get("sim") != RETO_SIM:
+            abort(400, "Simulador no válido.")
+        try:
+            eid = int(f.get("examen", ""))
+        except ValueError:
+            abort(400, "Examen no válido.")
+        con = bd()
+        e = con.execute("SELECT * FROM examenes WHERE id=? AND usuario_id=? AND sim=?", (eid, a["id"], RETO_SIM)).fetchone()
+        if e is None:
+            abort(400, "Examen no válido.")
+        if e["intentos"] >= e["intentos_max"]:
+            abort(400, "Ya no te quedan intentos en este examen.")
+        nota = round(numero_acotado(f.get("nota"), 0, 10), 2)
+        detalle = f.get("detalle", "")
+        try:
+            if len(detalle) > EXAMEN_DETALLE_MAX or not isinstance(json.loads(detalle), (dict, list)):
+                detalle = ""
+        except ValueError:
+            detalle = ""
+        intentos = e["intentos"] + 1
+        mejor = e["nota"] is None or nota >= e["nota"]       # se guarda la mejor nota y la hoja de ese intento
+        con.execute("UPDATE examenes SET intentos=?, entregado=?, nota=?, detalle=? WHERE id=?",
+                    (intentos, ahora_iso(), nota if mejor else e["nota"], detalle if mejor else e["detalle"], e["id"]))
+        registrar_actividad(a["id"], "examen", f"Entregó el examen «{EXAMEN_PRACTICAS.get(e['practica'], e['practica'])}» (intento {intentos} de {e['intentos_max']}): nota {texto_nota(nota)}")
+        con.commit()
+        return {"guardado": True, "intentos": intentos, "intentos_max": e["intentos_max"], "quedan": e["intentos_max"] - intentos}
+
+    # ----- exámenes de práctica: lo que hace el profesor -----
+    @app.post("/aula/examen")
+    def aula_examen():
+        if not profesor():
+            return redirect(url_for("aula"))
+        accion = request.form.get("accion", "")
+        if accion not in ACCIONES_EXAMEN:
+            abort(400, "Acción no válida.")
+        con = bd()
+        estado = request.form.get("estado", "pendiente")
+        if estado not in ESTADOS + ("todos",):
+            estado = "pendiente"
+        modulo = limpiar(request.form.get("modulo"), LARGO_MAX["modulo"])
+        busca = limpiar(request.form.get("q"), 80)
+        if accion == "asignar_lista":
+            volver = url_for("aula", estado=estado, modulo=modulo or None, q=busca or None)
+        else:
+            try:
+                uid = int(request.form.get("id", ""))
+            except ValueError:
+                abort(400, "Alumno no válido.")
+            fila = con.execute("SELECT * FROM usuarios WHERE id=?", (uid,)).fetchone()
+            if fila is None:
+                flash("Ese alumno ya no existe.", "error")
+                return redirect(url_for("aula"))
+            volver = url_for("aula_alumno", uid=uid) + "#examen"
+        if accion == "anular":
+            try:
+                eid = int(request.form.get("examen", ""))
+            except ValueError:
+                abort(400, "Examen no válido.")
+            n = con.execute("DELETE FROM examenes WHERE id=? AND usuario_id=? AND intentos < intentos_max", (eid, uid)).rowcount
+            con.commit()
+            flash("Examen retirado." if n else "Ese examen ya está cerrado: no se puede retirar.", "ok" if n else "error")
+            return redirect(volver)
+        practica = request.form.get("practica", "")
+        if practica not in EXAMEN_PRACTICAS:
+            abort(400, "Práctica no válida.")
+        intentos_max = int(numero_acotado(request.form.get("intentos"), 1, EXAMEN_INTENTOS_MAX))
+        titulo = limpiar(request.form.get("titulo"), 80)
+        candidatos = datos_panel(estado, modulo, busca)["filas"] if accion == "asignar_lista" else [fila]
+        aptos = [c for c in candidatos if c["estado"] == "autorizado" and RETO_SIM in ids_asignados(c)]
+        asignados = repetidos = 0
+        ahora = ahora_iso()
+        for c in aptos:
+            if con.execute("SELECT 1 FROM examenes WHERE usuario_id=? AND sim=? AND practica=? AND intentos < intentos_max", (c["id"], RETO_SIM, practica)).fetchone():
+                repetidos += 1                      # ya tiene abierto ese mismo examen: no se le duplica
+                continue
+            con.execute("INSERT INTO examenes (usuario_id, sim, practica, titulo, intentos_max, creado) VALUES (?,?,?,?,?,?)",
+                        (c["id"], RETO_SIM, practica, titulo, intentos_max, ahora))
+            asignados += 1
+        con.commit()
+        fuera = len(candidatos) - len(aptos)
+        partes = [f"Examen «{EXAMEN_PRACTICAS[practica]}» desbloqueado para {asignados} alumno(s), con {intentos_max} intento{'s' if intentos_max != 1 else ''}."]
+        if fuera:
+            partes.append(f"{fuera} no lo recibe(n): solo se asigna a alumnos autorizados que tengan el simulador fotovoltaico.")
+        if repetidos:
+            partes.append(f"{repetidos} ya tenía(n) abierto ese mismo examen.")
+        flash(" ".join(partes), "ok" if asignados else "error")
+        return redirect(volver)
+
+    # ----- informe y notas de los exámenes (profesor) -----
+    def nombre_archivo(texto):
+        """Texto -> trozo de nombre de archivo (ASCII, sin espacios ni signos)."""
+        limpio = unicodedata.normalize("NFKD", texto or "").encode("ascii", "ignore").decode("ascii")
+        return re.sub(r"[^A-Za-z0-9]+", "_", limpio).strip("_")[:40] or "alumno"
+
+    @app.get("/aula/examen/<int:eid>/informe.html")
+    def aula_examen_informe(eid):
+        if not profesor():
+            return redirect(url_for("aula"))
+        x = bd().execute("SELECT e.*, u.nombre, u.apellidos, u.modulo FROM examenes e JOIN usuarios u ON u.id=e.usuario_id WHERE e.id=?", (eid,)).fetchone()
+        if x is None:
+            abort(404)
+        try:
+            datos = json.loads(x["detalle"]) if x["detalle"] else {}
+        except ValueError:
+            datos = {}
+        if not isinstance(datos, dict):
+            datos = {}
+        html = render_template("aula_informe_examen.html", x=x, d=datos, practicas_examen=EXAMEN_PRACTICAS)
+        resp = Response(html, mimetype="text/html; charset=utf-8")
+        resp.headers["Content-Disposition"] = f'attachment; filename="informe_examen_{nombre_archivo(x["apellidos"])}_{x["practica"]}.html"'
+        return resp
+
+    @app.get("/aula/examenes.csv")
+    def aula_examenes_csv():
+        if not profesor():
+            return redirect(url_for("aula"))
+        filas = bd().execute(
+            "SELECT u.apellidos, u.nombre, u.modulo, e.* FROM examenes e JOIN usuarios u ON u.id=e.usuario_id "
+            "ORDER BY u.apellidos COLLATE NOCASE, u.nombre COLLATE NOCASE, e.id").fetchall()
+        return descarga_csv(
+            "notas_examenes.csv", ["apellidos", "nombre", "modulo", "practica", "titulo", "intentos_usados", "intentos_max", "nota", "estado", "ultima_entrega_utc"],
+            [(x["apellidos"], x["nombre"], x["modulo"], x["practica"], x["titulo"] or EXAMEN_PRACTICAS.get(x["practica"], x["practica"]), x["intentos"], x["intentos_max"],
+              texto_nota(x["nota"]), "cerrado" if x["intentos"] >= x["intentos_max"] else "abierto", x["entregado"] or "") for x in filas])
+
     @app.get("/aula/diagnosticos.csv")
     def aula_diagnosticos_csv():
         if not profesor():
@@ -1520,13 +1686,15 @@ def crear_app(config=None):
             abort(404)
         eventos = bd().execute("SELECT momento, tipo, detalle FROM actividad WHERE usuario_id=? ORDER BY id DESC LIMIT 300", (uid,)).fetchall()
         retos = bd().execute("SELECT * FROM retos WHERE usuario_id=? ORDER BY id DESC", (uid,)).fetchall()
+        examenes = bd().execute("SELECT * FROM examenes WHERE usuario_id=? ORDER BY id DESC", (uid,)).fetchall()
         # La sesión de cada entrega sale del evento `entrego` que se guarda con ella (evento_id = 'entrego_<id>'): sin migración y sin tocar bases antiguas.
         diagnosticos = [{**dict(d), "hoja": detalle_legible(d["detalle"]), "sesion": d["sesion"] if d["sesion"] != SESION_DESCONOCIDA else None}
                         for d in bd().execute(
                             "SELECT d.*, (SELECT e.sesion FROM eventos e WHERE e.usuario_id=d.usuario_id AND e.evento_id='entrego_' || d.id) AS sesion "
                             "FROM diagnosticos d WHERE d.usuario_id=? ORDER BY d.id DESC LIMIT 300", (uid,))]
         return render_template("aula_alumno.html", f=fila, r=resumen_alumno(uid), eventos=eventos, hasta=session.get("prof_hasta", 0),
-                               retos=retos, diagnosticos=diagnosticos,
+                               retos=retos, diagnosticos=diagnosticos, examenes=examenes, practicas_examen=EXAMEN_PRACTICAS, intentos_examen_max=EXAMEN_INTENTOS_MAX,
+                               puede_examen=fila["estado"] == "autorizado" and RETO_SIM in ids_asignados(fila),
                                puede_reto=bool(catalogo) and fila["estado"] == "autorizado" and RETO_SIM in ids_asignados(fila))
 
     @app.get("/aula/alumno/<int:uid>.csv")

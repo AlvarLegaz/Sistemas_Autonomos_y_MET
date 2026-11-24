@@ -313,6 +313,10 @@ let anchoPrevio = $('esquema').clientWidth;
     if (!PCT.fvPracticas || !PCT.fvPanelPracticas) practicas = { entrar() {}, salir() {}, fase: () => 'lista', oculto: () => false, anotarPeligro() {}, actualizar() {} };      // falta el módulo: sin modo Prácticas
     else practicas = PCT.fvPanelPracticas.crear($('p-practicas'), { sim: () => sim, cuaderno, I: PCT.fvInstrumentos, almacen, avisar, abrirMaletin: () => instrumentos.abrirMaletin($('v-instrumentos')),
       empezar: ponerPractica,
+      // Examen que ha desbloqueado el profesor (solo con aula: la barra #aula-barra lleva el token) y envío de la nota al aula
+      examenPendiente: () => (!barraAula() ? Promise.resolve(null) : fetch('/api/examen?sim=fotovoltaica', { credentials: 'same-origin', headers: { Accept: 'application/json' } }).then(r => (r.ok ? r.json() : null)).then(j => (j && j.examen) || null).catch(() => null)),
+      enviarExamen: (ex, res) => fetch('/api/examen/resultado', { method: 'POST', credentials: 'same-origin', body: new URLSearchParams({ csrf: tokenAula() || '', examen: String(ex.id), sim: 'fotovoltaica', nota: String(res.nota), detalle: JSON.stringify(res.detalle) }) })
+        .then(async r => ({ ok: r.ok && r.status === 200, cuerpo: await r.json().catch(() => null) })).catch(() => ({ ok: false, cuerpo: null })),
       terminar: completada => { if (!completada) { restaurarNormal(sim); panelMando.restablecer(); aplicarAhora(); } refrescar(); graficas.redibujar(); },      // al completarla, la instalación se queda como está para verla
       explicacion: id => { try { const fi = PCT.fvReto.firmaDe(id, catalogo); return fi ? fi.explicacion : ''; } catch (error) { return ''; } } });
     if (!PCT.fvPracticas) $('modo-practica').hidden = true;

@@ -16,6 +16,47 @@
     <div><b>{% if r['ultimo'] %}<time class="local" datetime="{{ r['ultimo'] }}">{{ r['ultimo'][:16].replace('T', ' ') }}</time>{% else %}—{% endif %}</b><span>último acceso</span></div>
   </div>
 
+  <h2 id="examen">Examen de práctica <small>(fotovoltaica)</small></h2>
+  {% if puede_examen %}
+  <form method="post" action="{{ url_for('aula_examen') }}" class="examen-form">
+    <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="accion" value="asignar"><input type="hidden" name="id" value="{{ f['id'] }}">
+    <label>Práctica
+      <select name="practica" required>{% for k, v in practicas_examen.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+    </label>
+    <label>Intentos
+      <select name="intentos">{% for n in range(1, intentos_examen_max + 1) %}<option value="{{ n }}"{% if n == 1 %} selected{% endif %}>{{ n }}</option>{% endfor %}</select>
+    </label>
+    <button type="submit">Desbloquear examen</button>
+  </form>
+  <p class="ayuda">El alumno hace la práctica sin pistas ni ayudas y entrega su hoja. Se guarda la mejor nota de sus intentos.</p>
+  {% else %}
+  <p class="ayuda">Para desbloquearle un examen: cuenta autorizada y simulador fotovoltaico asignado.</p>
+  {% endif %}
+  {% if examenes %}
+  <table class="tabla"><thead><tr><th>Desbloqueado</th><th>Práctica</th><th>Intentos</th><th>Estado</th><th>Mejor nota</th><th>Informe</th><th></th></tr></thead><tbody>
+    {% for x in examenes %}
+    <tr>
+      <td data-etiqueta="Desbloqueado"><time class="local" datetime="{{ x['creado'] }}">{{ x['creado'][:16].replace('T', ' ') }}</time></td>
+      <td data-etiqueta="Práctica">{{ x['titulo'] or practicas_examen.get(x['practica'], x['practica']) }}</td>
+      <td data-etiqueta="Intentos">{{ x['intentos'] }} de {{ x['intentos_max'] }}</td>
+      <td data-etiqueta="Estado">{% if x['intentos'] >= x['intentos_max'] %}<span class="etiqueta etiqueta-autorizado">Cerrado</span>{% elif x['intentos'] %}<span class="etiqueta etiqueta-pendiente">En curso</span>{% else %}<span class="etiqueta etiqueta-pendiente">Sin empezar</span>{% endif %}</td>
+      <td data-etiqueta="Mejor nota"><b>{{ x['nota']|nota }}</b></td>
+      <td data-etiqueta="Informe">{% if x['intentos'] %}<a class="boton-enlace" href="{{ url_for('aula_examen_informe', eid=x['id']) }}">Descargar</a>{% else %}—{% endif %}</td>
+      <td class="acciones">
+        {% if x['intentos'] < x['intentos_max'] %}
+        <form method="post" action="{{ url_for('aula_examen') }}" onsubmit="return confirm('¿Retirar este examen?')">
+          <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="accion" value="anular">
+          <input type="hidden" name="id" value="{{ f['id'] }}"><input type="hidden" name="examen" value="{{ x['id'] }}">
+          <button type="submit" class="peligro">Retirar</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody></table>
+  <p class="ayuda"><a href="{{ url_for('aula_examenes_csv') }}">Notas de todos los exámenes (CSV)</a></p>
+  {% else %}<p class="vacio">Sin exámenes desbloqueados.</p>{% endif %}
+
   {% if averias or retos or diagnosticos %}
   <h2 id="retos">Retos de diagnóstico <small>(fotovoltaica)</small></h2>
   {% if puede_reto %}

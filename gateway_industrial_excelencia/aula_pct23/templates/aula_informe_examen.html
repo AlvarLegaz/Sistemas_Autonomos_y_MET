@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Informe de examen · {{ x['apellidos'] }}, {{ x['nombre'] }}</title>
+<style>body{font:16px/1.45 system-ui,sans-serif;margin:24px auto;max-width:820px;padding:0 16px;color:#1b1b1b}h1{margin:0 0 4px;font-size:1.4rem}h2{margin:22px 0 6px;font-size:1.1rem;border-bottom:2px solid #d0d0d0}.meta{color:#555;margin:0 0 12px}.nota{font-size:2rem;font-weight:700;margin:8px 0}table{border-collapse:collapse;width:100%;font-size:.92rem}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top}th{background:#f1f1f1}.ok{color:#1b6e2d;font-weight:700}.mal{color:#a01818;font-weight:700}ul{padding-left:20px}footer{margin-top:28px;font-size:.8rem;color:#666}@media print{body{margin:0}}</style></head>
+<body>
+<h1>Informe de examen · {{ x['titulo'] or practicas_examen.get(x['practica'], x['practica']) }}</h1>
+<p class="meta">Alumno: <b>{{ x['apellidos'] }}, {{ x['nombre'] }}</b>{% if x['modulo'] %} · {{ x['modulo'] }}{% endif %} · Intentos {{ x['intentos'] }} de {{ x['intentos_max'] }}{% if x['entregado'] %} · Última entrega {{ x['entregado'][:16].replace('T', ' ') }} (UTC){% endif %} · Simulador fotovoltaico · CIFP Politécnico de Cartagena</p>
+<p class="nota">Mejor nota: {{ x['nota']|nota }} / 10</p>
+{% if not d %}<p class="meta">Sin hoja guardada: el alumno aún no ha entregado ningún intento.</p>{% else %}
+<ul>
+  {% if d.get('resumenMedidas') %}<li>Medidas y maniobras pedidas: <b>{{ d['resumenMedidas'] }}</b></li>{% endif %}
+  {% if d.get('resumenRespuestas') %}<li>Respuestas acertadas: <b>{{ d['resumenRespuestas'] }}</b></li>{% endif %}
+  <li>Maniobras peligrosas: <b>{{ d.get('peligros', 0) }}</b></li>
+  {% if d.get('intento') %}<li>La hoja de abajo es la del intento n.º <b>{{ d['intento'] }}</b> (el de mejor nota).</li>{% endif %}
+</ul>
+{% if d.get('respuestas') %}
+<h2>Respuestas</h2>
+<table><thead><tr><th>Pregunta</th><th>Respuesta del alumno</th><th>Respuesta correcta</th><th>Resultado</th></tr></thead><tbody>
+{% for r in d['respuestas'] %}<tr><td>{{ r.get('pregunta') }}</td><td>{{ r.get('elegida') or 'Sin contestar' }}</td><td>{{ r.get('correcta') }}</td><td class="{{ 'ok' if r.get('ok') else 'mal' }}">{{ '✓ Correcta' if r.get('ok') else '✗ Incorrecta' }}</td></tr>{% endfor %}
+</tbody></table>
+{% endif %}
+{% if d.get('cuaderno') %}
+<h2>Medidas realizadas (cuaderno)</h2>
+<table><thead><tr><th>Hora</th><th>Instrumento</th><th>Puntos</th><th>Lectura</th></tr></thead><tbody>
+{% for e in d['cuaderno'] %}<tr><td>{{ e.get('hora') }}</td><td>{{ e.get('instrumento') }}{% if e.get('modo') %} {{ e['modo'] }}{% endif %}</td><td>{{ e.get('puntos') }}</td><td>{{ e.get('texto') }}{% if e.get('peligro') %} <b class="mal">(peligrosa)</b>{% endif %}</td></tr>{% endfor %}
+</tbody></table>
+{% endif %}
+{% if d.get('pasos') %}
+<h2>Pasos que pedía la práctica</h2>
+<table><thead><tr><th>N.º</th><th>Qué se pedía</th><th></th></tr></thead><tbody>
+{% for q in d['pasos'] %}<tr><td>{{ q.get('paso') }}</td><td>{{ q.get('titulo') }}</td><td class="{{ 'ok' if q.get('ok') else 'mal' }}">{{ '✓' if q.get('ok') else '✗' }}</td></tr>{% endfor %}
+</tbody></table>
+{% endif %}
+{% endif %}
+<footer>© 2026 Álvar Legaz Aparicio · Todos los derechos reservados.</footer>
+</body></html>
