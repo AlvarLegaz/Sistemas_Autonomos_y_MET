@@ -204,8 +204,8 @@ class InformeExamen(BaseExamen):
         r = self.prof.get("/aula/examenes.csv")
         self.assertEqual(r.status_code, 200)
         texto = r.get_data(as_text=True)
-        self.assertIn("apellidos;nombre;modulo;practica;titulo;intentos_usados;intentos_max;nota;estado;ultima_entrega_utc", texto)
-        self.assertIn("Pérez Gómez;Lucía", texto); self.assertIn(";P2;El campo A produce la mitad;1;2;8,5;abierto;", texto)
+        self.assertIn("apellidos;nombre;modulo;simulador;practica;titulo;intentos_usados;intentos_max;nota;estado;ultima_entrega_utc", texto)
+        self.assertIn("Pérez Gómez;Lucía", texto); self.assertIn(";fotovoltaica;P2;El campo A produce la mitad;1;2;8,5;abierto;", texto)
         self.assertEqual(self.alumno.get("/aula/examenes.csv").status_code, 302)
 
     def test_la_ficha_enlaza_el_informe_y_el_csv(self):

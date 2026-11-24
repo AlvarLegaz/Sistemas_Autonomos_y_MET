@@ -107,18 +107,18 @@
 </form>
 {% endif %}
 <form method="post" action="{{ url_for('aula_examen') }}" class="masivo examen-form" id="examen-lista"
-      onsubmit="return confirm('¿Desbloquear el examen a {{ con_reto }} de {{ filas|length }} alumnos (autorizados con el simulador fotovoltaico)?')">
+      onsubmit="return confirm('¿Desbloquear el examen a los alumnos de la lista que tengan ese simulador? Los demás no lo reciben.')">
   <input type="hidden" name="csrf" value="{{ csrf() }}"><input type="hidden" name="accion" value="asignar_lista">
   <input type="hidden" name="estado" value="{{ estado }}"><input type="hidden" name="modulo" value="{{ modulo }}"><input type="hidden" name="q" value="{{ q }}">
   <strong class="examen-titulo">Examen de práctica para los {{ filas|length }} de la lista:</strong>
   <label>Práctica
-    <select name="practica" required>{% for k, v in practicas_examen.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+    <select name="practica" required>{% for sid, etiqueta, lista in grupos_examen %}<optgroup label="{{ etiqueta }}">{% for v, t in lista %}<option value="{{ v }}">{{ t }}</option>{% endfor %}</optgroup>{% endfor %}</select>
   </label>
   <label>Intentos
     <select name="intentos">{% for n in range(1, intentos_examen_max + 1) %}<option value="{{ n }}"{% if n == 1 %} selected{% endif %}>{{ n }}</option>{% endfor %}</select>
   </label>
-  <button type="submit" {% if not con_reto %}disabled title="Nadie de la lista está autorizado con el simulador fotovoltaico"{% endif %}>Desbloquear examen</button>
-  <span class="examen-nota">Sin pistas ni ayudas. Lo reciben {{ con_reto }} de {{ filas|length }} (autorizados con el simulador fotovoltaico).</span>
+  <button type="submit" {% if not con_examen %}disabled title="Nadie de la lista está autorizado con un simulador con examen"{% endif %}>Desbloquear examen</button>
+  <span class="examen-nota">Sin pistas ni ayudas. Lo reciben solo los alumnos autorizados que tengan el simulador de la práctica elegida ({{ con_examen }} de {{ filas|length }} tienen alguno).</span>
 </form>
 <table class="tabla">
   <thead><tr><th>Alumno</th><th>Módulo</th><th>Correo</th><th>Estado</th><th>Simuladores</th>{% if hay_diagnostico %}<th>Retos</th>{% endif %}<th>Tiempo de uso</th><th>Último acceso</th><th>Acciones</th></tr></thead>

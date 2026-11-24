@@ -73,10 +73,17 @@ RETO_SIM = "fotovoltaica"
 RETO_TITULO_POR_DEFECTO = "Práctica de diagnóstico"
 RETO_AZAR = "azar"
 ACCIONES_RETO = ("asignar", "asignar_lista", "anular")
-# Exámenes de práctica (fotovoltaica): el profesor desbloquea una de las prácticas guiadas del simulador y elige cuántos intentos tiene el alumno.
-# Las prácticas viven en el simulador (js/interfaz/practicas_fv.js); aquí solo sus ids y títulos.
-EXAMEN_PRACTICAS = {"P1": "Revisión de producción del campo A", "P2": "El campo A produce la mitad", "P3": "Una cadena rinde menos (diodo de paso)",
-                    "P4": "Punto caliente en un conector"}
+# Exámenes de práctica: el profesor desbloquea una de las prácticas guiadas de un simulador y elige cuántos intentos tiene el alumno.
+# Las prácticas viven en cada simulador (fotovoltaica: js/interfaz/practicas_fv.js; planta real: js/interfaz/practicas_htst.js); aquí solo sus ids y títulos.
+EXAMEN_SIMS = {
+    "fotovoltaica": {"etiqueta": "Instalación fotovoltaica", "nombre": "Simulador fotovoltaico",
+                     "practicas": {"P1": "Revisión de producción del campo A", "P2": "El campo A produce la mitad", "P3": "Una cadena rinde menos (diodo de paso)",
+                                   "P4": "Punto caliente en un conector"}},
+    "planta_real": {"etiqueta": "Planta real HTST", "nombre": "Simulador de la planta real HTST",
+                    "practicas": {"H1": "Control todo o nada del calentador", "H2": "Bomba P-101 y variador", "H3": "Lazos 4-20 mA y sensores"}},
+}
+EXAMEN_SIM_POR_DEFECTO = "fotovoltaica"
+EXAMEN_PRACTICAS = {k: v for e in EXAMEN_SIMS.values() for k, v in e["practicas"].items()}      # ids únicos entre simuladores
 EXAMEN_INTENTOS_MAX = 5
 EXAMEN_DETALLE_MAX = 12000       # la hoja del examen (respuestas, pasos y cuaderno de medidas) es más grande que la de un diagnóstico
 ACCIONES_EXAMEN = ("asignar", "asignar_lista", "anular")
@@ -776,6 +783,19 @@ def crear_app(config=None):
         """Simuladores desplegados en este servidor (su carpeta existe), en el orden de SIMULADORES."""
         return [s for s in SIMULADORES if (cfg[s["cfg"]] / "index.html").is_file()]
 
+    def grupos_examen(fila=None):
+        """Prácticas con examen agrupadas por simulador: [(id_sim, etiqueta, [(valor 'sim:practica', título)])]. Con `fila`, solo las de los simuladores que tiene asignados."""
+        asignados = ids_asignados(fila) if fila is not None else set(EXAMEN_SIMS)
+        return [(sid, e["etiqueta"], [(f"{sid}:{k}", v) for k, v in e["practicas"].items()]) for sid, e in EXAMEN_SIMS.items() if sid in asignados]
+
+    def separar_practica(valor, sim_aparte=""):
+        """«sim:practica» (o «practica» con el sim aparte, por defecto la fotovoltaica) -> (sim, practica) válidos; aborta con 400 si no lo son."""
+        sim, _, pr = (valor or "").rpartition(":")
+        sim = sim or sim_aparte or EXAMEN_SIM_POR_DEFECTO
+        if sim not in EXAMEN_SIMS or pr not in EXAMEN_SIMS[sim]["practicas"]:
+            abort(400, "Práctica no válida.")
+        return sim, pr
+
     def ids_asignados(fila):
         """Ids de simuladores que el profesor ha asignado a una fila de usuario (NULL = todos, vacío = ninguno)."""
         valor = fila["simuladores"] if fila is not None and "simuladores" in fila.keys() else None
@@ -826,7 +846,7 @@ def crear_app(config=None):
 
     @app.context_processor
     def contexto():
-        return {"csrf": token_csrf, "practicas_examen": EXAMEN_PRACTICAS, "intentos_examen_max": EXAMEN_INTENTOS_MAX, "modulos": cfg["modulos"], "alumno_sesion": alumno(), "profesor": profesor(), "simuladores": disponibles(),
+        return {"csrf": token_csrf, "practicas_examen": EXAMEN_PRACTICAS, "grupos_examen": grupos_examen(), "etiqueta_sim_examen": {k: v["etiqueta"] for k, v in EXAMEN_SIMS.items()}, "intentos_examen_max": EXAMEN_INTENTOS_MAX, "modulos": cfg["modulos"], "alumno_sesion": alumno(), "profesor": profesor(), "simuladores": disponibles(),
                 "averias": catalogo["averias"] if catalogo else [],
                 "pin_por_defecto": cfg["pin"] == PIN_POR_DEFECTO and pin_guardado() is None, "pin_defecto_valor": PIN_POR_DEFECTO}
 
@@ -1136,13 +1156,14 @@ def crear_app(config=None):
         # La parte de diagnóstico se enseña si hay catálogo (se pueden asignar retos) o si quedan entregas guardadas de cuando lo había.
         hay_diagnostico = bool(catalogo) or bd().execute("SELECT 1 FROM diagnosticos LIMIT 1").fetchone() is not None
         con_reto = sum(1 for f in filas if f["estado"] == "autorizado" and RETO_SIM in ids_asignados(f))
+        con_examen = sum(1 for f in filas if f["estado"] == "autorizado" and any(g in ids_asignados(f) for g in EXAMEN_SIMS))
         cuentas = {e: 0 for e in ESTADOS}
         for e, n in bd().execute("SELECT estado, COUNT(*) FROM usuarios GROUP BY estado"):
             cuentas[e] = n
         modulos_bd = [r[0] for r in bd().execute("SELECT DISTINCT modulo FROM usuarios ORDER BY modulo COLLATE NOCASE")]
         return {"filas": filas, "estado": estado, "modulo": modulo, "q": busca, "cuentas": cuentas,
                 "modulos_bd": modulos_bd, "clave_nueva": clave_nueva, "hasta": session.get("prof_hasta", 0),
-                "hay_diagnostico": hay_diagnostico, "con_reto": con_reto}
+                "hay_diagnostico": hay_diagnostico, "con_reto": con_reto, "con_examen": con_examen}
 
     # ----- retos de diagnóstico: lo que usa el simulador -----
     def alumno_con_retos():
@@ -1313,33 +1334,42 @@ def crear_app(config=None):
         return redirect(volver)
 
     # ----- exámenes de práctica: lo que usa el simulador -----
+    def alumno_con_examen(sim):
+        """El alumno de la sesión si está autorizado y tiene asignado ESE simulador (que además tenga exámenes); si no, None."""
+        a = alumno()
+        if a is None or sim not in EXAMEN_SIMS or a["estado"] != "autorizado" or sim not in ids_asignados(a):
+            return None
+        return a
+
     @app.get("/api/examen")
     def api_examen():
         if alumno() is None and not profesor():
             return {"examen": None}, 401
-        a = alumno_con_retos()
-        if a is None or request.args.get("sim") != RETO_SIM:
+        sim = request.args.get("sim", "")
+        a = alumno_con_examen(sim)
+        if a is None:
             return {"examen": None}
-        e = bd().execute("SELECT * FROM examenes WHERE usuario_id=? AND sim=? AND intentos < intentos_max ORDER BY id LIMIT 1", (a["id"], RETO_SIM)).fetchone()
-        if e is None or e["practica"] not in EXAMEN_PRACTICAS:
+        e = bd().execute("SELECT * FROM examenes WHERE usuario_id=? AND sim=? AND intentos < intentos_max ORDER BY id LIMIT 1", (a["id"], sim)).fetchone()
+        if e is None or e["practica"] not in EXAMEN_SIMS[sim]["practicas"]:
             return {"examen": None}
-        return {"examen": {"id": e["id"], "practica": e["practica"], "titulo": e["titulo"] or EXAMEN_PRACTICAS[e["practica"]],
+        return {"examen": {"id": e["id"], "sim": sim, "practica": e["practica"], "titulo": e["titulo"] or EXAMEN_SIMS[sim]["practicas"][e["practica"]],
                            "intentos_max": e["intentos_max"], "intentos": e["intentos"]}}
 
     @app.post("/api/examen/resultado")
     def api_examen_resultado():
-        a = alumno_con_retos()
+        f = request.form
+        sim = f.get("sim", "")
+        if sim not in EXAMEN_SIMS:
+            abort(400, "Simulador no válido.")
+        a = alumno_con_examen(sim)
         if a is None:
             return "", 204
-        f = request.form
-        if f.get("sim") != RETO_SIM:
-            abort(400, "Simulador no válido.")
         try:
             eid = int(f.get("examen", ""))
         except ValueError:
             abort(400, "Examen no válido.")
         con = bd()
-        e = con.execute("SELECT * FROM examenes WHERE id=? AND usuario_id=? AND sim=?", (eid, a["id"], RETO_SIM)).fetchone()
+        e = con.execute("SELECT * FROM examenes WHERE id=? AND usuario_id=? AND sim=?", (eid, a["id"], sim)).fetchone()
         if e is None:
             abort(400, "Examen no válido.")
         if e["intentos"] >= e["intentos_max"]:
@@ -1355,7 +1385,7 @@ def crear_app(config=None):
         mejor = e["nota"] is None or nota >= e["nota"]       # se guarda la mejor nota y la hoja de ese intento
         con.execute("UPDATE examenes SET intentos=?, entregado=?, nota=?, detalle=? WHERE id=?",
                     (intentos, ahora_iso(), nota if mejor else e["nota"], detalle if mejor else e["detalle"], e["id"]))
-        registrar_actividad(a["id"], "examen", f"Entregó el examen «{EXAMEN_PRACTICAS.get(e['practica'], e['practica'])}» (intento {intentos} de {e['intentos_max']}): nota {texto_nota(nota)}")
+        registrar_actividad(a["id"], "examen", f"Entregó el examen «{EXAMEN_SIMS[sim]['practicas'].get(e['practica'], e['practica'])}» (intento {intentos} de {e['intentos_max']}): nota {texto_nota(nota)}")
         con.commit()
         return {"guardado": True, "intentos": intentos, "intentos_max": e["intentos_max"], "quedan": e["intentos_max"] - intentos}
 
@@ -1394,27 +1424,25 @@ def crear_app(config=None):
             con.commit()
             flash("Examen retirado." if n else "Ese examen ya está cerrado: no se puede retirar.", "ok" if n else "error")
             return redirect(volver)
-        practica = request.form.get("practica", "")
-        if practica not in EXAMEN_PRACTICAS:
-            abort(400, "Práctica no válida.")
+        sim, practica = separar_practica(request.form.get("practica", ""), request.form.get("sim", ""))
         intentos_max = int(numero_acotado(request.form.get("intentos"), 1, EXAMEN_INTENTOS_MAX))
         titulo = limpiar(request.form.get("titulo"), 80)
         candidatos = datos_panel(estado, modulo, busca)["filas"] if accion == "asignar_lista" else [fila]
-        aptos = [c for c in candidatos if c["estado"] == "autorizado" and RETO_SIM in ids_asignados(c)]
+        aptos = [c for c in candidatos if c["estado"] == "autorizado" and sim in ids_asignados(c)]
         asignados = repetidos = 0
         ahora = ahora_iso()
         for c in aptos:
-            if con.execute("SELECT 1 FROM examenes WHERE usuario_id=? AND sim=? AND practica=? AND intentos < intentos_max", (c["id"], RETO_SIM, practica)).fetchone():
+            if con.execute("SELECT 1 FROM examenes WHERE usuario_id=? AND sim=? AND practica=? AND intentos < intentos_max", (c["id"], sim, practica)).fetchone():
                 repetidos += 1                      # ya tiene abierto ese mismo examen: no se le duplica
                 continue
             con.execute("INSERT INTO examenes (usuario_id, sim, practica, titulo, intentos_max, creado) VALUES (?,?,?,?,?,?)",
-                        (c["id"], RETO_SIM, practica, titulo, intentos_max, ahora))
+                        (c["id"], sim, practica, titulo, intentos_max, ahora))
             asignados += 1
         con.commit()
         fuera = len(candidatos) - len(aptos)
-        partes = [f"Examen «{EXAMEN_PRACTICAS[practica]}» desbloqueado para {asignados} alumno(s), con {intentos_max} intento{'s' if intentos_max != 1 else ''}."]
+        partes = [f"Examen «{EXAMEN_SIMS[sim]['practicas'][practica]}» ({EXAMEN_SIMS[sim]['etiqueta']}) desbloqueado para {asignados} alumno(s), con {intentos_max} intento{'s' if intentos_max != 1 else ''}."]
         if fuera:
-            partes.append(f"{fuera} no lo recibe(n): solo se asigna a alumnos autorizados que tengan el simulador fotovoltaico.")
+            partes.append(f"{fuera} no lo recibe(n): solo se asigna a alumnos autorizados que tengan el simulador «{EXAMEN_SIMS[sim]['etiqueta']}».")
         if repetidos:
             partes.append(f"{repetidos} ya tenía(n) abierto ese mismo examen.")
         flash(" ".join(partes), "ok" if asignados else "error")
@@ -1439,7 +1467,8 @@ def crear_app(config=None):
             datos = {}
         if not isinstance(datos, dict):
             datos = {}
-        html = render_template("aula_informe_examen.html", x=x, d=datos, practicas_examen=EXAMEN_PRACTICAS)
+        info_sim = EXAMEN_SIMS.get(x["sim"], {"nombre": x["sim"], "practicas": {}})
+        html = render_template("aula_informe_examen.html", x=x, d=datos, titulo_practica=info_sim["practicas"].get(x["practica"], x["practica"]), nombre_sim=info_sim["nombre"])
         resp = Response(html, mimetype="text/html; charset=utf-8")
         resp.headers["Content-Disposition"] = f'attachment; filename="informe_examen_{nombre_archivo(x["apellidos"])}_{x["practica"]}.html"'
         return resp
@@ -1452,8 +1481,8 @@ def crear_app(config=None):
             "SELECT u.apellidos, u.nombre, u.modulo, e.* FROM examenes e JOIN usuarios u ON u.id=e.usuario_id "
             "ORDER BY u.apellidos COLLATE NOCASE, u.nombre COLLATE NOCASE, e.id").fetchall()
         return descarga_csv(
-            "notas_examenes.csv", ["apellidos", "nombre", "modulo", "practica", "titulo", "intentos_usados", "intentos_max", "nota", "estado", "ultima_entrega_utc"],
-            [(x["apellidos"], x["nombre"], x["modulo"], x["practica"], x["titulo"] or EXAMEN_PRACTICAS.get(x["practica"], x["practica"]), x["intentos"], x["intentos_max"],
+            "notas_examenes.csv", ["apellidos", "nombre", "modulo", "simulador", "practica", "titulo", "intentos_usados", "intentos_max", "nota", "estado", "ultima_entrega_utc"],
+            [(x["apellidos"], x["nombre"], x["modulo"], x["sim"], x["practica"], x["titulo"] or EXAMEN_PRACTICAS.get(x["practica"], x["practica"]), x["intentos"], x["intentos_max"],
               texto_nota(x["nota"]), "cerrado" if x["intentos"] >= x["intentos_max"] else "abierto", x["entregado"] or "") for x in filas])
 
     @app.get("/aula/diagnosticos.csv")
@@ -1693,8 +1722,8 @@ def crear_app(config=None):
                             "SELECT d.*, (SELECT e.sesion FROM eventos e WHERE e.usuario_id=d.usuario_id AND e.evento_id='entrego_' || d.id) AS sesion "
                             "FROM diagnosticos d WHERE d.usuario_id=? ORDER BY d.id DESC LIMIT 300", (uid,))]
         return render_template("aula_alumno.html", f=fila, r=resumen_alumno(uid), eventos=eventos, hasta=session.get("prof_hasta", 0),
-                               retos=retos, diagnosticos=diagnosticos, examenes=examenes, practicas_examen=EXAMEN_PRACTICAS, intentos_examen_max=EXAMEN_INTENTOS_MAX,
-                               puede_examen=fila["estado"] == "autorizado" and RETO_SIM in ids_asignados(fila),
+                               retos=retos, diagnosticos=diagnosticos, examenes=examenes, practicas_examen=EXAMEN_PRACTICAS, intentos_examen_max=EXAMEN_INTENTOS_MAX, grupos_examen=grupos_examen(fila),
+                               puede_examen=fila["estado"] == "autorizado" and bool(grupos_examen(fila)),
                                puede_reto=bool(catalogo) and fila["estado"] == "autorizado" and RETO_SIM in ids_asignados(fila))
 
     @app.get("/aula/alumno/<int:uid>.csv")

@@ -3,8 +3,8 @@
 <title>Informe de examen · {{ x['apellidos'] }}, {{ x['nombre'] }}</title>
 <style>body{font:16px/1.45 system-ui,sans-serif;margin:24px auto;max-width:820px;padding:0 16px;color:#1b1b1b}h1{margin:0 0 4px;font-size:1.4rem}h2{margin:22px 0 6px;font-size:1.1rem;border-bottom:2px solid #d0d0d0}.meta{color:#555;margin:0 0 12px}.nota{font-size:2rem;font-weight:700;margin:8px 0}table{border-collapse:collapse;width:100%;font-size:.92rem}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top}th{background:#f1f1f1}.ok{color:#1b6e2d;font-weight:700}.mal{color:#a01818;font-weight:700}ul{padding-left:20px}footer{margin-top:28px;font-size:.8rem;color:#666}@media print{body{margin:0}}</style></head>
 <body>
-<h1>Informe de examen · {{ x['titulo'] or practicas_examen.get(x['practica'], x['practica']) }}</h1>
-<p class="meta">Alumno: <b>{{ x['apellidos'] }}, {{ x['nombre'] }}</b>{% if x['modulo'] %} · {{ x['modulo'] }}{% endif %} · Intentos {{ x['intentos'] }} de {{ x['intentos_max'] }}{% if x['entregado'] %} · Última entrega {{ x['entregado'][:16].replace('T', ' ') }} (UTC){% endif %} · Simulador fotovoltaico · CIFP Politécnico de Cartagena</p>
+<h1>Informe de examen · {{ x['titulo'] or titulo_practica }}</h1>
+<p class="meta">Alumno: <b>{{ x['apellidos'] }}, {{ x['nombre'] }}</b>{% if x['modulo'] %} · {{ x['modulo'] }}{% endif %} · Intentos {{ x['intentos'] }} de {{ x['intentos_max'] }}{% if x['entregado'] %} · Última entrega {{ x['entregado'][:16].replace('T', ' ') }} (UTC){% endif %} · {{ nombre_sim }} · CIFP Politécnico de Cartagena</p>
 <p class="nota">Mejor nota: {{ x['nota']|nota }} / 10</p>
 {% if not d %}<p class="meta">Sin hoja guardada: el alumno aún no ha entregado ningún intento.</p>{% else %}
 <ul>

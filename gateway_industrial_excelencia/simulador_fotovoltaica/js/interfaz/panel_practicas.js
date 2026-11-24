@@ -147,7 +147,7 @@
 
     function salirAlistado(sinAviso) {
       if ((fase === 'curso' && g && !g.hecho) || fase === 'examen') ctx.avisar('Abandonado. La instalación vuelve a estar sana.');
-      ctx.terminar(); g = null; fase = 'lista'; resultado = null; pintar();
+      ctx.terminar(); g = null; fase = 'lista'; resultado = null; pintar(); cargarExamen();      // al volver a la lista se vuelve a preguntar si el profesor ha desbloqueado un examen
     }
     function comprobarFin() { if (g && g.hecho && fase === 'curso') { fase = 'fin'; ctx.terminar(true); } }
     function pintar() { if (fase === 'lista') pintarLista(); else if (fase === 'curso') pintarCurso(); else if (fase === 'fin') pintarFin(); else if (fase === 'examen') pintarExamen(); else pintarExamenFin(); }

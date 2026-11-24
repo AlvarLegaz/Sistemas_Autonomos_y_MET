@@ -147,12 +147,14 @@
             <button type="button" role="tab" id="t-graficas" aria-controls="p-graficas" data-p="p-graficas" aria-selected="false" tabindex="-1">Gráficas</button>
             <button type="button" role="tab" id="t-instrumentos" aria-controls="p-instrumentos" data-p="p-instrumentos" aria-selected="false" tabindex="-1">Instrumentos</button>
             <button type="button" role="tab" id="t-hojas" aria-controls="p-hojas" data-p="p-hojas" aria-selected="false" tabindex="-1">Hojas</button>
+            <button type="button" role="tab" id="t-practicas" aria-controls="p-practicas" data-p="p-practicas" aria-selected="false" tabindex="-1">Prácticas</button>
             ${profesor ? '<button type="button" role="tab" id="t-profesor" aria-controls="p-profesor" data-p="p-profesor" aria-selected="false" tabindex="-1">Profesor</button>' : ''}</div>
           <div class="panel-pestana" id="p-alarmas" role="tabpanel" aria-labelledby="t-alarmas"><h2>Alarmas activas</h2><ul id="lista-alarmas"></ul><div id="cargador" class="n-min3"></div></div>
           <div class="panel-pestana" id="p-manual" role="tabpanel" aria-labelledby="t-manual" hidden></div>
           <div class="panel-pestana" id="p-graficas" role="tabpanel" aria-labelledby="t-graficas" hidden></div>
           <div class="panel-pestana" id="p-instrumentos" role="tabpanel" aria-labelledby="t-instrumentos" hidden><div id="lecturas" class="solo-n2"></div><div id="multimetro" class="n-min3"></div><div id="osciloscopio" class="n-min3"></div></div>
           <div class="panel-pestana" id="p-hojas" role="tabpanel" aria-labelledby="t-hojas" hidden></div>
+          <div class="panel-pestana" id="p-practicas" role="tabpanel" aria-labelledby="t-practicas" hidden></div>
           ${profesor ? '<div class="panel-pestana" id="p-profesor" role="tabpanel" aria-labelledby="t-profesor" hidden></div>' : ''}</aside></div>`;
     const $ = id => document.getElementById(id);
 
@@ -207,6 +209,23 @@
     const mm = PCT.htstMultimetro.crearMultimetro($('multimetro'), { sim: () => sim, alMedir: m => registro.anotar('medida', `${m.instrumento} ${m.puntoA || m.punto}${m.puntoB ? ' ↔ ' + m.puntoB : ''}: ${m.texto}`, m) });
     const osc = PCT.htstOsciloscopio.crearOsciloscopio($('osciloscopio'), { sim: () => sim, alMedir: m => registro.anotar('medida', `osciloscopio ${m.punto} (${m.base}): ${m.texto}`, m) });
     PCT.htstHojas.crearHojas($('p-hojas'), { sim: () => sim, registro });
+    // Prácticas guiadas y examen de mantenimiento (solo nivel 3): el guion lee las medidas que el alumno anota en el registro
+    const cuadernoPr = PCT.htstPracticas.cuadernoDeRegistro(registro);
+    const medirEnVivo = (punto, modo) => { try { const r = sim.medidas.medir('multimetro', punto, null, modo); return r && r.ok !== false ? r : null; } catch (error) { return null; } };
+    let almacenPr = null; try { almacenPr = window.localStorage; } catch (error) { almacenPr = null; }
+    const barraAula = () => document.getElementById('aula-barra'), tokenAula = () => { const i = barraAula() && barraAula().querySelector('input[name=csrf]'); return i ? i.value : null; };
+    const practicas = PCT.htstPanelPracticas.crear($('p-practicas'), { sim: () => sim, cuaderno: cuadernoPr, medir: medirEnVivo, almacen: almacenPr, avisar: texto => avisarNivel(texto),
+      abrirMaletin: () => seleccionarPestana('p-instrumentos'),
+      empezar: p => {
+        PCT.htstPracticas.preparar(sim, p); cuadernoPr.marcar(); historial.limpiar(); corriendo = false; actualizarBotones(); modoAnterior = sim.estado().modo;
+        registro.anotar('accion', `Práctica ${p.id}: ${p.titulo}`); refrescar();
+      },
+      terminar: completada => { if (!completada) { PCT.htstPracticas.restaurar(sim); historial.limpiar(); corriendo = false; actualizarBotones(); modoAnterior = sim.estado().modo; } refrescar(); },
+      explicacion: id => { const a = PCT.htstAverias.CATALOGO.find(x => x.id === id); return a ? `${a.nombre}. ${a.solucion && a.solucion.texto ? 'Reparación: ' + a.solucion.texto : ''}` : ''; },
+      examenPendiente: () => (!barraAula() ? Promise.resolve(null) : fetch('/api/examen?sim=planta_real', { credentials: 'same-origin', headers: { Accept: 'application/json' } }).then(r => (r.ok ? r.json() : null)).then(j => (j && j.examen) || null).catch(() => null)),
+      enviarExamen: (ex, res) => fetch('/api/examen/resultado', { method: 'POST', credentials: 'same-origin', body: new URLSearchParams({ csrf: tokenAula() || '', examen: String(ex.id), sim: 'planta_real', nota: String(res.nota), detalle: JSON.stringify(res.detalle) }) })
+        .then(async r => ({ ok: r.ok && r.status === 200, cuerpo: await r.json().catch(() => null) })).catch(() => ({ ok: false, cuerpo: null })) });
+    practicas.entrar();
     const lecturas = PCT.htstPanelLecturas.crearPanelLecturas($('lecturas'));
     const historial = PCT.htstGrafica.crearHistorial(), graficas = PCT.htstGrafica.crearGraficas($('p-graficas'), { historial });
     if (profesor) PCT.htstPanelProfesor.crearPanelProfesor($('p-profesor'), { sim: () => sim, registro, alCambiar: refrescar });
@@ -335,6 +354,7 @@
       if (!manual && modoAnterior === 'MANUAL' && !$('p-manual').hidden) seleccionarPestana('p-alarmas');
       modoAnterior = e.modo;
       if (manual) panelManual.actualizar(e);
+      if (practicas) { document.body.dataset.oculto = practicas.oculto() ? '1' : '0'; practicas.actualizar(); }      // práctica o examen con avería oculta: la página no delata nada
 
       // nivel 1: franja de estado en lenguaje claro (en lugar de la de alarmas) y, en el nivel 2, las lecturas de los instrumentos en solo lectura
       if (nivel === 1) {

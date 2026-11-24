@@ -70,7 +70,7 @@
   const PESTANAS = {
     1: ['p-graficas'],
     2: ['p-alarmas', 'p-manual', 'p-graficas', 'p-instrumentos'],
-    3: ['p-alarmas', 'p-manual', 'p-graficas', 'p-instrumentos', 'p-hojas', 'p-profesor'],
+    3: ['p-alarmas', 'p-manual', 'p-graficas', 'p-instrumentos', 'p-hojas', 'p-practicas', 'p-profesor'],
   };
   const pestanasPermitidas = nivel => (PESTANAS[nivel] || PESTANAS[3]).slice();
   const pestanaPermitida = (nivel, id) => pestanasPermitidas(nivel).includes(id);
