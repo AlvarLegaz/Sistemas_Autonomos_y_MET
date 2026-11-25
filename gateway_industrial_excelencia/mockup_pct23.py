@@ -33,6 +33,7 @@ class PlantaMock(Planta):
         self.termostato_abierto = False
         self.nivel_calefactor = True
         self.io_ok = True
+        self.perdidas_w_k = 1.2                  # pérdidas del agua del calefactor al ambiente (W por kelvin de diferencia)
         self._forzado = {}
 
     # --- interfaz de Planta ---
@@ -80,7 +81,7 @@ class PlantaMock(Planta):
     def paso(self, dt):
         calor_w = 0.0 if self._inhibida() else self.a["heater_pct"] * 17.6
         capacidad = 8400.0                         # J/K del agua del calefactor
-        perdidas = 1.2 * (self.t["t2"] - AMBIENTE_C)
+        perdidas = self.perdidas_w_k * (self.t["t2"] - AMBIENTE_C)
         self.t["t2"] += (calor_w - perdidas) * dt / capacidad
         if self.t["t2"] >= TERMOSTATO_ABRE_C:
             self.termostato_abierto = True
