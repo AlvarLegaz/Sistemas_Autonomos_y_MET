@@ -62,11 +62,12 @@ def planta():
 
 
 class Sensores(unittest.TestCase):
-    def test_temperaturas_voltios_por_100_y_t5_l1_null(self):
-        rt, p = planta(); rt.analog.update({"AnalogIn1_value": 0.5, "AnalogIn2_value": 0.7, "AnalogIn3_value": 0.25, "AnalogIn4_value": 0.526})
+    def test_temperaturas_voltios_por_100_t5_en_a5_y_l1_null(self):
+        rt, p = planta(); rt.analog.update({"AnalogIn1_value": 0.5, "AnalogIn2_value": 0.7, "AnalogIn3_value": 0.25, "AnalogIn4_value": 0.526,
+                                           "AnalogIn5_value": 0.2})
         s = p.leer_sensores()
-        self.assertEqual((s["t1_c"], s["t2_c"], s["t3_c"], s["t4_c"]), (50.0, 70.0, 25.0, 52.6))
-        self.assertIsNone(s["t5_c"]); self.assertIsNone(s["l1_level_mm"])
+        self.assertEqual((s["t1_c"], s["t2_c"], s["t3_c"], s["t4_c"], s["t5_c"]), (50.0, 70.0, 25.0, 52.6, 20.0))
+        self.assertIsNone(s["l1_level_mm"])                # el nivel del tanque A no llega a ninguna entrada
 
     def test_caudal_f1_300_ml_min_por_voltio_del_conector(self):
         rt, p = planta()
@@ -172,9 +173,9 @@ class ConRuntimeReal(unittest.TestCase):
         ctl.on_message("pct23/real-01/cmd/heater_pct", {"id": "h2", "ts": iso_utc(reloj.ahora()), "value": 0})
         self.assertEqual(self.rt.readOutputs()["TransistorOut3_value"], False)
 
-    def test_sensors_reales_traducidos_t5_y_l1_null(self):
+    def test_sensors_reales_traducidos_t5_con_valor_y_l1_null(self):
         s = PlantaRuntime(self.rt).leer_sensores()
-        self.assertIsNone(s["t5_c"]); self.assertIsNone(s["l1_level_mm"]); self.assertFalse(s["stat_overtemp"]); self.assertIsInstance(s["t1_c"], float)
+        self.assertIsInstance(s["t5_c"], float); self.assertIsNone(s["l1_level_mm"]); self.assertFalse(s["stat_overtemp"]); self.assertIsInstance(s["t1_c"], float)
 
 
 class RuntimeRobusto(unittest.TestCase):

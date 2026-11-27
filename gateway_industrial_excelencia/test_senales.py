@@ -13,10 +13,11 @@ class Lectura(unittest.TestCase):
         r = amigables({"AnalogIn1_value": 0.25, "AnalogIn2_value": 0.5, "AnalogIn3_value": 1.0, "AnalogIn4_value": 1.5})
         self.assertEqual((r["T1"], r["T2"], r["T3"], r["T4"]), (25.0, 50.0, 100.0, 150.0))
 
-    def test_caudal_y_nivel_a_fondo_de_escala(self):
-        r = amigables({"AnalogIn7_value": 3.3, "AnalogIn5_value": 1.65})
+    def test_caudal_a_fondo_de_escala_y_a5_es_t5(self):
+        r = amigables({"AnalogIn7_value": 3.3, "AnalogIn5_value": 0.2})
         self.assertEqual(r["F1"], 1500.0)
-        self.assertEqual(r["L1"], 125.0)
+        self.assertEqual(r["T5"], 20.0)                    # AnalogIn5 es la sonda T5
+        self.assertNotIn("L1", r)                          # el nivel del tanque A no llega a ninguna entrada
 
     def test_digitales_salidas_y_consignas(self):
         crudo = {"DigitalIn1_value": True, "DigitalIn4_value": False, "DigitalOut3_value": True, "TransistorOut8_value": True,
@@ -33,7 +34,7 @@ class Lectura(unittest.TestCase):
         self.assertNotIn("T2", amigables({"AnalogIn1_value": 0.2}))
 
     def test_los_nombres_no_se_repiten_ni_chocan_con_los_canales(self):
-        nombres = [*TEMPERATURAS, "F1", "L1", *DIGITALES, *SALIDAS, *CONSIGNAS]
+        nombres = [*TEMPERATURAS, "F1", *DIGITALES, *SALIDAS, *CONSIGNAS]
         self.assertEqual(len(nombres), len(set(nombres)))
         self.assertFalse(any(n.endswith("_value") for n in nombres))
 

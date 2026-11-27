@@ -57,7 +57,7 @@ class ServidorControl(unittest.TestCase):
         self.mqtt.publicado.clear()
         r = self.http.post("/api/control", json={"activo": False})
         self.assertFalse(r.get_json()["activo"])
-        self.assertEqual(self.mqtt.publicado, [{c.SALIDA_RES: False}])
+        self.assertEqual(self.mqtt.publicado, [{c.SALIDA_RES: False, c.SALIDA_SOL1: False}])
 
     def test_ajustes_no_validos(self):
         for cuerpo in ({"t2_max": 80}, {"consigna_t1": "caliente"}, {"activo": "si"}, {"nada": 1}, []):

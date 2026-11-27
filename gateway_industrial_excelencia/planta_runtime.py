@@ -5,8 +5,8 @@ Todas las correspondencias están verificadas contra `runtime.py`, `PCT23.md` y 
   ll_tank_b     = NOT DigitalIn4   (lógica negada: DI4 a 0 = nivel bajo)
   sol1_divert   = NOT DigitalOut3  (SOL1 sin activar manda el producto al desvío)
   sol2_feed_tank "A" = DigitalOut4 apagada, "B" = encendida
-Lo que NO se puede leer hoy va como None (el contrato exige null, nunca omitir): t5_c (L1 usa esa entrada) y l1_level_mm (AnalogIn5 no mide el nivel,
-ver PCT23.md:97). Con la E/S caída (`io_ok` False) van todas a None: no se publican lecturas viejas como si fueran actuales.
+Lo que NO se puede leer hoy va como None (el contrato exige null, nunca omitir): l1_level_mm (el sensor de nivel no llega a ninguna entrada;
+AnalogIn5 es la sonda T5, ver PCT23.md). Con la E/S caída (`io_ok` False) van todas a None: no se publican lecturas viejas como si fueran actuales.
 """
 from contrato_pct23 import Planta
 
@@ -39,9 +39,8 @@ class PlantaRuntime(Planta):
         d = lambda n: bool(di.get(f"DigitalIn{n}_value"))
         k_f1 = self.config.get("f1_ml_min_per_v")
         k_f1 = k_f1 if isinstance(k_f1, (int, float)) and not isinstance(k_f1, bool) and k_f1 > 0 else F1_ML_MIN_POR_V_CONECTOR
-        lectura = {f"t{n}_c": _redondea(v(n) * ESCALA_T_C_POR_V) for n in (1, 2, 3, 4)}
-        lectura["t5_c"] = None                                   # L1 llega por la entrada de T5 y esa entrada no mide el nivel
-        lectura["l1_level_mm"] = None
+        lectura = {f"t{n}_c": _redondea(v(n) * ESCALA_T_C_POR_V) for n in (1, 2, 3, 4, 5)}   # AnalogIn5 es la sonda T5 (comprobado el 27/11)
+        lectura["l1_level_mm"] = None                            # el nivel del tanque A no llega a ninguna entrada de la placa
         lectura["f1_flow_ml_min"] = _redondea(max(v(7) * DIVISOR_ADC * k_f1, 0.0))
         lectura["stat_overtemp"] = not d(1)
         lectura["hl_heat_unit"] = d(2)

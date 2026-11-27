@@ -14,10 +14,10 @@ TEMPERATURAS = {                  # nombre -> canal en bruto (V)
     "T2": "AnalogIn2_value",      # agua caliente (heat unit)
     "T3": "AnalogIn3_value",      # producto final
     "T4": "AnalogIn4_value",      # salida del calentamiento
+    "T5": "AnalogIn5_value",      # comprobado el 27/11: es una sonda (marca lo mismo que T1-T4 y no cambia con el nivel)
 }
-# Caudal y nivel: (canal, valor a fondo de escala (3,3 V), unidad).
+# Caudal: (canal, valor a fondo de escala (3,3 V), unidad). El nivel L1 del tanque A no llega a ninguna entrada de la placa.
 F1_CANAL, F1_FONDO = "AnalogIn7_value", 1500.0        # ml/min
-L1_CANAL, L1_FONDO = "AnalogIn5_value", 250.0         # mm (sin confirmar: en la prueba no midio nivel)
 
 DIGITALES = {                     # entradas digitales: True = entrada activa
     "TERM": "DigitalIn1_value",   # termostato heat unit: True = cerrado (bien), False = sobretemperatura
@@ -48,13 +48,13 @@ ORDENABLES = {**SALIDAS, **CONSIGNAS}
 
 
 def amigables(crudo):
-    """Diccionario con los nombres de la planta a partir de la lectura en bruto (T1 en °C, F1 en ml/min, L1 en mm...).
+    """Diccionario con los nombres de la planta a partir de la lectura en bruto (T1-T5 en °C, F1 en ml/min...).
     Solo incluye las senales cuyo canal este en `crudo`."""
     fuera = {}
     for nombre, canal in TEMPERATURAS.items():
         if isinstance(crudo.get(canal), (int, float)):
             fuera[nombre] = round(crudo[canal] * GRADOS_POR_VOLTIO, 2)
-    for nombre, canal, fondo in (("F1", F1_CANAL, F1_FONDO), ("L1", L1_CANAL, L1_FONDO)):
+    for nombre, canal, fondo in (("F1", F1_CANAL, F1_FONDO),):
         if isinstance(crudo.get(canal), (int, float)):
             fuera[nombre] = round(min(max(crudo[canal], 0.0), ADC_VREF) / ADC_VREF * fondo, 2)
     for nombre, canal in {**DIGITALES, **ORDENABLES}.items():

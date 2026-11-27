@@ -18,6 +18,13 @@ MODO «cascada» T1 → T2: dos lazos anidados.
   El externo es lento y decide «cuánta agua caliente hace falta»; el interno es rápido y la mantiene, anticipándose al retraso de T1. La integral solo acumula
   si el error es menor de 5 °C y la consigna de T2 no está saturada (anti-windup). `t2_base` es la T2 que se espera necesaria en régimen (ajustable: 55 °C).
 
+CORTE POR T1 ALTA (cascada): si T1 llega a consigna_T1 + histéresis la resistencia se desconecta ya, sin esperar a que el lazo externo baje la consigna de T2
+(el agua caliente acumulada seguiría calentando el producto), y no vuelve a conectar hasta que T1 baja de su consigna. En simple-T1 el propio lazo ya corta ahí.
+
+SOL1 (desvío del producto, los dos modos): con el control activo, SOL1 se activa (`sol1_divert` false: salida normal) cuando T1 llega a consigna_T1 y vuelve a
+reposo (`sol1_divert` true: desvío) cuando T1 baja de consigna_T1 - histéresis; entre las dos se mantiene. Sin lectura de T1, con un fallo o al desactivar el
+control, SOL1 queda en desvío. En simple-T2 se usa la última consigna_T1 configurada. Sin control activo no se toca.
+
 TOPE DE T2 (los dos modos): con `T2 >= t2_max` la resistencia se desconecta siempre, sin sumar histéresis, y no vuelve a conectar hasta que T2 baja `histéresis`
 por debajo del máximo (para no conmutar sin parar en el tope).
 
@@ -70,6 +77,8 @@ class ModuloControl:
     def _reiniciar(self):
         self._res_on = False
         self._tope = False                 # el tope de T2 está disparado (se rearma con histéresis)
+        self._t1_alta = False              # cascada: T1 pasó de consigna + histéresis (se libera al bajar de la consigna)
+        self._sol1_on = False              # SOL1 activa (producto a salida normal); False = desvío
         self._integral = 0.0
         self._ultimo_paso = None
         self._t2_objetivo = None
@@ -134,12 +143,12 @@ class ModuloControl:
             self._reiniciar()
 
     def desactivar(self):
-        """Devuelve las órdenes para dejar la resistencia apagada (las bombas se quedan como estén)."""
+        """Devuelve las órdenes para dejar la resistencia apagada y SOL1 en desvío (las bombas se quedan como estén)."""
         if not self.activo:
             return []
         self.activo = False
         self._reiniciar()
-        return [("heater_pct", 0)]
+        return [("heater_pct", 0), ("sol1_divert", True)]
 
     # ---------------------------------------------------------------------------------------------- un paso ----
     def paso(self, lectura):
@@ -150,14 +159,14 @@ class ModuloControl:
         ahora = self._reloj()
         dt = 0.0 if self._ultimo_paso is None else _limitar(ahora - self._ultimo_paso, 0.0, PASO_MAXIMO_S)
         self._ultimo_paso = ahora
-        antes = self._res_on
+        antes = (self._res_on, self._sol1_on)
         fallo = self._fallo(lectura)
         if fallo:                              # un fallo desactiva el control y no vuelve solo
-            self.activo, self._res_on, self._t2_objetivo = False, False, None
+            self.activo, self._res_on, self._sol1_on, self._t2_objetivo = False, False, False, None
             self._aviso = f"{fallo}: control automático desactivado"
-            return [("heater_pct", 0)]
+            return [("heater_pct", 0), ("sol1_divert", True)]
         self._regular(lectura, dt)
-        return self._ordenes(ahora, cambio=antes != self._res_on)
+        return self._ordenes(ahora, cambio=antes != (self._res_on, self._sol1_on))
 
     @staticmethod
     def _fallo(l):
@@ -186,6 +195,18 @@ class ModuloControl:
             elif self._tope and t2 <= a["t2_max"] - a["histeresis"]:
                 self._tope = False
         cascada = self.modo == "cascada"
+        c1, h = a["consigna_t1"], a["histeresis"]
+        if t1 is None:                      # sin T1 no se sabe si el producto está pasteurizado: al desvío
+            self._sol1_on, self._t1_alta = False, False
+        else:
+            if t1 >= c1:
+                self._sol1_on = True
+            elif t1 < c1 - h:
+                self._sol1_on = False
+            if t1 >= c1 + h:
+                self._t1_alta = True
+            elif t1 < c1:
+                self._t1_alta = False
         necesita = t1 if (cascada or self.variable == "T1") else t2
         self._t2_objetivo = None
         if self._tope:
@@ -196,7 +217,10 @@ class ModuloControl:
             self._res_on, self._aviso = False, f"Sin lectura de {'T2' if t2 is None else 'T1' if (cascada or self.variable == 'T1') else 'T2'}: calefactor apagado"
         elif cascada:
             objetivo = self._consigna_t2_cascada(t1, dt)
-            self._interno(t2, objetivo)
+            if self._t1_alta:
+                self._res_on, self._aviso = False, "T1 por encima de la consigna: calefactor apagado"
+            else:
+                self._interno(t2, objetivo)
         else:
             self._interno(necesita, self.consigna)
 
@@ -229,7 +253,7 @@ class ModuloControl:
         self._ultimo_envio = ahora
         a = self.ajustes
         return [("n2_on", True), ("n1_on", True), ("n1_speed_pct", int(round(a["velocidad_n1"]))),
-                ("heater_pct", int(round(a["potencia_pct"])) if self._res_on else 0)]
+                ("heater_pct", int(round(a["potencia_pct"])) if self._res_on else 0), ("sol1_divert", not self._sol1_on)]
 
     # ---------------------------------------------------------------------------------- lo que ve la página ----
     def estado(self):
@@ -241,4 +265,4 @@ class ModuloControl:
         return {"activo": self.activo, "modo": self.modo, "variable": self.variable, "consigna": self.consigna, "consigna_t2": a["consigna_t2"],
                 "consigna_t1": a["consigna_t1"], "t2_max": a["t2_max"], "histeresis": a["histeresis"], "velocidad_n1": a["velocidad_n1"],
                 "potencia_pct": a["potencia_pct"], "kp": a["kp"], "ki": a["ki"], "t2_base": a["t2_base"],
-                "t2_objetivo": None if objetivo is None else round(objetivo, 1), "calefactor": self._res_on, "aviso": self._aviso}
+                "t2_objetivo": None if objetivo is None else round(objetivo, 1), "calefactor": self._res_on, "sol1": self._sol1_on, "aviso": self._aviso}

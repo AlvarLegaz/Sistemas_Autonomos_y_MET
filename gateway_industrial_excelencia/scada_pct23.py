@@ -66,14 +66,12 @@ def _porcentaje(valor):
 
 # ------------------------------------------------------------------------------------------- contrato -> formato antiguo ----
 def sensores_a_antiguo(s):
-    """`sensors` del contrato -> claves antiguas. Lo que viene null (L1, T5 hoy) o no viene se OMITE: la página lo muestra como 0 / sin dato.
+    """`sensors` del contrato -> claves antiguas. Lo que viene null (L1 hoy) o no viene se OMITE: la página lo muestra como 0 / sin dato.
     INVERSIONES (verificadas en pct23.html y runtime.py): DigitalIn1 = NOT stat_overtemp (cerrado = todo bien) y DigitalIn4 = NOT ll_tank_b (lógica negada)."""
     out = {}
-    for i, clave in enumerate(("t1_c", "t2_c", "t3_c", "t4_c"), 1):
+    for i, clave in enumerate(("t1_c", "t2_c", "t3_c", "t4_c", "t5_c"), 1):     # AnalogIn5 es la sonda T5; L1 no tiene canal antiguo
         if _num(s.get(clave)):
             out[f"AnalogIn{i}_value"] = round(s[clave] / GRADOS_POR_VOLTIO, 4)
-    if _num(s.get("l1_level_mm")):                         # hoy null en la maqueta real (PCT23.md:97)
-        out["AnalogIn5_value"] = round(s["l1_level_mm"] / L1_MM_MAX * ADC_VREF, 4)
     if _num(s.get("f1_flow_ml_min")):
         out["AnalogIn7_value"] = round(s["f1_flow_ml_min"] / F1_ML_MIN_POR_V_ADC, 4)
     for clave, canal, invertida in (("stat_overtemp", "DigitalIn1_value", True), ("hl_heat_unit", "DigitalIn2_value", False),

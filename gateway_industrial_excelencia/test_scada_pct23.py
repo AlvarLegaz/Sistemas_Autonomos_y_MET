@@ -63,13 +63,14 @@ class TraductorSensores(unittest.TestCase):
 
     def test_los_null_se_omiten(self):
         a = sc.sensores_a_antiguo(sensors())
-        self.assertNotIn("AnalogIn5_value", a)                                   # L1 null (PCT23.md:97)
+        self.assertNotIn("AnalogIn5_value", a)                                   # T5 null
         a = sc.sensores_a_antiguo(sensors(t2_c=None, f1_flow_ml_min=None, stat_overtemp=None))
         for clave in ("AnalogIn2_value", "AnalogIn7_value", "DigitalIn1_value"):
             self.assertNotIn(clave, a)
 
-    def test_l1_con_valor_se_traduce_a_su_canal(self):
-        self.assertAlmostEqual(sc.sensores_a_antiguo(sensors(l1_level_mm=125.0))["AnalogIn5_value"], 1.65, places=3)
+    def test_t5_va_a_analogin5_y_l1_no_tiene_canal(self):
+        self.assertAlmostEqual(sc.sensores_a_antiguo(sensors(t5_c=20.0))["AnalogIn5_value"], 0.2, places=4)
+        self.assertNotIn("AnalogIn5_value", sc.sensores_a_antiguo(sensors(l1_level_mm=125.0)))
 
     def test_inversiones_digitales(self):
         # DigitalIn1 = NOT stat_overtemp; DigitalIn4 = NOT ll_tank_b; el resto directas
