@@ -1,0 +1,21 @@
+{
+ "ambienteC": 23.508724127535142,
+ "subidaC": 150,
+ "tauCalentadorS": 1094.6460264001487,
+ "mezclaS": 535.7242503092709,
+ "mezclaParadaS": 20000,
+ "relacionMasas": 1.3150657689509626,
+ "perdidasDepositoS": 40000,
+ "acoplamiento": 0,
+ "eficiencia": 0.9851865822200254,
+ "tauT4S": 139.63305383298663,
+ "retencionT1": 0.9539356637736037,
+ "tauT1S": 32.88334362160647,
+ "recuperacionT3": 0.27323697357804577,
+ "tauT3S": 132.29223173305633,
+ "tauParadoT4S": 991.7712361115421,
+ "tauParadoT1S": 708.3174634166364,
+ "tauParadoT3S": 454.09722764031227,
+ "gananciaT5": 0,
+ "tauT5S": 4578.886177928331
+}
