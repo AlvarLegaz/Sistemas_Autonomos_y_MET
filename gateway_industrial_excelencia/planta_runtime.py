@@ -46,7 +46,9 @@ class PlantaRuntime(Planta):
         lectura["hl_heat_unit"] = d(2)
         lectura["hl_tank_b"] = d(3)
         lectura["ll_tank_b"] = not d(4)
-        lectura["lvl_heat_unit"] = d(5)                          # SUPUESTO (PCT23.md:29): D5 = nivel del tanque calefactor
+        # D5 como nivel del calefactor es un SUPUESTO sin comprobar (PCT23.md:29) y en la maqueta está a 0 con el depósito lleno: leído así, el
+        # interlock interlock_low_level_heat bloqueaba N2 y la resistencia. Hasta confirmar qué es D5 va como null (no se puede leer).
+        lectura["lvl_heat_unit"] = None
         return lectura
 
     def estado_actuadores(self):

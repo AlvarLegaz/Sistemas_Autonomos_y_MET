@@ -78,12 +78,16 @@ class Sensores(unittest.TestCase):
 
     def test_inversiones_logicas_de_las_entradas_digitales(self):
         rt, p = planta()
-        s = p.leer_sensores(); self.assertEqual((s["stat_overtemp"], s["ll_tank_b"], s["hl_tank_b"], s["hl_heat_unit"], s["lvl_heat_unit"]), (False, False, False, False, True))
+        s = p.leer_sensores(); self.assertEqual((s["stat_overtemp"], s["ll_tank_b"], s["hl_tank_b"], s["hl_heat_unit"]), (False, False, False, False))
         rt.digital["DigitalIn1_value"] = False; self.assertTrue(p.leer_sensores()["stat_overtemp"])            # termostato abierto = sobretemperatura
         rt.digital["DigitalIn4_value"] = False; self.assertTrue(p.leer_sensores()["ll_tank_b"])                # lógica negada
         rt.digital["DigitalIn3_value"] = True; self.assertTrue(p.leer_sensores()["hl_tank_b"])
         rt.digital["DigitalIn2_value"] = True; self.assertTrue(p.leer_sensores()["hl_heat_unit"])
-        rt.digital["DigitalIn5_value"] = False; self.assertFalse(p.leer_sensores()["lvl_heat_unit"])
+
+    def test_d5_no_se_usa_como_nivel_del_calefactor_y_no_bloquea_n2(self):
+        rt, p = planta()
+        for d5 in (True, False):                          # D5 = nivel del calefactor está sin comprobar (en la maqueta da 0 con el depósito lleno)
+            rt.digital["DigitalIn5_value"] = d5; self.assertIsNone(p.leer_sensores()["lvl_heat_unit"])
 
     def test_sin_io_o_sin_primer_scan_no_se_publica_nada_viejo(self):
         rt, p = planta(); rt.io_ok = False; self.assertEqual(p.leer_sensores(), {})
@@ -270,6 +274,12 @@ class Gateway(unittest.TestCase):
 
     def conectar(self, g, cli):
         cli.conectado = True; g.on_connect(cli, None, None, SimpleNamespace(is_failure=False), None)
+
+    def test_n2_se_acepta_con_d5_a_cero(self):
+        g, cli, rt, reloj = self.crear(); rt.digital["DigitalIn5_value"] = False; self.conectar(g, cli)
+        g.on_message(cli, None, mensaje("pct23/real-01/cmd/n2_on", {"id": "n2", "ts": iso_utc(reloj.ahora()), "value": True}))
+        ack = [p for t, p, *_ in cli.publicados if t.endswith("n2_on/ack")][-1]
+        self.assertEqual(ack["result"], "accepted", ack)
 
     def test_registra_el_last_will_y_las_credenciales(self):
         g, cli, *_ = self.crear()
