@@ -18,7 +18,7 @@ Broker `192.168.99.11:1883`, sin usuario ni TLS. Client IDs ya usados: `pct_23_g
 | `T3` | analógica | sensor | Temperatura producto final | °C | `AnalogIn3_value` |
 | `T4` | analógica | sensor | Temperatura salida del calentamiento | °C | `AnalogIn4_value` |
 | `F1` | analógica | sensor | Caudal del producto | ml/min | `AnalogIn7_value` (V / 3,3 × 1500) |
-| `L1` | analógica | sensor | Nivel tanque A (**sin confirmar**) | mm | `AnalogIn5_value` (V / 3,3 × 250) |
+| `T5` | analógica | sensor | Temperatura T5 (comprobado el 27/11 que AnalogIn5 es esta sonda) | °C | `AnalogIn5_value` (V × 100) |
 | `TERM` | digital | sensor | Termostato heat unit | `true` = cerrado (bien), `false` = sobretemperatura | `DigitalIn1_value` |
 | `HLC` | digital | sensor | Nivel alto heat unit | `true` = nivel alto | `DigitalIn2_value` |
 | `HL` | digital | sensor | Nivel alto tanque B | `true` = nivel alto | `DigitalIn3_value` |

@@ -569,6 +569,7 @@ button.grande.on { background: var(--ok); border-color: var(--ok); color: #fff; 
           <dt>Caudal del producto (F1)</dt><dd id="k-f1">—</dd>
           <dt>Nivel del tanque A (L1)</dt><dd id="k-l1">—</dd>
           <dt>Temperatura T4</dt><dd id="k-t4">—</dd>
+          <dt>Temperatura T5</dt><dd id="k-t5">—</dd>
         </dl>
       </section>
       <section class="bloque">
@@ -636,7 +637,8 @@ const MAPA = {
     T2: {canal: 'AnalogIn2_value', fondo: 1.5, min: 0, max: 150, unidad: '°C'},
     T3: {canal: 'AnalogIn3_value', fondo: 1.5, min: 0, max: 150, unidad: '°C'},
     T4: {canal: 'AnalogIn4_value', fondo: 1.5, min: 0, max: 150, unidad: '°C'},
-    L1: {canal: 'AnalogIn5_value', fondo: 3.3, min: 0, max: 250, unidad: 'mm'},   // nivel tanque A: el sensor llega por la entrada de T5 (AnalogIn5)
+    T5: {canal: 'AnalogIn5_value', fondo: 1.5, min: 0, max: 150, unidad: '°C'},   // AnalogIn5 es la sonda T5 (comprobado el 27/11: marca lo mismo que T1-T4 y no cambia con el nivel)
+    L1: {canal: null, fondo: 3.3, min: 0, max: 250, unidad: 'mm'},   // nivel tanque A: SIN ENTRADA en la placa (no llega a ninguna entrada analógica)
     F1: {canal: 'AnalogIn7_value', fondo: 3.3, min: 0, max: 1500, unidad: 'ml/min'},   // caudal (CH6)
   },
   // Entradas digitales de la maqueta. `alarmaSi`: valor que se pinta en rojo.
@@ -831,8 +833,13 @@ function pintar(s) {
   for (const [tag, m] of Object.entries(MAPA.analogicas)) {
     const v = Number(d[m.canal] ?? 0);
     const fisico = m.min + (m.max - m.min) * Math.min(1, Math.max(0, v / m.fondo));
-    $(`v-${tag}`).textContent = `${fisico.toFixed(m.unidad === '°C' ? 1 : 0)} ${m.unidad}`;
-    if (tag === 'L1') {
+    const texto = m.canal ? `${fisico.toFixed(m.unidad === '°C' ? 1 : 0)} ${m.unidad}` : 'sin sensor';
+    if ($(`v-${tag}`)) $(`v-${tag}`).textContent = texto;
+    if (tag === 'T5') $('k-t5').textContent = texto;   // T5 no está dibujada en el esquema: solo en la pestaña Lecturas
+    if (tag === 'L1' && !m.canal) {                   // sin sensor de nivel: el tanque A se dibuja vacío y sin cantidad
+      $('nivel-A').setAttribute('height', 0);
+      $('v-VA').textContent = '—';
+    } else if (tag === 'L1') {
       const alto = 136 * (fisico - m.min) / (m.max - m.min);   // interior del tanque A dibujado: 100 % llena hasta arriba
       $('nivel-A').setAttribute('y', 208 - alto);
       $('nivel-A').setAttribute('height', alto);
@@ -1040,7 +1047,7 @@ const registro = (() => {
   const PERIODO_MS = 1000;
   const columnas = [
     ['T1_C', d => fisico('T1', d)], ['T2_C', d => fisico('T2', d)], ['T3_C', d => fisico('T3', d)],
-    ['T4_C', d => fisico('T4', d)], ['L1_mm', d => fisico('L1', d)], ['F1_ml_min', d => fisico('F1', d)],
+    ['T4_C', d => fisico('T4', d)], ['T5_C', d => fisico('T5', d)], ['F1_ml_min', d => fisico('F1', d)],
     ...Object.keys(MAPA.digitales).map(tag => [tag, d => !!d[MAPA.digitales[tag].canal]]),
     ...Object.keys(MAPA.salidas).map(id => [id, d => !!d[MAPA.salidas[id]]]),
     ['sentido_N1', d => !!d[MAPA.sentido.N1]], ['sentido_N2', d => !!d[MAPA.sentido.N2]],
