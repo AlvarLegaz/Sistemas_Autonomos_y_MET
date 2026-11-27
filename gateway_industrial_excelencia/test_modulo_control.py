@@ -106,7 +106,7 @@ class Fallos(unittest.TestCase):
             with self.subTest(clave=clave, valor=valor):
                 m, r = modulo()
                 self.assertEqual(heater(m.paso(lectura(t2=20))), 100)
-                r.t += 1; self.assertEqual(m.paso(lectura(t2=20, **{clave: valor})), [("heater_pct", 0)])
+                r.t += 1; self.assertEqual(m.paso(lectura(t2=20, **{clave: valor})), [("heater_pct", 0), ("sol1_divert", True)])
                 self.assertFalse(m.activo); self.assertIn(texto, m.estado()["aviso"])
                 r.t += 1; self.assertEqual(m.paso(lectura(t2=20)), [])                    # arreglado el fallo: sigue desactivado
 
@@ -116,7 +116,7 @@ class Fallos(unittest.TestCase):
 
     def test_desactivar_manual_devuelve_resistencia_a_cero(self):
         m, _ = modulo(); m.paso(lectura(t2=20))
-        self.assertEqual(m.desactivar(), [("heater_pct", 0)]); self.assertEqual(m.desactivar(), []); self.assertEqual(m.paso(lectura(t2=20)), [])
+        self.assertEqual(m.desactivar(), [("heater_pct", 0), ("sol1_divert", True)]); self.assertEqual(m.desactivar(), []); self.assertEqual(m.paso(lectura(t2=20)), [])
 
 
 class Reenvio(unittest.TestCase):
@@ -265,7 +265,7 @@ class Cascada(unittest.TestCase):
 
     def test_los_fallos_desactivan_tambien_en_cascada(self):
         m, r = self.casc(); m.paso(lectura(t1=30, t2=40))
-        r.t += 1; self.assertEqual(m.paso(lectura(t1=30, t2=40, safe_state=True)), [("heater_pct", 0)]); self.assertFalse(m.activo)
+        r.t += 1; self.assertEqual(m.paso(lectura(t1=30, t2=40, safe_state=True)), [("heater_pct", 0), ("sol1_divert", True)]); self.assertFalse(m.activo)
 
     def test_cambio_de_modo_y_validacion(self):
         m = ModuloControl(); self.assertEqual(m.modo, "simple")
@@ -286,6 +286,72 @@ class Cascada(unittest.TestCase):
         self.assertLessEqual(max(x["t2_c"] for x in sens), 62.5)      # el control corre a 1 Hz: puede pasarse unas décimas antes de cortar
         ultimos = [x["t1_c"] for x in sens[-200:]]
         self.assertTrue(all(abs(t - 38.0) < 4.0 for t in ultimos), (min(ultimos), max(ultimos)))   # T1 se mantiene cerca de su consigna
+
+
+def sol1_divert(ordenes):
+    return dict(ordenes).get("sol1_divert")
+
+
+class Sol1(unittest.TestCase):
+    """SOL1 (desvío del producto): salida normal con T1 en su consigna; desvío al bajar de consigna - histéresis o si algo falla."""
+
+    def test_arranca_en_desvio_y_se_activa_al_llegar_a_la_consigna_de_t1(self):
+        m, r = modulo(variable="T1", consigna=45, histeresis=2)
+        self.assertIs(sol1_divert(m.paso(lectura(t1=30, t2=40))), True)              # producto frío: al desvío
+        self.assertFalse(m.estado()["sol1"])
+        r.t += 1; self.assertIs(sol1_divert(m.paso(lectura(t1=45.1, t2=40))), False)  # llega a la consigna: salida normal (al instante)
+        self.assertTrue(m.estado()["sol1"])
+
+    def test_mantiene_en_la_banda_y_vuelve_al_desvio_bajo_consigna_menos_histeresis(self):
+        m, r = modulo(variable="T1", consigna=45, histeresis=2)
+        m.paso(lectura(t1=45.1, t2=40))
+        r.t += 1; m.paso(lectura(t1=43.5, t2=40)); self.assertTrue(m.estado()["sol1"])   # entre 43 y 45: se mantiene
+        r.t += 1; self.assertIs(sol1_divert(m.paso(lectura(t1=42.9, t2=40))), True)      # por debajo de 43: desvío
+        r.t += 1; m.paso(lectura(t1=44, t2=40)); self.assertFalse(m.estado()["sol1"])    # subiendo dentro de la banda: sigue en desvío
+
+    def test_tambien_en_modo_t2_y_en_cascada_con_la_consigna_de_t1(self):
+        m, r = modulo(consigna=55)                                                       # variable T2; consigna_t1 por defecto 45
+        self.assertIs(sol1_divert(m.paso(lectura(t1=46, t2=50))), False)
+        m2 = ModuloControl(reloj=Reloj()); m2.configurar(modo="cascada", consigna=40); m2.activar()
+        self.assertIs(sol1_divert(m2.paso(lectura(t1=40.5, t2=50))), False)
+
+    def test_sin_lectura_de_t1_va_al_desvio(self):
+        m, r = modulo(variable="T1", consigna=45)
+        m.paso(lectura(t1=46, t2=40))
+        r.t += 1; self.assertIs(sol1_divert(m.paso(lectura(t1=None, t2=40))), True)
+        self.assertTrue(m.activo)
+
+    def test_un_fallo_o_desactivar_lo_dejan_en_desvio(self):
+        m, r = modulo(variable="T1", consigna=45); m.paso(lectura(t1=46, t2=40))
+        r.t += 1; self.assertEqual(m.paso(lectura(t1=46, t2=40, safe_state=True)), [("heater_pct", 0), ("sol1_divert", True)])
+        self.assertFalse(m.estado()["sol1"])
+        m2, _ = modulo(variable="T1", consigna=45); m2.paso(lectura(t1=46, t2=40))
+        self.assertEqual(m2.desactivar(), [("heater_pct", 0), ("sol1_divert", True)])
+
+    def test_se_repite_con_las_demas_ordenes(self):
+        m, r = modulo(variable="T1", consigna=45); m.paso(lectura(t1=46, t2=40))
+        r.t = 5.0; self.assertIs(sol1_divert(m.paso(lectura(t1=46, t2=40))), False)
+
+
+class CorteT1Alta(unittest.TestCase):
+    """Cascada: con T1 en consigna + histéresis la resistencia se corta sin esperar al lazo externo, y no vuelve hasta que T1 baja de la consigna."""
+
+    def casc(self, **aj):
+        r = Reloj(); m = ModuloControl(reloj=r)
+        m.configurar(modo="cascada", **aj); m.activar(); return m, r
+
+    def test_corta_aunque_t2_este_baja_y_no_reconecta_hasta_bajar_de_la_consigna(self):
+        m, r = self.casc(consigna=45, histeresis=2, kp=0, ki=0, t2_base=60, t2_max=65)   # consigna de T2 fija en 60: T2 = 40 pediría calentar
+        self.assertEqual(heater(m.paso(lectura(t1=44, t2=40))), 100)
+        r.t += 1; self.assertEqual(heater(m.paso(lectura(t1=47, t2=40))), 0)            # 45 + 2: corta
+        self.assertIn("T1 por encima", m.estado()["aviso"])
+        r.t += 1; self.assertEqual(m.paso(lectura(t1=45.5, t2=40)), [])                  # entre 45 y 47: sigue cortada
+        self.assertFalse(m.estado()["calefactor"])
+        r.t += 1; self.assertEqual(heater(m.paso(lectura(t1=44.9, t2=40))), 100)         # bajo la consigna: vuelve el lazo de T2
+
+    def test_sin_corte_por_debajo_de_consigna_mas_histeresis(self):
+        m, r = self.casc(consigna=45, histeresis=2, kp=0, ki=0, t2_base=60, t2_max=65)
+        self.assertEqual(heater(m.paso(lectura(t1=46.9, t2=40))), 100)
 
 
 if __name__ == "__main__":

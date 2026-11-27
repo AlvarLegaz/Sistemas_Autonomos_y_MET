@@ -115,9 +115,75 @@ class Histeresis(unittest.TestCase):
 
     def test_desactivar_apaga_la_resistencia(self):
         self.paso(22, 22)
-        self.assertEqual(self.control.desactivar(), {c.SALIDA_RES: False})
+        self.assertEqual(self.control.desactivar(), {c.SALIDA_RES: False, c.SALIDA_SOL1: False})
         self.assertFalse(self.control.activo)
         self.assertEqual(self.paso(22, 22), {})
+
+    # ----- SOL1: desvío del producto -----
+    def test_sol1_arranca_en_desvio_y_se_activa_al_llegar_a_la_consigna(self):
+        self.assertEqual(self.paso(22, 22)[c.SALIDA_SOL1], False)        # frío: producto en desvío
+        self.assertEqual(self.paso(44.9, 50).get(c.SALIDA_SOL1, False), False)   # aún por debajo de la consigna (45)
+        self.assertFalse(self.control.estado()["sol1"])
+        ordenes = self.paso(45.1, 50)                                    # T1 en consigna: salida normal, se manda enseguida
+        self.assertEqual(ordenes[c.SALIDA_SOL1], True)
+        self.assertTrue(self.control.estado()["sol1"])
+
+    def test_sol1_se_activa_al_superar_la_consigna(self):
+        self.paso(22, 22)
+        self.assertEqual(self.paso(47, 50)[c.SALIDA_SOL1], True)         # T1 por encima de la consigna
+
+    def test_sol1_tiene_histeresis(self):
+        self.paso(45.5, 50)
+        self.assertTrue(self.control.estado()["sol1"])
+        self.paso(43.5, 50)                                              # dentro de la banda (45 - 2 = 43): se mantiene
+        self.assertTrue(self.control.estado()["sol1"])
+        self.assertEqual(self.paso(42.9, 50)[c.SALIDA_SOL1], False)      # por debajo de consigna - histéresis: desvío
+        self.paso(44, 50)                                                # vuelve a la banda: sigue en desvío
+        self.assertFalse(self.control.estado()["sol1"])
+
+    # ----- corte de la resistencia por T1 alta -----
+    def test_t1_pasada_de_consigna_corta_la_resistencia_aunque_t2_este_bajo(self):
+        self.assertEqual(self.paso(22, 22)[c.SALIDA_RES], True)          # frío: calienta
+        # T1 = 47,5 (consigna 45 + histéresis 2 superada) y T2 muy baja: el lazo de T2 pediría calentar, pero se corta
+        ordenes = self.paso(47.5, 25)
+        self.assertEqual(ordenes[c.SALIDA_RES], False)
+        self.assertFalse(self.control.estado()["calefactor"])
+        self.assertIn("T1 por encima", self.control.estado()["aviso"])
+
+    def test_t1_alta_se_mantiene_bloqueada_hasta_bajar_de_la_consigna(self):
+        self.paso(47.5, 25)
+        self.paso(46, 25)                                                # entre consigna y consigna + histéresis: sigue cortada
+        self.assertFalse(self.control.estado()["calefactor"])
+        self.paso(44, 25)                                                # bajo la consigna: se libera y el lazo de T2 manda
+        self.assertTrue(self.control.estado()["calefactor"])
+
+    def test_t1_ligeramente_sobre_la_consigna_no_corta_aun(self):
+        self.paso(22, 22)
+        self.paso(46, 25)                                                # consigna 45 < T1 < 47: el lazo de T2 sigue mandando
+        self.assertNotIn("T1 por encima", self.control.estado()["aviso"])
+
+    def test_sol1_va_siempre_en_las_ordenes_repetidas(self):
+        self.paso(46, 50)
+        self.assertEqual(self.paso(46, 50, avance=c.SEGUNDOS_REENVIO)[c.SALIDA_SOL1], True)
+
+    def test_sin_lectura_de_t1_sol1_vuelve_a_desvio(self):
+        self.paso(46, 50)
+        self.reloj.t += 1
+        ordenes = self.control.paso({c.CANAL_T2: 0.5})                   # falta T1
+        self.assertEqual(ordenes[c.SALIDA_SOL1], False)
+        self.assertEqual(ordenes[c.SALIDA_RES], False)
+
+    def test_fallo_del_gateway_deja_sol1_en_desvio(self):
+        self.paso(46, 50)
+        ordenes = self.paso(46, 50, termostato_ok=False)
+        self.assertEqual((ordenes[c.SALIDA_RES], ordenes[c.SALIDA_SOL1]), (False, False))
+        self.assertFalse(self.control.estado()["sol1"])
+
+    def test_reactivar_empieza_con_sol1_en_desvio(self):
+        self.paso(46, 50)
+        self.control.desactivar()
+        self.control.activar()
+        self.assertFalse(self.control.estado()["sol1"])
 
 
 class FallosDelGateway(unittest.TestCase):
